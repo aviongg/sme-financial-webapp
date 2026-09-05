@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: sme-health-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sme_health
+      POSTGRES_USER: sme_user
+      POSTGRES_PASSWORD: sme_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
