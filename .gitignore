@@ -141,3 +141,79 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+# ================================
+# Java / Maven / Spring Boot
+# ================================
+
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/timing.properties
+
+# Spring Boot generated files
+spring-shell.log
+
+
+# ================================
+# Python / FastAPI
+# ================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+ENV/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+*.egg-info/
+.eggs/
+
+
+# ================================
+# IDEs
+# ================================
+
+.idea/
+*.iml
+
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+*.swp
+*.swo
+
+
+# ================================
+# OS
+# ================================
+
+.DS_Store
+Thumbs.db
+
+
+# ================================
+# Docker / Local Development
+# ================================
+
+docker-data/
+*.pid
+
+
+# ================================
+# Local environment
+# ================================
+
+.env
+.env.*
+!.env.example
