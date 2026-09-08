@@ -3,6 +3,7 @@ package com.app.sme_health_backend.profile.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
@@ -12,21 +13,27 @@ public class BusinessProfileRequest {
     private UUID userId;
 
     @NotBlank(message = "Business type is required")
+    @Size(max = 20, message = "Business type must not exceed 20 characters")
     @Pattern(
-        regexp = "trade|manufacturing|services|retail",
-        message = "Business type must be one of: trade, manufacturing, services, retail"
+            regexp = "trade|manufacturing|services|retail",
+            message = "Business type must be one of: trade, manufacturing, services, retail"
     )
     private String businessType;
 
+    @Size(max = 2, message = "Language preference must not exceed 2 characters")
     @Pattern(
-        regexp = "en|ur",
-        message = "Language preference must be either en or ur"
+            regexp = "en|ur",
+            message = "Language preference must be either en or ur"
     )
     private String languagePreference = "en";
 
+    @Size(
+            max = 20,
+            message = "WhatsApp number must not exceed 20 characters"
+    )
     @Pattern(
-        regexp = "^\\+?[0-9]{7,20}$",
-        message = "WhatsApp number must contain 7 to 20 digits and may start with +"
+            regexp = "^(?:\\+[0-9]{6,19}|[0-9]{7,20})$",
+            message = "WhatsApp number must contain 7 to 20 digits, with an optional + prefix"
     )
     private String whatsappNumber;
 

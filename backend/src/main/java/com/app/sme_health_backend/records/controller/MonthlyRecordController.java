@@ -4,6 +4,7 @@ import com.app.sme_health_backend.records.dto.MonthlyRecordRequest;
 import com.app.sme_health_backend.records.dto.MonthlyRecordResponse;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class MonthlyRecordController {
 
     @PostMapping
     public ResponseEntity<MonthlyRecordResponse> saveMonthlyRecord(
-            @RequestBody MonthlyRecordRequest request
+            @Valid @RequestBody MonthlyRecordRequest request
     ) {
         MonthlyRecord record = toEntity(request);
 

@@ -10,10 +10,14 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class MonthlyRecordService {
+
+    private static final Set<String> VALID_FINANCING_TYPES =
+            Set.of("none", "conventional", "islamic");
 
     private final MonthlyRecordRepository monthlyRecordRepository;
 
@@ -74,6 +78,10 @@ public class MonthlyRecordService {
 
     private void validateMonthlyRecord(MonthlyRecord record) {
 
+        if (record == null) {
+            throw new IllegalArgumentException("Monthly record is required");
+        }
+
         if (record.getUserId() == null) {
             throw new IllegalArgumentException("User ID is required");
         }
@@ -128,9 +136,21 @@ public class MonthlyRecordService {
                 record.getInterestExpense()
         );
 
-        if (record.getFinancingType() == null ||
-                record.getFinancingType().isBlank()) {
+        validateFinancingType(record);
+    }
+
+    private void validateFinancingType(MonthlyRecord record) {
+        String financingType = record.getFinancingType();
+
+        if (financingType == null) {
             record.setFinancingType("none");
+            return;
+        }
+
+        if (!VALID_FINANCING_TYPES.contains(financingType)) {
+            throw new IllegalArgumentException(
+                    "financingType must be one of: none, conventional, islamic"
+            );
         }
     }
 
