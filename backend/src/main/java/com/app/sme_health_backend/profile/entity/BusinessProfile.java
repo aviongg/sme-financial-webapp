@@ -28,6 +28,15 @@ public class BusinessProfile {
     @Column(name = "whatsapp_opt_in", nullable = false)
     private boolean whatsappOptIn = false;
 
+    @Column(name = "payment_behavior", length = 20)
+    private String paymentBehavior;
+
+    @Column(name = "ntn_registered")
+    private Boolean ntnRegistered;
+
+    @Column(name = "business_registered")
+    private Boolean businessRegistered;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -69,6 +78,30 @@ public class BusinessProfile {
 
     public void setWhatsappOptIn(boolean whatsappOptIn) {
         this.whatsappOptIn = whatsappOptIn;
+    }
+
+    public String getPaymentBehavior() {
+        return paymentBehavior;
+    }
+
+    public void setPaymentBehavior(String paymentBehavior) {
+        this.paymentBehavior = paymentBehavior;
+    }
+
+    public Boolean getNtnRegistered() {
+        return ntnRegistered;
+    }
+
+    public void setNtnRegistered(Boolean ntnRegistered) {
+        this.ntnRegistered = ntnRegistered;
+    }
+
+    public Boolean getBusinessRegistered() {
+        return businessRegistered;
+    }
+
+    public void setBusinessRegistered(Boolean businessRegistered) {
+        this.businessRegistered = businessRegistered;
     }
 
     public LocalDateTime getCreatedAt() {

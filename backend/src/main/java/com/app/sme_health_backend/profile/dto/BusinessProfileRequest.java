@@ -39,6 +39,16 @@ public class BusinessProfileRequest {
 
     private boolean whatsappOptIn = false;
 
+    @Pattern(
+            regexp = "immediate|2weeks|1month_plus|irregular",
+            message = "paymentBehavior must be one of: immediate, 2weeks, 1month_plus, irregular"
+    )
+    private String paymentBehavior;
+
+    private Boolean ntnRegistered;
+
+    private Boolean businessRegistered;
+
     public UUID getUserId() {
         return userId;
     }
@@ -77,5 +87,29 @@ public class BusinessProfileRequest {
 
     public void setWhatsappOptIn(boolean whatsappOptIn) {
         this.whatsappOptIn = whatsappOptIn;
+    }
+
+    public String getPaymentBehavior() {
+        return paymentBehavior;
+    }
+
+    public void setPaymentBehavior(String paymentBehavior) {
+        this.paymentBehavior = paymentBehavior;
+    }
+
+    public Boolean getNtnRegistered() {
+        return ntnRegistered;
+    }
+
+    public void setNtnRegistered(Boolean ntnRegistered) {
+        this.ntnRegistered = ntnRegistered;
+    }
+
+    public Boolean getBusinessRegistered() {
+        return businessRegistered;
+    }
+
+    public void setBusinessRegistered(Boolean businessRegistered) {
+        this.businessRegistered = businessRegistered;
     }
 }

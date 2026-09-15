@@ -12,6 +12,9 @@ public class BusinessProfileResponse {
     private String languagePreference;
     private String whatsappNumber;
     private boolean whatsappOptIn;
+    private String paymentBehavior;
+    private Boolean ntnRegistered;
+    private Boolean businessRegistered;
     private LocalDateTime createdAt;
 
     public static BusinessProfileResponse fromEntity(BusinessProfile profile) {
@@ -22,6 +25,9 @@ public class BusinessProfileResponse {
         response.languagePreference = profile.getLanguagePreference();
         response.whatsappNumber = profile.getWhatsappNumber();
         response.whatsappOptIn = profile.isWhatsappOptIn();
+        response.paymentBehavior = profile.getPaymentBehavior();
+        response.ntnRegistered = profile.getNtnRegistered();
+        response.businessRegistered = profile.getBusinessRegistered();
         response.createdAt = profile.getCreatedAt();
 
         return response;
@@ -45,6 +51,18 @@ public class BusinessProfileResponse {
 
     public boolean isWhatsappOptIn() {
         return whatsappOptIn;
+    }
+
+    public String getPaymentBehavior() {
+        return paymentBehavior;
+    }
+
+    public Boolean getNtnRegistered() {
+        return ntnRegistered;
+    }
+
+    public Boolean getBusinessRegistered() {
+        return businessRegistered;
     }
 
     public LocalDateTime getCreatedAt() {

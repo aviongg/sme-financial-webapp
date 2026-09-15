@@ -56,6 +56,9 @@ public class BusinessProfileService {
         );
         profile.setWhatsappNumber(request.getWhatsappNumber());
         profile.setWhatsappOptIn(request.isWhatsappOptIn());
+        profile.setPaymentBehavior(request.getPaymentBehavior());
+        profile.setNtnRegistered(request.getNtnRegistered());
+        profile.setBusinessRegistered(request.getBusinessRegistered());
         profile.setCreatedAt(LocalDateTime.now());
 
         return businessProfileRepository.save(profile);

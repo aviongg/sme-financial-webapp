@@ -88,6 +88,27 @@ class BusinessProfileControllerTests {
     }
 
     @Test
+    void shouldRejectInvalidPaymentBehavior() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        String request = """
+                {
+                  "userId": "%s",
+                  "businessType": "retail",
+                  "languagePreference": "en",
+                  "paymentBehavior": "invalid_behavior"
+                }
+                """.formatted(userId);
+
+        mockMvc.perform(post("/api/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors.paymentBehavior").exists());
+    }
+
+    @Test
     void shouldReturnConflictForDuplicateProfile() throws Exception {
         UUID userId = UUID.randomUUID();
 

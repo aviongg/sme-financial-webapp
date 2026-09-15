@@ -235,6 +235,25 @@ class BusinessProfileServiceTests {
         verifyNoInteractions(businessProfileRepository);
     }
 
+    @Test
+    void shouldCreateBusinessProfileWithComplianceAndPaymentBehavior() {
+        BusinessProfileRequest request = validRequest();
+        request.setPaymentBehavior("immediate");
+        request.setNtnRegistered(true);
+        request.setBusinessRegistered(false);
+
+        when(businessProfileRepository.existsById(userId)).thenReturn(false);
+        when(businessProfileRepository.save(any(BusinessProfile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        BusinessProfile result = businessProfileService.createProfile(request);
+
+        assertNotNull(result);
+        assertEquals("immediate", result.getPaymentBehavior());
+        assertTrue(result.getNtnRegistered());
+        assertFalse(result.getBusinessRegistered());
+    }
+
     private BusinessProfileRequest validRequest() {
         BusinessProfileRequest request =
                 new BusinessProfileRequest();
