@@ -93,10 +93,10 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
         documentDate,
         category,
       });
-      toast("Document extraction confirmed and saved to record pool", "success");
+      toast(t.extraction.saveSuccess, "success");
       router.push("/upload");
     } catch {
-      toast("Unable to save document. Please try again.", "error");
+      toast(t.extraction.saveError, "error");
       setIsSaving(false);
     }
   };
@@ -175,14 +175,14 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
           <Card elevation={0} padding="lg" className="border-[var(--color-border-default)] text-center py-12">
             <AlertTriangle className="w-8 h-8 text-[var(--color-status-warning)] mx-auto mb-3" />
             <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] font-heading">
-              Document Not Found
+              {t.extraction.notFoundTitle}
             </h3>
             <p className="text-[13px] text-[var(--color-text-muted)] mt-1 mb-4">
-              The requested extraction item could not be retrieved from the queue.
+              {t.extraction.notFoundDesc}
             </p>
             <Link href="/upload">
               <Button variant="secondary" size="sm">
-                Return to Upload Queue
+                {t.extraction.returnToQueue}
               </Button>
             </Link>
           </Card>
@@ -217,7 +217,7 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
                     {t.extraction.extractedDetails}
                   </h2>
                   <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-                    Source: {doc.filename}
+                    {t.extraction.sourceLabel}: {doc.filename}
                   </p>
                 </div>
                 <div className="shrink-0">
@@ -230,9 +230,9 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
                 <div className="p-3.5 rounded-[var(--radius-md)] bg-[var(--color-warning-surface)] border border-[var(--color-warning-border)] text-[var(--color-warning-dark)] flex items-start gap-2.5 text-[13px]">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold">Review Highlighted Figures</p>
+                    <p className="font-semibold">{t.extraction.reviewHighlightedTitle}</p>
                     <p className="text-[12px] opacity-90 mt-0.5">
-                      Certain figures showed lower OCR confidence scores. Please verify against your receipt before confirming.
+                      {t.extraction.reviewHighlightedDesc}
                     </p>
                   </div>
                 </div>
@@ -249,7 +249,7 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
                     disabled={!isEditing && doc.confidence === "high"}
                     helperText={
                       doc.fieldConfidence.amount !== "high"
-                        ? "Check receipt total matches this amount"
+                        ? t.extraction.checkReceiptTotal
                         : undefined
                     }
                   />
@@ -262,7 +262,7 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
                     value={vendorParty}
                     onChange={(e) => setVendorParty(e.target.value)}
                     disabled={!isEditing && doc.confidence === "high"}
-                    placeholder="e.g. Metro Cash & Carry"
+                    placeholder={t.extraction.vendorPlaceholder}
                   />
                 </div>
 
@@ -315,7 +315,7 @@ export default function ExtractionConfirmationPage({ params }: PageProps) {
                   </Button>
                 ) : (
                   <span className="text-[12px] text-[var(--color-text-muted)]">
-                    Editing enabled for review
+                    {t.extraction.editingEnabled}
                   </span>
                 )}
 

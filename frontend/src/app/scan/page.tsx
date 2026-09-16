@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useLanguage } from "@/lib/i18n/context";
 import { mockApi } from "@/lib/api/adapter";
+import { cn } from "@/lib/utils/cn";
 
 interface StagedFile {
   id: string;
@@ -73,7 +74,7 @@ export default function ScanPage() {
     }));
 
     setStagedFiles((prev) => [...newFiles, ...prev]);
-    toast(`${newFiles.length} file(s) added to staging`, "info");
+    toast(t.scan.filesAddedToast.replace("{count}", String(newFiles.length)), "info");
     e.target.value = "";
   };
 
@@ -92,10 +93,10 @@ export default function ScanPage() {
           size: f.size,
         }))
       );
-      toast("Documents successfully placed in processing queue", "success");
+      toast(t.scan.queueSuccessToast, "success");
       router.push("/upload");
     } catch {
-      toast("Unable to queue documents. Please try again.", "error");
+      toast(t.scan.queueErrorToast, "error");
       setIsProcessing(false);
     }
   };
@@ -194,7 +195,7 @@ export default function ScanPage() {
                 onClick={() => setStagedFiles([])}
                 className="text-[12px] text-[var(--color-text-muted)]"
               >
-                Clear all
+                {t.scan.clearAll}
               </Button>
             </div>
 
@@ -255,7 +256,7 @@ export default function ScanPage() {
               className="text-[var(--color-brand-primary)] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] rounded-[var(--radius-sm)] inline-flex items-center gap-1"
             >
               <span>{t.scan.manualFallbackAction}</span>
-              <span aria-hidden="true">&rarr;</span>
+              <ArrowRight className={cn("w-3.5 h-3.5", isRTL && "rotate-180")} />
             </Link>
           </p>
         </div>

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
-import { Input } from "@/components/ui/Input";
+import { MonthSelector } from "@/components/records/MonthSelector";
 import { useLanguage } from "@/lib/i18n/context";
 import type { MonthlyRecordRequest } from "@/types/financial";
 
@@ -38,27 +38,27 @@ export function StepFirstRecord({
     const newErrors: Record<string, string> = {};
 
     if (!month.trim() || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      newErrors.month = "Please provide a valid financial month in YYYY-MM format.";
+      newErrors.month = t.onboarding.firstRecordMonthError || t.records.validationMonthRequired;
     }
 
     if (cashInflow === null || cashInflow < 0) {
-      newErrors.cashInflow = "Total Cash Received is required (zero is valid, negative not allowed).";
+      newErrors.cashInflow = t.records.validationRequired;
     }
 
     if (cashOutflow === null || cashOutflow < 0) {
-      newErrors.cashOutflow = "Total Cash Spent is required (zero is valid, negative not allowed).";
+      newErrors.cashOutflow = t.records.validationRequired;
     }
 
     if (revenue === null || revenue < 0) {
-      newErrors.revenue = "Total Sales & Billings is required (zero is valid, negative not allowed).";
+      newErrors.revenue = t.records.validationRequired;
     }
 
     if (operatingExpenses === null || operatingExpenses < 0) {
-      newErrors.operatingExpenses = "Running Business Costs is required (zero is valid, negative not allowed).";
+      newErrors.operatingExpenses = t.records.validationRequired;
     }
 
     if (cashBalanceEom === null || cashBalanceEom < 0) {
-      newErrors.cashBalanceEom = "Cash Left at Month End is required (zero is valid, negative not allowed).";
+      newErrors.cashBalanceEom = t.records.validationRequired;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -101,18 +101,16 @@ export function StepFirstRecord({
         <span>{t.onboarding.firstRecordNote}</span>
       </div>
 
-      {/* Month Field */}
-      <div className="max-w-[240px]">
-        <Input
-          label={t.onboarding.monthLabel}
-          placeholder="YYYY-MM (e.g. 2026-08)"
+      {/* Month Selector */}
+      <div className="max-w-[420px]">
+        <MonthSelector
           value={month}
-          onChange={(e) => {
-            setMonth(e.target.value);
+          onChange={(newMonth) => {
+            setMonth(newMonth);
             if (errors.month) setErrors((prev) => ({ ...prev, month: "" }));
           }}
           error={errors.month}
-          required
+          disabled={isLoading}
         />
       </div>
 

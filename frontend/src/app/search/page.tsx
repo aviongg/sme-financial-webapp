@@ -114,7 +114,7 @@ function SearchContent() {
       {/* Search Input Bar */}
       <Card elevation={0} padding="md" className="border-[var(--color-border-default)]">
         <div className="relative flex items-center">
-          <SearchIcon className="w-5 h-5 text-[var(--color-text-muted)] absolute left-3 pointer-events-none" />
+          <SearchIcon className="w-5 h-5 text-[var(--color-text-muted)] absolute start-3 pointer-events-none" />
           <input
             type="text"
             value={query}
@@ -127,8 +127,8 @@ function SearchContent() {
             <button
               type="button"
               onClick={handleClear}
-              aria-label="Clear search query"
-              className="absolute right-3 p-1 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              aria-label={t.search.clearSearch || "Clear search query"}
+              className="absolute end-3 p-1 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             >
               <X className="w-4 h-4" />
             </button>

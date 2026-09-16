@@ -57,7 +57,7 @@ export default function RecordsListPage() {
   return (
     <AppShell
       title={t.nav.monthlyRecords}
-      subtitle="Complete history of verified financial months submitted to FinSight."
+      subtitle={t.records.historySubtitle}
       headerActions={
         <Link href="/records/new">
           <Button variant="primary" size="sm" leftIcon={<Plus />}>
@@ -121,7 +121,7 @@ export default function RecordsListPage() {
                       {t.dashboard.statusCol}
                     </th>
                     <th scope="col" className="py-3.5 px-4 text-end text-[12px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                      Actions
+                      {t.records.actionsCol}
                     </th>
                   </tr>
                 </thead>
@@ -168,7 +168,7 @@ export default function RecordsListPage() {
                               className="text-[12px] text-[var(--color-brand-primary)]"
                               leftIcon={<Edit3 className="w-3.5 h-3.5" />}
                             >
-                              Edit
+                              {t.common.edit}
                             </Button>
                           </Link>
                         </td>

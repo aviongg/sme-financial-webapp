@@ -119,12 +119,14 @@ export function MonthlyRecordForm({
     if (monthError) setMonthError(undefined);
   };
 
-  // Check outflow sanity check condition: outflow > inflow * 3
+  // Check outflow sanity check condition:
+  // 1. Non-zero inflow where outflow exceeds 3x inflow, OR
+  // 2. Zero inflow with active positive outflow (severe cash burn)
   const hasOutflowWarning =
     coreValues.cashInflow !== null &&
     coreValues.cashOutflow !== null &&
-    coreValues.cashInflow > 0 &&
-    coreValues.cashOutflow > coreValues.cashInflow * 3;
+    ((coreValues.cashInflow > 0 && coreValues.cashOutflow > coreValues.cashInflow * 3) ||
+     (coreValues.cashInflow === 0 && coreValues.cashOutflow > 0));
 
   // Validation logic
   const validateForm = (): boolean => {

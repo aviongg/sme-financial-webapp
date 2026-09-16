@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarCheck,
-  TrendingUp,
   PlusCircle,
   ScanLine,
   Scale,
   FileBarChart2,
+  UploadCloud,
+  Search,
   Settings,
-  HelpCircle,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -40,9 +40,9 @@ export function Sidebar({ className }: SidebarProps) {
       icon: CalendarCheck,
     },
     {
-      label: t.nav.cashFlow,
-      href: "/cashflow",
-      icon: TrendingUp,
+      label: t.nav.healthPillars,
+      href: "/health/components",
+      icon: FileBarChart2,
     },
     {
       label: t.nav.addData,
@@ -55,27 +55,27 @@ export function Sidebar({ className }: SidebarProps) {
       icon: ScanLine,
     },
     {
+      label: t.nav.uploadQueue,
+      href: "/upload",
+      icon: UploadCloud,
+    },
+    {
       label: t.nav.shariaZakat,
       href: "/sharia-zakat",
       icon: Scale,
-    },
-    {
-      label: t.nav.reports,
-      href: "/reports",
-      icon: FileBarChart2,
     },
   ];
 
   const secondaryNavItems = [
     {
+      label: t.nav.search,
+      href: "/search",
+      icon: Search,
+    },
+    {
       label: t.nav.settings,
       href: "/settings",
       icon: Settings,
-    },
-    {
-      label: t.nav.help,
-      href: "/help",
-      icon: HelpCircle,
     },
   ];
 

@@ -61,10 +61,10 @@ export default function UploadQueuePage() {
     setRetryingId(id);
     try {
       await mockApi.retryDocument(id);
-      toast("Extraction re-attempted successfully", "success");
+      toast(t.upload.retrySuccess, "success");
       loadDocuments();
     } catch {
-      toast("Retry failed. You can enter figures manually.", "error");
+      toast(t.upload.retryError, "error");
     } finally {
       setRetryingId(null);
     }
@@ -74,10 +74,10 @@ export default function UploadQueuePage() {
     e.stopPropagation();
     try {
       await mockApi.deleteDocument(id);
-      toast("Document removed from queue", "info");
+      toast(t.upload.deleteSuccess, "info");
       loadDocuments();
     } catch {
-      toast("Unable to remove document", "error");
+      toast(t.upload.deleteError, "error");
     }
   };
 
@@ -267,7 +267,7 @@ export default function UploadQueuePage() {
                         </p>
                       )}
                       <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)] pt-1">
-                        <span>Period: {doc.targetMonth || "Current"}</span>
+                        <span>{t.upload.periodLabel}: {doc.targetMonth || t.upload.currentPeriod}</span>
                         <span>•</span>
                         <span>{(doc.fileSize / 1024).toFixed(0)} KB</span>
                       </div>

@@ -61,11 +61,11 @@ export function ZakatSummaryCard({ className }: ZakatSummaryCardProps) {
               </h3>
               <Badge variant="success" size="sm" className="gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                <span>Verified Islamic</span>
+                <span>{t.zakat.verifiedIslamic}</span>
               </Badge>
             </div>
             <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-              Asset-based 2.5% Zakat calculation aid based on active monthly records
+              {t.zakat.summaryDescription}
             </p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function ZakatSummaryCard({ className }: ZakatSummaryCardProps) {
           href="/sharia-zakat"
           className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-brand-primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] rounded-[var(--radius-sm)] shrink-0"
         >
-          <span>View Zakat Worksheet</span>
+          <span>{t.zakat.viewWorksheet}</span>
           <ArrowRight className={cn("w-3.5 h-3.5", isRTL && "rotate-180")} />
         </Link>
       </div>
@@ -91,7 +91,7 @@ export function ZakatSummaryCard({ className }: ZakatSummaryCardProps) {
 
         <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)]">
           <span className="text-[11px] text-[var(--color-text-muted)] block">
-            Nisab Standard (Silver)
+            {t.zakat.nisabStandardSilver}
           </span>
           <span className="text-[16px] font-bold text-[var(--color-text-primary)] font-heading block mt-0.5">
             {formatCurrency(data.nisabSilverThresholdPkr)}

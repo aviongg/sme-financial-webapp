@@ -63,19 +63,19 @@ export function StepWhatsApp({
           </div>
           <div className="text-[13px] text-[var(--color-text-secondary)] space-y-1">
             <p className="font-semibold text-[var(--color-text-primary)]">
-              What you will receive:
+              {direction === "rtl" ? "آپ کو کیا موصول ہوگا:" : "What you will receive:"}
             </p>
             <ul className="list-disc ps-4 space-y-0.5 text-[12px] text-[var(--color-text-muted)]">
-              <li>A private notification whenever a new monthly score is ready.</li>
-              <li>Your single highest-priority recommendation for the month.</li>
-              <li>No marketing spam, third-party promotions, or data sharing.</li>
+              <li>{t.onboarding.whatsAppBenefit1}</li>
+              <li>{t.onboarding.whatsAppBenefit2}</li>
+              <li>{t.onboarding.whatsAppBenefit3}</li>
             </ul>
           </div>
         </div>
 
         <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border-subtle)] text-[12px] text-[var(--color-text-muted)]">
           <ShieldCheck className="w-4 h-4 text-[var(--color-brand-primary)] shrink-0" />
-          <span>Strictly private. You can modify or disable WhatsApp alerts anytime in Settings.</span>
+          <span>{t.onboarding.whatsAppPrivacyNote}</span>
         </div>
       </div>
 
@@ -83,7 +83,7 @@ export function StepWhatsApp({
       <div className="p-4 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-card)]">
         <Checkbox
           label={t.onboarding.whatsappOptInLabel}
-          description="Enables monthly summary delivery via official FinSight WhatsApp gateway"
+          description={t.onboarding.whatsAppOptInDescription}
           checked={optIn}
           onChange={(e) => {
             onOptInChange(e.target.checked);

@@ -38,9 +38,9 @@ export function MobileNav() {
     },
     // Central '+' button handled separately
     {
-      id: "insights",
+      id: "health",
       label: t.nav.insights,
-      href: "/insights",
+      href: "/health/components",
       icon: Sparkles,
     },
     {
@@ -129,7 +129,7 @@ export function MobileNav() {
         isOpen={isActionSheetOpen}
         onClose={() => setIsActionSheetOpen(false)}
         title={t.quickActions.title}
-        description="Choose how you would like to submit financial data this month"
+        description={t.quickActions.actionSheetDesc}
       >
         <div className="space-y-3 pt-2">
           <button
@@ -145,7 +145,7 @@ export function MobileNav() {
                 {t.quickActions.enterFigures}
               </p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-                Quick 5-field manual entry of core monthly totals
+                {t.quickActions.enterFiguresDesc}
               </p>
             </div>
           </button>
@@ -163,7 +163,7 @@ export function MobileNav() {
                 {t.quickActions.scanDocument}
               </p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-                Capture paper bills, invoices, or register sheets
+                {t.quickActions.scanDocumentDesc}
               </p>
             </div>
           </button>
@@ -181,7 +181,7 @@ export function MobileNav() {
                 {t.quickActions.uploadFiles}
               </p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-                Upload bank statements (PDF) or exported receipts
+                {t.quickActions.uploadFilesDesc}
               </p>
             </div>
           </button>

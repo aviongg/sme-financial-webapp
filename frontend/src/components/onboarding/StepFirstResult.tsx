@@ -54,7 +54,10 @@ export function StepFirstResult({
             {t.onboarding.provisionalBanner}
           </p>
           <p className="text-[12px] text-[var(--color-text-secondary)]">
-            With 1 month recorded for {profile.businessName || "your business"}, this initial score provides a benchmark. Multi-month trends and repayment ratings sharpen automatically with future entries.
+            {t.onboarding.provisionalResultDesc.replace(
+              "{business}",
+              profile.businessName || (isRTL ? "آپ کے کاروبار" : "your business")
+            )}
           </p>
         </div>
       </div>
@@ -65,7 +68,7 @@ export function StepFirstResult({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--color-border-subtle)]">
           <div>
             <span className="text-[12px] uppercase font-bold tracking-wider text-[var(--color-text-muted)]">
-              Composite Financial Health
+              {t.onboarding.compositeHealthLabel}
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-[44px] sm:text-[48px] font-bold font-heading tabular-nums text-[var(--color-text-primary)] leading-none">
@@ -92,7 +95,7 @@ export function StepFirstResult({
             <span>{t.onboarding.whyThisResultTitle}</span>
           </p>
           <p className="text-[14px] text-[var(--color-text-secondary)] leading-relaxed">
-            Your initial cash inflow comfortably covers running operating costs with positive month-end liquidity. Profitability and efficiency can be sharpened as cost of goods and customer receivables are added.
+            {t.onboarding.whyThisResultText}
           </p>
         </div>
 
@@ -103,30 +106,33 @@ export function StepFirstResult({
             <span>{t.onboarding.recommendationTitle}</span>
           </p>
           <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-            Establish a 30-day operating expense buffer
+            {t.onboarding.recTitle}
           </p>
           <p className="text-[12px] text-[var(--color-text-muted)] leading-relaxed">
-            Maintaining at least PKR 450,000 in liquid reserves shields {profile.businessName || "your business"} from short-term supplier price fluctuations.
+            {t.onboarding.recDesc.replace(
+              "{business}",
+              profile.businessName || (isRTL ? "آپ کے کاروبار" : "your business")
+            )}
           </p>
         </div>
 
         {/* Component Breakdown Transparency (Missing components marked Pending, not zero) */}
         <div className="pt-2">
           <span className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2">
-            Component Status
+            {t.onboarding.componentStatusLabel}
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[12px]">
             <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)]">
-              <span className="text-[var(--color-text-muted)] block">Cash Flow</span>
+              <span className="text-[var(--color-text-muted)] block">{t.dashboard.pillarCashflow}</span>
               <span className="font-semibold text-[var(--color-health-strong)]">74 / 100</span>
             </div>
             <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)]">
-              <span className="text-[var(--color-text-muted)] block">Profitability</span>
+              <span className="text-[var(--color-text-muted)] block">{t.dashboard.pillarProfitability}</span>
               <span className="font-semibold text-[var(--color-health-stable)]">62 / 100</span>
             </div>
             <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)]">
-              <span className="text-[var(--color-text-muted)] block">Trend</span>
-              <span className="text-[var(--color-text-muted)] italic">Pending</span>
+              <span className="text-[var(--color-text-muted)] block">{t.dashboard.pillarTrend}</span>
+              <span className="text-[var(--color-text-muted)] italic">{t.common.pendingInformation}</span>
             </div>
           </div>
         </div>

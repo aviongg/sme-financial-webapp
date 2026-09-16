@@ -116,7 +116,9 @@ export default function ShariaZakatPage() {
                       variant={data?.shariaFinancingStatus === "compliant" ? "success" : "warning"}
                       size="sm"
                     >
-                      {data?.shariaFinancingStatus === "compliant" ? "Verified Islamic" : "Conventional"}
+                      {data?.shariaFinancingStatus === "compliant"
+                        ? t.zakat.verifiedIslamic
+                        : t.zakat.conventionalBadge}
                     </Badge>
                   </div>
                   <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 max-w-2xl">
@@ -211,7 +213,7 @@ export default function ShariaZakatPage() {
                         {t.zakat.netPool}
                       </span>
                       <span className="text-[11px] text-[var(--color-text-muted)]">
-                        Assets minus Deductible Payables
+                        {t.zakat.netPoolHelp}
                       </span>
                     </div>
                     <span className="text-[20px] font-extrabold text-[var(--color-brand-primary)] font-heading">
@@ -240,7 +242,7 @@ export default function ShariaZakatPage() {
               ) : (
                 <div className="space-y-3">
                   <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] flex justify-between items-center">
-                    <span className="text-[12px] text-[var(--color-text-secondary)]">Nisab Threshold:</span>
+                    <span className="text-[12px] text-[var(--color-text-secondary)]">{t.zakat.nisabThresholdLabel}:</span>
                     <span className="text-[14px] font-bold text-[var(--color-text-primary)] font-heading">
                       {formatCurrency(data?.nisabSilverThresholdPkr ?? 285000)}
                     </span>
@@ -267,7 +269,7 @@ export default function ShariaZakatPage() {
                       {formatCurrency(data?.estimatedZakatDue ?? 0)}
                     </span>
                     <span className="text-[11px] text-[var(--color-text-muted)] mt-1 block">
-                      Applicable at 2.5% per lunar bookkeeping year
+                      {t.zakat.lunarYearNote}
                     </span>
                   </div>
                 </div>

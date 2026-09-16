@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, ArrowRight } from "lucide-react";
 
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -38,38 +38,39 @@ export function HealthComponents({
   weakestComponent,
   className,
 }: HealthComponentsProps) {
-  const { t } = useLanguage();
+  const { t, direction } = useLanguage();
+  const isRTL = direction === "rtl";
 
   const pillars: PillarMeta[] = [
     {
       key: "cashflow",
       title: t.dashboard.pillarCashflow,
       weight: "30%",
-      description: "Operating cash buffer, liquidity stability, and cash burn rate.",
+      description: t.dashboard.pillarCashflowDesc,
     },
     {
       key: "profitability",
       title: t.dashboard.pillarProfitability,
       weight: "25%",
-      description: "Operating margin, revenue consistency, and overhead efficiency.",
+      description: t.dashboard.pillarProfitabilityDesc,
     },
     {
       key: "repayment",
       title: t.dashboard.pillarRepayment,
       weight: "20%",
-      description: "Debt service coverage, customer receivables turnover, and supplier payables lag.",
+      description: t.dashboard.pillarRepaymentDesc,
     },
     {
       key: "trend",
       title: t.dashboard.pillarTrend,
       weight: "15%",
-      description: "Multi-month trajectory and growth momentum over evaluated quarters.",
+      description: t.dashboard.pillarTrendDesc,
     },
     {
       key: "compliance",
       title: t.dashboard.pillarCompliance,
       weight: "10%",
-      description: "Timely record submission, bank statement verification, and governance hygiene.",
+      description: t.dashboard.pillarComplianceDesc,
     },
   ];
 
@@ -90,7 +91,7 @@ export function HealthComponents({
           className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-brand-primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] rounded-[var(--radius-sm)]"
         >
           <span>{t.componentBreakdown.title}</span>
-          <span aria-hidden="true">&rarr;</span>
+          <ArrowRight className={cn("w-3.5 h-3.5", isRTL && "rotate-180")} />
         </Link>
       </div>
 
@@ -189,8 +190,8 @@ export function HealthComponents({
                 {isPending ? (
                   <span className="italic">
                     {pillar.key === "trend"
-                      ? "Requires 3+ consecutive monthly records to evaluate trajectory."
-                      : "Pending liability and receivables schedule. Not penalized."}
+                      ? t.dashboard.pendingTrendDesc
+                      : t.dashboard.pendingGeneralDesc}
                   </span>
                 ) : (
                   pillar.description

@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/i18n/context";
 import { Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils/cn";
 
 export interface PageHeaderProps {
   title?: string;
@@ -22,7 +23,7 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   const router = useRouter();
-  const { locale, toggleLocale, t } = useLanguage();
+  const { locale, toggleLocale, t, direction } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -57,11 +58,11 @@ export function PageHeader({
           <button
             type="button"
             onClick={() => setIsSearchOpen(true)}
-            aria-label="Search records and metrics"
+            aria-label={t.search.title}
             className="flex items-center gap-2 h-9 px-3 rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] text-[13px] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
           >
             <Search className="w-4 h-4" />
-            <span className="hidden sm:inline">Search...</span>
+            <span className="hidden sm:inline">{t.nav.search}...</span>
           </button>
 
           {/* Language Switcher (EN / اردو) */}
@@ -97,7 +98,7 @@ export function PageHeader({
           className="space-y-4"
         >
           <Input
-            label="Search query"
+            label={t.search.searchQueryLabel}
             placeholder={t.search.placeholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -128,12 +129,12 @@ export function PageHeader({
                   className="w-full justify-center gap-1.5"
                 >
                   <span>{t.search.title}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className={cn("w-4 h-4", direction === "rtl" && "rotate-180")} />
                 </Button>
               </div>
             ) : (
               <p className="text-center py-4">
-                Type a month, metric, or vendor name to search across records.
+                {t.search.typeSearchPrompt}
               </p>
             )}
           </div>

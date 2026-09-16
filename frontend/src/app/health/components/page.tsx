@@ -79,6 +79,110 @@ export default function ComponentBreakdownPage() {
 
   const isRTL = direction === "rtl";
 
+  const getLocalizedPillar = (pillar: ComponentDetailItem) => {
+    switch (pillar.key) {
+      case "cashflow":
+        return {
+          title: t.componentBreakdown.pillarCashflowTitle,
+          summary: t.componentBreakdown.pillarCashflowSummary,
+          influencingFactors: [
+            t.componentBreakdown.cfDriver1,
+            t.componentBreakdown.cfDriver2,
+            t.componentBreakdown.cfDriver3,
+          ],
+          metrics: [
+            { label: t.componentBreakdown.cfMetric1, value: "42 Days", benchmark: "> 30 Days" },
+            { label: t.componentBreakdown.cfMetric2, value: "+18.2%", benchmark: "> 10%" },
+            { label: t.componentBreakdown.cfMetric3, value: "PKR 1,120,000", benchmark: "> PKR 750k" },
+          ],
+          actions: [
+            t.componentBreakdown.cfAction1,
+            t.componentBreakdown.cfAction2,
+          ],
+        };
+      case "profitability":
+        return {
+          title: t.componentBreakdown.pillarProfitabilityTitle,
+          summary: t.componentBreakdown.pillarProfitabilitySummary,
+          influencingFactors: [
+            t.componentBreakdown.profDriver1,
+            t.componentBreakdown.profDriver2,
+            t.componentBreakdown.profDriver3,
+          ],
+          metrics: [
+            { label: t.componentBreakdown.profMetric1, value: "47.6%", benchmark: "> 40%" },
+            { label: t.componentBreakdown.profMetric2, value: "21.4%", benchmark: "< 25%" },
+            { label: t.componentBreakdown.profMetric3, value: "26.2%", benchmark: "> 15%" },
+          ],
+          actions: [
+            t.componentBreakdown.profAction1,
+            t.componentBreakdown.profAction2,
+          ],
+        };
+      case "repayment":
+        return {
+          title: t.componentBreakdown.pillarRepaymentTitle,
+          summary: t.componentBreakdown.pillarRepaymentSummary,
+          influencingFactors: [
+            t.componentBreakdown.repDriver1,
+            t.componentBreakdown.repDriver2,
+            t.componentBreakdown.repDriver3,
+          ],
+          metrics: [
+            { label: t.componentBreakdown.repMetric1, value: "38 Days", benchmark: "< 30 Days" },
+            { label: t.componentBreakdown.repMetric2, value: "24 Days", benchmark: "< 30 Days" },
+            { label: t.componentBreakdown.repMetric3, value: "1.8x", benchmark: "> 1.5x" },
+          ],
+          actions: [
+            t.componentBreakdown.repAction1,
+            t.componentBreakdown.repAction2,
+          ],
+        };
+      case "trend":
+        return {
+          title: t.componentBreakdown.pillarTrendTitle,
+          summary: t.componentBreakdown.pillarTrendSummary,
+          influencingFactors: [
+            t.componentBreakdown.trendDriver1,
+            t.componentBreakdown.trendDriver2,
+            t.componentBreakdown.trendDriver3,
+          ],
+          metrics: [
+            { label: t.componentBreakdown.trendMetric1, value: "+4.2% MoM", benchmark: "> 0%" },
+            { label: t.componentBreakdown.trendMetric2, value: "High", benchmark: "Stable" },
+          ],
+          actions: [
+            t.componentBreakdown.trendAction1,
+          ],
+        };
+      case "compliance":
+        return {
+          title: t.componentBreakdown.pillarComplianceTitle,
+          summary: t.componentBreakdown.pillarComplianceSummary,
+          influencingFactors: [
+            t.componentBreakdown.compDriver1,
+            t.componentBreakdown.compDriver2,
+            t.componentBreakdown.compDriver3,
+          ],
+          metrics: [
+            { label: t.componentBreakdown.compMetric1, value: "100%", benchmark: "100%" },
+            { label: t.componentBreakdown.compMetric2, value: "Verified", benchmark: "Verified" },
+          ],
+          actions: [
+            t.componentBreakdown.compAction1,
+          ],
+        };
+      default:
+        return {
+          title: pillar.title,
+          summary: pillar.summary,
+          influencingFactors: pillar.influencingFactors,
+          metrics: pillar.metrics,
+          actions: pillar.actions,
+        };
+    }
+  };
+
   return (
     <AppShell
       title={t.componentBreakdown.title}
@@ -177,6 +281,7 @@ export default function ComponentBreakdownPage() {
             : components.map((pillar) => {
               const IconComponent = PILLAR_ICONS[pillar.key as keyof typeof PILLAR_ICONS] || Wallet;
               const isPending = pillar.isPending || pillar.score === null;
+              const localized = getLocalizedPillar(pillar);
 
               return (
                 <Card
@@ -204,10 +309,10 @@ export default function ComponentBreakdownPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="text-[17px] font-semibold text-[var(--color-text-primary)] font-heading">
-                            {pillar.title}
+                            {localized.title}
                           </h2>
                           <Badge variant="neutral" size="sm">
-                            {pillar.weight} Weight
+                            {pillar.weight} {t.componentBreakdown.weightLabel}
                           </Badge>
                           {pillar.isWeakest && (
                             <Badge variant="warning" size="sm" className="gap-1">
@@ -217,7 +322,7 @@ export default function ComponentBreakdownPage() {
                           )}
                         </div>
                         <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 max-w-2xl">
-                          {pillar.summary}
+                          {localized.summary}
                         </p>
                       </div>
                     </div>
@@ -267,13 +372,13 @@ export default function ComponentBreakdownPage() {
                   )}
 
                   {/* Key Metrics Grid */}
-                  {pillar.metrics && pillar.metrics.length > 0 && (
+                  {localized.metrics && localized.metrics.length > 0 && (
                     <div className="mt-5 space-y-2">
                       <h3 className="text-[12px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
                         {t.componentBreakdown.metricsTitle}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {pillar.metrics.map((metric, idx) => (
+                        {localized.metrics.map((metric, idx) => (
                           <div
                             key={idx}
                             className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)]"
@@ -303,7 +408,7 @@ export default function ComponentBreakdownPage() {
                         {t.componentBreakdown.influencingFactorsTitle}
                       </h3>
                       <ul className="space-y-2 text-[13px] text-[var(--color-text-secondary)]">
-                        {pillar.influencingFactors.map((factor, idx) => (
+                        {localized.influencingFactors.map((factor, idx) => (
                           <li key={idx} className="flex items-start gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-primary)] mt-1.5 shrink-0" />
                             <span>{factor}</span>
@@ -318,7 +423,7 @@ export default function ComponentBreakdownPage() {
                         {t.componentBreakdown.recommendedActionsTitle}
                       </h3>
                       <ul className="space-y-2 text-[13px] text-[var(--color-text-secondary)]">
-                        {pillar.actions.map((action, idx) => (
+                        {localized.actions.map((action, idx) => (
                           <li key={idx} className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 text-[var(--color-status-success)] shrink-0 mt-0.5" />
                             <span>{action}</span>
