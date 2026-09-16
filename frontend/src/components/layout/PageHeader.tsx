@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, Globe, Building2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Globe, Building2, ArrowRight } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/context";
 import { Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export interface PageHeaderProps {
   title?: string;
@@ -19,9 +21,11 @@ export function PageHeader({
   businessName = "Al-Rehman Textiles",
   actions,
 }: PageHeaderProps) {
-  const { locale, toggleLocale } = useLanguage();
+  const router = useRouter();
+  const { locale, toggleLocale, t } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
 
   return (
     <>
@@ -79,13 +83,22 @@ export function PageHeader({
       <Dialog
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        title="Search Records & Insights"
-        description="Search past months, expenses, invoices, or specific financial categories"
+        title={t.search.title}
+        description={t.search.subtitle}
       >
-        <div className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchQuery.trim()) {
+              setIsSearchOpen(false);
+              router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+            }
+          }}
+          className="space-y-4"
+        >
           <Input
             label="Search query"
-            placeholder="e.g. August 2026, Cash Inflow, Supplier Invoice"
+            placeholder={t.search.placeholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -93,27 +106,40 @@ export function PageHeader({
 
           <div className="border-t border-[var(--color-border-subtle)] pt-3 text-[13px] text-[var(--color-text-muted)]">
             {searchQuery ? (
-              <div className="space-y-2">
-                <p className="text-[12px] uppercase font-bold text-[var(--color-text-secondary)] tracking-wider">
-                  Matching Categories
-                </p>
-                <div className="p-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] cursor-pointer text-start">
-                  <span className="font-semibold text-[var(--color-text-primary)]">
+              <div className="space-y-3">
+                <div
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    router.push("/records/rec-2026-08");
+                  }}
+                  className="p-2.5 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border-subtle)] cursor-pointer text-start"
+                >
+                  <span className="font-semibold text-[var(--color-text-primary)] block">
                     August 2026 Monthly Record
                   </span>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">
-                    Score: 72 (Stable) • Cash Balance: PKR 980,000
+                  <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
+                    Score: 76 (Stable) • Cash Balance: PKR 980,000
                   </p>
                 </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full justify-center gap-1.5"
+                >
+                  <span>{t.search.title}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
               </div>
             ) : (
               <p className="text-center py-4">
-                Type a month, metric, or vendor name to search.
+                Type a month, metric, or vendor name to search across records.
               </p>
             )}
           </div>
-        </div>
+        </form>
       </Dialog>
+
     </>
   );
 }

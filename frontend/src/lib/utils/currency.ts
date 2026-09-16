@@ -61,3 +61,6 @@ export function formatPKR(
   // English representation: "PKR " prefix
   return `${sign}PKR ${formattedNumber}`;
 }
+
+export const formatCurrency = formatPKR;
+

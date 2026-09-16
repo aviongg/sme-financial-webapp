@@ -119,8 +119,8 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2.5 text-[12px] text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-surface)]"
+                        leftIcon={<Edit3 className="w-3.5 h-3.5" />}
                       >
-                        <Edit3 className="w-3.5 h-3.5 me-1" />
                         {t.common.edit}
                       </Button>
                     </Link>
@@ -154,8 +154,8 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-[11px] text-[var(--color-brand-primary)]"
+                      leftIcon={<Edit3 className="w-3 h-3" />}
                     >
-                      <Edit3 className="w-3 h-3 me-1" />
                       {t.common.edit}
                     </Button>
                   </Link>

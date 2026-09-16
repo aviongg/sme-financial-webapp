@@ -32,6 +32,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const baseStyles =
       "inline-flex items-center justify-center font-medium transition-all duration-150 rounded-[var(--radius-lg)] select-none " +
+      "[&_svg]:shrink-0 [&_svg]:block " +
       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]";
 
     const variantStyles = {
@@ -58,10 +59,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizeStyles = {
-      sm: "h-8 px-3 text-[13px] gap-1.5",
-      md: "h-10 px-4 text-[14px] gap-2",
-      lg: "h-12 px-5 text-[15px] gap-2.5 min-h-[48px]", // 48px touch-target friendly
+      sm: "h-8 px-3 text-[13px] gap-1.5 [&_svg]:w-4 [&_svg]:h-4",
+      md: "h-10 px-4 text-[14px] gap-2 [&_svg]:w-4 [&_svg]:h-4",
+      lg: "h-12 px-5 text-[15px] gap-2.5 min-h-[48px] [&_svg]:w-5 [&_svg]:h-5",
     };
+
+    const iconWrapperStyles =
+      "inline-flex items-center justify-center shrink-0 self-center leading-none text-current";
 
     return (
       <button
@@ -72,12 +76,24 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
+          <span className={iconWrapperStyles} aria-hidden="true">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          </span>
         ) : (
-          leftIcon && <span className="shrink-0">{leftIcon}</span>
+          leftIcon && (
+            <span className={iconWrapperStyles} aria-hidden="true">
+              {leftIcon}
+            </span>
+          )
         )}
-        <span>{children}</span>
-        {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
+        <span className="inline-flex items-center justify-center gap-[inherit] leading-tight">
+          {children}
+        </span>
+        {!isLoading && rightIcon && (
+          <span className={iconWrapperStyles} aria-hidden="true">
+            {rightIcon}
+          </span>
+        )}
       </button>
     );
   }

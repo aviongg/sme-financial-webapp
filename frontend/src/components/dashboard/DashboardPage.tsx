@@ -15,8 +15,10 @@ import { ScoreCompleteness } from "./ScoreCompleteness";
 import { CashFlowTrend } from "./CashFlowTrend";
 import { HealthComponents } from "./HealthComponents";
 import { RecentRecords } from "./RecentRecords";
+import { ZakatSummaryCard } from "./ZakatSummaryCard";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { DashboardEmptyState } from "./DashboardEmptyState";
+
 
 export interface DashboardPageProps {
   defaultMode?: "mature" | "provisional";
@@ -170,9 +172,13 @@ export function DashboardPage({ defaultMode = "mature" }: DashboardPageProps) {
               {/* Right: Recent Monthly Records Table */}
               <RecentRecords records={data.records} />
             </div>
+
+            {/* Sharia Financing & Zakat Pool Section */}
+            <ZakatSummaryCard />
           </div>
         )}
       </Container>
     </AppShell>
   );
 }
+

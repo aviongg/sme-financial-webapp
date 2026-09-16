@@ -86,8 +86,94 @@ export interface DocumentUploadItem {
   status: UploadStatus;
   thumbnailUrl?: string;
   confidenceScore?: number; // Internal only; not shown directly to user
+  confidence?: ExtractionConfidence;
+  category?: DocumentCategory;
+  documentType?: string;
+  targetMonth?: string;
+  vendorParty?: string;
+  extractedAmount?: number;
   uncertainFields?: string[];
   extractedValues?: Partial<MonthlyRecordRequest>;
+}
+
+export type DocumentCategory = "sales" | "expense" | "purchase" | "unknown";
+export type ExtractionConfidence = "high" | "medium" | "low";
+
+export interface ExtractedDocumentDetail {
+  id: string;
+  filename: string;
+  fileSize: number;
+  uploadedAt: string;
+  status: UploadStatus;
+  category: DocumentCategory;
+  confidence: ExtractionConfidence;
+  vendorParty: string;
+  documentDate: string; // YYYY-MM-DD
+  targetMonth: string; // YYYY-MM
+  amount: number;
+  fieldConfidence: {
+    amount?: ExtractionConfidence;
+    vendorParty?: ExtractionConfidence;
+    documentDate?: ExtractionConfidence;
+    category?: ExtractionConfidence;
+  };
+  thumbnailUrl?: string;
+  notes?: string;
+}
+
+export type SearchResultType = "transaction" | "document" | "insight" | "recommendation";
+
+export interface SearchResultItem {
+  id: string;
+  title: string;
+  description: string;
+  type: SearchResultType;
+  date?: string;
+  amount?: number;
+  category?: string;
+  href: string;
+  badge?: string;
+}
+
+export type ShariaStatus = "compliant" | "conventional_detected" | "none_detected";
+
+export interface ZakatData {
+  shariaFinancingStatus: ShariaStatus;
+  financingNote: string;
+  zakatableCash: number;
+  zakatableInventory: number;
+  zakatableReceivables: number;
+  totalZakatableAssets: number;
+  deductiblePayables: number;
+  netZakatablePool: number;
+  nisabSilverThresholdPkr: number;
+  isEligible: boolean;
+  estimatedZakatDue: number;
+  dataCompleteness: number;
+  status: "complete" | "partial" | "insufficient_data";
+  nisabStandardDate: string;
+  disclaimer: string;
+}
+
+export interface ComponentMetric {
+  label: string;
+  value: string;
+  benchmark?: string;
+  status?: HealthBand | "neutral";
+}
+
+export interface ComponentDetailItem {
+  key: keyof ComponentScores;
+  title: string;
+  weight: string;
+  score: number | null;
+  isPending: boolean;
+  status: HealthBand | "pending";
+  summary: string;
+  influencingFactors: string[];
+  metrics: ComponentMetric[];
+  actions: string[];
+  isWeakest: boolean;
 }
 
 export interface ScoreExplanationData {
@@ -103,4 +189,5 @@ export interface DashboardData {
   recommendation: Recommendation;
   explanation: ScoreExplanationData;
 }
+
 

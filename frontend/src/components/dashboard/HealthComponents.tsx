@@ -1,7 +1,9 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { HelpCircle } from "lucide-react";
+
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Badge } from "@/components/ui/Badge";
@@ -83,7 +85,15 @@ export function HealthComponents({
             {t.dashboard.pillarsSubtitle}
           </p>
         </div>
+        <Link
+          href="/health/components"
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-brand-primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] rounded-[var(--radius-sm)]"
+        >
+          <span>{t.componentBreakdown.title}</span>
+          <span aria-hidden="true">&rarr;</span>
+        </Link>
       </div>
+
 
       {/* Pillar Rows */}
       <div className="divide-y divide-[var(--color-border-subtle)]">
