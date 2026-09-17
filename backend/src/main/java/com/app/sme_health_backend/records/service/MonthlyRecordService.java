@@ -76,6 +76,15 @@ public class MonthlyRecordService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public Optional<MonthlyRecord> getRecordById(UUID id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Record ID is required");
+        }
+
+        return monthlyRecordRepository.findById(id);
+    }
+
     private void validateMonthlyRecord(MonthlyRecord record) {
 
         if (record == null) {
@@ -101,7 +110,7 @@ public class MonthlyRecordService {
         validateNonNegative("Cash inflow", record.getCashInflow());
         validateNonNegative("Cash outflow", record.getCashOutflow());
         validateNonNegative("Revenue", record.getRevenue());
-        validateNonNegative("COGS", record.getCogs());
+        validateOptionalNonNegative("COGS", record.getCogs());
         validateNonNegative(
                 "Operating expenses",
                 record.getOperatingExpenses()

@@ -33,8 +33,8 @@ public class MonthlyRecord {
     @Column(name = "revenue", nullable = false, precision = 14, scale = 2)
     private BigDecimal revenue = BigDecimal.ZERO;
 
-    @Column(name = "cogs", nullable = false, precision = 14, scale = 2)
-    private BigDecimal cogs = BigDecimal.ZERO;
+    @Column(name = "cogs", precision = 14, scale = 2)
+    private BigDecimal cogs;
 
     @Column(name = "operating_expenses", nullable = false, precision = 14, scale = 2)
     private BigDecimal operatingExpenses = BigDecimal.ZERO;
@@ -65,6 +65,10 @@ public class MonthlyRecord {
 
     public UUID getId() {
         return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
     }
 
     public UUID getUserId() {

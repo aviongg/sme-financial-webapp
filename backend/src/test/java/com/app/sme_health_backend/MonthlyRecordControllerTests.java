@@ -3,6 +3,7 @@ package com.app.sme_health_backend;
 import com.app.sme_health_backend.records.controller.MonthlyRecordController;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
+import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +15,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,6 +33,9 @@ class MonthlyRecordControllerTests {
 
     @MockitoBean
     private MonthlyRecordService monthlyRecordService;
+
+    @MockitoBean
+    private ScoringService scoringService;
 
     @Test
     void shouldCreateMonthlyRecord() throws Exception {
@@ -172,6 +178,137 @@ class MonthlyRecordControllerTests {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message")
                         .value("Month must be in YYYY-MM format"));
+    }
+
+    @Test
+    void shouldCreateMonthlyRecordWithoutCogs() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        MonthlyRecord record = validRecord(userId);
+        record.setCogs(null);
+
+        when(monthlyRecordService.saveMonthlyRecord(any()))
+                .thenReturn(record);
+
+        String request = """
+                {
+                  "userId": "%s",
+                  "month": "2026-09",
+                  "cashInflow": 500000,
+                  "cashOutflow": 200000,
+                  "revenue": 500000,
+                  "operatingExpenses": 50000,
+                  "cashBalanceEom": 300000,
+                  "financingType": "none"
+                }
+                """.formatted(userId);
+
+        mockMvc.perform(post("/api/records/monthly")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.month").value("2026-09"))
+                .andExpect(jsonPath("$.revenue").value(500000))
+                .andExpect(jsonPath("$.cogs").doesNotExist());
+    }
+
+    @Test
+    void shouldTriggerRescoreWhenRecordSaved() throws Exception {
+        UUID userId = UUID.randomUUID();
+        MonthlyRecord record = validRecord(userId);
+
+        when(monthlyRecordService.saveMonthlyRecord(any()))
+                .thenReturn(record);
+
+        String request = """
+                {
+                  "userId": "%s",
+                  "month": "2026-09",
+                  "cashInflow": 500000,
+                  "cashOutflow": 200000,
+                  "revenue": 500000,
+                  "operatingExpenses": 50000,
+                  "cashBalanceEom": 300000,
+                  "financingType": "none"
+                }
+                """.formatted(userId);
+
+        mockMvc.perform(post("/api/records/monthly")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated());
+
+        verify(scoringService, times(1)).calculateAndSaveScore(userId, "2026-09");
+    }
+
+    @Test
+    void shouldStillSaveRecordWhenRescoreThrowsException() throws Exception {
+        UUID userId = UUID.randomUUID();
+        MonthlyRecord record = validRecord(userId);
+
+        when(monthlyRecordService.saveMonthlyRecord(any()))
+                .thenReturn(record);
+        doThrow(new IllegalArgumentException("Insufficient financial data"))
+                .when(scoringService).calculateAndSaveScore(any(), any());
+
+        String request = """
+                {
+                  "userId": "%s",
+                  "month": "2026-09",
+                  "cashInflow": 500000,
+                  "cashOutflow": 200000,
+                  "revenue": 500000,
+                  "operatingExpenses": 50000,
+                  "cashBalanceEom": 300000,
+                  "financingType": "none"
+                }
+                """.formatted(userId);
+
+        mockMvc.perform(post("/api/records/monthly")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.month").value("2026-09"));
+    }
+
+    @Test
+    void shouldGetRecordByIdSuccess() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID recordId = UUID.randomUUID();
+        MonthlyRecord record = validRecord(userId);
+        record.setId(recordId);
+
+        when(monthlyRecordService.getRecordById(recordId))
+                .thenReturn(Optional.of(record));
+
+        mockMvc.perform(get("/api/records/monthly/id/{id}", recordId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(recordId.toString()))
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.month").value("2026-09"));
+    }
+
+    @Test
+    void shouldReturn404WhenRecordIdNotFound() throws Exception {
+        UUID recordId = UUID.randomUUID();
+
+        when(monthlyRecordService.getRecordById(recordId))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/records/monthly/id/{id}", recordId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Monthly record not found with id: " + recordId));
+    }
+
+    @Test
+    void shouldReturn400WhenRecordIdIsMalformed() throws Exception {
+        mockMvc.perform(get("/api/records/monthly/id/{id}", "not-a-valid-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid record ID format: not-a-valid-uuid"));
     }
 
     private MonthlyRecord validRecord(UUID userId) {
