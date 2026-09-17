@@ -1,6 +1,7 @@
 package com.app.sme_health_backend.cashflow.controller;
 
 import com.app.sme_health_backend.cashflow.dto.CashFlowChartPointResponse;
+import com.app.sme_health_backend.cashflow.dto.CashFlowProjectionResponse;
 import com.app.sme_health_backend.cashflow.service.CashFlowService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +35,23 @@ public class CashFlowController {
 
         List<CashFlowChartPointResponse> response =
                 cashFlowService.getCashFlowHistory(parsedUserId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{userId}/projection")
+    public ResponseEntity<CashFlowProjectionResponse> getTrendProjection(
+            @PathVariable String userId
+    ) {
+        UUID parsedUserId;
+        try {
+            parsedUserId = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format: " + userId);
+        }
+
+        CashFlowProjectionResponse response =
+                cashFlowService.getTrendProjection(parsedUserId);
 
         return ResponseEntity.ok(response);
     }

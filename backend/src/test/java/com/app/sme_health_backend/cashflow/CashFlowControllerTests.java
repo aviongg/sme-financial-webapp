@@ -2,6 +2,7 @@ package com.app.sme_health_backend.cashflow;
 
 import com.app.sme_health_backend.cashflow.controller.CashFlowController;
 import com.app.sme_health_backend.cashflow.dto.CashFlowChartPointResponse;
+import com.app.sme_health_backend.cashflow.dto.CashFlowProjectionResponse;
 import com.app.sme_health_backend.cashflow.service.CashFlowService;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -85,5 +86,54 @@ class CashFlowControllerTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid user ID format: not-a-valid-uuid"));
+    }
+
+    @Test
+    void shouldReturnTrendProjectionSuccess() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CashFlowProjectionResponse response = new CashFlowProjectionResponse(
+                "2026-10",
+                new BigDecimal("320000.00"),
+                "upward",
+                "reasonable",
+                6,
+                null
+        );
+
+        when(cashFlowService.getTrendProjection(userId)).thenReturn(response);
+
+        mockMvc.perform(get("/api/cashflow/{userId}/projection", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedMonth").value("2026-10"))
+                .andExpect(jsonPath("$.projectedNetCashFlow").value(320000.00))
+                .andExpect(jsonPath("$.trendDirection").value("upward"))
+                .andExpect(jsonPath("$.confidence").value("reasonable"))
+                .andExpect(jsonPath("$.historicalMonthsCount").value(6))
+                .andExpect(jsonPath("$.message").doesNotExist());
+    }
+
+    @Test
+    void shouldReturnTrendProjectionWithInsufficientData() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CashFlowProjectionResponse response = CashFlowProjectionResponse.insufficientData(1);
+
+        when(cashFlowService.getTrendProjection(userId)).thenReturn(response);
+
+        mockMvc.perform(get("/api/cashflow/{userId}/projection", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedMonth").doesNotExist())
+                .andExpect(jsonPath("$.projectedNetCashFlow").doesNotExist())
+                .andExpect(jsonPath("$.trendDirection").doesNotExist())
+                .andExpect(jsonPath("$.confidence").doesNotExist())
+                .andExpect(jsonPath("$.historicalMonthsCount").value(1))
+                .andExpect(jsonPath("$.message").value("Need at least 3 months of data for a trend"));
+    }
+
+    @Test
+    void shouldReturn400WhenUserIdIsMalformedForProjection() throws Exception {
+        mockMvc.perform(get("/api/cashflow/invalid-uuid-format/projection"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid user ID format: invalid-uuid-format"));
     }
 }
