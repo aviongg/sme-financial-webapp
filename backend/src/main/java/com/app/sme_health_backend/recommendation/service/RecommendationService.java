@@ -5,7 +5,9 @@ import com.app.sme_health_backend.recommendation.entity.Recommendation;
 import com.app.sme_health_backend.recommendation.repository.RecommendationRepository;
 import com.app.sme_health_backend.scoring.dto.ComponentScoresDto;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
+import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -31,13 +34,24 @@ public class RecommendationService {
 
     private final RecommendationRepository recommendationRepository;
     private final BusinessProfileRepository businessProfileRepository;
+    private final ScoringService scoringService;
 
     public RecommendationService(
             RecommendationRepository recommendationRepository,
             BusinessProfileRepository businessProfileRepository
     ) {
+        this(recommendationRepository, businessProfileRepository, null);
+    }
+
+    @Autowired
+    public RecommendationService(
+            RecommendationRepository recommendationRepository,
+            BusinessProfileRepository businessProfileRepository,
+            @Autowired(required = false) ScoringService scoringService
+    ) {
         this.recommendationRepository = recommendationRepository;
         this.businessProfileRepository = businessProfileRepository;
+        this.scoringService = scoringService;
     }
 
     @Transactional
@@ -52,6 +66,41 @@ public class RecommendationService {
             );
         }
 
+        Optional<ScoreResult> latestScoreOpt = (scoringService != null)
+                ? scoringService.getLatestScore(userId)
+                : Optional.empty();
+
+        if (latestScoreOpt.isPresent()) {
+            ScoreResult realScore = latestScoreOpt.get();
+            String targetMonth = realScore.getMonth();
+
+            List<Recommendation> existingForMonth =
+                    recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, targetMonth);
+
+            boolean isMockOrStale = existingForMonth.size() < 3
+                    || existingForMonth.stream().map(Recommendation::getCategory).distinct().count() < 3
+                    || existingForMonth.stream().anyMatch(r -> isLegacyMockCategory(r.getCategory()))
+                    || (realScore.getComputedAt() != null
+                    && existingForMonth.get(0).getCreatedAt() != null
+                    && existingForMonth.get(0).getCreatedAt().isBefore(realScore.getComputedAt()));
+
+            if (!isMockOrStale) {
+                return existingForMonth;
+            }
+
+            List<Recommendation> allUserRecommendations =
+                    recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            List<Recommendation> toRemove = allUserRecommendations.stream()
+                    .filter(r -> targetMonth.equals(r.getMonth()) || isLegacyMockCategory(r.getCategory()))
+                    .toList();
+            if (!toRemove.isEmpty()) {
+                recommendationRepository.deleteAll(toRemove);
+            }
+
+            List<Recommendation> newRecommendations = generateRecommendations(realScore);
+            return recommendationRepository.saveAll(newRecommendations);
+        }
+
         List<Recommendation> existingRecommendations =
                 recommendationRepository
                         .findByUserIdOrderByCreatedAtDesc(userId);
@@ -63,6 +112,10 @@ public class RecommendationService {
         return recommendationRepository.saveAll(
                 generateRecommendations(createMockScoreResult(userId))
         );
+    }
+
+    private boolean isLegacyMockCategory(String category) {
+        return "liquidity".equalsIgnoreCase(category) || "leverage".equalsIgnoreCase(category);
     }
 
     public List<Recommendation> generateRecommendations(

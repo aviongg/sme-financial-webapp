@@ -5,7 +5,9 @@ import com.app.sme_health_backend.insight.repository.InsightRepository;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.scoring.dto.ComponentScoresDto;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
+import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,13 +32,24 @@ public class InsightService {
 
     private final InsightRepository insightRepository;
     private final BusinessProfileRepository businessProfileRepository;
+    private final ScoringService scoringService;
 
     public InsightService(
             InsightRepository insightRepository,
             BusinessProfileRepository businessProfileRepository
     ) {
+        this(insightRepository, businessProfileRepository, null);
+    }
+
+    @Autowired
+    public InsightService(
+            InsightRepository insightRepository,
+            BusinessProfileRepository businessProfileRepository,
+            @Autowired(required = false) ScoringService scoringService
+    ) {
         this.insightRepository = insightRepository;
         this.businessProfileRepository = businessProfileRepository;
+        this.scoringService = scoringService;
     }
 
     @Transactional
@@ -50,6 +64,41 @@ public class InsightService {
             );
         }
 
+        Optional<ScoreResult> latestScoreOpt = (scoringService != null)
+                ? scoringService.getLatestScore(userId)
+                : Optional.empty();
+
+        if (latestScoreOpt.isPresent()) {
+            ScoreResult realScore = latestScoreOpt.get();
+            String targetMonth = realScore.getMonth();
+
+            List<Insight> existingForMonth =
+                    insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, targetMonth);
+
+            boolean isMockOrStale = existingForMonth.size() < 3
+                    || existingForMonth.stream().map(Insight::getCategory).distinct().count() < 3
+                    || existingForMonth.stream().anyMatch(i -> isLegacyMockCategory(i.getCategory()))
+                    || (realScore.getComputedAt() != null
+                    && existingForMonth.get(0).getCreatedAt() != null
+                    && existingForMonth.get(0).getCreatedAt().isBefore(realScore.getComputedAt()));
+
+            if (!isMockOrStale) {
+                return existingForMonth;
+            }
+
+            List<Insight> allUserInsights =
+                    insightRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            List<Insight> toRemove = allUserInsights.stream()
+                    .filter(i -> targetMonth.equals(i.getMonth()) || isLegacyMockCategory(i.getCategory()))
+                    .toList();
+            if (!toRemove.isEmpty()) {
+                insightRepository.deleteAll(toRemove);
+            }
+
+            List<Insight> newInsights = generateInsights(realScore);
+            return insightRepository.saveAll(newInsights);
+        }
+
         List<Insight> existingInsights =
                 insightRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
@@ -60,6 +109,10 @@ public class InsightService {
         return insightRepository.saveAll(
                 generateInsights(createMockScoreResult(userId))
         );
+    }
+
+    private boolean isLegacyMockCategory(String category) {
+        return "liquidity".equalsIgnoreCase(category) || "leverage".equalsIgnoreCase(category);
     }
 
     public List<Insight> generateInsights(ScoreResult scoreResult) {
