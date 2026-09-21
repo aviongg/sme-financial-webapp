@@ -78,6 +78,21 @@ public class BusinessProfileService {
                 );
     }
 
+    /** Existing advice is rendered in the new language on its next read. */
+    @Transactional
+    public BusinessProfile updateLanguagePreference(UUID userId, String language) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (!"en".equals(language) && !"ur".equals(language)) {
+            throw new IllegalArgumentException("Language must be en or ur");
+        }
+        BusinessProfile profile = businessProfileRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business profile not found for this user"));
+        profile.setLanguagePreference(language);
+        return businessProfileRepository.save(profile);
+    }
+
     private void validateWhatsAppOptIn(
             BusinessProfileRequest request
     ) {

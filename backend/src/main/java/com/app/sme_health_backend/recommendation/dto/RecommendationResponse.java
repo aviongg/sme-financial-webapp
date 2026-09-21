@@ -14,6 +14,9 @@ public class RecommendationResponse {
     private String category;
     private String priority;
     private LocalDateTime createdAt;
+    private String sourceVersion;
+    private String language;
+    private LocalDateTime sourceComputedAt;
 
     public static RecommendationResponse fromEntity(
             Recommendation recommendation
@@ -27,12 +30,27 @@ public class RecommendationResponse {
         response.category = recommendation.getCategory();
         response.priority = recommendation.getPriority();
         response.createdAt = recommendation.getCreatedAt();
+        response.sourceVersion = recommendation.getSourceVersion();
+        response.language = recommendation.getLanguage();
+        response.sourceComputedAt = recommendation.getSourceComputedAt();
 
         return response;
     }
 
     public UUID getId() {
         return id;
+    }
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
     }
 
     public UUID getUserId() {

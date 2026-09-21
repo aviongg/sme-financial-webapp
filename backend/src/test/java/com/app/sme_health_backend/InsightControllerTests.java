@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +42,9 @@ class InsightControllerTests {
         insight.setCategory("liquidity");
         insight.setPriority("high");
         insight.setCreatedAt(LocalDateTime.now());
+        insight.setSourceVersion("a".repeat(64));
+        insight.setLanguage("ur");
+        insight.setSourceComputedAt(LocalDateTime.of(2026, 9, 18, 12, 30));
 
         when(insightService.getInsights(userId))
                 .thenReturn(List.of(insight));
@@ -54,7 +58,10 @@ class InsightControllerTests {
                         .value("Focus on liquidity."))
                 .andExpect(jsonPath("$[0].category")
                         .value("liquidity"))
-                .andExpect(jsonPath("$[0].priority").value("high"));
+                .andExpect(jsonPath("$[0].priority").value("high"))
+                .andExpect(jsonPath("$[0].sourceVersion").value("a".repeat(64)))
+                .andExpect(jsonPath("$[0].language").value("ur"))
+                .andExpect(jsonPath("$[0].sourceComputedAt").value("2026-09-18T12:30:00"));
     }
 
     @Test
@@ -68,5 +75,27 @@ class InsightControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldPassAnExplicitMonthToTheService() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(insightService.getInsights(userId, "2026-08")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/insights/{userId}", userId).param("month", "2026-08"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(insightService).getInsights(userId, "2026-08");
+    }
+
+    @Test
+    void shouldReturnBadRequestForAnInvalidMonth() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(insightService.getInsights(userId, "2026-13"))
+                .thenThrow(new IllegalArgumentException("Month must be a valid YYYY-MM value"));
+
+        mockMvc.perform(get("/api/insights/{userId}", userId).param("month", "2026-13"))
+                .andExpect(status().isBadRequest());
     }
 }

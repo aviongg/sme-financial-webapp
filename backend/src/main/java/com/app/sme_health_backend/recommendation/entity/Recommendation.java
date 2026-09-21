@@ -4,13 +4,17 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "recommendations")
+@Table(name = "recommendations", uniqueConstraints = @UniqueConstraint(
+        name = "uq_recommendations_user_month_category",
+        columnNames = {"user_id", "month", "category"}
+))
 public class Recommendation {
 
     @Id
@@ -38,6 +42,39 @@ public class Recommendation {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "source_version", length = 64)
+    private String sourceVersion;
+
+    @Column(name = "language", length = 5)
+    private String language;
+
+    @Column(name = "source_computed_at")
+    private LocalDateTime sourceComputedAt;
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public void setSourceVersion(String sourceVersion) {
+        this.sourceVersion = sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
+    }
+
+    public void setSourceComputedAt(LocalDateTime sourceComputedAt) {
+        this.sourceComputedAt = sourceComputedAt;
+    }
 
     public UUID getId() {
         return id;

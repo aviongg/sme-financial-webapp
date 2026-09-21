@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(BusinessProfileController.class)
@@ -32,6 +33,27 @@ class BusinessProfileControllerTests {
 
     @MockitoBean
     private BusinessProfileService businessProfileService;
+
+    @Test
+    void shouldChangeLanguagePreference() throws Exception {
+        UUID id = UUID.randomUUID();
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(id);
+        profile.setLanguagePreference("ur");
+        when(businessProfileService.updateLanguagePreference(id, "ur")).thenReturn(profile);
+        mockMvc.perform(patch("/api/profile/{userId}/language", id)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"languagePreference\":\"ur\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.languagePreference").value("ur"));
+    }
+
+    @Test
+    void shouldRejectUnsupportedOrMissingLanguage() throws Exception {
+        for (String body : new String[]{"{}", "{\"languagePreference\":\"fr\"}", "{\"languagePreference\":\"\"}"}) {
+            mockMvc.perform(patch("/api/profile/{userId}/language", UUID.randomUUID())
+                    .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 
     @Test
     void shouldCreateBusinessProfile() throws Exception {

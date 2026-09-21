@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -23,10 +24,11 @@ public class InsightController {
 
     @GetMapping("/{userId}")
     public ResponseEntity<List<InsightResponse>> getInsights(
-            @PathVariable UUID userId
+            @PathVariable UUID userId,
+            @RequestParam(required = false) String month
     ) {
         List<InsightResponse> responses =
-                insightService.getInsights(userId)
+                (month == null ? insightService.getInsights(userId) : insightService.getInsights(userId, month))
                         .stream()
                         .map(InsightResponse::fromEntity)
                         .toList();

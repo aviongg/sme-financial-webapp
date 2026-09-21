@@ -36,6 +36,23 @@ class BusinessProfileServiceTests {
     }
 
     @Test
+    void shouldSerializeLanguageChangeWithAdviceGeneration() {
+        BusinessProfile profile = validProfile();
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(java.util.Optional.of(profile));
+        when(businessProfileRepository.save(profile)).thenReturn(profile);
+        assertEquals("ur", businessProfileService.updateLanguagePreference(userId, "ur").getLanguagePreference());
+        verify(businessProfileRepository).findByUserIdForUpdate(userId);
+    }
+
+    @Test
+    void shouldRejectUnsupportedLanguageAndUnknownUser() {
+        assertThrows(IllegalArgumentException.class, () -> businessProfileService.updateLanguagePreference(userId, null));
+        assertThrows(IllegalArgumentException.class, () -> businessProfileService.updateLanguagePreference(userId, "fr"));
+        assertThrows(ResourceNotFoundException.class, () -> businessProfileService.updateLanguagePreference(userId, "en"));
+        verify(businessProfileRepository, never()).save(any());
+    }
+
+    @Test
     void shouldCreateBusinessProfile() {
         BusinessProfileRequest request = validRequest();
 

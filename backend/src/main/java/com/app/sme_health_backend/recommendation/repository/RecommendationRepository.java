@@ -10,4 +10,11 @@ public interface RecommendationRepository
         extends JpaRepository<Recommendation, UUID> {
 
     List<Recommendation> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    List<Recommendation> findByUserIdAndMonthOrderByCreatedAtDesc(
+            UUID userId,
+            String month
+    );
+
+    void deleteByUserIdAndMonth(UUID userId, String month);
 }

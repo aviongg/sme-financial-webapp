@@ -2,6 +2,7 @@ package com.app.sme_health_backend.profile.controller;
 
 import com.app.sme_health_backend.profile.dto.BusinessProfileRequest;
 import com.app.sme_health_backend.profile.dto.BusinessProfileResponse;
+import com.app.sme_health_backend.profile.dto.LanguagePreferenceRequest;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.service.BusinessProfileService;
 import jakarta.validation.Valid;
@@ -30,6 +31,13 @@ public class BusinessProfileController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(BusinessProfileResponse.fromEntity(profile));
+    }
+
+    @PatchMapping("/{userId}/language")
+    public BusinessProfileResponse updateLanguagePreference(
+            @PathVariable UUID userId, @Valid @RequestBody LanguagePreferenceRequest request) {
+        return BusinessProfileResponse.fromEntity(
+                businessProfileService.updateLanguagePreference(userId, request.languagePreference()));
     }
 
     @GetMapping("/{userId}")

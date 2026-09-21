@@ -14,6 +14,9 @@ public class InsightResponse {
     private String category;
     private String priority;
     private LocalDateTime createdAt;
+    private String sourceVersion;
+    private String language;
+    private LocalDateTime sourceComputedAt;
 
     public static InsightResponse fromEntity(Insight insight) {
         InsightResponse response = new InsightResponse();
@@ -25,6 +28,9 @@ public class InsightResponse {
         response.category = insight.getCategory();
         response.priority = insight.getPriority();
         response.createdAt = insight.getCreatedAt();
+        response.sourceVersion = insight.getSourceVersion();
+        response.language = insight.getLanguage();
+        response.sourceComputedAt = insight.getSourceComputedAt();
 
         return response;
     }
@@ -55,5 +61,17 @@ public class InsightResponse {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
     }
 }
