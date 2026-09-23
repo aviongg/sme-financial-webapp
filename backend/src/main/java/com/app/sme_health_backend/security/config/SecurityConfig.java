@@ -32,6 +32,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import com.app.sme_health_backend.identity.repository.AppUserRepository;
+import com.app.sme_health_backend.security.filter.AccountStatusValidationFilter;
 import com.app.sme_health_backend.security.filter.InternalServiceAuthenticationFilter;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
@@ -42,16 +44,19 @@ public class SecurityConfig {
 
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
+    private final AppUserRepository userRepository;
 
     @Value("${app.security.internal-service-secret:}")
     private String internalServiceSecret;
 
     public SecurityConfig(
             RestAuthenticationEntryPoint authenticationEntryPoint,
-            RestAccessDeniedHandler accessDeniedHandler
+            RestAccessDeniedHandler accessDeniedHandler,
+            AppUserRepository userRepository
     ) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
+        this.userRepository = userRepository;
     }
 
     @Bean
@@ -100,6 +105,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(new InternalServiceAuthenticationFilter(internalServiceSecret), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new AccountStatusValidationFilter(userRepository), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new SessionMaxLifetimeFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);
 

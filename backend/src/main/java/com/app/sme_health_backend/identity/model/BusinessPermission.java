@@ -1,0 +1,15 @@
+package com.app.sme_health_backend.identity.model;
+
+public enum BusinessPermission {
+    BUSINESS_SETTINGS_MANAGE,
+    MEMBERSHIP_MANAGE,
+    WHATSAPP_CONFIG_MANAGE,
+    FINANCIAL_DATA_READ,
+    RECORD_CREATE_UPDATE,
+    DOCUMENT_UPLOAD,
+    DOCUMENT_READ,
+    DOCUMENT_CONFIRM,
+    DOCUMENT_DELETE,
+    SCORE_CALCULATE,
+    ZAKAT_READ_CALCULATE
+}
