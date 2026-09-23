@@ -3,6 +3,7 @@ package com.app.sme_health_backend.profile.controller;
 import com.app.sme_health_backend.profile.dto.BusinessProfileRequest;
 import com.app.sme_health_backend.profile.dto.BusinessProfileResponse;
 import com.app.sme_health_backend.profile.dto.LanguagePreferenceRequest;
+import com.app.sme_health_backend.profile.dto.WhatsAppPreferenceRequest;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.service.BusinessProfileService;
 import jakarta.validation.Valid;
@@ -38,6 +39,18 @@ public class BusinessProfileController {
             @PathVariable UUID userId, @Valid @RequestBody LanguagePreferenceRequest request) {
         return BusinessProfileResponse.fromEntity(
                 businessProfileService.updateLanguagePreference(userId, request.languagePreference()));
+    }
+
+    @PatchMapping("/{userId}/whatsapp")
+    public BusinessProfileResponse updateWhatsAppPreference(
+            @PathVariable UUID userId, @Valid @RequestBody WhatsAppPreferenceRequest request) {
+        return BusinessProfileResponse.fromEntity(
+                businessProfileService.updateWhatsAppPreference(
+                        userId,
+                        request.whatsappNumber(),
+                        request.optIn()
+                )
+        );
     }
 
     @GetMapping("/{userId}")

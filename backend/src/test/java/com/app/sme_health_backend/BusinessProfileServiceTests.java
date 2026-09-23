@@ -280,6 +280,55 @@ class BusinessProfileServiceTests {
         assertFalse(result.getBusinessRegistered());
     }
 
+    @Test
+    void shouldUpdateWhatsAppPreferenceOptIn() {
+        BusinessProfile profile = validProfile();
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any(BusinessProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        BusinessProfile updated = businessProfileService.updateWhatsAppPreference(userId, "03001234567", true);
+
+        assertTrue(updated.isWhatsappOptIn());
+        assertEquals("+923001234567", updated.getWhatsappNumber());
+        assertNotNull(updated.getWhatsappOptedInAt());
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldUpdateWhatsAppPreferenceOptOut() {
+        BusinessProfile profile = validProfile();
+        profile.setWhatsappOptIn(true);
+        profile.setWhatsappNumber("+923001234567");
+
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any(BusinessProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        BusinessProfile updated = businessProfileService.updateWhatsAppPreference(userId, null, false);
+
+        assertFalse(updated.isWhatsappOptIn());
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldRejectOptInWithoutPhoneNumber() {
+        BusinessProfile profile = validProfile();
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, "", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, null, true));
+    }
+
+    @Test
+    void shouldThrowWhenUpdatingWhatsAppForNonExistentUser() {
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, "03001234567", true));
+    }
+
+
     private BusinessProfileRequest validRequest() {
         BusinessProfileRequest request =
                 new BusinessProfileRequest();

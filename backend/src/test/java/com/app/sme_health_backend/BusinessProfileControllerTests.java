@@ -47,6 +47,23 @@ class BusinessProfileControllerTests {
     }
 
     @Test
+    void shouldUpdateWhatsAppPreference() throws Exception {
+        UUID id = UUID.randomUUID();
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(id);
+        profile.setWhatsappNumber("+923001234567");
+        profile.setWhatsappOptIn(true);
+        when(businessProfileService.updateWhatsAppPreference(id, "+923001234567", true)).thenReturn(profile);
+
+        mockMvc.perform(patch("/api/profile/{userId}/whatsapp", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"whatsappNumber\":\"+923001234567\",\"optIn\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.whatsappNumber").value("+923001234567"))
+                .andExpect(jsonPath("$.whatsappOptIn").value(true));
+    }
+
+    @Test
     void shouldRejectUnsupportedOrMissingLanguage() throws Exception {
         for (String body : new String[]{"{}", "{\"languagePreference\":\"fr\"}", "{\"languagePreference\":\"\"}"}) {
             mockMvc.perform(patch("/api/profile/{userId}/language", UUID.randomUUID())

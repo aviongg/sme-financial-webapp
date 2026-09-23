@@ -12,6 +12,7 @@ public class BusinessProfileResponse {
     private String languagePreference;
     private String whatsappNumber;
     private boolean whatsappOptIn;
+    private LocalDateTime whatsappOptedInAt;
     private String paymentBehavior;
     private Boolean ntnRegistered;
     private Boolean businessRegistered;
@@ -25,6 +26,7 @@ public class BusinessProfileResponse {
         response.languagePreference = profile.getLanguagePreference();
         response.whatsappNumber = profile.getWhatsappNumber();
         response.whatsappOptIn = profile.isWhatsappOptIn();
+        response.whatsappOptedInAt = profile.getWhatsappOptedInAt();
         response.paymentBehavior = profile.getPaymentBehavior();
         response.ntnRegistered = profile.getNtnRegistered();
         response.businessRegistered = profile.getBusinessRegistered();
@@ -51,6 +53,10 @@ public class BusinessProfileResponse {
 
     public boolean isWhatsappOptIn() {
         return whatsappOptIn;
+    }
+
+    public LocalDateTime getWhatsappOptedInAt() {
+        return whatsappOptedInAt;
     }
 
     public String getPaymentBehavior() {

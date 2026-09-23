@@ -28,6 +28,9 @@ public class BusinessProfile {
     @Column(name = "whatsapp_opt_in", nullable = false)
     private boolean whatsappOptIn = false;
 
+    @Column(name = "whatsapp_opted_in_at")
+    private LocalDateTime whatsappOptedInAt;
+
     @Column(name = "payment_behavior", length = 20)
     private String paymentBehavior;
 
@@ -110,5 +113,13 @@ public class BusinessProfile {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getWhatsappOptedInAt() {
+        return whatsappOptedInAt;
+    }
+
+    public void setWhatsappOptedInAt(LocalDateTime whatsappOptedInAt) {
+        this.whatsappOptedInAt = whatsappOptedInAt;
     }
 }
