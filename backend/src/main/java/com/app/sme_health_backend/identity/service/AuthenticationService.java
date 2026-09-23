@@ -27,8 +27,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
+import com.app.sme_health_backend.identity.entity.BusinessMembership;
+import com.app.sme_health_backend.identity.model.MembershipStatus;
+import com.app.sme_health_backend.identity.repository.BusinessMembershipRepository;
+import com.app.sme_health_backend.identity.repository.BusinessRepository;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AuthenticationService {
@@ -37,18 +44,24 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final SessionAuthenticationStrategy sessionAuthenticationStrategy;
+    private final BusinessMembershipRepository membershipRepository;
+    private final BusinessRepository businessRepository;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
     public AuthenticationService(
             AppUserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
-            SessionAuthenticationStrategy sessionAuthenticationStrategy
+            SessionAuthenticationStrategy sessionAuthenticationStrategy,
+            BusinessMembershipRepository membershipRepository,
+            BusinessRepository businessRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.sessionAuthenticationStrategy = sessionAuthenticationStrategy;
+        this.membershipRepository = membershipRepository;
+        this.businessRepository = businessRepository;
     }
 
     @Transactional
@@ -118,6 +131,22 @@ public class AuthenticationService {
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute(SessionMaxLifetimeFilter.SESSION_AUTH_TIME_ATTR, System.currentTimeMillis());
 
+        // Explicitly clear any stale active business context on login
+        session.removeAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR);
+
+        // Resolve active memberships for active businesses
+        List<BusinessMembership> memberships = membershipRepository.findByUserId(user.getId());
+        List<UUID> activeBusinessIds = memberships.stream()
+                .filter(m -> m.getStatus() == MembershipStatus.ACTIVE)
+                .map(BusinessMembership::getBusinessId)
+                .filter(bid -> businessRepository.findById(bid).map(b -> "ACTIVE".equalsIgnoreCase(b.getStatus())).orElse(false))
+                .toList();
+
+        // Exactly one active membership -> auto-select; 0 or 2+ -> remains unset
+        if (activeBusinessIds.size() == 1) {
+            session.setAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR, activeBusinessIds.get(0));
+        }
+
         return UserResponse.fromEntity(user);
     }
 
@@ -125,6 +154,7 @@ public class AuthenticationService {
         SecurityContextHolder.clearContext();
         HttpSession session = httpRequest.getSession(false);
         if (session != null) {
+            session.removeAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR);
             session.invalidate();
         }
         SecurityContext context = SecurityContextHolder.createEmptyContext();

@@ -23,16 +23,6 @@ public class BusinessProfileController {
         this.businessProfileService = businessProfileService;
     }
 
-    @PostMapping
-    public ResponseEntity<BusinessProfileResponse> createProfile(
-            @Valid @RequestBody BusinessProfileRequest request) {
-
-        BusinessProfile profile = businessProfileService.createProfile(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(BusinessProfileResponse.fromEntity(profile));
-    }
 
     @PatchMapping("/{userId}/language")
     public BusinessProfileResponse updateLanguagePreference(
