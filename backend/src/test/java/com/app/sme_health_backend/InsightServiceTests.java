@@ -1,414 +1,185 @@
 package com.app.sme_health_backend;
 
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
 import com.app.sme_health_backend.insight.service.InsightService;
-import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.scoring.dto.ComponentScoresDto;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
-import com.app.sme_health_backend.scoring.service.ScoringService;
-import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import com.app.sme_health_backend.shared.advice.AdviceContext;
+import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class InsightServiceTests {
 
     @Mock
     private InsightRepository insightRepository;
-
     @Mock
-    private BusinessProfileRepository businessProfileRepository;
-
-    @Mock
-    private ScoringService scoringService;
+    private AdviceContextService adviceContextService;
 
     private InsightService insightService;
-
     private UUID userId;
+    private static final LocalDateTime COMPUTED_AT = LocalDateTime.of(2026, 9, 18, 12, 30);
 
     @BeforeEach
     void setUp() {
-        insightService = new InsightService(
-                insightRepository,
-                businessProfileRepository,
-                scoringService
-        );
+        insightService = new InsightService(insightRepository, adviceContextService,
+                new TranslationService(new ObjectMapper()));
         userId = UUID.randomUUID();
     }
 
     @Test
-    void shouldGenerateInsightsFromScoreResult() {
-        ScoreResult scoreResult = scoreResult(
-                new BigDecimal("48.00"),
-                new BigDecimal("0.65"),
-                "profitability"
-        );
+    void shouldGenerateThreeInsightsFromCanonicalScoreIncludingInactiveComponents() {
+        ScoreResult score = score("2026-09", "48.00", "Needs Attention", "0.65", "profitability");
 
-        List<Insight> insights = insightService.generateInsights(scoreResult);
+        List<Insight> insights = insightService.generateInsights(score);
 
         assertEquals(3, insights.size());
-        assertEquals("profitability", insights.get(0).getCategory());
-        assertEquals("high", insights.get(0).getPriority());
-        assertEquals("high", insights.get(1).getPriority());
-        assertEquals("data_quality", insights.get(2).getCategory());
-        assertEquals("high", insights.get(2).getPriority());
-        assertEquals(userId, insights.get(0).getUserId());
-        assertEquals("2026-09", insights.get(0).getMonth());
-        assertFalse(insights.get(0).getText().isBlank());
+        assertEquals(List.of("profitability", "overall_health", "data_quality"),
+                insights.stream().map(Insight::getCategory).toList());
+        assertEquals(List.of("high", "high", "high"),
+                insights.stream().map(Insight::getPriority).toList());
+        assertTrue(insights.stream().allMatch(i -> userId.equals(i.getUserId())
+                && "2026-09".equals(i.getMonth()) && "en".equals(i.getLanguage())
+                && COMPUTED_AT.equals(i.getSourceComputedAt()) && !i.getText().isBlank()));
+        verifyNoInteractions(insightRepository, adviceContextService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Strong,low", "Stable,medium", "Needs Attention,high", "At Risk,high"})
+    void shouldUseSuppliedBandForOverallPriority(String band, String priority) {
+        ScoreResult score = score("2026-09", "75.00", band, "0.90", "cashflow");
+        assertEquals(priority, insightService.generateInsights(score).get(1).getPriority());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"70.00,improved by 2 points,low", "74.00,declined by 2 points,high",
+            "72.00,unchanged,low"})
+    void shouldExplainExactPreviousMonthDelta(String previousValue, String text, String priority) {
+        ScoreResult current = score("2026-09", "72.00", "Stable", "0.90", "cashflow");
+        ScoreResult previous = score("2026-08", previousValue, "Stable", "0.90", "cashflow");
+
+        List<Insight> insights = insightService.generateInsights(current, "en", previous);
+
+        assertEquals(4, insights.size());
+        Insight change = insights.get(3);
+        assertEquals("monthly_change", change.getCategory());
+        assertEquals(priority, change.getPriority());
+        assertTrue(change.getText().contains(text));
+        assertTrue(change.getText().contains("2026-08"));
     }
 
     @Test
-    void shouldReturnStoredInsightsWithoutGeneratingDuplicates() {
-        Insight storedInsight = insight(userId);
+    void shouldHandleYearBoundaryAndTranslateTheMonthlyDelta() {
+        ScoreResult current = score("2026-01", "72.00", "Stable", "0.90", "cashflow");
+        ScoreResult previous = score("2025-12", "70.00", "Stable", "0.90", "cashflow");
 
-        when(businessProfileRepository.existsById(userId))
-                .thenReturn(true);
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of(storedInsight));
+        List<Insight> insights = insightService.generateInsights(current, "ur", previous);
 
-        List<Insight> result = insightService.getInsights(userId);
+        assertEquals(4, insights.size());
+        assertTrue(insights.get(0).getText().contains("کیش فلو"));
+        assertTrue(insights.get(3).getText().contains("بہتر"));
+        assertTrue(insights.get(3).getText().contains("2025-12"));
+        assertTrue(insights.stream().allMatch(i -> "ur".equals(i.getLanguage())));
+    }
 
-        assertEquals(List.of(storedInsight), result);
-        verify(insightRepository).findByUserIdOrderByCreatedAtDesc(userId);
+    @ParameterizedTest
+    @CsvSource({"70.00,بہتر", "74.00,کم", "72.00,برقرار"})
+    void shouldTranslateEveryDeltaDirectionIntoUrdu(String previousValue, String expectedText) {
+        ScoreResult current = score("2026-09", "72.00", "Stable", "0.90", "cashflow");
+        ScoreResult previous = score("2026-08", previousValue, "Stable", "0.90", "cashflow");
+
+        Insight delta = insightService.generateInsights(current, "ur", previous).get(3);
+
+        assertEquals("ur", delta.getLanguage());
+        assertTrue(delta.getText().contains(expectedText));
+        assertFalse(delta.getText().contains("{"));
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenScoreIsAbsent() {
+        when(adviceContextService.latest(userId)).thenReturn(Optional.empty());
+
+        List<Insight> insights = insightService.getInsights(userId);
+
+        assertTrue(insights.isEmpty());
+        verify(adviceContextService).latest(userId);
+        verifyNoInteractions(insightRepository);
+    }
+
+    @Test
+    void shouldRefreshAndPersistInsightsWhenExistingAreMissingOrStale() {
+        ScoreResult score = score("2026-09", "75.00", "Stable", "0.90", "cashflow");
+        AdviceContext context = new AdviceContext(score, null, "en", "fp-123");
+
+        when(adviceContextService.latest(userId)).thenReturn(Optional.of(context));
+        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-09"))
+                .thenReturn(List.of());
+        when(insightRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<Insight> insights = insightService.getInsights(userId);
+
+        assertEquals(3, insights.size());
+        verify(insightRepository).deleteByUserIdAndMonth(userId, "2026-09");
+        verify(insightRepository).flush();
+        verify(insightRepository).saveAll(anyList());
+    }
+
+    @Test
+    void shouldReturnExistingInsightsWhenFingerprintAndContentMatch() {
+        ScoreResult score = score("2026-09", "75.00", "Stable", "0.90", "cashflow");
+        AdviceContext context = new AdviceContext(score, null, "en", "fp-123");
+
+        List<Insight> generated = insightService.generateInsights(score, "en", null);
+        generated.forEach(i -> i.setSourceVersion("fp-123"));
+
+        when(adviceContextService.latest(userId)).thenReturn(Optional.of(context));
+        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-09"))
+                .thenReturn(generated);
+
+        List<Insight> insights = insightService.getInsights(userId);
+
+        assertEquals(3, insights.size());
+        verify(insightRepository, never()).deleteByUserIdAndMonth(any(), any());
         verify(insightRepository, never()).saveAll(anyList());
     }
 
-    @Test
-    void shouldGenerateAndPersistMockInsightsWhenNoneExist() {
-        when(businessProfileRepository.existsById(userId))
-                .thenReturn(true);
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of());
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertNotNull(result);
-        assertEquals(3, result.size());
-        assertEquals(userId, result.get(0).getUserId());
-        assertEquals("liquidity", result.get(0).getCategory());
-        assertEquals("high", result.get(0).getPriority());
-
-        verify(insightRepository).findByUserIdOrderByCreatedAtDesc(userId);
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldRejectInsightsForUnknownBusinessProfile() {
-        when(businessProfileRepository.existsById(userId))
-                .thenReturn(false);
-
-        ResourceNotFoundException exception = assertThrows(
-                ResourceNotFoundException.class,
-                () -> insightService.getInsights(userId)
-        );
-
-        assertEquals(
-                "Business profile not found for this user",
-                exception.getMessage()
-        );
-
-        verify(insightRepository, never())
-                .findByUserIdOrderByCreatedAtDesc(userId);
-        verify(insightRepository, never()).saveAll(anyList());
-    }
-
-    @Test
-    void shouldRejectNullUserId() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> insightService.getInsights(null)
-        );
-
-        assertEquals("User ID is required", exception.getMessage());
-    }
-
-    @Test
-    void shouldRejectNullScoreResult() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> insightService.generateInsights(null)
-        );
-
-        assertEquals("Score result is required", exception.getMessage());
-    }
-
-    @Test
-    void shouldGenerateAndPersistInsightsFromRealScoreResultWhenScoreExists() {
-        ScoreResult realScore = scoreResult(
-                new BigDecimal("76.00"),
-                new BigDecimal("1.00"),
-                "repayment"
-        );
-        realScore.setMonth("2026-08");
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(realScore));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(List.of());
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of());
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertNotNull(result);
-        assertEquals(3, result.size());
-        assertEquals("repayment", result.get(0).getCategory());
-        assertEquals("2026-08", result.get(0).getMonth());
-        assertTrue(result.get(0).getText().contains("repayment"));
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldPrioritizeRealScoreResultOverOldMockPersistedInsights() {
-        Insight oldMockInsight = insight(userId); // category = "liquidity"
-        ScoreResult realScore = scoreResult(
-                new BigDecimal("76.00"),
-                new BigDecimal("1.00"),
-                "repayment"
-        );
-        realScore.setMonth("2026-08");
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(realScore));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(List.of());
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of(oldMockInsight));
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertNotNull(result);
-        assertEquals("repayment", result.get(0).getCategory());
-        verify(insightRepository).deleteAll(List.of(oldMockInsight));
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldReturnStoredRealInsightsWithoutGeneratingDuplicatesOnRepeatedReads() {
-        LocalDateTime t1 = LocalDateTime.now().minusMinutes(5);
-        ScoreResult realScore = scoreResult(
-                new BigDecimal("76.00"),
-                new BigDecimal("1.00"),
-                "repayment"
-        );
-        realScore.setMonth("2026-08");
-        realScore.setComputedAt(t1);
-
-        Insight i1 = new Insight();
-        i1.setUserId(userId);
-        i1.setMonth("2026-08");
-        i1.setCategory("repayment");
-        i1.setText("Focus first on repayment.");
-        i1.setPriority("high");
-        i1.setCreatedAt(t1.plusSeconds(10));
-
-        Insight i2 = new Insight();
-        i2.setUserId(userId);
-        i2.setMonth("2026-08");
-        i2.setCategory("overall_health");
-        i2.setText("Overall health is solid.");
-        i2.setPriority("medium");
-        i2.setCreatedAt(t1.plusSeconds(10));
-
-        Insight i3 = new Insight();
-        i3.setUserId(userId);
-        i3.setMonth("2026-08");
-        i3.setCategory("data_quality");
-        i3.setText("Data quality is good.");
-        i3.setPriority("low");
-        i3.setCreatedAt(t1.plusSeconds(10));
-
-        List<Insight> storedList = List.of(i1, i2, i3);
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(realScore));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(storedList);
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertEquals(storedList, result);
-        verify(insightRepository, never()).saveAll(anyList());
-        verify(insightRepository, never()).deleteAll(anyList());
-    }
-
-    @Test
-    void shouldRegenerateInsightsWhenPartialInsightsExist() {
-        LocalDateTime t1 = LocalDateTime.now().minusMinutes(5);
-        ScoreResult realScore = scoreResult(
-                new BigDecimal("76.00"),
-                new BigDecimal("1.00"),
-                "repayment"
-        );
-        realScore.setMonth("2026-08");
-        realScore.setComputedAt(t1);
-
-        Insight partialInsight = new Insight();
-        partialInsight.setUserId(userId);
-        partialInsight.setMonth("2026-08");
-        partialInsight.setCategory("repayment");
-        partialInsight.setCreatedAt(t1.plusSeconds(10));
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(realScore));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(List.of(partialInsight));
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of(partialInsight));
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertEquals(3, result.size());
-        verify(insightRepository).deleteAll(List.of(partialInsight));
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldPreserveLegitimateHistoricalInsightsFromOlderMonths() {
-        Insight olderLegitimateInsight = new Insight();
-        olderLegitimateInsight.setUserId(userId);
-        olderLegitimateInsight.setMonth("2026-07");
-        olderLegitimateInsight.setCategory("cashflow");
-        olderLegitimateInsight.setCreatedAt(LocalDateTime.now().minusDays(30));
-
-        ScoreResult realScore = scoreResult(
-                new BigDecimal("76.00"),
-                new BigDecimal("1.00"),
-                "repayment"
-        );
-        realScore.setMonth("2026-08");
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(realScore));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(List.of());
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of(olderLegitimateInsight));
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertNotNull(result);
-        assertEquals(3, result.size());
-        verify(insightRepository, never()).deleteAll(anyList());
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldRegenerateInsightsWhenScoreResultHasBeenRecomputed() {
-        LocalDateTime t1 = LocalDateTime.now().minusMinutes(10);
-        LocalDateTime t2 = LocalDateTime.now(); // recomputed after stored insight
-
-        Insight staleInsight = new Insight();
-        staleInsight.setUserId(userId);
-        staleInsight.setMonth("2026-08");
-        staleInsight.setCategory("repayment");
-        staleInsight.setText("Focus first on repayment.");
-        staleInsight.setPriority("high");
-        staleInsight.setCreatedAt(t1);
-
-        ScoreResult rescored = scoreResult(
-                new BigDecimal("60.00"),
-                new BigDecimal("1.00"),
-                "profitability"
-        );
-        rescored.setMonth("2026-08");
-        rescored.setComputedAt(t2);
-
-        when(businessProfileRepository.existsById(userId)).thenReturn(true);
-        when(scoringService.getLatestScore(userId)).thenReturn(Optional.of(rescored));
-        when(insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-08"))
-                .thenReturn(List.of(staleInsight));
-        when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId))
-                .thenReturn(List.of(staleInsight));
-        when(insightRepository.saveAll(anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        List<Insight> result = insightService.getInsights(userId);
-
-        assertNotNull(result);
-        assertEquals("profitability", result.get(0).getCategory());
-        verify(insightRepository).deleteAll(List.of(staleInsight));
-        verify(insightRepository).saveAll(anyList());
-    }
-
-    @Test
-    void shouldRespectCanonicalComponentNamesWhenGeneratingFromRealScoreResult() {
-        List<String> canonicalComponents = List.of(
-                "cashflow", "profitability", "repayment", "trend", "compliance"
-        );
-
-        for (String component : canonicalComponents) {
-            ScoreResult realScore = scoreResult(
-                    new BigDecimal("65.00"),
-                    new BigDecimal("0.85"),
-                    component
-            );
-            List<Insight> insights = insightService.generateInsights(realScore);
-            assertEquals(component, insights.get(0).getCategory());
-            assertTrue(insights.get(0).getText().contains(component));
-        }
-    }
-
-    private ScoreResult scoreResult(
-            BigDecimal compositeScore,
-            BigDecimal dataCompleteness,
-            String weakestComponent
-    ) {
+    private ScoreResult score(String month, String composite, String band, String completeness, String weakest) {
         ScoreResult result = new ScoreResult();
+        result.setId(UUID.randomUUID());
         result.setUserId(userId);
-        result.setMonth("2026-09");
-        result.setCompositeScore(compositeScore);
-        result.setBand("needs_attention");
-        result.setComponentScores(ComponentScoresDto.fromMap(
-                Map.of(weakestComponent, new BigDecimal("48.00"))
+        result.setMonth(month);
+        result.setCompositeScore(new BigDecimal(composite));
+        result.setBand(band);
+        result.setDataCompleteness(new BigDecimal(completeness));
+        result.setWeakestComponent(weakest);
+        result.setComputedAt(COMPUTED_AT);
+        result.setComponentScores(new ComponentScoresDto(
+                new BigDecimal("60.00"),
+                new BigDecimal("40.00"),
+                new BigDecimal("70.00"),
+                new BigDecimal("50.00"),
+                new BigDecimal("80.00")
         ));
-        result.setWeakestComponent(weakestComponent);
-        result.setDataCompleteness(dataCompleteness);
-        result.setComputedAt(LocalDateTime.now());
         return result;
-    }
-
-    private Insight insight(UUID userId) {
-        Insight insight = new Insight();
-
-        insight.setUserId(userId);
-        insight.setMonth("2026-09");
-        insight.setText("Monitor cash availability.");
-        insight.setCategory("liquidity");
-        insight.setPriority("high");
-        insight.setCreatedAt(LocalDateTime.now());
-
-        return insight;
     }
 }

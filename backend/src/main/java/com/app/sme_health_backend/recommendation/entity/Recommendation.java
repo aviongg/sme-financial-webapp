@@ -39,6 +39,15 @@ public class Recommendation {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "source_version", length = 64)
+    private String sourceVersion;
+
+    @Column(name = "language", length = 5)
+    private String language;
+
+    @Column(name = "source_computed_at")
+    private LocalDateTime sourceComputedAt;
+
     public UUID getId() {
         return id;
     }
@@ -89,5 +98,29 @@ public class Recommendation {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public void setSourceVersion(String sourceVersion) {
+        this.sourceVersion = sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
+    }
+
+    public void setSourceComputedAt(LocalDateTime sourceComputedAt) {
+        this.sourceComputedAt = sourceComputedAt;
     }
 }

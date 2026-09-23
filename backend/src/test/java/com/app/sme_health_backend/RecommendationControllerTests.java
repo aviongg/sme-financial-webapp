@@ -71,4 +71,23 @@ class RecommendationControllerTests {
                 .andExpect(jsonPath("$.length()")
                         .value(0));
     }
+
+    @Test
+    void shouldReturnRecommendationsForSpecificMonth() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Recommendation recommendation = new Recommendation();
+        recommendation.setUserId(userId);
+        recommendation.setMonth("2026-08");
+        recommendation.setText("Review cash collection timing.");
+        recommendation.setCategory("cashflow");
+        recommendation.setPriority("high");
+        recommendation.setCreatedAt(LocalDateTime.now());
+
+        when(recommendationService.getRecommendations(userId, "2026-08")).thenReturn(List.of(recommendation));
+
+        mockMvc.perform(get("/api/recommendations/{userId}", userId).param("month", "2026-08"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].month").value("2026-08"))
+                .andExpect(jsonPath("$[0].category").value("cashflow"));
+    }
 }

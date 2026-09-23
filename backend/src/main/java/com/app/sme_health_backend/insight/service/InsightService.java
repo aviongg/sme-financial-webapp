@@ -1,272 +1,209 @@
 package com.app.sme_health_backend.insight.service;
 
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
-import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
-import com.app.sme_health_backend.scoring.dto.ComponentScoresDto;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
-import com.app.sme_health_backend.scoring.service.ScoringService;
-import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.app.sme_health_backend.shared.advice.AdviceContext;
+import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @Service
 public class InsightService {
 
-    private static final BigDecimal LOW_SCORE_THRESHOLD =
-            new BigDecimal("60.00");
-    private static final BigDecimal STRONG_SCORE_THRESHOLD =
-            new BigDecimal("80.00");
     private static final BigDecimal COMPLETE_DATA_THRESHOLD =
             new BigDecimal("0.80");
 
     private final InsightRepository insightRepository;
-    private final BusinessProfileRepository businessProfileRepository;
-    private final ScoringService scoringService;
+    private final AdviceContextService adviceContextService;
+    private final TranslationService translationService;
 
     public InsightService(
             InsightRepository insightRepository,
-            BusinessProfileRepository businessProfileRepository
-    ) {
-        this(insightRepository, businessProfileRepository, null);
-    }
-
-    @Autowired
-    public InsightService(
-            InsightRepository insightRepository,
-            BusinessProfileRepository businessProfileRepository,
-            @Autowired(required = false) ScoringService scoringService
+            AdviceContextService adviceContextService,
+            TranslationService translationService
     ) {
         this.insightRepository = insightRepository;
-        this.businessProfileRepository = businessProfileRepository;
-        this.scoringService = scoringService;
+        this.adviceContextService = adviceContextService;
+        this.translationService = translationService;
+    }
+
+    /** Returns advice for the latest persisted score; absent scores have no advice. */
+    @Transactional
+    public List<Insight> getInsights(UUID userId) {
+        validateUserId(userId);
+        return adviceContextService.latest(userId)
+                .map(this::refreshInsights)
+                .orElseGet(List::of);
+    }
+
+    /** An explicit month never falls back to a different month's score. */
+    @Transactional
+    public List<Insight> getInsights(UUID userId, String month) {
+        if (month == null) {
+            return getInsights(userId);
+        }
+        validateUserId(userId);
+        return adviceContextService.forMonth(userId, month)
+                .map(this::refreshInsights)
+                .orElseGet(List::of);
     }
 
     @Transactional
-    public List<Insight> getInsights(UUID userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        if (!businessProfileRepository.existsById(userId)) {
-            throw new ResourceNotFoundException(
-                    "Business profile not found for this user"
-            );
-        }
-
-        Optional<ScoreResult> latestScoreOpt = (scoringService != null)
-                ? scoringService.getLatestScore(userId)
-                : Optional.empty();
-
-        if (latestScoreOpt.isPresent()) {
-            ScoreResult realScore = latestScoreOpt.get();
-            String targetMonth = realScore.getMonth();
-
-            List<Insight> existingForMonth =
-                    insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, targetMonth);
-
-            boolean isMockOrStale = existingForMonth.size() < 3
-                    || existingForMonth.stream().map(Insight::getCategory).distinct().count() < 3
-                    || existingForMonth.stream().anyMatch(i -> isLegacyMockCategory(i.getCategory()))
-                    || (realScore.getComputedAt() != null
-                    && existingForMonth.get(0).getCreatedAt() != null
-                    && existingForMonth.get(0).getCreatedAt().isBefore(realScore.getComputedAt()));
-
-            if (!isMockOrStale) {
-                return existingForMonth;
-            }
-
-            List<Insight> allUserInsights =
-                    insightRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            List<Insight> toRemove = allUserInsights.stream()
-                    .filter(i -> targetMonth.equals(i.getMonth()) || isLegacyMockCategory(i.getCategory()))
-                    .toList();
-            if (!toRemove.isEmpty()) {
-                insightRepository.deleteAll(toRemove);
-            }
-
-            List<Insight> newInsights = generateInsights(realScore);
-            return insightRepository.saveAll(newInsights);
-        }
-
-        List<Insight> existingInsights =
-                insightRepository.findByUserIdOrderByCreatedAtDesc(userId);
-
-        if (!existingInsights.isEmpty()) {
-            return existingInsights;
-        }
-
-        return insightRepository.saveAll(
-                generateInsights(createMockScoreResult(userId))
-        );
+    public List<Insight> generateAndSaveInsights(ScoreResult scoreResult) {
+        validateScoreResult(scoreResult);
+        return refreshInsights(adviceContextService.forScore(scoreResult));
     }
 
-    private boolean isLegacyMockCategory(String category) {
-        return "liquidity".equalsIgnoreCase(category) || "leverage".equalsIgnoreCase(category);
+    private List<Insight> refreshInsights(AdviceContext context) {
+        ScoreResult score = context.score();
+        List<Insight> expected = generateInsights(score, context.language(), context.previousScore());
+        expected.forEach(insight -> insight.setSourceVersion(context.sourceVersion()));
+        List<Insight> existing = insightRepository.findByUserIdAndMonthOrderByCreatedAtDesc(
+                score.getUserId(), score.getMonth());
+
+        List<Insight> matching = matchingInsights(existing, expected);
+        if (matching != null) {
+            return matching;
+        }
+
+        // Shared context holds a per-profile lock through this transaction.
+        // Flush deletions before inserting the replacement unique category set.
+        insightRepository.deleteByUserIdAndMonth(score.getUserId(), score.getMonth());
+        insightRepository.flush();
+        return insightRepository.saveAll(expected);
+    }
+
+    private List<Insight> matchingInsights(List<Insight> existing, List<Insight> expected) {
+        if (existing.size() != expected.size()) {
+            return null;
+        }
+        Map<String, Insight> byCategory = new HashMap<>();
+        for (Insight insight : existing) {
+            if (byCategory.put(insight.getCategory(), insight) != null) {
+                return null;
+            }
+        }
+        List<Insight> ordered = new ArrayList<>();
+        for (Insight wanted : expected) {
+            Insight stored = byCategory.get(wanted.getCategory());
+            if (stored == null
+                    || !Objects.equals(stored.getUserId(), wanted.getUserId())
+                    || !Objects.equals(stored.getMonth(), wanted.getMonth())
+                    || !Objects.equals(stored.getText(), wanted.getText())
+                    || !Objects.equals(stored.getPriority(), wanted.getPriority())
+                    || !Objects.equals(stored.getLanguage(), wanted.getLanguage())
+                    || !Objects.equals(stored.getSourceVersion(), wanted.getSourceVersion())
+                    || !Objects.equals(stored.getSourceComputedAt(), wanted.getSourceComputedAt())) {
+                return null;
+            }
+            ordered.add(stored);
+        }
+        return ordered;
     }
 
     public List<Insight> generateInsights(ScoreResult scoreResult) {
+        return generateInsights(scoreResult, TranslationService.DEFAULT_LANGUAGE, null);
+    }
+
+    public List<Insight> generateInsights(ScoreResult scoreResult, String language) {
+        return generateInsights(scoreResult, language, null);
+    }
+
+    /** Pure generation consumes the agreed score contract without recalculating scores. */
+    public List<Insight> generateInsights(
+            ScoreResult scoreResult,
+            String language,
+            ScoreResult previousScore
+    ) {
         validateScoreResult(scoreResult);
-
-        List<Insight> insights = new ArrayList<>();
-        String weakestComponent = displayName(
-                scoreResult.getWeakestComponent()
-        );
-
-        insights.add(createInsight(
-                scoreResult,
-                "Focus first on " + weakestComponent
-                        + ", which is currently your weakest financial area.",
-                scoreResult.getWeakestComponent(),
-                "high"
-        ));
-
-        insights.add(createInsight(
-                scoreResult,
-                overallScoreText(scoreResult),
-                "overall_health",
-                overallScorePriority(scoreResult)
-        ));
-
-        if (scoreResult.getDataCompleteness()
-                .compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
-            insights.add(createInsight(
-                    scoreResult,
-                    "Add the missing monthly financial records to improve"
-                            + " the confidence of your financial health score.",
-                    "data_quality",
-                    "high"
-            ));
-        } else {
-            insights.add(createInsight(
-                    scoreResult,
-                    "Your available financial records provide a solid base"
-                            + " for monitoring business health over time.",
-                    "data_quality",
-                    "low"
-            ));
+        if (previousScore != null) {
+            validateScoreResult(previousScore);
+            if (!scoreResult.getUserId().equals(previousScore.getUserId())) {
+                throw new IllegalArgumentException("Previous score must belong to the same user");
+            }
         }
+        String selectedLanguage = translationService.resolveLanguage(language);
+        LocalDateTime createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        List<Insight> insights = new ArrayList<>();
 
+        insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
+                translationService.translate(selectedLanguage, "insight.focus_weakest_component",
+                        Map.of("component", translationService.translate(selectedLanguage,
+                                "component." + scoreResult.getWeakestComponent()))),
+                scoreResult.getWeakestComponent(), "high"));
+
+        String overallKey = switch (scoreResult.getBand()) {
+            case "Strong" -> "insight.overall.strong";
+            case "Stable" -> "insight.overall.stable";
+            default -> "insight.overall.low";
+        };
+        String overallPriority = switch (scoreResult.getBand()) {
+            case "Strong" -> "low";
+            case "Stable" -> "medium";
+            default -> "high";
+        };
+        insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
+                translationService.translate(selectedLanguage, overallKey,
+                        Map.of("score", scoreResult.getCompositeScore())),
+                "overall_health", overallPriority));
+
+        boolean complete = scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) >= 0;
+        insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
+                translationService.translate(selectedLanguage, complete
+                        ? "insight.data_quality.complete" : "insight.data_quality.incomplete"),
+                "data_quality", complete ? "low" : "high"));
+
+        if (previousScore != null && YearMonth.parse(scoreResult.getMonth()).minusMonths(1)
+                .equals(YearMonth.parse(previousScore.getMonth()))) {
+            BigDecimal delta = scoreResult.getCompositeScore().subtract(previousScore.getCompositeScore());
+            String direction = delta.signum() > 0 ? "improved" : delta.signum() < 0 ? "declined" : "unchanged";
+            insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
+                    translationService.translate(selectedLanguage, "insight.monthly_change." + direction,
+                            Map.of("month", previousScore.getMonth(),
+                                    "delta", delta.abs().stripTrailingZeros().toPlainString(),
+                                    "score", scoreResult.getCompositeScore())),
+                    "monthly_change", delta.signum() < 0 ? "high" : "low"));
+        }
         return insights;
     }
 
-    private ScoreResult createMockScoreResult(UUID userId) {
-        ScoreResult result = new ScoreResult();
-        result.setUserId(userId);
-        result.setMonth(YearMonth.now().toString());
-        result.setCompositeScore(new BigDecimal("72.00"));
-        result.setBand("good");
-        result.setComponentScores(ComponentScoresDto.fromMap(Map.of(
-                "liquidity", new BigDecimal("58.00"),
-                "profitability", new BigDecimal("76.00"),
-                "leverage", new BigDecimal("84.00")
-        )));
-        result.setWeakestComponent("liquidity");
-        result.setDataCompleteness(new BigDecimal("0.90"));
-        result.setComputedAt(LocalDateTime.now());
-        return result;
-    }
-
-    private Insight createInsight(
-            ScoreResult scoreResult,
-            String text,
-            String category,
-            String priority
-    ) {
+    private Insight createInsight(ScoreResult score, String language, LocalDateTime createdAt,
+                                  String text, String category, String priority) {
         Insight insight = new Insight();
-
-        insight.setUserId(scoreResult.getUserId());
-        insight.setMonth(scoreResult.getMonth());
+        insight.setUserId(score.getUserId());
+        insight.setMonth(score.getMonth());
         insight.setText(text);
         insight.setCategory(category);
         insight.setPriority(priority);
-        insight.setCreatedAt(LocalDateTime.now());
-
+        insight.setCreatedAt(createdAt);
+        insight.setLanguage(language);
+        insight.setSourceComputedAt(score.getComputedAt());
         return insight;
-    }
-
-    private String overallScoreText(ScoreResult scoreResult) {
-        BigDecimal score = scoreResult.getCompositeScore();
-
-        if (score.compareTo(LOW_SCORE_THRESHOLD) < 0) {
-            return "Your overall financial score is " + score
-                    + ". Prioritize the high-priority action first and"
-                    + " review the score again after the next month.";
-        }
-
-        if (score.compareTo(STRONG_SCORE_THRESHOLD) >= 0) {
-            return "Your overall financial score is " + score
-                    + ". Keep the current routines that are supporting"
-                    + " your financial health.";
-        }
-
-        return "Your overall financial score is " + score
-                + ". Keep monitoring the key components each month"
-                + " to build on this position.";
-    }
-
-    private String overallScorePriority(ScoreResult scoreResult) {
-        BigDecimal score = scoreResult.getCompositeScore();
-
-        if (score.compareTo(LOW_SCORE_THRESHOLD) < 0) {
-            return "high";
-        }
-
-        if (score.compareTo(STRONG_SCORE_THRESHOLD) >= 0) {
-            return "low";
-        }
-
-        return "medium";
-    }
-
-    private String displayName(String component) {
-        if (component == null || component.isBlank()) {
-            return "the weakest component";
-        }
-
-        return component.replace('_', ' ');
     }
 
     private void validateScoreResult(ScoreResult scoreResult) {
         if (scoreResult == null) {
             throw new IllegalArgumentException("Score result is required");
         }
-
         if (scoreResult.getUserId() == null) {
-            throw new IllegalArgumentException("Score result user ID is required");
+            throw new IllegalArgumentException("User ID is required");
         }
-
-        if (scoreResult.getMonth() == null || scoreResult.getMonth().isBlank()) {
-            throw new IllegalArgumentException("Score result month is required");
+        if (scoreResult.getMonth() == null) {
+            throw new IllegalArgumentException("Month is required");
         }
+    }
 
-        if (scoreResult.getCompositeScore() == null) {
-            throw new IllegalArgumentException(
-                    "Score result composite score is required"
-            );
-        }
-
-        if (scoreResult.getWeakestComponent() == null
-                || scoreResult.getWeakestComponent().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Score result weakest component is required"
-            );
-        }
-
-        if (scoreResult.getDataCompleteness() == null) {
-            throw new IllegalArgumentException(
-                    "Score result data completeness is required"
-            );
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
         }
     }
 }

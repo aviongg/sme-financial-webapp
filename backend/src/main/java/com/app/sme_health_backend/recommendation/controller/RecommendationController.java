@@ -5,6 +5,7 @@ import com.app.sme_health_backend.recommendation.service.RecommendationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,9 +23,12 @@ public class RecommendationController {
 
     @GetMapping("/{userId}")
     public List<RecommendationResponse> getRecommendations(
-            @PathVariable UUID userId
+            @PathVariable UUID userId,
+            @RequestParam(required = false) String month
     ) {
-        return recommendationService.getRecommendations(userId)
+        return (month == null
+                ? recommendationService.getRecommendations(userId)
+                : recommendationService.getRecommendations(userId, month))
                 .stream()
                 .map(RecommendationResponse::fromEntity)
                 .toList();

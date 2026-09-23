@@ -12,4 +12,6 @@ public interface RecommendationRepository
     List<Recommendation> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     List<Recommendation> findByUserIdAndMonthOrderByCreatedAtDesc(UUID userId, String month);
+
+    void deleteByUserIdAndMonth(UUID userId, String month);
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,6 +34,31 @@ class BusinessProfileServiceTests {
                 new BusinessProfileService(businessProfileRepository);
 
         userId = UUID.randomUUID();
+    }
+
+    @Test
+    void shouldUpdateLanguagePreference() {
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(userId);
+        profile.setLanguagePreference("en");
+
+        when(businessProfileRepository.findByUserIdForUpdate(userId))
+                .thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(profile)).thenReturn(profile);
+
+        BusinessProfile updated = businessProfileService.updateLanguagePreference(userId, "ur");
+
+        assertEquals("ur", updated.getLanguagePreference());
+        verify(businessProfileRepository).findByUserIdForUpdate(userId);
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldRejectInvalidLanguagePreference() {
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateLanguagePreference(userId, "fr"));
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateLanguagePreference(null, "en"));
     }
 
     @Test

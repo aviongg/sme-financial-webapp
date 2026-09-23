@@ -69,4 +69,23 @@ class InsightControllerTests {
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
     }
+
+    @Test
+    void shouldReturnInsightsForSpecificMonth() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Insight insight = new Insight();
+        insight.setUserId(userId);
+        insight.setMonth("2026-08");
+        insight.setText("Focus on cash flow.");
+        insight.setCategory("cashflow");
+        insight.setPriority("high");
+        insight.setCreatedAt(LocalDateTime.now());
+
+        when(insightService.getInsights(userId, "2026-08")).thenReturn(List.of(insight));
+
+        mockMvc.perform(get("/api/insights/{userId}", userId).param("month", "2026-08"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].month").value("2026-08"))
+                .andExpect(jsonPath("$[0].category").value("cashflow"));
+    }
 }

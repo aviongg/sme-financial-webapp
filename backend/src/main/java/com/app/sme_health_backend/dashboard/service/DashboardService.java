@@ -16,6 +16,8 @@ import com.app.sme_health_backend.recommendation.service.RecommendationService;
 import com.app.sme_health_backend.scoring.dto.ScoreResultResponse;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
 import com.app.sme_health_backend.scoring.service.ScoringService;
+import com.app.sme_health_backend.shared.advice.AdviceContext;
+import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,19 +34,22 @@ public class DashboardService {
     private final InsightService insightService;
     private final RecommendationService recommendationService;
     private final CashFlowService cashFlowService;
+    private final AdviceContextService adviceContextService;
 
     public DashboardService(
             BusinessProfileService businessProfileService,
             ScoringService scoringService,
             InsightService insightService,
             RecommendationService recommendationService,
-            CashFlowService cashFlowService
+            CashFlowService cashFlowService,
+            AdviceContextService adviceContextService
     ) {
         this.businessProfileService = businessProfileService;
         this.scoringService = scoringService;
         this.insightService = insightService;
         this.recommendationService = recommendationService;
         this.cashFlowService = cashFlowService;
+        this.adviceContextService = adviceContextService;
     }
 
     @Transactional
@@ -52,6 +57,9 @@ public class DashboardService {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
         }
+
+        // Lock the profile and score before assembling response to ensure consistency
+        Optional<AdviceContext> adviceContext = adviceContextService.latest(userId);
 
         // Profile is mandatory for dashboard; throws ResourceNotFoundException if absent
         BusinessProfile profile = businessProfileService.getProfile(userId);
@@ -66,8 +74,8 @@ public class DashboardService {
 
         CashFlowProjectionResponse trendProjection = cashFlowService.getTrendProjection(userId);
 
-        // Canonical ScoreResult from Feature 2
-        Optional<ScoreResult> latestScoreOpt = scoringService.getLatestScore(userId);
+        // Canonical ScoreResult from Feature 2 locked context
+        Optional<ScoreResult> latestScoreOpt = adviceContext.map(AdviceContext::score);
 
         ScoreResultResponse scoreResponse = null;
         InsightResponse topInsight = null;
@@ -77,8 +85,8 @@ public class DashboardService {
             ScoreResult scoreResult = latestScoreOpt.get();
             scoreResponse = ScoreResultResponse.fromEntity(scoreResult);
 
-            // Insights corresponding to the latest ScoreResult
-            List<Insight> insights = insightService.getInsights(userId);
+            // Insights corresponding to the exact latest ScoreResult month
+            List<Insight> insights = insightService.getInsights(userId, scoreResult.getMonth());
             if (insights != null && !insights.isEmpty()) {
                 Insight top = insights.stream()
                         .filter(i -> "high".equalsIgnoreCase(i.getPriority()))
@@ -87,8 +95,8 @@ public class DashboardService {
                 topInsight = InsightResponse.fromEntity(top);
             }
 
-            // Recommendations corresponding to the latest ScoreResult
-            List<Recommendation> recommendations = recommendationService.getRecommendations(userId);
+            // Recommendations corresponding to the exact latest ScoreResult month
+            List<Recommendation> recommendations = recommendationService.getRecommendations(userId, scoreResult.getMonth());
             if (recommendations != null && !recommendations.isEmpty()) {
                 Recommendation top = recommendations.stream()
                         .filter(r -> "high".equalsIgnoreCase(r.getPriority()))

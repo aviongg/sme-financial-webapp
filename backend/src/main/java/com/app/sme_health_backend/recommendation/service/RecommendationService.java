@@ -1,191 +1,170 @@
 package com.app.sme_health_backend.recommendation.service;
 
-import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.recommendation.entity.Recommendation;
 import com.app.sme_health_backend.recommendation.repository.RecommendationRepository;
-import com.app.sme_health_backend.scoring.dto.ComponentScoresDto;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
-import com.app.sme_health_backend.scoring.service.ScoringService;
-import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.app.sme_health_backend.shared.advice.AdviceContext;
+import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @Service
 public class RecommendationService {
 
+    private static final BigDecimal COMPLETE_DATA_THRESHOLD =
+            new BigDecimal("0.80");
     private static final BigDecimal LOW_SCORE_THRESHOLD =
             new BigDecimal("60.00");
     private static final BigDecimal STRONG_SCORE_THRESHOLD =
             new BigDecimal("80.00");
-    private static final BigDecimal COMPLETE_DATA_THRESHOLD =
-            new BigDecimal("0.80");
 
     private final RecommendationRepository recommendationRepository;
-    private final BusinessProfileRepository businessProfileRepository;
-    private final ScoringService scoringService;
+    private final AdviceContextService adviceContextService;
+    private final TranslationService translationService;
 
     public RecommendationService(
             RecommendationRepository recommendationRepository,
-            BusinessProfileRepository businessProfileRepository
-    ) {
-        this(recommendationRepository, businessProfileRepository, null);
-    }
-
-    @Autowired
-    public RecommendationService(
-            RecommendationRepository recommendationRepository,
-            BusinessProfileRepository businessProfileRepository,
-            @Autowired(required = false) ScoringService scoringService
+            AdviceContextService adviceContextService,
+            TranslationService translationService
     ) {
         this.recommendationRepository = recommendationRepository;
-        this.businessProfileRepository = businessProfileRepository;
-        this.scoringService = scoringService;
+        this.adviceContextService = adviceContextService;
+        this.translationService = translationService;
+    }
+
+    /** Returns advice for the latest persisted score; absent scores have no advice. */
+    @Transactional
+    public List<Recommendation> getRecommendations(UUID userId) {
+        validateUserId(userId);
+        return adviceContextService.latest(userId)
+                .map(this::refreshRecommendations)
+                .orElseGet(List::of);
+    }
+
+    /** An explicit month never falls back to a different month's score. */
+    @Transactional
+    public List<Recommendation> getRecommendations(UUID userId, String month) {
+        if (month == null) {
+            return getRecommendations(userId);
+        }
+        validateUserId(userId);
+        return adviceContextService.forMonth(userId, month)
+                .map(this::refreshRecommendations)
+                .orElseGet(List::of);
     }
 
     @Transactional
-    public List<Recommendation> getRecommendations(UUID userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        if (!businessProfileRepository.existsById(userId)) {
-            throw new ResourceNotFoundException(
-                    "Business profile not found for this user"
-            );
-        }
-
-        Optional<ScoreResult> latestScoreOpt = (scoringService != null)
-                ? scoringService.getLatestScore(userId)
-                : Optional.empty();
-
-        if (latestScoreOpt.isPresent()) {
-            ScoreResult realScore = latestScoreOpt.get();
-            String targetMonth = realScore.getMonth();
-
-            List<Recommendation> existingForMonth =
-                    recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, targetMonth);
-
-            boolean isMockOrStale = existingForMonth.size() < 3
-                    || existingForMonth.stream().map(Recommendation::getCategory).distinct().count() < 3
-                    || existingForMonth.stream().anyMatch(r -> isLegacyMockCategory(r.getCategory()))
-                    || (realScore.getComputedAt() != null
-                    && existingForMonth.get(0).getCreatedAt() != null
-                    && existingForMonth.get(0).getCreatedAt().isBefore(realScore.getComputedAt()));
-
-            if (!isMockOrStale) {
-                return existingForMonth;
-            }
-
-            List<Recommendation> allUserRecommendations =
-                    recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            List<Recommendation> toRemove = allUserRecommendations.stream()
-                    .filter(r -> targetMonth.equals(r.getMonth()) || isLegacyMockCategory(r.getCategory()))
-                    .toList();
-            if (!toRemove.isEmpty()) {
-                recommendationRepository.deleteAll(toRemove);
-            }
-
-            List<Recommendation> newRecommendations = generateRecommendations(realScore);
-            return recommendationRepository.saveAll(newRecommendations);
-        }
-
-        List<Recommendation> existingRecommendations =
-                recommendationRepository
-                        .findByUserIdOrderByCreatedAtDesc(userId);
-
-        if (!existingRecommendations.isEmpty()) {
-            return existingRecommendations;
-        }
-
-        return recommendationRepository.saveAll(
-                generateRecommendations(createMockScoreResult(userId))
-        );
+    public List<Recommendation> generateAndSaveRecommendations(ScoreResult scoreResult) {
+        validateScoreResult(scoreResult);
+        return refreshRecommendations(adviceContextService.forScore(scoreResult));
     }
 
-    private boolean isLegacyMockCategory(String category) {
-        return "liquidity".equalsIgnoreCase(category) || "leverage".equalsIgnoreCase(category);
+    private List<Recommendation> refreshRecommendations(AdviceContext context) {
+        ScoreResult score = context.score();
+        List<Recommendation> expected = generateRecommendations(score, context.language());
+        expected.forEach(recommendation -> recommendation.setSourceVersion(context.sourceVersion()));
+        List<Recommendation> existing = recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(
+                score.getUserId(), score.getMonth());
+
+        List<Recommendation> matching = matchingRecommendations(existing, expected);
+        if (matching != null) {
+            return matching;
+        }
+
+        // Shared context holds a per-profile lock through this transaction.
+        // Flush deletions before inserting the replacement unique category set.
+        recommendationRepository.deleteByUserIdAndMonth(score.getUserId(), score.getMonth());
+        recommendationRepository.flush();
+        return recommendationRepository.saveAll(expected);
     }
 
-    public List<Recommendation> generateRecommendations(
-            ScoreResult scoreResult
+    private List<Recommendation> matchingRecommendations(
+            List<Recommendation> existing,
+            List<Recommendation> expected
     ) {
+        if (existing.size() != expected.size()) {
+            return null;
+        }
+        Map<String, Recommendation> byCategory = new HashMap<>();
+        for (Recommendation recommendation : existing) {
+            if (byCategory.put(recommendation.getCategory(), recommendation) != null) {
+                return null;
+            }
+        }
+        List<Recommendation> ordered = new ArrayList<>();
+        for (Recommendation wanted : expected) {
+            Recommendation stored = byCategory.get(wanted.getCategory());
+            if (stored == null
+                    || !Objects.equals(stored.getUserId(), wanted.getUserId())
+                    || !Objects.equals(stored.getMonth(), wanted.getMonth())
+                    || !Objects.equals(stored.getText(), wanted.getText())
+                    || !Objects.equals(stored.getPriority(), wanted.getPriority())
+                    || !Objects.equals(stored.getLanguage(), wanted.getLanguage())
+                    || !Objects.equals(stored.getSourceVersion(), wanted.getSourceVersion())
+                    || !Objects.equals(stored.getSourceComputedAt(), wanted.getSourceComputedAt())) {
+                return null;
+            }
+            ordered.add(stored);
+        }
+        return ordered;
+    }
+
+    public List<Recommendation> generateRecommendations(ScoreResult scoreResult) {
+        return generateRecommendations(scoreResult, TranslationService.DEFAULT_LANGUAGE);
+    }
+
+    public List<Recommendation> generateRecommendations(ScoreResult scoreResult, String language) {
         validateScoreResult(scoreResult);
 
         List<Recommendation> recommendations = new ArrayList<>();
+        String selectedLanguage = translationService.resolveLanguage(language);
         String weakestComponent = scoreResult.getWeakestComponent();
-        Map<String, BigDecimal> scoresMap = scoreResult.getComponentScores() != null
+        Map<String, BigDecimal> componentScores = scoreResult.getComponentScores() != null
                 ? scoreResult.getComponentScores().toMap()
-                : Collections.emptyMap();
-        BigDecimal weakestScore = componentScore(
-                scoresMap,
-                weakestComponent
-        );
+                : Map.of();
+        BigDecimal weakestScore = componentScores.get(weakestComponent);
 
         recommendations.add(createRecommendation(
                 scoreResult,
-                weakestComponentText(weakestComponent, weakestScore),
+                weakestComponentText(selectedLanguage, weakestComponent, weakestScore),
                 weakestComponent,
                 componentPriority(weakestScore, scoreResult.getBand())
         ));
 
         recommendations.add(createRecommendation(
                 scoreResult,
-                overallBandText(scoreResult.getBand()),
+                overallBandText(selectedLanguage, scoreResult.getBand()),
                 "overall_health",
                 bandPriority(scoreResult.getBand())
         ));
 
-        if (scoreResult.getDataCompleteness()
-                .compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
+        if (scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    "Complete the missing monthly financial inputs before"
-                            + " relying on this score for important decisions.",
+                    translationService.translate(selectedLanguage, "recommendation.data_quality.incomplete"),
                     "data_quality",
                     "high"
             ));
         } else {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    "Keep monthly financial records complete so future"
-                            + " recommendations remain reliable.",
+                    translationService.translate(selectedLanguage, "recommendation.data_quality.complete"),
                     "data_quality",
                     "low"
             ));
         }
 
+        recommendations.forEach(recommendation -> {
+            recommendation.setLanguage(selectedLanguage);
+            recommendation.setSourceComputedAt(scoreResult.getComputedAt());
+        });
         return recommendations;
-    }
-
-    private ScoreResult createMockScoreResult(UUID userId) {
-        ScoreResult result = new ScoreResult();
-        result.setUserId(userId);
-        result.setMonth(YearMonth.now().toString());
-        result.setCompositeScore(new BigDecimal("72.00"));
-        result.setBand("Stable");
-        result.setComponentScores(new ComponentScoresDto(
-                new BigDecimal("58.00"),
-                new BigDecimal("76.00"),
-                new BigDecimal("72.00"),
-                new BigDecimal("70.00"),
-                new BigDecimal("88.00")
-        ));
-        result.setWeakestComponent("cashflow");
-        result.setDataCompleteness(new BigDecimal("0.90"));
-        result.setComputedAt(LocalDateTime.now());
-        return result;
     }
 
     private Recommendation createRecommendation(
@@ -195,176 +174,120 @@ public class RecommendationService {
             String priority
     ) {
         Recommendation recommendation = new Recommendation();
-
         recommendation.setUserId(scoreResult.getUserId());
         recommendation.setMonth(scoreResult.getMonth());
         recommendation.setText(text);
         recommendation.setCategory(category);
         recommendation.setPriority(priority);
-        recommendation.setCreatedAt(LocalDateTime.now());
-
+        recommendation.setCreatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
         return recommendation;
     }
 
     private String weakestComponentText(
+            String language,
             String component,
             BigDecimal componentScore
     ) {
-        String componentName = displayName(component);
-        String scoreText = componentScore == null
-                ? ""
-                : " Its current component score is " + componentScore + ".";
+        Map<String, Object> parameters = Map.of(
+                "component", displayName(language, component),
+                "action", componentAction(language, component),
+                "score", componentScore == null ? "" : componentScore
+        );
 
-        String action = switch (component.toLowerCase(Locale.ROOT)) {
-            case "cashflow", "liquidity" ->
-                    "Review collections, payment timing, and cash reserved"
-                            + " for near-term obligations.";
-            case "profitability" ->
-                    "Review pricing, cost of goods, and operating expenses"
-                            + " to protect margins.";
-            case "repayment", "leverage" ->
-                    "Track upcoming repayments and avoid taking on new debt"
-                            + " until coverage improves.";
-            case "trend" ->
-                    "Compare recent months and act early if revenue or"
-                            + " cash balance is slipping.";
-            case "compliance" ->
-                    "Keep monthly records and required documents complete"
-                            + " so the score reflects the business accurately.";
-            default ->
-                    "Review the underlying monthly records and set one"
-                            + " measurable improvement action.";
-        };
+        if (componentScore == null) {
+            return translationService.translate(
+                    language,
+                    "recommendation.focus_component",
+                    parameters
+            );
+        }
 
-        return "Prioritize " + componentName + ". " + action + scoreText;
+        return translationService.translate(
+                language,
+                "recommendation.focus_component_with_score",
+                parameters
+        );
     }
 
-    private String overallBandText(String band) {
+    private String overallBandText(String language, String band) {
         return switch (normalizedBand(band)) {
-            case "strong" ->
-                    "Your financial health is Strong. Continue the routines"
-                            + " supporting the component scores and review"
-                            + " them monthly.";
-            case "stable", "good" ->
-                    "Your financial health is Stable. Keep monitoring the"
-                            + " component scores and address small changes"
-                            + " early.";
-            case "needs_attention" ->
-                    "Your financial health Needs Attention. Start with the"
-                            + " weakest component and review progress monthly.";
-            case "at_risk", "vulnerable" ->
-                    "Your financial health is At Risk. Address the highest"
-                            + " priority action before taking on new financial"
-                            + " commitments.";
-            default ->
-                    "Your current financial health band is " + band
-                            + ". Start with the weakest component and monitor"
-                            + " progress monthly.";
+            case "strong" -> translationService.translate(language, "recommendation.overall.strong");
+            case "stable" -> translationService.translate(language, "recommendation.overall.stable");
+            case "needs_attention" -> translationService.translate(language, "recommendation.overall.needs_attention");
+            case "at_risk" -> translationService.translate(language, "recommendation.overall.at_risk");
+            default -> translationService.translate(language, "recommendation.overall.unknown",
+                    Map.of("band", band == null ? "" : band));
         };
     }
 
-    private String componentPriority(
-            BigDecimal componentScore,
-            String band
-    ) {
+    private String componentPriority(BigDecimal componentScore, String band) {
         if (componentScore == null) {
             return bandPriority(band);
         }
-
         if (componentScore.compareTo(LOW_SCORE_THRESHOLD) < 0) {
             return "high";
         }
-
         if (componentScore.compareTo(STRONG_SCORE_THRESHOLD) >= 0) {
             return "low";
         }
-
         return "medium";
     }
 
     private String bandPriority(String band) {
         return switch (normalizedBand(band)) {
-            case "at_risk", "needs_attention", "vulnerable" -> "high";
+            case "at_risk", "needs_attention" -> "high";
             case "strong" -> "low";
             default -> "medium";
         };
     }
 
-    private BigDecimal componentScore(
-            Map<String, BigDecimal> componentScores,
-            String component
-    ) {
-        if (componentScores == null || component == null) {
-            return null;
-        }
-
-        BigDecimal exactScore = componentScores.get(component);
-        if (exactScore != null) {
-            return exactScore;
-        }
-
-        for (Map.Entry<String, BigDecimal> entry : componentScores.entrySet()) {
-            if (entry.getKey() != null
-                    && entry.getKey().equalsIgnoreCase(component)) {
-                return entry.getValue();
-            }
-        }
-
-        return null;
-    }
-
     private String normalizedBand(String band) {
-        if (band == null) {
-            return "";
-        }
-        return band.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
+        return band == null ? "" : band.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }
 
-    private String displayName(String component) {
-        if (component == null) {
-            return "";
+    private String componentAction(String language, String component) {
+        String normalizedComponent = normalizedComponent(component);
+        String key = switch (normalizedComponent) {
+            case "cashflow" -> "recommendation.cashflow.improve";
+            case "profitability" -> "recommendation.profitability.improve";
+            case "repayment" -> "recommendation.repayment.improve";
+            case "trend" -> "recommendation.trend.improve";
+            case "compliance" -> "recommendation.compliance.improve";
+            default -> "recommendation.default.improve";
+        };
+        return translationService.translate(language, key);
+    }
+
+    private String displayName(String language, String component) {
+        if (component == null || component.isBlank()) {
+            return translationService.translate(language, "component.weakest_component");
+        }
+        String key = "component." + normalizedComponent(component);
+        if (translationService.hasKey(key)) {
+            return translationService.translate(language, key);
         }
         return component.replace('_', ' ');
+    }
+
+    private String normalizedComponent(String component) {
+        return component == null ? "" : component.trim().toLowerCase(Locale.ROOT);
     }
 
     private void validateScoreResult(ScoreResult scoreResult) {
         if (scoreResult == null) {
             throw new IllegalArgumentException("Score result is required");
         }
-
         if (scoreResult.getUserId() == null) {
-            throw new IllegalArgumentException(
-                    "Score result user ID is required"
-            );
+            throw new IllegalArgumentException("User ID is required");
         }
-
-        if (scoreResult.getMonth() == null || scoreResult.getMonth().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Score result month is required"
-            );
+        if (scoreResult.getMonth() == null) {
+            throw new IllegalArgumentException("Month is required");
         }
+    }
 
-        if (scoreResult.getBand() == null || scoreResult.getBand().isBlank()) {
-            throw new IllegalArgumentException("Score result band is required");
-        }
-
-        if (scoreResult.getComponentScores() == null) {
-            throw new IllegalArgumentException(
-                    "Score result component scores are required"
-            );
-        }
-
-        if (scoreResult.getWeakestComponent() == null
-                || scoreResult.getWeakestComponent().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Score result weakest component is required"
-            );
-        }
-
-        if (scoreResult.getDataCompleteness() == null) {
-            throw new IllegalArgumentException(
-                    "Score result data completeness is required"
-            );
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
         }
     }
 }
