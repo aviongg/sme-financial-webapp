@@ -19,6 +19,7 @@ class Settings:
     max_concurrent_requests: int = 4
     vision_endpoint: str = "vision.googleapis.com"
     vision_language_hints: tuple[str, ...] = ()
+    internal_service_key: str = ""
 
     def __post_init__(self):
         import math
@@ -56,4 +57,5 @@ class Settings:
             max_concurrent_requests=int(env.get("OCR_MAX_CONCURRENT_REQUESTS", "4")),
             vision_endpoint=env.get("GOOGLE_CLOUD_VISION_ENDPOINT", "vision.googleapis.com"),
             vision_language_hints=csv("GOOGLE_CLOUD_VISION_LANGUAGE_HINTS"),
+            internal_service_key=env.get("INTERNAL_SERVICE_SECRET", ""),
         )

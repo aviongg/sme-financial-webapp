@@ -56,11 +56,14 @@ class AuthenticationServiceTest {
     @Mock
     private HttpSession httpSession;
 
+    @Mock
+    private org.springframework.security.web.authentication.session.SessionAuthenticationStrategy sessionAuthenticationStrategy;
+
     private AuthenticationService authenticationService;
 
     @BeforeEach
     void setUp() {
-        authenticationService = new AuthenticationService(userRepository, passwordEncoder, authenticationManager);
+        authenticationService = new AuthenticationService(userRepository, passwordEncoder, authenticationManager, sessionAuthenticationStrategy);
         SecurityContextHolder.clearContext();
     }
 
@@ -164,6 +167,7 @@ class AuthenticationServiceTest {
         assertEquals(user.getId(), response.id());
         assertEquals("user@example.com", response.email());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+        verify(sessionAuthenticationStrategy).onAuthentication(any(), eq(httpRequest), eq(httpResponse));
         verify(httpSession).setAttribute(eq("FINSIGHT_AUTH_TIME"), anyLong());
     }
 
@@ -171,25 +175,26 @@ class AuthenticationServiceTest {
     @DisplayName("Login with wrong password fails with BadCredentialsException")
     void testLoginWrongPassword() {
         LoginRequest request = new LoginRequest("user@example.com", "wrong-password");
-        AppUser user = new AppUser();
-        user.setEmail("user@example.com");
-        user.setAccountStatus(AccountStatus.ACTIVE);
 
-        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
-        assertThrows(BadCredentialsException.class, () -> authenticationService.login(request, httpRequest, httpResponse));
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> authenticationService.login(request, httpRequest, httpResponse));
+        assertEquals("Invalid email or password", ex.getMessage());
     }
 
     @Test
-    @DisplayName("Login with unknown user fails with BadCredentialsException")
+    @DisplayName("Login with unknown user fails with identical generic BadCredentialsException")
     void testLoginUnknownUser() {
         LoginRequest request = new LoginRequest("unknown@example.com", "password-12345");
-        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
 
-        assertThrows(BadCredentialsException.class, () -> authenticationService.login(request, httpRequest, httpResponse));
-        verify(authenticationManager, never()).authenticate(any());
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> authenticationService.login(request, httpRequest, httpResponse));
+        assertEquals("Invalid email or password", ex.getMessage());
     }
 
     @Test
@@ -200,10 +205,11 @@ class AuthenticationServiceTest {
         user.setEmail("disabled@example.com");
         user.setAccountStatus(AccountStatus.DISABLED);
 
+        Authentication auth = mock(Authentication.class);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
         when(userRepository.findByEmail("disabled@example.com")).thenReturn(Optional.of(user));
 
         assertThrows(DisabledException.class, () -> authenticationService.login(request, httpRequest, httpResponse));
-        verify(authenticationManager, never()).authenticate(any());
     }
 
     @Test

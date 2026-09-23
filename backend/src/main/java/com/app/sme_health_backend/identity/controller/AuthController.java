@@ -25,6 +25,7 @@ public class AuthController {
 
     @GetMapping("/csrf")
     public ResponseEntity<CsrfResponse> getCsrfToken(HttpServletRequest request) {
+        request.getSession(true);
         CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         if (csrfToken == null) {
             csrfToken = (CsrfToken) request.getAttribute("_csrf");

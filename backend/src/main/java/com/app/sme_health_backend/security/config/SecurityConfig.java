@@ -32,12 +32,19 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import com.app.sme_health_backend.security.filter.InternalServiceAuthenticationFilter;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
+
+    @Value("${app.security.internal-service-secret:}")
+    private String internalServiceSecret;
 
     public SecurityConfig(
             RestAuthenticationEntryPoint authenticationEntryPoint,
@@ -50,6 +57,11 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+        return new ChangeSessionIdAuthenticationStrategy();
     }
 
     @Bean
@@ -87,6 +99,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(new InternalServiceAuthenticationFilter(internalServiceSecret), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new SessionMaxLifetimeFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);
 

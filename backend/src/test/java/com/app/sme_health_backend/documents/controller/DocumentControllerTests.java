@@ -134,6 +134,31 @@ class DocumentControllerTests {
     }
 
     @Test
+    void getDocumentFileInternalServiceWithoutUserIdSucceeds() throws Exception {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setContentType("image/png");
+        doc.setOriginalFilename("internal.png");
+
+        byte[] fakeBytes = new byte[]{9, 8, 7};
+        when(uploadService.getDocument(docId)).thenReturn(doc);
+        when(uploadService.getDocumentBytes(docId)).thenReturn(fakeBytes);
+
+        mockMvc.perform(get("/api/documents/{id}/file", docId)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("internal-ocr-service")
+                                .roles("INTERNAL_OCR")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(fakeBytes));
+    }
+
+    @Test
+    void getDocumentFileMissingUserIdThrowsValidationException() throws Exception {
+        mockMvc.perform(get("/api/documents/{id}/file", docId))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void retryProcessingReturns202Accepted() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);

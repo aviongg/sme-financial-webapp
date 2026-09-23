@@ -80,10 +80,24 @@ public class DocumentController {
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> getDocumentFile(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId
+            @RequestParam(value = "userId", required = false) UUID userId,
+            org.springframework.security.core.Authentication authentication,
+            jakarta.servlet.http.HttpServletRequest request
     ) {
-        UploadedDocument doc = uploadService.getDocument(userId, id);
-        byte[] bytes = uploadService.getDocumentBytes(userId, id);
+        boolean isInternalService = isInternalOcrService(authentication, request);
+
+        UploadedDocument doc;
+        byte[] bytes;
+        if (isInternalService) {
+            doc = uploadService.getDocument(id);
+            bytes = uploadService.getDocumentBytes(id);
+        } else {
+            if (userId == null) {
+                throw new DocumentValidationException("User ID is required");
+            }
+            doc = uploadService.getDocument(userId, id);
+            bytes = uploadService.getDocumentBytes(userId, id);
+        }
 
         String contentType = doc.getContentType() != null ? doc.getContentType() : MediaType.APPLICATION_OCTET_STREAM_VALUE;
         String filename = doc.getOriginalFilename() != null ? doc.getOriginalFilename() : "document.bin";
@@ -92,6 +106,36 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
                 .body(bytes);
+    }
+
+    private boolean isInternalOcrService(org.springframework.security.core.Authentication authentication, jakarta.servlet.http.HttpServletRequest request) {
+        org.springframework.security.core.Authentication auth = authentication;
+        if (auth == null) {
+            auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        }
+        if (auth == null && request != null) {
+            if (request.getUserPrincipal() instanceof org.springframework.security.core.Authentication userAuth) {
+                auth = userAuth;
+            } else if (request.getSession(false) != null) {
+                Object sessionContext = request.getSession(false).getAttribute("SPRING_SECURITY_CONTEXT");
+                if (sessionContext instanceof org.springframework.security.core.context.SecurityContext secContext) {
+                    auth = secContext.getAuthentication();
+                }
+            }
+            if (auth == null && request.getAttribute("SPRING_SECURITY_CONTEXT") instanceof org.springframework.security.core.context.SecurityContext secContext) {
+                auth = secContext.getAuthentication();
+            }
+        }
+
+        if (auth != null && auth.getAuthorities() != null) {
+            for (var authority : auth.getAuthorities()) {
+                if ("ROLE_INTERNAL_OCR".equals(authority.getAuthority()) || "INTERNAL_OCR".equals(authority.getAuthority())) {
+                    return true;
+                }
+            }
+        }
+
+        return request != null && (request.isUserInRole("INTERNAL_OCR") || request.isUserInRole("ROLE_INTERNAL_OCR"));
     }
 
     @PostMapping("/{id}/retry")

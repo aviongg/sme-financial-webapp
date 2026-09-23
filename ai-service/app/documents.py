@@ -52,11 +52,14 @@ class SafeDocumentLoader:
         # Pin the checked address. Host and TLS SNI retain the original hostname;
         # the HTTP client must not perform a second DNS lookup of that hostname.
         target = httpx.URL(url).copy_with(host=addresses[0][4][0])
+        request_headers = {"Accept-Encoding": "identity", "Host": parsed.netloc}
+        if settings.internal_service_key:
+            request_headers["X-Internal-Service-Key"] = settings.internal_service_key
         try:
             with httpx.Client(transport=self.transport, timeout=settings.download_timeout_seconds,
                               follow_redirects=False, trust_env=False) as client:
                 with client.stream("GET", target,
-                                   headers={"Accept-Encoding": "identity", "Host": parsed.netloc},
+                                   headers=request_headers,
                                    extensions={"sni_hostname": host}) as response:
                     if response.status_code != 200:
                         raise OcrError("source_unavailable", "Document URL did not return a file", 422)

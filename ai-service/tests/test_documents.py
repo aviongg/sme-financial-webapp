@@ -160,3 +160,21 @@ def test_truncated_jpeg_data_is_rejected_before_provider(trim):
     assert inspect_document(content, Settings()).mime_type == "image/jpeg"
     with pytest.raises(InvalidDocumentError):
         inspect_document(content[:-trim], Settings())
+
+
+def test_internal_service_key_header_included_when_configured():
+    seen_headers = []
+
+    def handler(request):
+        seen_headers.append(request.headers)
+        return httpx.Response(200, stream=Chunks(png()))
+
+    settings = Settings(
+        allowed_image_hosts=("documents.example",),
+        internal_service_key="secret-key-12345",
+    )
+    loader = loader_for(handler, settings=settings)
+    doc = loader.load("https://documents.example/file.png")
+    assert doc.mime_type == "image/png"
+    assert len(seen_headers) == 1
+    assert seen_headers[0].get("X-Internal-Service-Key") == "secret-key-12345"

@@ -108,6 +108,29 @@ class SecurityFilterChainTest {
         assertTrue(session.isInvalid(), "Expired session must be invalidated");
     }
 
+    @Test
+    @DisplayName("Document file endpoint without authentication returns 401 Unauthorized")
+    void testDocumentFileEndpointWithoutAuthReturns401() throws Exception {
+        mockMvc.perform(get("/api/documents/00000000-0000-0000-0000-000000000001/file"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Document file endpoint with invalid internal service key returns 401 Unauthorized")
+    void testDocumentFileEndpointWithInvalidInternalServiceKeyReturns401() throws Exception {
+        mockMvc.perform(get("/api/documents/00000000-0000-0000-0000-000000000001/file")
+                        .header("X-Internal-Service-Key", "wrong-secret-key"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Internal service key cannot access non-document endpoints")
+    void testInternalServiceKeyCannotAccessOtherEndpoints() throws Exception {
+        mockMvc.perform(get("/api/dashboard/00000000-0000-0000-0000-000000000001")
+                        .header("X-Internal-Service-Key", "internal_ocr_dev_secret_2026"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private void assertTrue(boolean condition, String message) {
         org.junit.jupiter.api.Assertions.assertTrue(condition, message);
     }
