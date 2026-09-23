@@ -1,4 +1,9 @@
 {
+  "band.at_risk": "At Risk",
+  "band.needs_attention": "Needs Attention",
+  "band.stable": "Stable",
+  "band.strong": "Strong",
+  "band.unknown": "Unknown",
   "component.cashflow": "cash flow",
   "component.compliance": "compliance",
   "component.leverage": "leverage",
@@ -30,5 +35,12 @@
   "recommendation.overall.unknown": "Your current financial health band is {band}. Start with the weakest component and monitor progress monthly.",
   "recommendation.profitability.improve": "Review pricing, cost of goods, and operating expenses to improve profitability.",
   "recommendation.repayment.improve": "Track upcoming repayment obligations and keep enough cash available before due dates.",
-  "recommendation.trend.improve": "Compare recent monthly results to spot negative trends before they become harder to correct."
+  "recommendation.trend.improve": "Compare recent monthly results to spot negative trends before they become harder to correct.",
+  "whatsapp.summary.action": "🎯 *Recommended Action:* {action}",
+  "whatsapp.summary.business": "Business: {businessName}",
+  "whatsapp.summary.footer": "View your full financial dashboard: {portalUrl}",
+  "whatsapp.summary.header": "📊 *SME Financial Health Summary - {month}*",
+  "whatsapp.summary.insight": "💡 *Key Insight:* {insight}",
+  "whatsapp.summary.score": "Overall Score: {score}/100 ({band})",
+  "whatsapp.summary.weakest": "Area to Watch: {component}"
 }

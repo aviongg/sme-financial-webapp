@@ -1,4 +1,9 @@
 {
+  "band.at_risk": "خطرے میں",
+  "band.needs_attention": "توجہ طلب",
+  "band.stable": "مستحکم",
+  "band.strong": "مضبوط",
+  "band.unknown": "نامعلوم",
   "component.cashflow": "کیش فلو",
   "component.compliance": "تعمیل",
   "component.leverage": "قرض کا دباؤ",
@@ -30,5 +35,12 @@
   "recommendation.overall.unknown": "آپ کا موجودہ مالی صحت بینڈ {band} ہے۔ سب سے کمزور جزو سے شروع کریں اور ہر ماہ پیش رفت دیکھیں۔",
   "recommendation.profitability.improve": "منافع بخشی بہتر بنانے کے لیے قیمتوں، فروخت کی لاگت، اور آپریٹنگ اخراجات کا جائزہ لیں۔",
   "recommendation.repayment.improve": "آنے والی ادائیگیوں کی ذمہ داریوں کو ٹریک کریں اور مقررہ تاریخوں سے پہلے کافی نقد رقم دستیاب رکھیں۔",
-  "recommendation.trend.improve": "حالیہ ماہانہ نتائج کا موازنہ کریں تاکہ منفی رجحانات کو مشکل ہونے سے پہلے پہچانا جا سکے۔"
+  "recommendation.trend.improve": "حالیہ ماہانہ نتائج کا موازنہ کریں تاکہ منفی رجحانات کو مشکل ہونے سے پہلے پہچانا جا سکے۔",
+  "whatsapp.summary.action": "🎯 *تجویز کردہ اقدام:* {action}",
+  "whatsapp.summary.business": "کاروبار: {businessName}",
+  "whatsapp.summary.footer": "اپنا مکمل مالی ڈیش بورڈ دیکھیں: {portalUrl}",
+  "whatsapp.summary.header": "📊 *ایس ایم ای مالی صحت کا خلاصہ - {month}*",
+  "whatsapp.summary.insight": "💡 *اہم بصیرت:* {insight}",
+  "whatsapp.summary.score": "مجموعی اسکور: {score}/100 ({band})",
+  "whatsapp.summary.weakest": "توجہ طلب شعبہ: {component}"
 }
