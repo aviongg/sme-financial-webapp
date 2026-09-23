@@ -3,6 +3,7 @@ package com.app.sme_health_backend.profile.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -121,5 +122,12 @@ public class BusinessProfile {
 
     public void setWhatsappOptedInAt(LocalDateTime whatsappOptedInAt) {
         this.whatsappOptedInAt = whatsappOptedInAt;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }
