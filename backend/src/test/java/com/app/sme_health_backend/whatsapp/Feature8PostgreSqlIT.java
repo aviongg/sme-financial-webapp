@@ -59,6 +59,7 @@ public class Feature8PostgreSqlIT {
     void setUp() {
         testUserId = UUID.randomUUID();
         createdUserIds.add(testUserId);
+        jdbcTemplate.update("INSERT INTO businesses (id, status) VALUES (?, 'ACTIVE') ON CONFLICT (id) DO NOTHING", testUserId);
     }
 
     @AfterEach
@@ -80,6 +81,7 @@ public class Feature8PostgreSqlIT {
                 jdbcTemplate.update("DELETE FROM insights WHERE user_id = ?", userId);
                 jdbcTemplate.update("DELETE FROM score_results WHERE user_id = ?", userId);
                 profileRepository.deleteById(userId);
+                jdbcTemplate.update("DELETE FROM businesses WHERE id = ?", userId);
             } catch (Exception ignored) {}
         }
     }

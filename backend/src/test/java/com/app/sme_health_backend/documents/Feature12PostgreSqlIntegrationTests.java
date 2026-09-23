@@ -50,6 +50,9 @@ class Feature12PostgreSqlIntegrationTests {
     @Autowired
     private DocumentStartupRecovery startupRecovery;
 
+    @Autowired
+    private com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
+
     private UUID testUserId;
     private final List<UUID> createdDocIds = new ArrayList<>();
     private final List<UUID> createdRecordIds = new ArrayList<>();
@@ -57,6 +60,7 @@ class Feature12PostgreSqlIntegrationTests {
     @BeforeEach
     void setUp() {
         testUserId = UUID.randomUUID();
+        businessRepository.save(new com.app.sme_health_backend.identity.entity.Business(testUserId, "ACTIVE"));
         BusinessProfile profile = new BusinessProfile();
         profile.setUserId(testUserId);
         profile.setBusinessType("retail");
@@ -84,6 +88,9 @@ class Feature12PostgreSqlIntegrationTests {
         } catch (Exception ignored) {}
         try {
             businessProfileRepository.deleteById(testUserId);
+        } catch (Exception ignored) {}
+        try {
+            businessRepository.deleteById(testUserId);
         } catch (Exception ignored) {}
     }
 

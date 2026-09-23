@@ -284,8 +284,6 @@ public class SecurityIdentityPostgreSqlIT {
                 .content(loginPayload);
         if (xsrfCookie != null) {
             loginRequestBuilder.cookie(xsrfCookie).header("X-XSRF-TOKEN", xsrfCookie.getValue());
-        } else if (csrfToken != null) {
-            loginRequestBuilder.header(csrfToken.getHeaderName(), csrfToken.getToken()).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf());
         } else {
             loginRequestBuilder.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf());
         }
@@ -343,7 +341,9 @@ public class SecurityIdentityPostgreSqlIT {
         AppUser savedUser = userRepository.save(user);
         createdUserIds.add(savedUser.getId());
 
-        // Ensure business_profiles parent row exists for foreign key
+        // Ensure businesses and business_profiles parent rows exist for foreign key
+        jdbcTemplate.update("INSERT INTO businesses (id, status) VALUES (?, 'ACTIVE') ON CONFLICT (id) DO NOTHING", savedUser.getId());
+        createdBusinessIds.add(savedUser.getId());
         jdbcTemplate.update("INSERT INTO business_profiles (user_id, business_type) VALUES (?, 'retail') ON CONFLICT (user_id) DO NOTHING", savedUser.getId());
 
         UUID documentId = UUID.randomUUID();

@@ -28,12 +28,20 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+
+import com.app.sme_health_backend.identity.entity.Business;
+import com.app.sme_health_backend.identity.entity.BusinessMembership;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.model.MembershipStatus;
+import com.app.sme_health_backend.identity.repository.BusinessMembershipRepository;
+import com.app.sme_health_backend.identity.repository.BusinessRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceTest {
@@ -59,11 +67,24 @@ class AuthenticationServiceTest {
     @Mock
     private org.springframework.security.web.authentication.session.SessionAuthenticationStrategy sessionAuthenticationStrategy;
 
+    @Mock
+    private BusinessMembershipRepository membershipRepository;
+
+    @Mock
+    private BusinessRepository businessRepository;
+
     private AuthenticationService authenticationService;
 
     @BeforeEach
     void setUp() {
-        authenticationService = new AuthenticationService(userRepository, passwordEncoder, authenticationManager, sessionAuthenticationStrategy);
+        authenticationService = new AuthenticationService(
+                userRepository,
+                passwordEncoder,
+                authenticationManager,
+                sessionAuthenticationStrategy,
+                membershipRepository,
+                businessRepository
+        );
         SecurityContextHolder.clearContext();
     }
 
@@ -250,5 +271,82 @@ class AuthenticationServiceTest {
     void testGetCurrentUserUnauthenticated() {
         SecurityContextHolder.clearContext();
         assertThrows(AccessDeniedException.class, () -> authenticationService.getCurrentUser());
+    }
+
+    @Test
+    @DisplayName("Login with zero memberships clears active business and leaves it unset")
+    void testLoginWithZeroMembershipsLeavesActiveBusinessUnset() {
+        LoginRequest request = new LoginRequest("user@example.com", "valid-password-123");
+        AppUser user = new AppUser();
+        UUID userId = UUID.randomUUID();
+        user.setId(userId);
+        user.setEmail("user@example.com");
+        user.setPasswordHash("$argon2id$hash");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(httpRequest.getSession(anyBoolean())).thenReturn(httpSession);
+        when(membershipRepository.findByUserId(userId)).thenReturn(List.of());
+
+        authenticationService.login(request, httpRequest, httpResponse);
+
+        verify(httpSession).removeAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR);
+        verify(httpSession, never()).setAttribute(eq(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR), any());
+    }
+
+    @Test
+    @DisplayName("Login with exactly one active membership in an active business auto-selects active business")
+    void testLoginWithExactlyOneActiveMembershipAutoSelects() {
+        LoginRequest request = new LoginRequest("user@example.com", "valid-password-123");
+        AppUser user = new AppUser();
+        UUID userId = UUID.randomUUID();
+        UUID businessId = UUID.randomUUID();
+        user.setId(userId);
+        user.setEmail("user@example.com");
+        user.setPasswordHash("$argon2id$hash");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+
+        BusinessMembership membership = new BusinessMembership(userId, businessId, MembershipRole.OWNER, MembershipStatus.ACTIVE);
+        Business business = new Business(businessId, "ACTIVE");
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(httpRequest.getSession(anyBoolean())).thenReturn(httpSession);
+        when(membershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+        when(businessRepository.findById(businessId)).thenReturn(Optional.of(business));
+
+        authenticationService.login(request, httpRequest, httpResponse);
+
+        verify(httpSession).removeAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR);
+        verify(httpSession).setAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR, businessId);
+    }
+
+    @Test
+    @DisplayName("Login with multiple active memberships leaves active business unset")
+    void testLoginWithMultipleActiveMembershipsLeavesActiveBusinessUnset() {
+        LoginRequest request = new LoginRequest("user@example.com", "valid-password-123");
+        AppUser user = new AppUser();
+        UUID userId = UUID.randomUUID();
+        UUID businessId1 = UUID.randomUUID();
+        UUID businessId2 = UUID.randomUUID();
+        user.setId(userId);
+        user.setEmail("user@example.com");
+        user.setPasswordHash("$argon2id$hash");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+
+        BusinessMembership m1 = new BusinessMembership(userId, businessId1, MembershipRole.OWNER, MembershipStatus.ACTIVE);
+        BusinessMembership m2 = new BusinessMembership(userId, businessId2, MembershipRole.ACCOUNTANT, MembershipStatus.ACTIVE);
+        Business b1 = new Business(businessId1, "ACTIVE");
+        Business b2 = new Business(businessId2, "ACTIVE");
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(httpRequest.getSession(anyBoolean())).thenReturn(httpSession);
+        when(membershipRepository.findByUserId(userId)).thenReturn(List.of(m1, m2));
+        when(businessRepository.findById(businessId1)).thenReturn(Optional.of(b1));
+        when(businessRepository.findById(businessId2)).thenReturn(Optional.of(b2));
+
+        authenticationService.login(request, httpRequest, httpResponse);
+
+        verify(httpSession).removeAttribute(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR);
+        verify(httpSession, never()).setAttribute(eq(ActiveBusinessContext.ACTIVE_BUSINESS_SESSION_ATTR), any());
     }
 }

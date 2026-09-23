@@ -32,8 +32,12 @@ class CashFlowIntegrationTests {
     @Autowired
     private BusinessProfileRepository businessProfileRepository;
 
+    @Autowired
+    private com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
+
     private UUID createTestUserWithProfile() {
         UUID userId = UUID.randomUUID();
+        businessRepository.save(new com.app.sme_health_backend.identity.entity.Business(userId, "ACTIVE"));
         BusinessProfile profile = new BusinessProfile();
         profile.setUserId(userId);
         profile.setBusinessType("retail");
