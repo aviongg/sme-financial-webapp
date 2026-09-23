@@ -4,6 +4,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -28,20 +31,44 @@ public class TrendProjectionCalculator {
             return null;
         }
 
+        List<String> syntheticMonths = new ArrayList<>(netCashFlows.size());
+        YearMonth start = YearMonth.of(2026, 1);
+        for (int i = 0; i < netCashFlows.size(); i++) {
+            syntheticMonths.add(start.plusMonths(i).toString());
+        }
+
+        return calculate(syntheticMonths, netCashFlows);
+    }
+
+    public TrendProjectionResult calculate(List<String> months, List<BigDecimal> netCashFlows) {
+        if (months == null || netCashFlows == null || months.size() < 3 || netCashFlows.size() < 3
+                || months.size() != netCashFlows.size()) {
+            return null;
+        }
+
         // Limit window to the latest 6 historical records
         int windowSize = Math.min(6, netCashFlows.size());
-        List<BigDecimal> window = netCashFlows.subList(netCashFlows.size() - windowSize, netCashFlows.size());
+        List<String> windowMonths = months.subList(months.size() - windowSize, months.size());
+        List<BigDecimal> windowFlows = netCashFlows.subList(netCashFlows.size() - windowSize, netCashFlows.size());
 
-        int n = window.size();
+        int n = windowFlows.size();
         BigDecimal bigN = BigDecimal.valueOf(n);
 
-        // x = 0, 1, ..., n-1
+        YearMonth startMonth = YearMonth.parse(windowMonths.get(0));
+        YearMonth latestMonth = YearMonth.parse(windowMonths.get(windowMonths.size() - 1));
+
+        List<BigDecimal> xValues = new ArrayList<>(n);
         BigDecimal sumX = BigDecimal.ZERO;
         BigDecimal sumY = BigDecimal.ZERO;
 
         for (int i = 0; i < n; i++) {
-            sumX = sumX.add(BigDecimal.valueOf(i));
-            BigDecimal y = window.get(i) != null ? window.get(i) : BigDecimal.ZERO;
+            YearMonth currentMonth = YearMonth.parse(windowMonths.get(i));
+            long elapsedMonths = ChronoUnit.MONTHS.between(startMonth, currentMonth);
+            BigDecimal x = BigDecimal.valueOf(elapsedMonths);
+            xValues.add(x);
+            sumX = sumX.add(x);
+
+            BigDecimal y = windowFlows.get(i) != null ? windowFlows.get(i) : BigDecimal.ZERO;
             sumY = sumY.add(y);
         }
 
@@ -53,8 +80,8 @@ public class TrendProjectionCalculator {
         BigDecimal ssTot = BigDecimal.ZERO;
 
         for (int i = 0; i < n; i++) {
-            BigDecimal xDiff = BigDecimal.valueOf(i).subtract(xMean);
-            BigDecimal y = window.get(i) != null ? window.get(i) : BigDecimal.ZERO;
+            BigDecimal xDiff = xValues.get(i).subtract(xMean);
+            BigDecimal y = windowFlows.get(i) != null ? windowFlows.get(i) : BigDecimal.ZERO;
             BigDecimal yDiff = y.subtract(yMean);
 
             sumXDiffYDiff = sumXDiffYDiff.add(xDiff.multiply(yDiff));
@@ -72,15 +99,18 @@ public class TrendProjectionCalculator {
 
         BigDecimal intercept = yMean.subtract(slope.multiply(xMean));
 
-        // Evaluate projection at x = n (approximately 30 days / next month)
-        BigDecimal projectedNextMonth = intercept.add(slope.multiply(bigN));
+        // Evaluate projection at the month immediately following the latest historical record
+        YearMonth projectedTargetMonth = latestMonth.plusMonths(1);
+        long elapsedProjected = ChronoUnit.MONTHS.between(startMonth, projectedTargetMonth);
+        BigDecimal xProj = BigDecimal.valueOf(elapsedProjected);
+        BigDecimal projectedNextMonth = intercept.add(slope.multiply(xProj));
 
         // Calculate R-squared: SS_res = sum((y_i - (intercept + slope * x_i))^2)
         BigDecimal ssRes = BigDecimal.ZERO;
         for (int i = 0; i < n; i++) {
-            BigDecimal x = BigDecimal.valueOf(i);
+            BigDecimal x = xValues.get(i);
             BigDecimal predictedY = intercept.add(slope.multiply(x));
-            BigDecimal y = window.get(i) != null ? window.get(i) : BigDecimal.ZERO;
+            BigDecimal y = windowFlows.get(i) != null ? windowFlows.get(i) : BigDecimal.ZERO;
             BigDecimal residual = y.subtract(predictedY);
             ssRes = ssRes.add(residual.multiply(residual));
         }

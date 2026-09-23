@@ -81,15 +81,17 @@ public class CashFlowService {
         String projectedMonth = YearMonth.parse(latestMonth).plusMonths(1).toString();
 
         // Reverse into chronological order (oldest to newest)
+        List<String> months = new ArrayList<>(count);
         List<BigDecimal> netCashFlows = new ArrayList<>(count);
         for (int i = count - 1; i >= 0; i--) {
             MonthlyRecord record = records.get(i);
+            months.add(record.getMonth());
             BigDecimal inflow = record.getCashInflow() != null ? record.getCashInflow() : BigDecimal.ZERO;
             BigDecimal outflow = record.getCashOutflow() != null ? record.getCashOutflow() : BigDecimal.ZERO;
             netCashFlows.add(inflow.subtract(outflow));
         }
 
-        TrendProjectionResult result = trendProjectionCalculator.calculate(netCashFlows);
+        TrendProjectionResult result = trendProjectionCalculator.calculate(months, netCashFlows);
         if (result == null) {
             return CashFlowProjectionResponse.insufficientData(count);
         }

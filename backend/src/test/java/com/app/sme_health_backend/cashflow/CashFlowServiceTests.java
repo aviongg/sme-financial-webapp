@@ -359,6 +359,27 @@ class CashFlowServiceTests {
         assertEquals("2026-09", response.getProjectedMonth());
     }
 
+    @Test
+    void shouldProperlyAccountForCalendarGapsInHistoricalRecords() {
+        // Records descending: 2026-04 (net 400k), 2026-02 (net 200k), 2026-01 (net 100k)
+        // 2026-03 is missing
+        // Projection month should be 2026-05, value should be 500k
+        MonthlyRecord mApr = createRecord("2026-04", "500000", "100000", "400000"); // net 400k
+        MonthlyRecord mFeb = createRecord("2026-02", "300000", "100000", "200000"); // net 200k
+        MonthlyRecord mJan = createRecord("2026-01", "200000", "100000", "100000"); // net 100k
+
+        when(monthlyRecordRepository.findTop6ByUserIdOrderByMonthDesc(userId))
+                .thenReturn(List.of(mApr, mFeb, mJan));
+
+        CashFlowProjectionResponse response = cashFlowService.getTrendProjection(userId);
+
+        assertNotNull(response);
+        assertEquals("2026-05", response.getProjectedMonth());
+        assertEquals(0, response.getProjectedNetCashFlow().compareTo(new BigDecimal("500000.00")));
+        assertEquals("upward", response.getTrendDirection());
+        assertEquals("reasonable", response.getConfidence());
+    }
+
 
     private MonthlyRecord createRecord(String month, String inflow, String outflow, String balance) {
         MonthlyRecord record = new MonthlyRecord();

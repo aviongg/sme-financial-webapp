@@ -203,4 +203,78 @@ class TrendProjectionCalculatorTests {
         assertEquals(0, result.rSquared().compareTo(new BigDecimal("1.0000")));
         assertEquals("reasonable", result.confidence());
     }
+
+    @Test
+    void shouldAccountForSingleCalendarMonthGapInTrendRegression() {
+        // Jan (100k), Feb (200k), Apr (400k) - March is missing
+        // Elapsed: Jan = 0, Feb = 1, Apr = 3. Target next month = May (elapsed = 4)
+        // True slope = 100k/month, intercept = 100k. At x = 4 (May), projection = 500k
+        List<String> months = List.of("2026-01", "2026-02", "2026-04");
+        List<BigDecimal> data = List.of(
+                new BigDecimal("100000"),
+                new BigDecimal("200000"),
+                new BigDecimal("400000")
+        );
+
+        TrendProjectionResult result = calculator.calculate(months, data);
+
+        assertNotNull(result);
+        assertEquals(0, result.projectedNetCashFlow().compareTo(new BigDecimal("500000.00")));
+        assertEquals("upward", result.trendDirection());
+        assertEquals("reasonable", result.confidence());
+        assertEquals(0, result.rSquared().compareTo(new BigDecimal("1.0000")));
+        assertEquals(0, result.slope().compareTo(new BigDecimal("100000.0000")));
+        assertEquals(0, result.intercept().compareTo(new BigDecimal("100000.0000")));
+    }
+
+    @Test
+    void shouldAccountForMultiMonthCalendarGapAcrossYearBoundary() {
+        // Oct 2025 (500k), Nov 2025 (450k), Feb 2026 (300k) - Dec 2025 & Jan 2026 missing
+        // Elapsed from Oct 2025: Oct = 0 (500k), Nov = 1 (450k), Feb = 4 (300k)
+        // Slope = -50k/month, intercept = 500k
+        // Target next month = March 2026 (elapsed = 5) -> Projection = 500k - 50k * 5 = 250k
+        List<String> months = List.of("2025-10", "2025-11", "2026-02");
+        List<BigDecimal> data = List.of(
+                new BigDecimal("500000"),
+                new BigDecimal("450000"),
+                new BigDecimal("300000")
+        );
+
+        TrendProjectionResult result = calculator.calculate(months, data);
+
+        assertNotNull(result);
+        assertEquals(0, result.projectedNetCashFlow().compareTo(new BigDecimal("250000.00")));
+        assertEquals("downward", result.trendDirection());
+        assertEquals("reasonable", result.confidence());
+        assertEquals(0, result.rSquared().compareTo(new BigDecimal("1.0000")));
+        assertEquals(0, result.slope().compareTo(new BigDecimal("-50000.0000")));
+    }
+
+    @Test
+    void shouldHandleFlatTrendWithCalendarGaps() {
+        // Jan (200k), May (200k), Sep (200k)
+        // Target next month = Oct 2026 -> projection = 200k
+        List<String> months = List.of("2026-01", "2026-05", "2026-09");
+        List<BigDecimal> data = List.of(
+                new BigDecimal("200000"),
+                new BigDecimal("200000"),
+                new BigDecimal("200000")
+        );
+
+        TrendProjectionResult result = calculator.calculate(months, data);
+
+        assertNotNull(result);
+        assertEquals(0, result.projectedNetCashFlow().compareTo(new BigDecimal("200000.00")));
+        assertEquals("flat", result.trendDirection());
+        assertEquals("reasonable", result.confidence());
+        assertEquals(0, result.rSquared().compareTo(new BigDecimal("1.0000")));
+    }
+
+    @Test
+    void shouldReturnNullForMismatchedOrInsufficientMonthsAndData() {
+        assertNull(calculator.calculate(null, List.of(new BigDecimal("100"))));
+        assertNull(calculator.calculate(List.of("2026-01"), null));
+        assertNull(calculator.calculate(List.of("2026-01", "2026-02"), List.of(new BigDecimal("100"), new BigDecimal("200"))));
+        assertNull(calculator.calculate(List.of("2026-01", "2026-02", "2026-03"), List.of(new BigDecimal("100"), new BigDecimal("200"))));
+    }
 }
