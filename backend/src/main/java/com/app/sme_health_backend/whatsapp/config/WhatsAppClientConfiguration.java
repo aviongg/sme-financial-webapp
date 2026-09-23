@@ -20,6 +20,7 @@ public class WhatsAppClientConfiguration {
             @Value("${app.whatsapp.meta.phone-number-id:}") String phoneNumberId,
             @Value("${app.whatsapp.meta.access-token:}") String accessToken,
             @Value("${app.whatsapp.meta.timeout-seconds:15}") int timeoutSeconds,
+            @Value("${app.whatsapp.template-name:financial_health_weekly_summary_v1}") String templateName,
             ObjectMapper objectMapper
     ) {
         return new MetaWhatsAppCloudApiClient(
@@ -28,6 +29,7 @@ public class WhatsAppClientConfiguration {
                 phoneNumberId,
                 accessToken,
                 timeoutSeconds,
+                templateName,
                 objectMapper
         );
     }

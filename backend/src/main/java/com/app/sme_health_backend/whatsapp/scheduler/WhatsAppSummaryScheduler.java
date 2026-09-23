@@ -4,9 +4,11 @@ import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDelivery;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDeliveryStatus;
+import com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecovery;
 import com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,16 +24,28 @@ public class WhatsAppSummaryScheduler {
 
     private final WhatsAppDeliveryService deliveryService;
     private final BusinessProfileRepository profileRepository;
+    private final WhatsAppDeliveryRecovery deliveryRecovery;
     private final boolean enabled;
+
+    @Autowired
+    public WhatsAppSummaryScheduler(
+            WhatsAppDeliveryService deliveryService,
+            BusinessProfileRepository profileRepository,
+            WhatsAppDeliveryRecovery deliveryRecovery,
+            @Value("${app.whatsapp.scheduler.enabled:true}") boolean enabled
+    ) {
+        this.deliveryService = deliveryService;
+        this.profileRepository = profileRepository;
+        this.deliveryRecovery = deliveryRecovery;
+        this.enabled = enabled;
+    }
 
     public WhatsAppSummaryScheduler(
             WhatsAppDeliveryService deliveryService,
             BusinessProfileRepository profileRepository,
             @Value("${app.whatsapp.scheduler.enabled:true}") boolean enabled
     ) {
-        this.deliveryService = deliveryService;
-        this.profileRepository = profileRepository;
-        this.enabled = enabled;
+        this(deliveryService, profileRepository, null, enabled);
     }
 
     @Scheduled(
@@ -48,6 +62,14 @@ public class WhatsAppSummaryScheduler {
     }
 
     public int triggerWeeklyDelivery(LocalDate referenceDate) {
+        // Recover any stale SENDING jobs prior to scheduled processing
+        if (deliveryRecovery != null) {
+            int recovered = deliveryRecovery.recoverStaleDeliveries();
+            if (recovered > 0) {
+                log.warn("WhatsAppSummaryScheduler: Recovered {} stale SENDING deliveries prior to batch run", recovered);
+            }
+        }
+
         LocalDate date = (referenceDate != null)
                 ? referenceDate
                 : LocalDate.now(deliveryService.getSchedulerZone());

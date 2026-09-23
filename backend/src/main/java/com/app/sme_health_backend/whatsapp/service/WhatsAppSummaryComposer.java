@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -34,8 +35,19 @@ public class WhatsAppSummaryComposer {
             String sourceFingerprint,
             String templateName,
             String targetMonth,
-            String language
-    ) {}
+            String language,
+            List<String> templateParameters
+    ) {
+        public ComposedSummary(
+                String messageText,
+                String sourceFingerprint,
+                String templateName,
+                String targetMonth,
+                String language
+        ) {
+            this(messageText, sourceFingerprint, templateName, targetMonth, language, List.of());
+        }
+    }
 
     public ComposedSummary compose(
             BusinessProfile profile,
@@ -135,12 +147,24 @@ public class WhatsAppSummaryComposer {
                 TEMPLATE_NAME
         );
 
+        List<String> templateParams = List.of(
+                scoreResult.getMonth(),
+                businessName,
+                String.valueOf(scoreValue),
+                translatedBand,
+                translatedComponent,
+                insightText,
+                actionText,
+                portalUrl
+        );
+
         return new ComposedSummary(
                 messageText,
                 fingerprint,
                 TEMPLATE_NAME,
                 scoreResult.getMonth(),
-                resolvedLanguage
+                resolvedLanguage,
+                templateParams
         );
     }
 

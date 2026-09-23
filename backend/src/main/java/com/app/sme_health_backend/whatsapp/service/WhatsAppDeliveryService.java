@@ -188,12 +188,13 @@ public class WhatsAppDeliveryService {
                 profile.getWhatsappNumber(),
                 composed.messageText(),
                 composed.language(),
-                composed.templateName()
+                composed.templateName(),
+                composed.templateParameters()
         );
 
         WhatsAppSendResult sendResult = whatsappClient.sendSummary(sendRequest);
 
-        savedDelivery.setAttemptCount(savedDelivery.getAttemptCount() + 1);
+        savedDelivery.setAttemptCount(Math.max(1, sendResult.attempts()));
         LocalDateTime now = LocalDateTime.now();
 
         if (sendResult.status() == WhatsAppDeliveryStatus.SENT) {

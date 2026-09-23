@@ -4,6 +4,7 @@ import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDelivery;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDeliveryStatus;
+import com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecovery;
 import com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,11 +32,14 @@ class WhatsAppSummarySchedulerTest {
     @Mock
     private BusinessProfileRepository profileRepository;
 
+    @Mock
+    private WhatsAppDeliveryRecovery deliveryRecovery;
+
     private WhatsAppSummaryScheduler scheduler;
 
     @BeforeEach
     void setUp() {
-        scheduler = new WhatsAppSummaryScheduler(deliveryService, profileRepository, true);
+        scheduler = new WhatsAppSummaryScheduler(deliveryService, profileRepository, deliveryRecovery, true);
     }
 
     @Test
@@ -70,6 +74,7 @@ class WhatsAppSummarySchedulerTest {
         int sent = scheduler.triggerWeeklyDelivery(refDate);
 
         assertEquals(2, sent);
+        verify(deliveryRecovery).recoverStaleDeliveries();
         verify(deliveryService).deliverWeeklySummary(u1, refDate);
         verify(deliveryService).deliverWeeklySummary(u2, refDate);
     }

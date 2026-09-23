@@ -64,6 +64,15 @@ class WhatsAppSummaryComposerTest {
         assertTrue(text.contains("Key Insight:"));
         assertTrue(text.contains("Recommended Action:"));
         assertTrue(text.contains("https://sme.app"));
+
+        assertNotNull(summary.templateParameters());
+        assertEquals(8, summary.templateParameters().size());
+        assertEquals("2026-09", summary.templateParameters().get(0));
+        assertEquals("Retail Mart", summary.templateParameters().get(1));
+        assertEquals("78", summary.templateParameters().get(2));
+        assertEquals("Strong", summary.templateParameters().get(3));
+        assertEquals("cash flow", summary.templateParameters().get(4));
+        assertEquals("https://sme.app", summary.templateParameters().get(7));
     }
 
     @Test

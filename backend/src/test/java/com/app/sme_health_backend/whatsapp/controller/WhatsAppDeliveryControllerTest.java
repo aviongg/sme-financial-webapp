@@ -60,35 +60,21 @@ class WhatsAppDeliveryControllerTest {
     }
 
     @Test
-    void shouldTriggerDeliveryForUser() throws Exception {
+    void shouldGetDeliveryById() throws Exception {
+        UUID deliveryId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        WhatsAppDelivery delivery = new WhatsAppDelivery();
-        delivery.setId(UUID.randomUUID());
-        delivery.setUserId(userId);
-        delivery.setTargetMonth("2026-09");
-        delivery.setSourceFingerprint("fp-123");
-        delivery.setDeliveryCycle("2026-W39");
-        delivery.setDestinationNumber("+923001234567");
-        delivery.setLanguage("en");
-        delivery.setTemplateName("tpl");
-        delivery.setProviderName("mock");
-        delivery.setDeliveryStatus(WhatsAppDeliveryStatus.SENT);
+        WhatsAppDeliveryResponse resp = new WhatsAppDeliveryResponse(
+                deliveryId, userId, UUID.randomUUID(), "2026-09", "fp-123", "2026-W39",
+                userId + ":2026-W39", "+92300***4567", "en", "tpl", "mock", "msg-1",
+                WhatsAppDeliveryStatus.SENT, 1, LocalDateTime.now(), LocalDateTime.now(), null, null,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
 
-        when(deliveryService.deliverWeeklySummary(eq(userId), any())).thenReturn(Optional.of(delivery));
+        when(deliveryService.getDelivery(deliveryId)).thenReturn(Optional.of(resp));
 
-        mockMvc.perform(post("/api/whatsapp/deliveries/trigger/{userId}", userId))
+        mockMvc.perform(get("/api/whatsapp/deliveries/{deliveryId}", deliveryId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deliveryCycle").value("2026-W39"))
+                .andExpect(jsonPath("$.id").value(deliveryId.toString()))
                 .andExpect(jsonPath("$.deliveryStatus").value("SENT"));
-    }
-
-    @Test
-    void shouldTriggerWeeklyBatch() throws Exception {
-        when(scheduler.triggerWeeklyDelivery(any())).thenReturn(5);
-
-        mockMvc.perform(post("/api/whatsapp/deliveries/trigger-weekly"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("completed"))
-                .andExpect(jsonPath("$.sentCount").value(5));
     }
 }

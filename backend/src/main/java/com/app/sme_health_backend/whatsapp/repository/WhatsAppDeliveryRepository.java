@@ -37,4 +37,21 @@ public interface WhatsAppDeliveryRepository extends JpaRepository<WhatsAppDelive
             @Param("newStatus") WhatsAppDeliveryStatus newStatus,
             @Param("now") LocalDateTime now
     );
+
+    List<WhatsAppDelivery> findByDeliveryStatusAndUpdatedAtBefore(
+            WhatsAppDeliveryStatus deliveryStatus,
+            LocalDateTime threshold
+    );
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE WhatsAppDelivery d SET d.deliveryStatus = :newStatus, d.failureReason = :reason, d.updatedAt = :now " +
+            "WHERE d.deliveryStatus = :staleStatus AND d.updatedAt <= :threshold")
+    int recoverStaleDeliveries(
+            @Param("staleStatus") WhatsAppDeliveryStatus staleStatus,
+            @Param("newStatus") WhatsAppDeliveryStatus newStatus,
+            @Param("reason") String reason,
+            @Param("threshold") LocalDateTime threshold,
+            @Param("now") LocalDateTime now
+    );
 }

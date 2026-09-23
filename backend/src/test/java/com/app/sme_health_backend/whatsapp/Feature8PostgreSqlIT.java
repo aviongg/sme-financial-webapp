@@ -8,6 +8,7 @@ import com.app.sme_health_backend.scoring.repository.ScoreResultRepository;
 import com.app.sme_health_backend.whatsapp.dto.WhatsAppDeliveryResponse;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDelivery;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDeliveryStatus;
+import com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecovery;
 import com.app.sme_health_backend.whatsapp.repository.WhatsAppDeliveryRepository;
 import com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryService;
 import org.junit.jupiter.api.AfterEach;
@@ -42,6 +43,9 @@ public class Feature8PostgreSqlIT {
 
     @Autowired
     private WhatsAppDeliveryService deliveryService;
+
+    @Autowired
+    private WhatsAppDeliveryRecovery deliveryRecovery;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -218,5 +222,94 @@ public class Feature8PostgreSqlIT {
         assertNotNull(delivery.getFailureReason());
         assertTrue(delivery.getFailureReason().contains("timeout"));
         assertNull(delivery.getSentAt());
+    }
+
+    @Test
+    void shouldRecoverStaleSendingDeliveriesAsIndeterminateInPostgreSql() {
+        // 1. Create business profile
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(testUserId);
+        profile.setBusinessType("services");
+        profile.setLanguagePreference("en");
+        profile.setWhatsappOptIn(true);
+        profile.setWhatsappNumber("+923001239999");
+        profile.setWhatsappOptedInAt(LocalDateTime.now());
+        profile.setCreatedAt(LocalDateTime.now());
+        profileRepository.saveAndFlush(profile);
+
+        // 2. Insert a stale SENDING delivery row directly (updated 30 minutes ago)
+        String deliveryCycle = "2026-W39";
+        LocalDateTime thirtyMinutesAgo = LocalDateTime.now().minusMinutes(30);
+
+        WhatsAppDelivery staleDelivery = new WhatsAppDelivery();
+        staleDelivery.setUserId(testUserId);
+        staleDelivery.setTargetMonth("2026-09");
+        staleDelivery.setSourceFingerprint("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        staleDelivery.setDeliveryCycle(deliveryCycle);
+        staleDelivery.setIdempotencyKey(testUserId + ":" + deliveryCycle);
+        staleDelivery.setDestinationNumber("+923001239999");
+        staleDelivery.setLanguage("en");
+        staleDelivery.setTemplateName("financial_health_weekly_summary_v1");
+        staleDelivery.setProviderName("mock");
+        staleDelivery.setDeliveryStatus(WhatsAppDeliveryStatus.SENDING);
+        staleDelivery.setAttemptCount(1);
+        staleDelivery.setScheduledAt(thirtyMinutesAgo);
+        staleDelivery.setCreatedAt(thirtyMinutesAgo);
+        staleDelivery.setUpdatedAt(thirtyMinutesAgo);
+
+        WhatsAppDelivery savedStale = deliveryRepository.saveAndFlush(staleDelivery);
+        createdDeliveryIds.add(savedStale.getId());
+
+        // Update updated_at directly via JDBC to avoid JPA lifecycle override
+        jdbcTemplate.update("UPDATE whatsapp_deliveries SET updated_at = ? WHERE id = ?",
+                thirtyMinutesAgo, savedStale.getId());
+
+        // Verify it is currently in 'sending' status with stale timestamp in PostgreSQL
+        String statusBefore = jdbcTemplate.queryForObject(
+                "SELECT delivery_status FROM whatsapp_deliveries WHERE id = ?",
+                String.class, savedStale.getId()
+        );
+        assertEquals("sending", statusBefore);
+
+        // 3. Trigger recovery with 15-minute threshold
+        int recoveredCount = deliveryRecovery.recoverStaleDeliveries(15);
+        assertTrue(recoveredCount >= 1, "Must recover at least 1 stale delivery");
+
+        // 4. Assert row transitioned to INDETERMINATE in PostgreSQL
+        WhatsAppDelivery recovered = deliveryRepository.findById(savedStale.getId()).orElseThrow();
+        assertEquals(WhatsAppDeliveryStatus.INDETERMINATE, recovered.getDeliveryStatus());
+        assertNotNull(recovered.getFailureReason());
+        assertTrue(recovered.getFailureReason().contains("Stale SENDING delivery recovered as INDETERMINATE"));
+        assertEquals(1, recovered.getAttemptCount(), "attempt_count must remain intact");
+
+        // 5. Verify weekly uniqueness and idempotency: subsequent weekly delivery returns the recovered record
+        // without duplicating rows
+        ScoreResult score = new ScoreResult();
+        score.setUserId(testUserId);
+        score.setMonth("2026-09");
+        score.setCompositeScore(new BigDecimal("75.00"));
+        score.setBand("STRONG");
+        score.setWeakestComponent("cashflow");
+        score.setComponentScores(new ComponentScoresDto(
+                new BigDecimal("75"), new BigDecimal("75"), new BigDecimal("75"),
+                new BigDecimal("75"), new BigDecimal("75")
+        ));
+        score.setDataCompleteness(new BigDecimal("1.00"));
+        score.setComputedAt(LocalDateTime.now());
+        ScoreResult savedScore = scoreResultRepository.saveAndFlush(score);
+        createdScoreIds.add(savedScore.getId());
+
+        LocalDate targetDate = LocalDate.of(2026, 9, 23);
+        Optional<WhatsAppDelivery> secondAttempt = deliveryService.deliverWeeklySummary(testUserId, targetDate);
+
+        assertTrue(secondAttempt.isPresent());
+        assertEquals(savedStale.getId(), secondAttempt.get().getId(),
+                "Must return existing recovered delivery record rather than creating a duplicate");
+
+        Integer totalRowsForCycle = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM whatsapp_deliveries WHERE user_id = ? AND delivery_cycle = ?",
+                Integer.class, testUserId, deliveryCycle
+        );
+        assertEquals(1, totalRowsForCycle, "Exactly 1 delivery row must exist for (user_id, delivery_cycle)");
     }
 }
