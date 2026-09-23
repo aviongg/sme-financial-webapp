@@ -33,6 +33,23 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
             UUID userId, DocumentStatus status, String linkedMonth);
 
     @Modifying
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.processingStartedAt = :now WHERE d.id = :id AND d.processingStatus = :expectedStatus")
+    int claimStatus(
+            @Param("id") UUID id,
+            @Param("expectedStatus") DocumentStatus expectedStatus,
+            @Param("targetStatus") DocumentStatus targetStatus,
+            @Param("now") java.time.LocalDateTime now
+    );
+
+    @Modifying
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.failureReason = :failureReason WHERE d.processingStatus = :expectedStatus")
+    int resetAllByStatus(
+            @Param("expectedStatus") DocumentStatus expectedStatus,
+            @Param("targetStatus") DocumentStatus targetStatus,
+            @Param("failureReason") String failureReason
+    );
+
+    @Modifying
     @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus WHERE d.id = :id AND d.processingStatus = :expectedStatus")
     int updateStatusIfStatus(
             @Param("id") UUID id,

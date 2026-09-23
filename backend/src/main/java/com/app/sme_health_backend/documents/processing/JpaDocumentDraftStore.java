@@ -25,7 +25,7 @@ public class JpaDocumentDraftStore implements DocumentDraftStore {
     @Transactional
     public Optional<OcrRequest> claimPending(UUID documentId) {
         Objects.requireNonNull(documentId, "documentId is required");
-        int updated = repository.updateStatusIfStatus(documentId, DocumentStatus.pending, DocumentStatus.processing);
+        int updated = repository.claimStatus(documentId, DocumentStatus.pending, DocumentStatus.processing, java.time.LocalDateTime.now());
         if (updated == 0) {
             return Optional.empty();
         }

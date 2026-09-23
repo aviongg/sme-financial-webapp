@@ -42,7 +42,7 @@ class JpaDocumentDraftStoreTests {
         doc.setDocumentTypeHint("invoice");
         doc.setProcessingStatus(DocumentStatus.processing);
 
-        when(repository.updateStatusIfStatus(docId, DocumentStatus.pending, DocumentStatus.processing))
+        when(repository.claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any()))
                 .thenReturn(1);
         when(repository.findById(docId)).thenReturn(Optional.of(doc));
 
@@ -51,12 +51,12 @@ class JpaDocumentDraftStoreTests {
         assertTrue(claimed.isPresent());
         assertEquals("http://localhost:8080/api/documents/" + docId + "/file", claimed.get().imageUrl());
         assertEquals(OcrExtraction.DocumentType.invoice, claimed.get().documentTypeHint());
-        verify(repository).updateStatusIfStatus(docId, DocumentStatus.pending, DocumentStatus.processing);
+        verify(repository).claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any());
     }
 
     @Test
     void claimPendingReturnsEmptyWhenDocumentNotPending() {
-        when(repository.updateStatusIfStatus(docId, DocumentStatus.pending, DocumentStatus.processing))
+        when(repository.claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any()))
                 .thenReturn(0);
 
         Optional<OcrRequest> claimed = store.claimPending(docId);

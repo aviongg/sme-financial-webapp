@@ -164,4 +164,54 @@ class DocumentUploadServiceTests {
         verify(storageService, never()).delete(any());
         verify(repository, never()).delete(any());
     }
+
+    @Test
+    void uploadSingleCompensatesAndDeletesPhysicalFileIfDatabasePersistenceFails() {
+        MockMultipartFile file = new MockMultipartFile("file", "receipt.png", "image/png", new byte[]{1, 2, 3});
+        StoredFile stored = new StoredFile("/path/to/receipt.png", "receipt.png", "image/png", 3L);
+
+        when(storageService.store(userId, file)).thenReturn(stored);
+        when(storageService.resolveFileUrl(any())).thenReturn("http://localhost:8080/api/documents/" + docId + "/file");
+        when(repository.save(any(UploadedDocument.class))).thenThrow(new RuntimeException("DB error"));
+
+        assertThrows(RuntimeException.class, () -> service.uploadSingle(userId, file, "receipt"));
+
+        verify(storageService).delete("/path/to/receipt.png");
+        verify(asyncProcessingService, never()).processAfterCommit(any());
+    }
+
+    @Test
+    void retryProcessingRejectsActiveProcessingDocumentWithinThreshold() {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setUserId(userId);
+        doc.setProcessingStatus(DocumentStatus.processing);
+        doc.setProcessingStartedAt(java.time.LocalDateTime.now().minusMinutes(1)); // 1 min ago (active < 5 min)
+
+        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.retryProcessing(userId, docId));
+        assertTrue(ex.getMessage().contains("currently being processed"));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void retryProcessingAllowsStaleProcessingDocument() {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setUserId(userId);
+        doc.setProcessingStatus(DocumentStatus.processing);
+        doc.setProcessingStartedAt(java.time.LocalDateTime.now().minusMinutes(10)); // 10 min ago (stale > 5 min)
+
+        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.save(any(UploadedDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UploadedDocument retried = service.retryProcessing(userId, docId);
+
+        assertEquals(DocumentStatus.pending, retried.getProcessingStatus());
+        assertNull(retried.getProcessingStartedAt());
+        assertNull(retried.getFailureReason());
+        verify(repository).save(doc);
+        verify(asyncProcessingService).processAfterCommit(docId);
+    }
 }

@@ -21,6 +21,7 @@ import java.util.UUID;
 public class DocumentUploadService {
 
     public static final int MAX_BULK_DOCUMENTS = 10;
+    public static final java.time.Duration STALE_PROCESSING_TIMEOUT = java.time.Duration.ofMinutes(5);
 
     private final UploadedDocumentRepository repository;
     private final DocumentStorageService storageService;
@@ -47,23 +48,32 @@ public class DocumentUploadService {
 
         StoredFile stored = storageService.store(userId, file);
 
-        UploadedDocument doc = new UploadedDocument();
-        UUID docId = UUID.randomUUID();
-        doc.setId(docId);
-        doc.setUserId(userId);
-        doc.setFileUrl(storageService.resolveFileUrl(docId));
-        doc.setDocumentTypeHint(sanitizeHint(documentTypeHint));
-        doc.setProcessingStatus(DocumentStatus.pending);
-        doc.setOriginalFilename(stored.originalFilename());
-        doc.setContentType(stored.contentType());
-        doc.setFileSizeBytes(stored.sizeBytes());
-        doc.setStoragePath(stored.storagePath());
+        try {
+            UploadedDocument doc = new UploadedDocument();
+            UUID docId = UUID.randomUUID();
+            doc.setId(docId);
+            doc.setUserId(userId);
+            doc.setFileUrl(storageService.resolveFileUrl(docId));
+            doc.setDocumentTypeHint(sanitizeHint(documentTypeHint));
+            doc.setProcessingStatus(DocumentStatus.pending);
+            doc.setOriginalFilename(stored.originalFilename());
+            doc.setContentType(stored.contentType());
+            doc.setFileSizeBytes(stored.sizeBytes());
+            doc.setStoragePath(stored.storagePath());
 
-        UploadedDocument saved = repository.save(doc);
+            UploadedDocument saved = repository.save(doc);
 
-        asyncProcessingService.processAfterCommit(saved.getId());
+            asyncProcessingService.processAfterCommit(saved.getId());
 
-        return saved;
+            return saved;
+        } catch (Exception e) {
+            try {
+                storageService.delete(stored.storagePath());
+            } catch (Exception suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
+        }
     }
 
     @Transactional
@@ -81,30 +91,42 @@ public class DocumentUploadService {
         }
 
         List<UploadedDocument> results = new ArrayList<>();
-        for (MultipartFile file : files) {
-            if (file != null && !file.isEmpty()) {
-                StoredFile stored = storageService.store(userId, file);
+        List<StoredFile> storedFiles = new ArrayList<>();
+        try {
+            for (MultipartFile file : files) {
+                if (file != null && !file.isEmpty()) {
+                    StoredFile stored = storageService.store(userId, file);
+                    storedFiles.add(stored);
 
-                UploadedDocument doc = new UploadedDocument();
-                UUID docId = UUID.randomUUID();
-                doc.setId(docId);
-                doc.setUserId(userId);
-                doc.setFileUrl(storageService.resolveFileUrl(docId));
-                doc.setDocumentTypeHint(sanitizeHint(documentTypeHint));
-                doc.setProcessingStatus(DocumentStatus.pending);
-                doc.setOriginalFilename(stored.originalFilename());
-                doc.setContentType(stored.contentType());
-                doc.setFileSizeBytes(stored.sizeBytes());
-                doc.setStoragePath(stored.storagePath());
+                    UploadedDocument doc = new UploadedDocument();
+                    UUID docId = UUID.randomUUID();
+                    doc.setId(docId);
+                    doc.setUserId(userId);
+                    doc.setFileUrl(storageService.resolveFileUrl(docId));
+                    doc.setDocumentTypeHint(sanitizeHint(documentTypeHint));
+                    doc.setProcessingStatus(DocumentStatus.pending);
+                    doc.setOriginalFilename(stored.originalFilename());
+                    doc.setContentType(stored.contentType());
+                    doc.setFileSizeBytes(stored.sizeBytes());
+                    doc.setStoragePath(stored.storagePath());
 
-                UploadedDocument saved = repository.save(doc);
-                results.add(saved);
+                    UploadedDocument saved = repository.save(doc);
+                    results.add(saved);
 
-                asyncProcessingService.processAfterCommit(saved.getId());
+                    asyncProcessingService.processAfterCommit(saved.getId());
+                }
             }
+            return results;
+        } catch (Exception e) {
+            for (StoredFile sf : storedFiles) {
+                try {
+                    storageService.delete(sf.storagePath());
+                } catch (Exception suppressed) {
+                    e.addSuppressed(suppressed);
+                }
+            }
+            throw e;
         }
-
-        return results;
     }
 
     @Transactional(readOnly = true)
@@ -139,8 +161,16 @@ public class DocumentUploadService {
             throw new IllegalStateException("Cannot retry a confirmed document");
         }
 
+        if (doc.getProcessingStatus() == DocumentStatus.processing) {
+            if (doc.getProcessingStartedAt() != null &&
+                    doc.getProcessingStartedAt().isAfter(java.time.LocalDateTime.now().minus(STALE_PROCESSING_TIMEOUT))) {
+                throw new IllegalStateException("Document is currently being processed. Please wait before retrying.");
+            }
+        }
+
         doc.setProcessingStatus(DocumentStatus.pending);
         doc.setFailureReason(null);
+        doc.setProcessingStartedAt(null);
         UploadedDocument saved = repository.save(doc);
 
         asyncProcessingService.processAfterCommit(saved.getId());

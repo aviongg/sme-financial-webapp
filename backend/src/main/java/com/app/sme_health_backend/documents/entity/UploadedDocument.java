@@ -2,18 +2,33 @@ package com.app.sme_health_backend.documents.entity;
 
 import com.app.sme_health_backend.documents.processing.DocumentStatus;
 import jakarta.persistence.*;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "uploaded_documents")
-public class UploadedDocument {
+public class UploadedDocument implements Persistable<UUID> {
 
     @Id
-    @UuidGenerator
     private UUID id;
+
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.isNew = false;
+    }
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -31,9 +46,11 @@ public class UploadedDocument {
     @Column(name = "processing_status", nullable = false, length = 15)
     private DocumentStatus processingStatus = DocumentStatus.pending;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "extracted_data", columnDefinition = "jsonb")
     private String extractedData;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "confirmed_data", columnDefinition = "jsonb")
     private String confirmedData;
 
@@ -55,8 +72,12 @@ public class UploadedDocument {
     @Column(name = "failure_reason", length = 100)
     private String failureReason;
 
+    @Column(name = "processing_started_at")
+    private LocalDateTime processingStartedAt;
+
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
 
     public UploadedDocument() {
         this.uploadTimestamp = LocalDateTime.now();
@@ -174,9 +195,18 @@ public class UploadedDocument {
         this.failureReason = failureReason;
     }
 
+    public LocalDateTime getProcessingStartedAt() {
+        return processingStartedAt;
+    }
+
+    public void setProcessingStartedAt(LocalDateTime processingStartedAt) {
+        this.processingStartedAt = processingStartedAt;
+    }
+
     public LocalDateTime getConfirmedAt() {
         return confirmedAt;
     }
+
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
