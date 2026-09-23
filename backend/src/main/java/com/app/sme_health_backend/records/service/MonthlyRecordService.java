@@ -62,6 +62,93 @@ public class MonthlyRecordService {
         return saved;
     }
 
+    @Transactional
+    public MonthlyRecord applyDocumentContribution(
+            UUID userId,
+            String targetMonth,
+            String targetClassification,
+            String cashFlowImpact,
+            BigDecimal amount,
+            BigDecimal initialCashBalanceEom
+    ) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (targetMonth == null || targetMonth.isBlank()) {
+            throw new IllegalArgumentException("Target month is required");
+        }
+        try {
+            YearMonth.parse(targetMonth);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Target month must be in YYYY-MM format");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Confirmed amount must be greater than zero");
+        }
+
+        String classification = targetClassification != null ? targetClassification.trim().toLowerCase() : "none";
+        String flowImpact = cashFlowImpact != null ? cashFlowImpact.trim().toLowerCase() : "none";
+
+        MonthlyRecord existing = monthlyRecordRepository.findByUserIdAndMonth(userId, targetMonth).orElse(null);
+        MonthlyRecord recordToSave;
+
+        if (existing != null) {
+            // Increment ONLY period-flow fields; point-in-time balances remain untouched
+            if ("revenue".equals(classification)) {
+                existing.setRevenue(existing.getRevenue().add(amount));
+            } else if ("operating_expenses".equals(classification)) {
+                existing.setOperatingExpenses(existing.getOperatingExpenses().add(amount));
+            } else if ("cogs".equals(classification)) {
+                BigDecimal currentCogs = existing.getCogs() != null ? existing.getCogs() : BigDecimal.ZERO;
+                existing.setCogs(currentCogs.add(amount));
+            }
+
+            if ("cash_inflow".equals(flowImpact)) {
+                existing.setCashInflow(existing.getCashInflow().add(amount));
+            } else if ("cash_outflow".equals(flowImpact)) {
+                existing.setCashOutflow(existing.getCashOutflow().add(amount));
+            }
+
+            existing.setUpdatedAt(LocalDateTime.now());
+            recordToSave = existing;
+        } else {
+            // Month does not exist: require initial cash balance to avoid fabricating point-in-time balances
+            if (initialCashBalanceEom == null) {
+                throw new IllegalArgumentException(
+                        "No monthly record exists for " + targetMonth
+                                + ". An initial cash balance (initialCashBalanceEom) is required to initialize this month's record."
+                );
+            }
+            if (initialCashBalanceEom.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Initial cash balance cannot be negative");
+            }
+
+            MonthlyRecord newRecord = new MonthlyRecord();
+            newRecord.setUserId(userId);
+            newRecord.setMonth(targetMonth);
+            newRecord.setRevenue("revenue".equals(classification) ? amount : BigDecimal.ZERO);
+            newRecord.setOperatingExpenses("operating_expenses".equals(classification) ? amount : BigDecimal.ZERO);
+            newRecord.setCogs("cogs".equals(classification) ? amount : null);
+            newRecord.setCashInflow("cash_inflow".equals(flowImpact) ? amount : BigDecimal.ZERO);
+            newRecord.setCashOutflow("cash_outflow".equals(flowImpact) ? amount : BigDecimal.ZERO);
+            newRecord.setCashBalanceEom(initialCashBalanceEom);
+            newRecord.setFinancingType("none");
+            newRecord.setUpdatedAt(LocalDateTime.now());
+
+            validateMonthlyRecord(newRecord);
+            recordToSave = newRecord;
+        }
+
+        MonthlyRecord saved = monthlyRecordRepository.save(recordToSave);
+
+        if (scoringService != null) {
+            recalculateAffectedScores(saved.getUserId(), saved.getMonth());
+        }
+
+        return saved;
+    }
+
+
     private void recalculateAffectedScores(UUID userId, String targetMonth) {
         try {
             List<MonthlyRecord> records = monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId);

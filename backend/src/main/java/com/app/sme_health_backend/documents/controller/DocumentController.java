@@ -26,10 +26,16 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentUploadService uploadService;
+    private final com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService;
 
-    public DocumentController(DocumentUploadService uploadService) {
+    public DocumentController(
+            DocumentUploadService uploadService,
+            com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService
+    ) {
         this.uploadService = Objects.requireNonNull(uploadService, "uploadService is required");
+        this.confirmationService = Objects.requireNonNull(confirmationService, "confirmationService is required");
     }
+
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentResponse> uploadDocument(
@@ -105,6 +111,27 @@ public class DocumentController {
         uploadService.deleteDraft(userId, id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<DocumentResponse> updateDraft(
+            @PathVariable("id") UUID id,
+            @RequestParam("userId") UUID userId,
+            @RequestBody com.app.sme_health_backend.documents.dto.DocumentDraftCorrectionRequest request
+    ) {
+        UploadedDocument doc = uploadService.updateDraft(userId, id, request);
+        return ResponseEntity.ok(DocumentMapper.toResponse(doc));
+    }
+
+    @PostMapping("/{id}/confirm")
+    public ResponseEntity<DocumentResponse> confirmDocument(
+            @PathVariable("id") UUID id,
+            @RequestParam("userId") UUID userId,
+            @jakarta.validation.Valid @RequestBody com.app.sme_health_backend.documents.dto.DocumentConfirmationRequest request
+    ) {
+        UploadedDocument doc = confirmationService.confirmDocument(userId, id, request);
+        return ResponseEntity.ok(DocumentMapper.toResponse(doc));
+    }
+
 
     @ExceptionHandler(DocumentNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(DocumentNotFoundException ex) {

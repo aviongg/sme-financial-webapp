@@ -29,8 +29,12 @@ class DocumentControllerTests {
     @MockitoBean
     private DocumentUploadService uploadService;
 
+    @MockitoBean
+    private com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService;
+
     private final UUID userId = UUID.randomUUID();
     private final UUID docId = UUID.randomUUID();
+
 
     @Test
     void uploadSingleDocumentReturns201Created() throws Exception {
@@ -153,5 +157,57 @@ class DocumentControllerTests {
                 .andExpect(status().isNoContent());
 
         verify(uploadService).deleteDraft(userId, docId);
+    }
+
+    @Test
+    void updateDraftReturns200WithUpdatedDraft() throws Exception {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setUserId(userId);
+        doc.setProcessingStatus(DocumentStatus.extracted);
+        doc.setExtractedData("{\"date\":\"2026-03-15\",\"amount\":12000.00}");
+
+        when(uploadService.updateDraft(eq(userId), eq(docId), any())).thenReturn(doc);
+
+        mockMvc.perform(patch("/api/documents/{id}", docId)
+                        .param("userId", userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":12000.00,\"vendorOrParty\":\"Al-Madina\",\"category\":\"expense\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(docId.toString()))
+                .andExpect(jsonPath("$.processingStatus").value("extracted"));
+    }
+
+    @Test
+    void confirmDocumentReturns200WithConfirmedStatus() throws Exception {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setUserId(userId);
+        doc.setProcessingStatus(DocumentStatus.confirmed);
+        doc.setLinkedMonth("2026-03");
+
+        when(confirmationService.confirmDocument(eq(userId), eq(docId), any())).thenReturn(doc);
+
+        mockMvc.perform(post("/api/documents/{id}/confirm", docId)
+                        .param("userId", userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":12000.00,\"targetClassification\":\"operating_expenses\",\"cashFlowImpact\":\"cash_outflow\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(docId.toString()))
+                .andExpect(jsonPath("$.processingStatus").value("confirmed"))
+                .andExpect(jsonPath("$.linkedMonth").value("2026-03"));
+    }
+
+    @Test
+    void confirmDuplicateDocumentReturns409Conflict() throws Exception {
+        when(confirmationService.confirmDocument(eq(userId), eq(docId), any()))
+                .thenThrow(new com.app.sme_health_backend.documents.exception.DocumentAlreadyConfirmedException("Already confirmed"));
+
+        mockMvc.perform(post("/api/documents/{id}/confirm", docId)
+                        .param("userId", userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":12000.00,\"targetClassification\":\"operating_expenses\",\"cashFlowImpact\":\"cash_outflow\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("already_confirmed"));
     }
 }
