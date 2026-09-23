@@ -47,7 +47,9 @@ class GoogleCloudVisionOcrProvider:
                 if len(result.responses) != 1:
                     raise PermanentProviderError("invalid_provider_response")
                 file_result = result.responses[0]
-                self._check_error(file_result.error.code)
+                # Failed pages may omit their page-number metadata. Classify
+                # errors before completeness so transient page failures retry.
+                self._check_errors([file_result.error.code, *(r.error.code for r in file_result.responses)])
                 expected_pages = set(range(1, document.page_count + 1))
                 if (len(file_result.responses) != document.page_count
                         or file_result.total_pages != document.page_count
@@ -68,10 +70,16 @@ class GoogleCloudVisionOcrProvider:
 
     @staticmethod
     def _check_error(code: int) -> None:
-        if code in (4, 13, 14):  # DEADLINE_EXCEEDED, INTERNAL, UNAVAILABLE
-            raise TransientProviderError()
-        if code:
+        GoogleCloudVisionOcrProvider._check_errors([code])
+
+    @staticmethod
+    def _check_errors(codes: list[int]) -> None:
+        transient_codes = {4, 13, 14}  # DEADLINE_EXCEEDED, INTERNAL, UNAVAILABLE
+        # A permanently invalid page cannot recover by retrying the whole file.
+        if any(code and code not in transient_codes for code in codes):
             raise PermanentProviderError()
+        if any(code in transient_codes for code in codes):
+            raise TransientProviderError()
 
     def _normalize(self, responses) -> NormalizedOcrResult:
         texts: list[str] = []
@@ -119,10 +127,15 @@ class GoogleCloudVisionOcrProvider:
             cursor = end
         lines: list[OcrLine] = []
         offset = 0
+        fallback = min((score for _, score in words), default=None)
         for line in text.splitlines(keepends=True):
             scores = [evidence[offset + i] for i, c in enumerate(line) if not c.isspace()]
             known_scores = [score for score in scores if score is not None]
-            fallback = min((score for _, score in words), default=None)
+            # Matching just a confident label is insufficient when its numeric
+            # value did not align. Fall back conservatively for that line only.
+            unmatched_value = any(c.isalnum() and evidence[offset + i] is None for i, c in enumerate(line))
+            if unmatched_value and fallback is not None:
+                known_scores.append(fallback)
             lines.append(OcrLine(line.rstrip("\r\n"), min(known_scores) if known_scores else fallback))
             offset += len(line)
         return lines

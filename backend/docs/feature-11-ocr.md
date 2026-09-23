@@ -40,7 +40,9 @@ All production files are new and isolated under `documents`:
 - `ocr/OcrHttpTransport`, `JdkOcrHttpTransport`: injectable transport with bounded
   response consumption, no redirects, and a complete response timeout.
 - `ocr/OcrClientSettings`, `OcrIntegrationConfiguration`: opt-in environment-based
-  configuration. A supplied `OcrClient` bean replaces the default implementation.
+  Boot auto-configuration, registered through the feature's `META-INF/spring`
+  imports resource. A supplied `OcrClient` bean replaces the default implementation
+  regardless of user configuration order; the default is evaluated after user beans.
 - `ocr/OcrClientException`: safe failure reasons without leaking source URLs,
   provider responses or secrets.
 - `processing/DocumentStatus`, `DocumentDraftStore`, `DocumentDraftProcessor`:
@@ -114,3 +116,30 @@ and HTTP boundaries; no live Google request or production database was used.
 This verifies the extraction components and compatibility with Phase 1. The
 database-backed OCR processing and human-review workflow described above remain
 to be implemented and verified before activation.
+
+## Subsequent hardening verification
+
+The quality review added regressions and fixes for transient PDF page errors
+without metadata, permanent failures mixed with transient page failures,
+misaligned low-confidence OCR values, truncated JPEGs, empty contact fields,
+metadata mistaken for contacts or totals, conflicting currencies, and bank
+statement mentions in invoice footers. The shared six-field contract is unchanged.
+
+The Java default client now uses registered Boot auto-configuration so an
+application-defined replacement wins in either configuration order. The
+integration remains disabled by default.
+
+Verification after these changes:
+
+- 226 Python tests passed, including the HTTP request/adapter/retry/parser path
+  with fake SDK responses. Python dependency checks passed.
+- 322 backend unit/controller tests passed, including 61 OCR tests and the
+  application context test. Java compiled for release 21 using the local JDK 26.
+- No failures or skipped tests. Existing test-library deprecation warnings remain.
+- No Google API calls, real credentials, or production data were used. PostgreSQL
+  integration tests were not rerun because this review changed no schema or
+  persistence implementation.
+
+These checks verify deterministic behavior and integration compatibility. Real
+document extraction accuracy still needs a controlled manual evaluation, and
+database draft persistence and human approval remain deferred as described above.

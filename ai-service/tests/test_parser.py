@@ -290,3 +290,114 @@ def test_low_confidence_document_title_does_not_override_confident_title():
     lines = (OcrLine(text="Invoice", confidence=0.99), OcrLine(text="Receipt", confidence=0.2))
     result = parse_document(NormalizedOcrResult(text="", confidence=0.99, lines=lines))
     assert result.document_type_detected == "unknown"
+
+
+@pytest.mark.parametrize("next_line", [
+    "INVOICE", "Invoice # TEST-123", "Tax Invoice No: TEST-123", "Receipt No: TEST-123",
+    "Subtotal: 10.00", "Subtotal 10.00", "Total = 10.00", "Total USD 10.00",
+    "Vendor ID A123", "Supplier Number: A123", "Merchant Address: Street 1",
+])
+def test_empty_vendor_label_cannot_consume_a_heading_or_financial_field(next_line):
+    result = parse_document(ocr(f"Invoice\nVendor:\n{next_line}\nDate: 2026-09-18\nGrand Total: 10.00"))
+    assert result.vendor_or_party is None
+    assert result.date == date(2026, 9, 18)
+    assert result.amount == Decimal("10.00")
+
+
+@pytest.mark.parametrize("text", ["Vendor ID A123", "Vendor: ID A123", "Supplier No 123", "Merchant: Number 123"])
+def test_party_identifiers_never_become_contact_names(text):
+    assert parse_document(ocr(text)).vendor_or_party is None
+
+
+@pytest.mark.parametrize("metadata", [
+    "Vendor ID: A123", "Vendor ID A123", "Supplier Number: A123", "Merchant Address: Street 1",
+    "Vendor Email: accounts@example.test", "Total items: 2", "Total Qty 3", "Total tax: 2.00",
+    "Total VAT: 2.00", "Total Discount: 1.00", "Date of Birth: 1990-01-01",
+])
+def test_distinct_metadata_does_not_erase_reliable_financial_fields(metadata):
+    result = parse_document(ocr(
+        "Invoice\nVendor: Example Supplies\nInvoice Date: 2026-09-18\n"
+        f"Grand Total: 10.00\n{metadata}"
+    ))
+    assert result.vendor_or_party == "Example Supplies"
+    assert result.date == date(2026, 9, 18)
+    assert result.amount == Decimal("10.00")
+    assert result.confidence == "medium"
+
+
+@pytest.mark.parametrize("field,label", [
+    ("date", "Invoice Date:"), ("amount", "Grand Total:"), ("vendor_or_party", "Vendor:"),
+])
+def test_trailing_unreadable_duplicate_label_leaves_only_that_field_blank(field, label):
+    result = parse_document(ocr(
+        f"Invoice\nVendor: Example Supplies\nDate: 2026-09-18\nTotal: 10.00\n{label}"
+    ))
+    expected = {"date": date(2026, 9, 18), "amount": Decimal("10.00"), "vendor_or_party": "Example Supplies"}
+    expected[field] = None
+    assert {name: getattr(result, name) for name in expected} == expected
+    assert result.confidence == "low"
+
+
+def test_empty_line_after_vendor_does_not_join_an_unrelated_name_to_the_label():
+    result = parse_document(ocr("Vendor:\n\nExample Name\nTotal: 10.00"))
+    assert result.vendor_or_party is None
+    assert result.amount == Decimal("10.00")
+
+
+@pytest.mark.parametrize("raw", ["USD 10.00 EUR", "PKR 10.00 INR", "$10.00 EUR", "GBP 10.00 USD"])
+def test_conflicting_currency_markers_on_one_amount_remain_blank(raw):
+    result = parse_document(ocr(f"Invoice\nTotal: {raw}"))
+    assert result.amount is None
+    assert result.confidence == "low"
+
+
+@pytest.mark.parametrize("left,right", [
+    ("USD 10.00", "EUR 10.00"), ("CAD 10.00", "USD 10.00"),
+    ("PKR 10.00", "INR 10.00"), ("GBP 10.00", "$10.00"),
+])
+def test_equal_numeric_totals_with_conflicting_currencies_are_not_coalesced(left, right):
+    result = parse_document(ocr(f"Invoice\nTotal: {left}\nGrand Total: {right}"))
+    assert result.amount is None
+    assert result.confidence == "low"
+
+
+@pytest.mark.parametrize("left,right", [
+    ("USD 10.00", "10.00"), ("$10.00 USD", "USD 10.00"),
+    ("CAD 10.00", "$10.00"), ("Rs. 10.00 PKR", "PKR 10.00"),
+    ("GBP 10.00", "£10.00"), ("€10.00", "EUR 10.00"),
+])
+def test_compatible_currency_evidence_keeps_a_reliable_total(left, right):
+    result = parse_document(ocr(f"Invoice\nTotal: {left}\nGrand Total: {right}"))
+    assert result.amount == Decimal("10.00")
+    assert result.confidence == "medium"
+
+
+def test_structured_amount_candidates_preserve_currency_conflicts():
+    result = parse_document(ocr("Total: USD 10.00", candidates=(
+        FieldCandidate(field="amount", value="EUR 10.00", confidence=0.99),
+    )))
+    assert result.amount is None
+
+
+@pytest.mark.parametrize("footer", [
+    "Please use invoice reference shown on bank statement.",
+    "Payment may take two days to appear on your bank statement.",
+    "Please attach a statement of account.",
+])
+def test_bank_statement_mentioned_in_invoice_footer_does_not_reclassify_invoice(footer):
+    result = parse_document(ocr(f"Invoice\nGrand Total: 10.00\n{footer}"))
+    assert result.document_type_detected == "invoice"
+    assert result.amount == Decimal("10.00")
+    assert result.confidence == "medium"
+
+
+@pytest.mark.parametrize("title", [
+    "BANK STATEMENT", "Monthly Bank Statement", "Bank Statement for September 2026",
+    "Bank Statement: September 2026", "Document Type: Bank Statement",
+    "Account Statement\nOpening Balance: 20.00", "Statement of Account\nClosing Balance: 20.00",
+])
+def test_real_bank_statement_titles_and_type_labels_still_suppress_single_amount(title):
+    result = parse_document(ocr(f"{title}\nDate: 2026-09-18\nTotal: 10.00"))
+    assert result.document_type_detected == "bank_statement"
+    assert result.amount is None
+    assert result.date == date(2026, 9, 18)

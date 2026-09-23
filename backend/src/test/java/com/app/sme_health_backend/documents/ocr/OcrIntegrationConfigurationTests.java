@@ -1,7 +1,16 @@
 package com.app.sme_health_backend.documents.ocr;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.annotation.ImportCandidates;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.net.URI;
@@ -13,7 +22,7 @@ import static org.mockito.Mockito.mock;
 
 class OcrIntegrationConfigurationTests {
     private final ApplicationContextRunner context = new ApplicationContextRunner()
-            .withUserConfiguration(OcrIntegrationConfiguration.class);
+            .withConfiguration(AutoConfigurations.of(OcrIntegrationConfiguration.class));
 
     @Test
     void disabledByDefaultAndWhenExplicitlyDisabled() {
@@ -34,6 +43,43 @@ class OcrIntegrationConfigurationTests {
         context.withPropertyValues("OCR_INTEGRATION_ENABLED=true", "OCR_SERVICE_URL=invalid")
                 .withBean(OcrClient.class, () -> replacement)
                 .run(result -> assertSame(replacement, result.getBean(OcrClient.class)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void ordinaryReplacementWinsRegardlessOfConfigurationOrder(boolean replacementFirst) {
+        Class<?>[] configurations = replacementFirst
+                ? new Class<?>[] {ReplacementConfiguration.class, OcrImportConfiguration.class}
+                : new Class<?>[] {OcrImportConfiguration.class, ReplacementConfiguration.class};
+        new ApplicationContextRunner()
+                .withUserConfiguration(configurations)
+                .withInitializer(application -> application.getEnvironment().setActiveProfiles("ocr-client-replacement-test"))
+                .withPropertyValues("OCR_INTEGRATION_ENABLED=true")
+                .run(result -> {
+                    assertThat(result).hasSingleBean(OcrClient.class);
+                    assertSame(result.getBean("replacementOcrClient"), result.getBean(OcrClient.class));
+                });
+    }
+
+    @Test
+    void autoConfigurationIsRegisteredForBootDiscovery() {
+        assertThat(ImportCandidates.load(AutoConfiguration.class, getClass().getClassLoader()).getCandidates())
+                .contains(OcrIntegrationConfiguration.class.getName());
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ImportAutoConfiguration(OcrIntegrationConfiguration.class)
+    @Profile("ocr-client-replacement-test")
+    static class OcrImportConfiguration {
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @Profile("ocr-client-replacement-test")
+    static class ReplacementConfiguration {
+        @Bean
+        OcrClient replacementOcrClient() {
+            return mock(OcrClient.class);
+        }
     }
 
     @Test

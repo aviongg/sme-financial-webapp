@@ -1,15 +1,15 @@
 package com.app.sme_health_backend.documents.ocr;
 
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
 import java.net.http.HttpClient;
 
 /** Opt-in client only; no worker, database adapter, upload endpoint or polling is registered. */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnProperty(name = "OCR_INTEGRATION_ENABLED", havingValue = "true", matchIfMissing = false)
 public class OcrIntegrationConfiguration {
     @Bean

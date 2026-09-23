@@ -150,3 +150,13 @@ def test_content_is_inspected_instead_of_trusting_url_extension():
 def test_image_pixel_limit():
     with pytest.raises(InvalidDocumentError, match="pixel limit"):
         inspect_document(png(), Settings(max_image_pixels=3))
+
+
+@pytest.mark.parametrize("trim", [2, 10, 20])
+def test_truncated_jpeg_data_is_rejected_before_provider(trim):
+    buffer = io.BytesIO()
+    Image.new("RGB", (32, 32), "white").save(buffer, format="JPEG")
+    content = buffer.getvalue()
+    assert inspect_document(content, Settings()).mime_type == "image/jpeg"
+    with pytest.raises(InvalidDocumentError):
+        inspect_document(content[:-trim], Settings())

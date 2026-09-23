@@ -116,7 +116,8 @@ Conservative MVP limitations:
 - Names need explicit vendor/merchant/supplier/seller/from labels. Logo/header
   recognition and customer-versus-supplier resolution need more context. The
   existing contract has only one `vendor_or_party` field; it cannot independently
-  represent both customer and supplier.
+  represent both customer and supplier. Document headings and vendor IDs are not
+  contact names. An empty labelled field remains blank, including at end of file.
 - Categories stay `unknown` without explicit role/category evidence. A receipt
   or invoice alone does not establish whether the business was buyer or seller.
 - Bank statements can be detected, but `amount` stays null until the team defines
@@ -128,11 +129,15 @@ Conservative MVP limitations:
   source document's units; there is no currency conversion. Python parses with
   Decimal and emits a JSON number. Values that would change through numeric
   serialization are left null for human entry instead of being silently rounded.
+  Conflicting currency markers also leave the amount null, even when the numeric
+  totals match. Item counts and tax subtotals do not replace the invoice total.
 
 ## Accepted files and download boundary
 
 PNG, JPEG, single-frame WebP, and unencrypted PDFs are accepted. Files are inspected
-by content, not filename or claimed MIME type. The default operational byte limit
+by content, not filename or claimed MIME type. Images must pass both structural
+validation and pixel decoding, so truncated JPEGs fail before the provider call.
+The default operational byte limit
 is 10 MiB, image limit 25 million pixels, and PDF limit five pages. These are not
 pricing allowances. Vision's synchronous file API supports at most five pages;
 this adapter rejects incompatible configuration. Another adapter can support a
@@ -176,6 +181,9 @@ one initial attempt plus two retries after 2 and 4 seconds by default. SDK retri
 are disabled. Invalid arguments/URLs, auth/permission errors and quota exhaustion
 are terminal; quota exhaustion is not assumed to clear after a short delay.
 Transient errors embedded in Vision's response are handled like transport errors.
+PDF page errors are classified before checking page metadata, which may be absent
+on failure. If any page has a permanent error, the file is not retried merely
+because another page has a transient error.
 Java must not multiply these attempts by retrying `/extract`.
 
 ## Replace the provider

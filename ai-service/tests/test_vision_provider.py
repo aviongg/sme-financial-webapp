@@ -8,6 +8,7 @@ from app.config import Settings
 from app.errors import PermanentProviderError, TransientProviderError
 from app.models import OcrDocument
 from app.providers.google_cloud_vision import GoogleCloudVisionOcrProvider
+from app.parser import parse_document
 
 
 def annotation(text="Total: 12.50", confidences=(.95, .97)):
@@ -124,3 +125,48 @@ def test_duplicate_pdf_pages_are_not_mistaken_for_complete_extraction():
 def test_unmatched_punctuation_does_not_hide_low_confidence_amount():
     result = GoogleCloudVisionOcrProvider._line_evidence("Total: 12.50", [("Total", .99), ("12.50", .3)])
     assert result[0].confidence == .3
+
+
+@pytest.mark.parametrize("code,expected", [(4, TransientProviderError), (13, TransientProviderError),
+                                          (14, TransientProviderError), (3, PermanentProviderError)])
+def test_pdf_page_error_is_classified_even_without_page_metadata(code, expected):
+    client = Mock()
+    client.batch_annotate_files.return_value = vision.BatchAnnotateFilesResponse(responses=[
+        vision.AnnotateFileResponse(total_pages=1, responses=[vision.AnnotateImageResponse(error={"code": code})]),
+    ])
+    with pytest.raises(expected):
+        GoogleCloudVisionOcrProvider(Settings(), client=client).extract(OcrDocument(b"pdf", "application/pdf"))
+
+
+@pytest.mark.parametrize("codes", [[14, 3], [3, 14]])
+def test_permanent_pdf_page_failure_is_not_retried_because_another_page_is_transient(codes):
+    client = Mock()
+    client.batch_annotate_files.return_value = vision.BatchAnnotateFilesResponse(responses=[
+        vision.AnnotateFileResponse(total_pages=2, responses=[
+            vision.AnnotateImageResponse(error={"code": code}) for code in codes
+        ]),
+    ])
+    with pytest.raises(PermanentProviderError):
+        GoogleCloudVisionOcrProvider(Settings(), client=client).extract(OcrDocument(b"pdf", "application/pdf", 2))
+
+
+def test_unaligned_low_confidence_value_stays_blank_without_losing_reliable_date():
+    client = Mock()
+    response = annotation("Date: 2026-09-19\nTotal: 12.50", (.99, .99, .99, .2))
+    # The numeric word and aggregate text disagree; don't borrow label confidence.
+    response.full_text_annotation.pages[0].blocks[0].paragraphs[0].words[3].symbols = [
+        vision.Symbol(text=c) for c in "1250"
+    ]
+    client.document_text_detection.return_value = response
+    result = GoogleCloudVisionOcrProvider(Settings(), client=client).extract(OcrDocument(b"x", "image/png"))
+    draft = parse_document(result)
+    assert draft.amount is None
+    assert draft.date.isoformat() == "2026-09-19"
+
+
+def test_aligned_value_does_not_inherit_another_lines_low_confidence_for_missing_punctuation():
+    lines = GoogleCloudVisionOcrProvider._line_evidence(
+        "Vendor: unclear\nTotal: 12.50", [("Vendor", .99), ("unclear", .2), ("Total", .99), ("12.50", .99)],
+    )
+    assert lines[0].confidence == .2
+    assert lines[1].confidence == .99

@@ -42,6 +42,48 @@ _DATE_LABEL = r"invoice\s+date|receipt\s+date|transaction\s+date|issue\s+date|is
 _AMOUNT_LABEL = r"grand\s+total|invoice\s+total|total\s+amount\s+due|total\s+amount|total\s+due|amount\s+due|total"
 _PARTY_LABEL = r"(?:vendor|merchant|supplier|seller)(?:\s+name)?|sold\s+by|from"
 _CATEGORY_LABEL = r"transaction\s+category|document\s+role"
+# These are distinct labels, not unreadable values of the shorter label before
+# them. Ignoring them must not erase an otherwise reliable field.
+_METADATA_LABEL = re.compile(
+    r"^(?:"
+    r"(?:vendor|merchant|supplier|seller)(?:\s+name)?\s+"
+    r"(?:id|no\.?|number|code|account|address|phone|tel|fax|email|tax|vat|gst)\b"
+    r"|total\s+(?:tax|vat|gst|items?|quantity|qty|units?|discount|savings|cash|change|payments?|paid|balance)\b"
+    r"|date\s+(?:of|format|range)\b"
+    r")",
+    re.IGNORECASE,
+)
+_DOCUMENT_TITLE = re.compile(
+    r"^(?:(?:tax|commercial|pro\s*forma)\s+)?invoice(?:\s*(?:no\.?|number|#|:)\s*.*)?$"
+    r"|^(?:(?:tax|cash|payment)\s+)?receipt(?:\s*(?:no\.?|number|#|:)\s*.*)?$"
+    r"|^(?:(?:monthly|annual|consolidated)\s+)?(?:bank\s+statement|account\s+statement|statement\s+of\s+account)$",
+    re.IGNORECASE,
+)
+_BANK_TITLE = re.compile(
+    r"^(?:(?:monthly|annual|consolidated)\s+)?bank\s+statement"
+    r"(?:\s*(?:[:#-])\s*.+|\s+for\s+.+)?$"
+    r"|^(?:document\s+type|type)\s*[:=]\s*bank\s+statement$",
+    re.IGNORECASE,
+)
+_ACCOUNT_TITLE = re.compile(
+    r"^(?:account\s+statement|statement\s+of\s+account)"
+    r"(?:\s*(?:[:#-])\s*.+|\s+for\s+.+)?$",
+    re.IGNORECASE,
+)
+_CURRENCY = r"(?:PKR|USD|EUR|GBP|INR|CAD|AUD|AED|SAR|RS\.?|[$€£₹])"
+_CURRENCY_ALIASES = {
+    "$": frozenset({"USD", "CAD", "AUD", "other-dollar"}),
+    "RS": frozenset({"PKR", "INR", "other-rupee"}),
+    "€": frozenset({"EUR"}),
+    "£": frozenset({"GBP"}),
+    "₹": frozenset({"INR"}),
+}
+
+
+@dataclass(frozen=True)
+class _Amount:
+    value: Decimal
+    currencies: frozenset[str] | None = None
 
 
 @dataclass
@@ -75,6 +117,20 @@ class _Evidence:
         )
 
 
+class _AmountEvidence(_Evidence):
+    @property
+    def conflicting(self) -> bool:
+        amounts = [value for value in self.values if isinstance(value, _Amount)]
+        if len({amount.value for amount in amounts}) > 1:
+            return True
+        known = [amount.currencies for amount in amounts if amount.currencies is not None]
+        return bool(known) and not frozenset.intersection(*known)
+
+    def resolved(self) -> Decimal | None:
+        amount = super().resolved()
+        return amount.value if isinstance(amount, _Amount) else None
+
+
 def _comparison_key(value: object) -> object:
     return value.casefold() if isinstance(value, str) else value
 
@@ -97,11 +153,13 @@ def _labelled_values(lines: list[OcrLine], labels: str) -> list[tuple[str, float
     standalone = re.compile(rf"^(?:{labels})\s*[:=]?\s*$", re.IGNORECASE)
     values: list[tuple[str, float | None]] = []
     for index, line in enumerate(lines):
+        if _METADATA_LABEL.match(line.text):
+            continue
         match = pattern.fullmatch(line.text)
         if match:
             values.append((match.group(1).strip(), line.confidence))
-        elif standalone.fullmatch(line.text) and index + 1 < len(lines):
-            next_line = lines[index + 1]
+        elif standalone.fullmatch(line.text):
+            next_line = lines[index + 1] if index + 1 < len(lines) else OcrLine("")
             values.append((
                 next_line.text,
                 _combined_confidence(line.confidence, next_line.confidence),
@@ -139,15 +197,24 @@ def _parse_date(raw: str) -> date | None:
         return None
 
 
-def _parse_amount(raw: str) -> Decimal | None:
+def _parse_amount(raw: str) -> _Amount | None:
     value = raw.strip()
     if len(value) > MAX_AMOUNT_TEXT_LENGTH:
         return None
     # Currency markers are allowed only at the edges. Never extract a random
     # number from descriptive text, an invoice ID, or an account number.
-    currency = r"(?:PKR|USD|EUR|GBP|INR|CAD|AUD|AED|SAR|RS\.?|[$€£₹])"
-    value = re.sub(rf"^{currency}\s*", "", value, flags=re.IGNORECASE)
-    value = re.sub(rf"\s*{currency}$", "", value, flags=re.IGNORECASE).strip()
+    prefix = re.match(rf"^({_CURRENCY})\s*", value, flags=re.IGNORECASE)
+    currencies: frozenset[str] | None = None
+    if prefix:
+        currencies = _currency_choices(prefix[1])
+        value = value[prefix.end():]
+    suffix = re.search(rf"\s*({_CURRENCY})$", value, flags=re.IGNORECASE)
+    if suffix:
+        choices = _currency_choices(suffix[1])
+        currencies = choices if currencies is None else currencies & choices
+        value = value[:suffix.start()].strip()
+    if currencies == frozenset():
+        return None
     if value.startswith("(") and value.endswith(")"):
         value = "-" + value[1:-1].strip()
     # A three-digit decimal/grouping suffix is ambiguous (1,234 / 1.234).
@@ -168,11 +235,16 @@ def _parse_amount(raw: str) -> Decimal | None:
                 # The fixed wire contract requires a JSON number. Keep the field
                 # blank if conversion would change its decimal value.
                 if number.is_finite() and Decimal(str(float(number))) == number:
-                    return number
+                    return _Amount(number, currencies)
                 return None
             except InvalidOperation:
                 return None
     return None
+
+
+def _currency_choices(marker: str) -> frozenset[str]:
+    marker = marker.upper().rstrip(".")
+    return _CURRENCY_ALIASES.get(marker, frozenset({marker}))
 
 
 def _parse_party(raw: str) -> str | None:
@@ -185,8 +257,18 @@ def _parse_party(raw: str) -> str | None:
         or "@" in value
         or re.search(r"https?://|www\.", value, flags=re.IGNORECASE)
         or _parse_date(value) is not None
+        or _METADATA_LABEL.match(value)
+        or _DOCUMENT_TITLE.fullmatch(value)
+        or _BANK_TITLE.fullmatch(value)
+        or _ACCOUNT_TITLE.fullmatch(value)
+        or re.match(r"^(?:id|no\.?|number)\s*(?:[:=#]|\s)", value, flags=re.IGNORECASE)
         or re.match(
-            rf"^(?:{_DATE_LABEL}|{_AMOUNT_LABEL}|bill\s+to|ship\s+to|id|no\.?|number|account|address|phone|tel|fax|email|tax\s*id|vat|invoice\s+(?:no|number))\s*[:#]",
+            rf"^(?:{_DATE_LABEL}|{_AMOUNT_LABEL}|{_PARTY_LABEL}|sub\s*total|tax|cash|change|bill\s+to|ship\s+to|customer|id|no\.?|number|account|address|phone|tel|fax|email|tax\s*id|vat|gst|invoice\s+(?:no|number))\s*[:=#]",
+            value,
+            flags=re.IGNORECASE,
+        )
+        or re.match(
+            rf"^(?:{_AMOUNT_LABEL}|sub\s*total|tax|cash|change)\s+(?:{_CURRENCY}\s*)?[+\-(]?\d",
             value,
             flags=re.IGNORECASE,
         )
@@ -210,11 +292,11 @@ def _text_document_types(lines: list[OcrLine]) -> list[tuple[str, float | None]]
     statements: list[OcrLine] = []
     balances: list[OcrLine] = []
     for line in lines:
-        if re.search(r"\bbank\s+statement\b", line.text, flags=re.IGNORECASE):
+        if _BANK_TITLE.fullmatch(line.text):
             types.append(("bank_statement", line.confidence))
-        if re.search(r"\b(?:account\s+statement|statement\s+of\s+account)\b", line.text, flags=re.IGNORECASE):
+        if _ACCOUNT_TITLE.fullmatch(line.text):
             statements.append(line)
-        if re.search(r"\b(?:opening|closing)\s+balance\b", line.text, flags=re.IGNORECASE):
+        if re.match(r"^(?:opening|closing)\s+balance(?:\s*[:=]|\s+|$)", line.text, flags=re.IGNORECASE):
             balances.append(line)
         if re.fullmatch(r"(?:tax\s+|cash\s+|payment\s+)?receipt(?:\s*(?:no\.?|number|#|:)\s*.*)?", line.text, flags=re.IGNORECASE):
             types.append(("receipt", line.confidence))
@@ -246,13 +328,14 @@ def parse_document(result: NormalizedOcrResult, document_type_hint: str = "unkno
         "document_type_detected": _parse_document_type,
     }
     evidence = {name: _Evidence() for name in parsers}
+    evidence["amount"] = _AmountEvidence()
     source_lines = result.lines or tuple(
         OcrLine(text=text, confidence=result.confidence)
         for text in result.text.splitlines()
     )
     lines = [
         OcrLine(text=line.text.strip(), confidence=line.confidence)
-        for line in source_lines if line.text.strip()
+        for line in source_lines
     ]
     for name, labels in (
         ("date", _DATE_LABEL), ("amount", _AMOUNT_LABEL),

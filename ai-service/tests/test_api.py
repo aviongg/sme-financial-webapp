@@ -146,3 +146,30 @@ def test_amount_that_would_lose_precision_is_blank_with_other_fields_preserved()
     assert response.json()["amount"] is None
     assert response.json()["date"] == "2026-09-19"
     assert response.json()["confidence"] == "low"
+
+
+def test_transient_pdf_page_failure_retries_through_the_real_adapter_and_api():
+    from google.cloud import vision
+    from app.providers.google_cloud_vision import GoogleCloudVisionOcrProvider
+
+    sdk = Mock()
+    transient = vision.BatchAnnotateFilesResponse(responses=[vision.AnnotateFileResponse(
+        total_pages=1, responses=[vision.AnnotateImageResponse(error={"code": 14})],
+    )])
+    success = vision.BatchAnnotateFilesResponse(responses=[vision.AnnotateFileResponse(
+        total_pages=1, responses=[vision.AnnotateImageResponse(
+            context={"page_number": 1}, full_text_annotation={"text": EVIDENCE.text},
+        )],
+    )])
+    sdk.batch_annotate_files.side_effect = [transient, transient, success]
+    loader, sleep = Mock(), Mock()
+    loader.load.return_value = OcrDocument(b"controlled PDF fixture", "application/pdf", 1)
+    app = create_app(Settings(), provider=GoogleCloudVisionOcrProvider(Settings(), client=sdk),
+                     loader=loader, sleep=sleep)
+    response = TestClient(app).post("/extract", json=REQUEST)
+    assert response.status_code == 200
+    assert response.json()["amount"] == 1250.5
+    assert response.json()["vendor_or_party"] is None
+    assert sdk.batch_annotate_files.call_count == 3
+    assert [call.args[0] for call in sleep.call_args_list] == [2, 4]
+    loader.load.assert_called_once()

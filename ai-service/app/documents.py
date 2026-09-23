@@ -112,6 +112,10 @@ def inspect_document(content: bytes, settings: Settings) -> OcrDocument:
                 if img.width * img.height > settings.max_image_pixels:
                     raise InvalidDocumentError("Image exceeds the configured pixel limit", 413)
                 img.verify()
+            # JPEG.verify() only checks the header. Decode the bounded image too
+            # so truncated pixel data fails locally, before a paid provider call.
+            with Image.open(io.BytesIO(content)) as decoded:
+                decoded.load()
         return OcrDocument(content, mime)
     except InvalidDocumentError:
         raise
