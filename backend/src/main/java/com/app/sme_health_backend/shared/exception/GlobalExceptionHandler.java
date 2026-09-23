@@ -86,6 +86,39 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(
+            org.springframework.security.authentication.BadCredentialsException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                exception.getMessage() != null ? exception.getMessage() : "Invalid credentials"
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabled(
+            org.springframework.security.authentication.DisabledException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.FORBIDDEN,
+                "Forbidden",
+                exception.getMessage() != null ? exception.getMessage() : "Account is disabled"
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.FORBIDDEN,
+                "Forbidden",
+                exception.getMessage() != null ? exception.getMessage() : "Access is denied"
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpectedException(
             Exception exception) {
