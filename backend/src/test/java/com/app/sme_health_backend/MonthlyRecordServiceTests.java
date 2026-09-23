@@ -3,6 +3,7 @@ package com.app.sme_health_backend;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
+import com.app.sme_health_backend.scoring.service.ScoringService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -322,6 +324,61 @@ class MonthlyRecordServiceTests {
 
         assertEquals("Record ID is required", exception.getMessage());
         verify(monthlyRecordRepository, never()).findById(any());
+    }
+
+    @Test
+    void shouldRecalculateChronologicalRollingScoresForNextFiveRecordsOnHistoricalEdit() {
+        ScoringService mockScoringService = mock(ScoringService.class);
+        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService);
+
+        MonthlyRecord jan = createRecordWithMonth("2026-01");
+        MonthlyRecord feb = createRecordWithMonth("2026-02");
+        MonthlyRecord apr = createRecordWithMonth("2026-04");
+        MonthlyRecord jul = createRecordWithMonth("2026-07");
+        MonthlyRecord aug = createRecordWithMonth("2026-08");
+        MonthlyRecord sep = createRecordWithMonth("2026-09");
+        MonthlyRecord nov = createRecordWithMonth("2026-11");
+
+        List<MonthlyRecord> allRecords = List.of(jan, feb, apr, jul, aug, sep, nov);
+
+        when(monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-01")).thenReturn(Optional.of(jan));
+        when(monthlyRecordRepository.save(any())).thenReturn(jan);
+        when(monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId)).thenReturn(allRecords);
+
+        serviceWithScoring.saveMonthlyRecord(jan);
+
+        // Verify that Jan, Feb, Apr, Jul, Aug, Sep were recalculated in exact chronological order
+        org.mockito.InOrder inOrder = inOrder(mockScoringService);
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-01");
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-02");
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-04");
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-07");
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-08");
+        inOrder.verify(mockScoringService).calculateAndSaveScore(userId, "2026-09");
+
+        // Verify that Nov (the 7th record, outside the 6-record history window) was NOT recalculated!
+        verify(mockScoringService, never()).calculateAndSaveScore(userId, "2026-11");
+    }
+
+    @Test
+    void shouldPropagateExceptionWhenScoringRecalculationFails() {
+        ScoringService mockScoringService = mock(ScoringService.class);
+        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService);
+
+        MonthlyRecord jan = createRecordWithMonth("2026-01");
+        when(monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-01")).thenReturn(Optional.empty());
+        when(monthlyRecordRepository.save(any())).thenReturn(jan);
+        when(monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId)).thenReturn(List.of(jan));
+        doThrow(new RuntimeException("Database error during scoring"))
+                .when(mockScoringService).calculateAndSaveScore(userId, "2026-01");
+
+        assertThrows(RuntimeException.class, () -> serviceWithScoring.saveMonthlyRecord(jan));
+    }
+
+    private MonthlyRecord createRecordWithMonth(String month) {
+        MonthlyRecord r = validRecord();
+        r.setMonth(month);
+        return r;
     }
 
     private MonthlyRecord validRecord() {

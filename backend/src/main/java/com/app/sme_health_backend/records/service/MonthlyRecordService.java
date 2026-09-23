@@ -2,6 +2,10 @@ package com.app.sme_health_backend.records.service;
 
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
+import com.app.sme_health_backend.scoring.service.ScoringService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +20,25 @@ import java.util.UUID;
 @Service
 public class MonthlyRecordService {
 
+    private static final Logger log = LoggerFactory.getLogger(MonthlyRecordService.class);
+
     private static final Set<String> VALID_FINANCING_TYPES =
             Set.of("none", "conventional", "islamic");
 
     private final MonthlyRecordRepository monthlyRecordRepository;
+    private final ScoringService scoringService;
 
     public MonthlyRecordService(MonthlyRecordRepository monthlyRecordRepository) {
+        this(monthlyRecordRepository, null);
+    }
+
+    @Autowired
+    public MonthlyRecordService(
+            MonthlyRecordRepository monthlyRecordRepository,
+            @Autowired(required = false) ScoringService scoringService
+    ) {
         this.monthlyRecordRepository = monthlyRecordRepository;
+        this.scoringService = scoringService;
     }
 
     @Transactional
@@ -31,13 +47,55 @@ public class MonthlyRecordService {
 
         record.setUpdatedAt(LocalDateTime.now());
 
-        return monthlyRecordRepository
+        MonthlyRecord saved = monthlyRecordRepository
                 .findByUserIdAndMonth(record.getUserId(), record.getMonth())
                 .map(existingRecord -> {
                     updateExistingRecord(existingRecord, record);
                     return monthlyRecordRepository.save(existingRecord);
                 })
                 .orElseGet(() -> monthlyRecordRepository.save(record));
+
+        if (scoringService != null) {
+            recalculateAffectedScores(saved.getUserId(), saved.getMonth());
+        }
+
+        return saved;
+    }
+
+    private void recalculateAffectedScores(UUID userId, String targetMonth) {
+        try {
+            List<MonthlyRecord> records = monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId);
+            if (records == null || records.isEmpty()) {
+                return;
+            }
+
+            int targetIndex = -1;
+            for (int i = 0; i < records.size(); i++) {
+                if (records.get(i).getMonth().equals(targetMonth)) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex == -1) {
+                log.info("Recalculating score for user {} month {} (not found in ascending sequence)", userId, targetMonth);
+                scoringService.calculateAndSaveScore(userId, targetMonth);
+                return;
+            }
+
+            // Feature 2 calculators (CashFlowStability and Trend) use a rolling window of up to 6 records
+            // ending at each evaluated month. Therefore, editing record at targetIndex affects scores for
+            // targetIndex plus up to the next 5 subsequent chronological records.
+            int endIndex = Math.min(records.size(), targetIndex + 6);
+            for (int i = targetIndex; i < endIndex; i++) {
+                String monthToScore = records.get(i).getMonth();
+                log.debug("Recalculating affected score for user {} month {}", userId, monthToScore);
+                scoringService.calculateAndSaveScore(userId, monthToScore);
+            }
+        } catch (Exception e) {
+            log.error("Scoring failed for user {} month {}: {}", userId, targetMonth, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Transactional(readOnly = true)

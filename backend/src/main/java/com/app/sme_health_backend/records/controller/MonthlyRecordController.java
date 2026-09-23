@@ -4,10 +4,8 @@ import com.app.sme_health_backend.records.dto.MonthlyRecordRequest;
 import com.app.sme_health_backend.records.dto.MonthlyRecordResponse;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
-import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,14 +18,9 @@ import java.util.UUID;
 public class MonthlyRecordController {
 
     private final MonthlyRecordService monthlyRecordService;
-    private final ScoringService scoringService;
 
-    public MonthlyRecordController(
-            MonthlyRecordService monthlyRecordService,
-            @Autowired(required = false) ScoringService scoringService
-    ) {
+    public MonthlyRecordController(MonthlyRecordService monthlyRecordService) {
         this.monthlyRecordService = monthlyRecordService;
-        this.scoringService = scoringService;
     }
 
     @PostMapping
@@ -38,8 +31,6 @@ public class MonthlyRecordController {
 
         MonthlyRecord savedRecord =
                 monthlyRecordService.saveMonthlyRecord(record);
-
-        triggerRescore(savedRecord.getUserId(), savedRecord.getMonth());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -121,15 +112,5 @@ public class MonthlyRecordController {
         record.setFinancingType(request.getFinancingType());
 
         return record;
-    }
-
-    private void triggerRescore(UUID userId, String month) {
-        if (scoringService != null && userId != null && month != null) {
-            try {
-                scoringService.calculateAndSaveScore(userId, month);
-            } catch (Exception e) {
-                // Insufficient financial data or missing profile does not prevent valid record persistence
-            }
-        }
     }
 }

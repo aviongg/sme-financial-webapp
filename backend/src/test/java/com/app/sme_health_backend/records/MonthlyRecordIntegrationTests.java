@@ -173,32 +173,37 @@ class MonthlyRecordIntegrationTests {
     }
 
     @Test
-    void shouldPersistRecordEvenWhenScoringCalculationFailsDueToInsufficientData() throws Exception {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void shouldRollbackRecordWhenScoringCalculationFailsDueToInsufficientData() throws Exception {
         UUID userId = createTestUserWithProfile();
 
-        // Revenue = 0, so profitability score cannot be calculated; single month, so trend cannot be calculated;
-        // repayment cannot be calculated. Available weight = 0, scoring throws IllegalArgumentException: Insufficient financial data
-        String payload = """
-                {
-                  "userId": "%s",
-                  "month": "2026-08",
-                  "cashInflow": 0,
-                  "cashOutflow": 0,
-                  "revenue": 0,
-                  "operatingExpenses": 0,
-                  "cashBalanceEom": 0,
-                  "financingType": "none"
-                }
-                """.formatted(userId);
+        try {
+            // Revenue = 0, so profitability score cannot be calculated; single month, so trend cannot be calculated;
+            // repayment cannot be calculated. Available weight = 0, scoring throws IllegalArgumentException: Insufficient financial data
+            String payload = """
+                    {
+                      "userId": "%s",
+                      "month": "2026-08",
+                      "cashInflow": 0,
+                      "cashOutflow": 0,
+                      "revenue": 0,
+                      "operatingExpenses": 0,
+                      "cashBalanceEom": 0,
+                      "financingType": "none"
+                    }
+                    """.formatted(userId);
 
-        // Record persistence MUST succeed regardless of score calculation failure
-        mockMvc.perform(post("/api/records/monthly")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.userId").value(userId.toString()));
+            mockMvc.perform(post("/api/records/monthly")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.message").value("Insufficient financial data to calculate financial health score"));
 
-        Optional<MonthlyRecord> saved = monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-08");
-        assertTrue(saved.isPresent());
+            Optional<MonthlyRecord> saved = monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-08");
+            assertTrue(saved.isEmpty());
+        } finally {
+            businessProfileRepository.deleteById(userId);
+        }
     }
 }

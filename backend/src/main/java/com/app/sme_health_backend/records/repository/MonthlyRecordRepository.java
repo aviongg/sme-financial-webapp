@@ -13,5 +13,7 @@ public interface MonthlyRecordRepository extends JpaRepository<MonthlyRecord, UU
 
     List<MonthlyRecord> findByUserIdOrderByMonthDesc(UUID userId);
 
+    List<MonthlyRecord> findByUserIdOrderByMonthAsc(UUID userId);
+
     List<MonthlyRecord> findTop6ByUserIdOrderByMonthDesc(UUID userId);
 }

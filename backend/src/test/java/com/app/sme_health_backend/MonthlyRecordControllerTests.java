@@ -3,7 +3,6 @@ package com.app.sme_health_backend;
 import com.app.sme_health_backend.records.controller.MonthlyRecordController;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
-import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +33,31 @@ class MonthlyRecordControllerTests {
     @MockitoBean
     private MonthlyRecordService monthlyRecordService;
 
-    @MockitoBean
-    private ScoringService scoringService;
+    @Test
+    void shouldPropagateErrorWhenRecordSaveFailsDueToScoringError() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(monthlyRecordService.saveMonthlyRecord(any()))
+                .thenThrow(new IllegalStateException("Scoring calculation failed"));
+
+        String request = """
+                {
+                  "userId": "%s",
+                  "month": "2026-09",
+                  "cashInflow": 500000,
+                  "cashOutflow": 200000,
+                  "revenue": 500000,
+                  "cogs": 150000,
+                  "operatingExpenses": 50000,
+                  "cashBalanceEom": 300000,
+                  "financingType": "none"
+                }
+                """.formatted(userId);
+
+        mockMvc.perform(post("/api/records/monthly")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isInternalServerError());
+    }
 
     @Test
     void shouldCreateMonthlyRecord() throws Exception {
@@ -214,7 +236,7 @@ class MonthlyRecordControllerTests {
     }
 
     @Test
-    void shouldTriggerRescoreWhenRecordSaved() throws Exception {
+    void shouldTriggerRecordSaveWhenRecordPosted() throws Exception {
         UUID userId = UUID.randomUUID();
         MonthlyRecord record = validRecord(userId);
 
@@ -239,38 +261,7 @@ class MonthlyRecordControllerTests {
                         .content(request))
                 .andExpect(status().isCreated());
 
-        verify(scoringService, times(1)).calculateAndSaveScore(userId, "2026-09");
-    }
-
-    @Test
-    void shouldStillSaveRecordWhenRescoreThrowsException() throws Exception {
-        UUID userId = UUID.randomUUID();
-        MonthlyRecord record = validRecord(userId);
-
-        when(monthlyRecordService.saveMonthlyRecord(any()))
-                .thenReturn(record);
-        doThrow(new IllegalArgumentException("Insufficient financial data"))
-                .when(scoringService).calculateAndSaveScore(any(), any());
-
-        String request = """
-                {
-                  "userId": "%s",
-                  "month": "2026-09",
-                  "cashInflow": 500000,
-                  "cashOutflow": 200000,
-                  "revenue": 500000,
-                  "operatingExpenses": 50000,
-                  "cashBalanceEom": 300000,
-                  "financingType": "none"
-                }
-                """.formatted(userId);
-
-        mockMvc.perform(post("/api/records/monthly")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
-                .andExpect(jsonPath("$.month").value("2026-09"));
+        verify(monthlyRecordService, times(1)).saveMonthlyRecord(any());
     }
 
     @Test
