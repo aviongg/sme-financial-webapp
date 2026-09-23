@@ -217,3 +217,7 @@ docker-data/
 .env
 .env.*
 !.env.example
+
+# Runtime document storage
+/storage/
+/backend/storage/
