@@ -12,9 +12,9 @@ public class ScoreResultResponse {
 
     private UUID id;
 
-    @JsonProperty("userId")
-    @JsonAlias("user_id")
-    private UUID userId;
+    @JsonProperty("businessId")
+    @JsonAlias("business_id")
+    private UUID businessId;
 
     private String month;
 
@@ -47,7 +47,7 @@ public class ScoreResultResponse {
 
         ScoreResultResponse response = new ScoreResultResponse();
         response.id = entity.getId();
-        response.userId = entity.getUserId();
+        response.businessId = entity.getUserId();
         response.month = entity.getMonth();
         response.compositeScore = entity.getCompositeScore();
         response.band = entity.getBand();
@@ -67,12 +67,12 @@ public class ScoreResultResponse {
         this.id = id;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
-    public void setUserId(UUID userId) {
-        this.userId = userId;
+    public void setBusinessId(UUID businessId) {
+        this.businessId = businessId;
     }
 
     public String getMonth() {

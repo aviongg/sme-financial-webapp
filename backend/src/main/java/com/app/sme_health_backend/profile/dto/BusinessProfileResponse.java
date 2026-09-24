@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public class BusinessProfileResponse {
 
-    private UUID userId;
+    private UUID businessId;
     private String businessType;
     private String languagePreference;
     private String whatsappNumber;
@@ -21,7 +21,7 @@ public class BusinessProfileResponse {
     public static BusinessProfileResponse fromEntity(BusinessProfile profile) {
         BusinessProfileResponse response = new BusinessProfileResponse();
 
-        response.userId = profile.getUserId();
+        response.businessId = profile.getUserId();
         response.businessType = profile.getBusinessType();
         response.languagePreference = profile.getLanguagePreference();
         response.whatsappNumber = profile.getWhatsappNumber();
@@ -35,8 +35,8 @@ public class BusinessProfileResponse {
         return response;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
     public String getBusinessType() {

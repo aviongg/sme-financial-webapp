@@ -10,6 +10,7 @@ public enum BusinessPermission {
     DOCUMENT_READ,
     DOCUMENT_CONFIRM,
     DOCUMENT_DELETE,
+    DOCUMENT_EDIT,
     SCORE_CALCULATE,
     ZAKAT_READ_CALCULATE
 }

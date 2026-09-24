@@ -20,7 +20,7 @@ public class BusinessAuthorizationService {
         // OWNER: all business permissions
         map.put(MembershipRole.OWNER, Collections.unmodifiableSet(EnumSet.allOf(BusinessPermission.class)));
 
-        // ACCOUNTANT: financial read/write, scoring, documents, confirmation, deletion, Zakat
+        // ACCOUNTANT: financial read/write, scoring, documents, confirmation, deletion, edit/retry, Zakat
         map.put(MembershipRole.ACCOUNTANT, Collections.unmodifiableSet(EnumSet.of(
                 BusinessPermission.FINANCIAL_DATA_READ,
                 BusinessPermission.RECORD_CREATE_UPDATE,
@@ -28,11 +28,12 @@ public class BusinessAuthorizationService {
                 BusinessPermission.DOCUMENT_READ,
                 BusinessPermission.DOCUMENT_CONFIRM,
                 BusinessPermission.DOCUMENT_DELETE,
+                BusinessPermission.DOCUMENT_EDIT,
                 BusinessPermission.SCORE_CALCULATE,
                 BusinessPermission.ZAKAT_READ_CALCULATE
         )));
 
-        // MANAGER: financial read, document upload/read, Zakat read/calculate (NO SCORE_CALCULATE)
+        // MANAGER: financial read, document upload/read, Zakat read/calculate (NO SCORE_CALCULATE, NO DOCUMENT_EDIT)
         map.put(MembershipRole.MANAGER, Collections.unmodifiableSet(EnumSet.of(
                 BusinessPermission.FINANCIAL_DATA_READ,
                 BusinessPermission.DOCUMENT_UPLOAD,
@@ -66,13 +67,20 @@ public class BusinessAuthorizationService {
         return hasRolePermission(role, permission);
     }
 
-    public void requirePermission(HttpServletRequest request, BusinessPermission permission) {
+    /**
+     * Enforces active business context and role permission.
+     * DOCUMENT_EDIT covers both document draft correction (PATCH) and OCR retry processing.
+     *
+     * @return the authoritative active BusinessAccessContext
+     */
+    public BusinessAccessContext requirePermission(HttpServletRequest request, BusinessPermission permission) {
         BusinessAccessContext context = requireActiveContext(request);
         if (!hasRolePermission(context.role(), permission)) {
             throw new AccessDeniedException(
                     "Role " + context.role() + " does not have permission: " + permission
             );
         }
+        return context;
     }
 
     public BusinessAccessContext requireActiveContext(HttpServletRequest request) {

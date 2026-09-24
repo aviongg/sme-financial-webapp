@@ -1,50 +1,45 @@
 package com.app.sme_health_backend.search.controller;
 
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
+import com.app.sme_health_backend.search.dto.SearchRequest;
 import com.app.sme_health_backend.search.dto.SearchResultResponse;
 import com.app.sme_health_backend.search.service.SearchService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/search")
 public class SearchController {
 
     private final SearchService searchService;
+    private final BusinessAuthorizationService authService;
 
-    public SearchController(SearchService searchService) {
+    public SearchController(
+            SearchService searchService,
+            BusinessAuthorizationService authService
+    ) {
         this.searchService = searchService;
+        this.authService = authService;
     }
 
-    @GetMapping("/{userId}")
+    @PostMapping
     public ResponseEntity<List<SearchResultResponse>> search(
-            @PathVariable String userId,
-            @RequestParam(name = "q", required = false) String query,
-            @RequestParam(name = "type", required = false, defaultValue = "all") String type
+            @Valid @RequestBody SearchRequest searchRequest,
+            HttpServletRequest request
     ) {
-        UUID parsedUserId;
-        try {
-            parsedUserId = UUID.fromString(userId);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid user ID format: " + userId);
-        }
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
 
-        List<SearchResultResponse> results = searchService.search(parsedUserId, query, type);
+        List<SearchResultResponse> results = searchService.search(
+                context.businessId(),
+                searchRequest.query(),
+                searchRequest.type()
+        );
         return ResponseEntity.ok(results);
-    }
-
-    @GetMapping
-    public ResponseEntity<List<SearchResultResponse>> searchWithQueryParam(
-            @RequestParam(name = "userId") String userId,
-            @RequestParam(name = "q", required = false) String query,
-            @RequestParam(name = "type", required = false, defaultValue = "all") String type
-    ) {
-        return search(userId, query, type);
     }
 }

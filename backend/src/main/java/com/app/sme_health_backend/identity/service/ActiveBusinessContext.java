@@ -10,6 +10,7 @@ import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.identity.repository.BusinessMembershipRepository;
 import com.app.sme_health_backend.identity.repository.BusinessRepository;
 import com.app.sme_health_backend.security.service.AppUserDetails;
+import com.app.sme_health_backend.shared.exception.ActiveBusinessRequiredException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.access.AccessDeniedException;
@@ -40,8 +41,12 @@ public class ActiveBusinessContext {
     }
 
     public BusinessAccessContext getRequiredContext(HttpServletRequest request) {
+        UUID userId = resolveAuthenticatedUserId();
+        if (userId == null) {
+            throw new AccessDeniedException("User is not authenticated");
+        }
         return getCurrentContext(request)
-                .orElseThrow(() -> new AccessDeniedException("No active business context available"));
+                .orElseThrow(ActiveBusinessRequiredException::new);
     }
 
     public Optional<BusinessAccessContext> getCurrentContext(HttpServletRequest request) {

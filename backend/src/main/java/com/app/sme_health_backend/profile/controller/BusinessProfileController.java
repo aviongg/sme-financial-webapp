@@ -1,54 +1,62 @@
 package com.app.sme_health_backend.profile.controller;
 
-import com.app.sme_health_backend.profile.dto.BusinessProfileRequest;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.profile.dto.BusinessProfileResponse;
 import com.app.sme_health_backend.profile.dto.LanguagePreferenceRequest;
 import com.app.sme_health_backend.profile.dto.WhatsAppPreferenceRequest;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.service.BusinessProfileService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/profile")
 public class BusinessProfileController {
 
     private final BusinessProfileService businessProfileService;
+    private final BusinessAuthorizationService authService;
 
-    public BusinessProfileController(BusinessProfileService businessProfileService) {
+    public BusinessProfileController(
+            BusinessProfileService businessProfileService,
+            BusinessAuthorizationService authService
+    ) {
         this.businessProfileService = businessProfileService;
+        this.authService = authService;
     }
 
-
-    @PatchMapping("/{userId}/language")
+    @PatchMapping("/language")
     public BusinessProfileResponse updateLanguagePreference(
-            @PathVariable UUID userId, @Valid @RequestBody LanguagePreferenceRequest request) {
+            @Valid @RequestBody LanguagePreferenceRequest requestDto,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.BUSINESS_SETTINGS_MANAGE);
         return BusinessProfileResponse.fromEntity(
-                businessProfileService.updateLanguagePreference(userId, request.languagePreference()));
+                businessProfileService.updateLanguagePreference(context.businessId(), requestDto.languagePreference()));
     }
 
-    @PatchMapping("/{userId}/whatsapp")
+    @PatchMapping("/whatsapp")
     public BusinessProfileResponse updateWhatsAppPreference(
-            @PathVariable UUID userId, @Valid @RequestBody WhatsAppPreferenceRequest request) {
+            @Valid @RequestBody WhatsAppPreferenceRequest requestDto,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.WHATSAPP_CONFIG_MANAGE);
         return BusinessProfileResponse.fromEntity(
                 businessProfileService.updateWhatsAppPreference(
-                        userId,
-                        request.whatsappNumber(),
-                        request.optIn()
+                        context.businessId(),
+                        requestDto.whatsappNumber(),
+                        requestDto.optIn()
                 )
         );
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<BusinessProfileResponse> getProfile(
-            @PathVariable UUID userId) {
-
-        BusinessProfile profile = businessProfileService.getProfile(userId);
-
+    @GetMapping
+    public ResponseEntity<BusinessProfileResponse> getProfile(HttpServletRequest request) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
+        BusinessProfile profile = businessProfileService.getProfile(context.businessId());
         return ResponseEntity.ok(
                 BusinessProfileResponse.fromEntity(profile)
         );

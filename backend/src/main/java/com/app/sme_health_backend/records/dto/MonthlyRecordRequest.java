@@ -1,13 +1,11 @@
 package com.app.sme_health_backend.records.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import jakarta.validation.constraints.Pattern;
 
 public class MonthlyRecordRequest {
 
-    private UUID userId;
     private String month;
 
     private BigDecimal cashInflow;
@@ -28,14 +26,6 @@ public class MonthlyRecordRequest {
         message = "financingType must be one of: none, conventional, islamic"
     )
     private String financingType = "none";
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
 
     public String getMonth() {
         return month;

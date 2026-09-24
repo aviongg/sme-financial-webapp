@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public class DashboardResponse {
 
-    private UUID userId;
+    private UUID businessId;
     private BusinessProfileResponse profile;
     private ScoreResultResponse score;
     private InsightResponse topInsight;
@@ -30,7 +30,7 @@ public class DashboardResponse {
     }
 
     public DashboardResponse(
-            UUID userId,
+            UUID businessId,
             BusinessProfileResponse profile,
             ScoreResultResponse score,
             InsightResponse topInsight,
@@ -39,7 +39,7 @@ public class DashboardResponse {
             CashFlowProjectionResponse trendProjection,
             boolean hasHistory
     ) {
-        this.userId = userId;
+        this.businessId = businessId;
         this.profile = profile;
         this.score = score;
         this.topInsight = topInsight;
@@ -49,12 +49,12 @@ public class DashboardResponse {
         this.hasHistory = hasHistory;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
-    public void setUserId(UUID userId) {
-        this.userId = userId;
+    public void setBusinessId(UUID businessId) {
+        this.businessId = businessId;
     }
 
     public BusinessProfileResponse getProfile() {

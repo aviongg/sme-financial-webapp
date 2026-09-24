@@ -24,7 +24,13 @@ public class BusinessProfileService {
     }
 
     @Transactional
-    public BusinessProfile createProfile(BusinessProfileRequest request) {
+    public BusinessProfile createProfile(UUID businessId, BusinessProfileRequest request) {
+
+        if (businessId == null) {
+            throw new IllegalArgumentException(
+                    "Business ID is required"
+            );
+        }
 
         if (request == null) {
             throw new IllegalArgumentException(
@@ -32,13 +38,7 @@ public class BusinessProfileService {
             );
         }
 
-        if (request.getUserId() == null) {
-            throw new IllegalArgumentException(
-                    "User ID is required"
-            );
-        }
-
-        if (businessProfileRepository.existsById(request.getUserId())) {
+        if (businessProfileRepository.existsById(businessId)) {
             throw new DuplicateResourceException(
                     "Business profile already exists for this user"
             );
@@ -48,7 +48,7 @@ public class BusinessProfileService {
 
         BusinessProfile profile = new BusinessProfile();
 
-        profile.setUserId(request.getUserId());
+        profile.setUserId(businessId);
         profile.setBusinessType(request.getBusinessType());
         profile.setLanguagePreference(
                 request.getLanguagePreference() == null

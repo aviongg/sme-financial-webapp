@@ -86,6 +86,17 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(ActiveBusinessRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleActiveBusinessRequired(
+            ActiveBusinessRequiredException exception) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("error", "active_business_required");
+        response.put("message", exception.getMessage() != null
+                ? exception.getMessage()
+                : "Select or create a business before using this feature.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(
             org.springframework.security.authentication.BadCredentialsException exception) {

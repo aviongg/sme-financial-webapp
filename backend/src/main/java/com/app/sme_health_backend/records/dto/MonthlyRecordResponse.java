@@ -9,7 +9,7 @@ import java.util.UUID;
 public class MonthlyRecordResponse {
 
     private UUID id;
-    private UUID userId;
+    private UUID businessId;
     private String month;
 
     private BigDecimal cashInflow;
@@ -32,7 +32,7 @@ public class MonthlyRecordResponse {
         MonthlyRecordResponse response = new MonthlyRecordResponse();
 
         response.id = record.getId();
-        response.userId = record.getUserId();
+        response.businessId = record.getUserId();
         response.month = record.getMonth();
 
         response.cashInflow = record.getCashInflow();
@@ -58,8 +58,8 @@ public class MonthlyRecordResponse {
         return id;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
     public String getMonth() {

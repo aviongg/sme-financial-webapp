@@ -8,7 +8,7 @@ import java.util.UUID;
 public class InsightResponse {
 
     private UUID id;
-    private UUID userId;
+    private UUID businessId;
     private String month;
     private String text;
     private String category;
@@ -22,7 +22,7 @@ public class InsightResponse {
         InsightResponse response = new InsightResponse();
 
         response.id = insight.getId();
-        response.userId = insight.getUserId();
+        response.businessId = insight.getUserId();
         response.month = insight.getMonth();
         response.text = insight.getText();
         response.category = insight.getCategory();
@@ -39,8 +39,8 @@ public class InsightResponse {
         return id;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
     public String getMonth() {

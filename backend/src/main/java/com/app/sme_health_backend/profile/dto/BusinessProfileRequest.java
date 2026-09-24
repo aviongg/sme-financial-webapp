@@ -1,16 +1,10 @@
 package com.app.sme_health_backend.profile.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
 public class BusinessProfileRequest {
-
-    @NotNull(message = "User ID is required")
-    private UUID userId;
 
     @NotBlank(message = "Business type is required")
     @Size(max = 20, message = "Business type must not exceed 20 characters")
@@ -48,14 +42,6 @@ public class BusinessProfileRequest {
     private Boolean ntnRegistered;
 
     private Boolean businessRegistered;
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
 
     public String getBusinessType() {
         return businessType;

@@ -8,7 +8,7 @@ import java.util.UUID;
 public class RecommendationResponse {
 
     private UUID id;
-    private UUID userId;
+    private UUID businessId;
     private String month;
     private String text;
     private String category;
@@ -24,7 +24,7 @@ public class RecommendationResponse {
         RecommendationResponse response = new RecommendationResponse();
 
         response.id = recommendation.getId();
-        response.userId = recommendation.getUserId();
+        response.businessId = recommendation.getUserId();
         response.month = recommendation.getMonth();
         response.text = recommendation.getText();
         response.category = recommendation.getCategory();
@@ -41,8 +41,8 @@ public class RecommendationResponse {
         return id;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public UUID getBusinessId() {
+        return businessId;
     }
 
     public String getMonth() {
