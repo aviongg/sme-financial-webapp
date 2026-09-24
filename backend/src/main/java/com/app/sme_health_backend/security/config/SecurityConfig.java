@@ -35,8 +35,12 @@ import java.util.List;
 import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.security.filter.AccountStatusValidationFilter;
 import com.app.sme_health_backend.security.filter.AuthenticationStageValidationFilter;
+import com.app.sme_health_backend.security.filter.TrustedProxyValidationFilter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+
+import java.time.Clock;
 
 @Configuration
 @EnableWebSecurity
@@ -45,15 +49,24 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final AppUserRepository userRepository;
+    private final TrustedProxyValidationFilter trustedProxyValidationFilter;
 
     public SecurityConfig(
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
-            AppUserRepository userRepository
+            AppUserRepository userRepository,
+            TrustedProxyValidationFilter trustedProxyValidationFilter
     ) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.userRepository = userRepository;
+        this.trustedProxyValidationFilter = trustedProxyValidationFilter;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(Clock.class)
+    public Clock clock() {
+        return Clock.systemUTC();
     }
 
     @Bean
@@ -69,10 +82,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            CorsConfigurationSource corsConfigurationSource
+            CorsConfigurationSource corsConfigurationSource,
+            @Value("${app.security.csrf.cookie-secure:false}") boolean csrfCookieSecure
     ) throws Exception {
         CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         tokenRepository.setCookiePath("/");
+        tokenRepository.setCookieCustomizer(customizer -> customizer.secure(csrfCookieSecure));
 
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName(null);
@@ -106,6 +121,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(trustedProxyValidationFilter, CsrfFilter.class)
                 .addFilterBefore(new AuthenticationStageValidationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new AccountStatusValidationFilter(userRepository), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new SessionMaxLifetimeFilter(), UsernamePasswordAuthenticationFilter.class)
@@ -121,11 +137,15 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(s -> !s.isEmpty())
+                .filter(s -> !s.isEmpty() && !"*".equals(s) && !"null".equalsIgnoreCase(s))
                 .toList();
-        configuration.setAllowedOrigins(origins);
+        if (origins.isEmpty()) {
+            configuration.setAllowedOrigins(List.of());
+        } else {
+            configuration.setAllowedOrigins(origins);
+        }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Authorization", "Accept", "Origin", "X-Requested-With"));
+        configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Authorization", "Accept", "Origin", "X-Requested-With", "X-Request-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

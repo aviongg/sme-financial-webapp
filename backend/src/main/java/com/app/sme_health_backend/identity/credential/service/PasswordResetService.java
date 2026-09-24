@@ -44,6 +44,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final SessionRevocationService sessionRevocationService;
     private final SecurityAuditService auditService;
+    private final com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingService identityRateLimitingService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public PasswordResetService(
@@ -52,7 +53,8 @@ public class PasswordResetService {
             PasswordResetNotifier notifier,
             PasswordEncoder passwordEncoder,
             SessionRevocationService sessionRevocationService,
-            SecurityAuditService auditService
+            SecurityAuditService auditService,
+            com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingService identityRateLimitingService
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
@@ -60,6 +62,7 @@ public class PasswordResetService {
         this.passwordEncoder = passwordEncoder;
         this.sessionRevocationService = sessionRevocationService;
         this.auditService = auditService;
+        this.identityRateLimitingService = identityRateLimitingService;
     }
 
     @Transactional
@@ -74,6 +77,8 @@ public class PasswordResetService {
         } catch (IllegalArgumentException e) {
             return GENERIC_RESET_RESPONSE;
         }
+
+        identityRateLimitingService.checkAndRecordPasswordReset(normalizedEmail);
 
         Optional<AppUser> userOpt = userRepository.findByEmail(normalizedEmail);
         if (userOpt.isPresent()) {

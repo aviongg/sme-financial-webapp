@@ -41,17 +41,20 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final MfaService mfaService;
     private final AppUserRepository userRepository;
+    private final com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingService identityRateLimitingService;
 
     public AuthController(
             AuthenticationService authenticationService,
             PasswordResetService passwordResetService,
             MfaService mfaService,
-            AppUserRepository userRepository
+            AppUserRepository userRepository,
+            com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingService identityRateLimitingService
     ) {
         this.authenticationService = authenticationService;
         this.passwordResetService = passwordResetService;
         this.mfaService = mfaService;
         this.userRepository = userRepository;
+        this.identityRateLimitingService = identityRateLimitingService;
     }
 
     @GetMapping("/csrf")
@@ -83,8 +86,14 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
-        UserResponse response = authenticationService.login(request, httpRequest, httpResponse);
-        return ResponseEntity.ok(response);
+        identityRateLimitingService.checkAndRecordLoginAttempt(request.email());
+        try {
+            UserResponse response = authenticationService.login(request, httpRequest, httpResponse);
+            identityRateLimitingService.recordLoginSuccess(request.email());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            throw e;
+        }
     }
 
     @PostMapping("/logout")
