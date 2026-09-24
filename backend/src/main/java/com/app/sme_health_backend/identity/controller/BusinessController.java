@@ -11,6 +11,7 @@ import com.app.sme_health_backend.security.service.AppUserDetails;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,15 +29,27 @@ public class BusinessController {
     private final BusinessService businessService;
     private final ActiveBusinessContext activeBusinessContext;
     private final AppUserRepository userRepository;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public BusinessController(
             BusinessService businessService,
             ActiveBusinessContext activeBusinessContext,
             AppUserRepository userRepository
     ) {
+        this(businessService, activeBusinessContext, userRepository, null);
+    }
+
+    @Autowired
+    public BusinessController(
+            BusinessService businessService,
+            ActiveBusinessContext activeBusinessContext,
+            AppUserRepository userRepository,
+            @Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.businessService = businessService;
         this.activeBusinessContext = activeBusinessContext;
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     @PostMapping
@@ -71,6 +84,18 @@ public class BusinessController {
 
         // Update session active business
         activeBusinessContext.setActiveBusinessId(httpRequest, response.businessId());
+
+        if (auditService != null) {
+            auditService.logSuccess(
+                    com.app.sme_health_backend.audit.model.AuditEventType.ACTIVE_BUSINESS_CHANGED,
+                    userId,
+                    null,
+                    response.businessId(),
+                    "business",
+                    response.businessId().toString(),
+                    java.util.Map.of("businessType", response.businessType() != null ? response.businessType() : "unknown")
+            );
+        }
 
         return ResponseEntity.ok(response);
     }

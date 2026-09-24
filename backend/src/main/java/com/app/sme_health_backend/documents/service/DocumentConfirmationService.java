@@ -29,13 +29,24 @@ public class DocumentConfirmationService {
 
     private final UploadedDocumentRepository repository;
     private final MonthlyRecordService monthlyRecordService;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public DocumentConfirmationService(
             UploadedDocumentRepository repository,
             MonthlyRecordService monthlyRecordService
     ) {
+        this(repository, monthlyRecordService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DocumentConfirmationService(
+            UploadedDocumentRepository repository,
+            MonthlyRecordService monthlyRecordService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.monthlyRecordService = Objects.requireNonNull(monthlyRecordService, "monthlyRecordService is required");
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -87,13 +98,30 @@ public class DocumentConfirmationService {
             throw new DocumentValidationException(e.getMessage());
         }
 
-        // Record confirmed snapshot and transition status
         doc.setConfirmedData(formatConfirmedJson(request, classification, flowImpact));
         doc.setLinkedMonth(request.targetMonth());
         doc.setConfirmedAt(LocalDateTime.now());
         doc.setProcessingStatus(DocumentStatus.confirmed);
 
-        return repository.save(doc);
+        UploadedDocument saved = repository.save(doc);
+
+        if (auditService != null) {
+            auditService.logSuccess(
+                    com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_CONFIRMED,
+                    userId,
+                    null,
+                    null,
+                    "document",
+                    saved.getId().toString(),
+                    java.util.Map.of(
+                            "targetMonth", request.targetMonth() != null ? request.targetMonth() : "unknown",
+                            "classification", classification,
+                            "cashFlowImpact", flowImpact
+                    )
+            );
+        }
+
+        return saved;
     }
 
     private String formatConfirmedJson(DocumentConfirmationRequest req, String classification, String flowImpact) {

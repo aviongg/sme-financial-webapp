@@ -32,6 +32,7 @@ public class CryptoMigrationService {
     private final SensitiveDataCipher cipher;
     private final CryptoProperties cryptoProperties;
     private final TransactionTemplate transactionTemplate;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public CryptoMigrationService(
             JdbcTemplate jdbcTemplate,
@@ -39,10 +40,22 @@ public class CryptoMigrationService {
             CryptoProperties cryptoProperties,
             PlatformTransactionManager transactionManager
     ) {
+        this(jdbcTemplate, cipher, cryptoProperties, transactionManager, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CryptoMigrationService(
+            JdbcTemplate jdbcTemplate,
+            SensitiveDataCipher cipher,
+            CryptoProperties cryptoProperties,
+            PlatformTransactionManager transactionManager,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.cipher = cipher;
         this.cryptoProperties = cryptoProperties;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.auditService = auditService;
     }
 
     @PostConstruct
@@ -78,6 +91,21 @@ public class CryptoMigrationService {
         migrateTable(report, "business_profiles", "user_id", "whatsapp_number", EncryptedWhatsAppNumberConverter.AAD);
         migrateTable(report, "whatsapp_deliveries", "id", "destination_number", EncryptedDestinationNumberConverter.AAD);
         migrateTable(report, "uploaded_documents", "id", "original_filename", EncryptedFilenameConverter.AAD);
+
+        if (auditService != null) {
+            auditService.logSystemEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.CRYPTO_MIGRATION_EXECUTED,
+                    null,
+                    "system",
+                    "crypto",
+                    java.util.Map.of(
+                            "migratedRows", report.getMigratedRows(),
+                            "totalNonNullRows", report.getTotalNonNullRows(),
+                            "failedRows", report.getFailedRows()
+                    )
+            );
+        }
+
         return report;
     }
 
@@ -90,6 +118,21 @@ public class CryptoMigrationService {
         rotateTable(report, "business_profiles", "user_id", "whatsapp_number", EncryptedWhatsAppNumberConverter.AAD, targetKeyId);
         rotateTable(report, "whatsapp_deliveries", "id", "destination_number", EncryptedDestinationNumberConverter.AAD, targetKeyId);
         rotateTable(report, "uploaded_documents", "id", "original_filename", EncryptedFilenameConverter.AAD, targetKeyId);
+
+        if (auditService != null) {
+            auditService.logSystemEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.CRYPTO_KEY_ROTATION_EXECUTED,
+                    null,
+                    "system",
+                    "crypto",
+                    java.util.Map.of(
+                            "targetKeyId", targetKeyId,
+                            "migratedRows", report.getMigratedRows(),
+                            "failedRows", report.getFailedRows()
+                    )
+            );
+        }
+
         return report;
     }
 

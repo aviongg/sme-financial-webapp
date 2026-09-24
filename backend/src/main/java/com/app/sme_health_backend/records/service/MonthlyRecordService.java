@@ -27,18 +27,28 @@ public class MonthlyRecordService {
 
     private final MonthlyRecordRepository monthlyRecordRepository;
     private final ScoringService scoringService;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public MonthlyRecordService(MonthlyRecordRepository monthlyRecordRepository) {
-        this(monthlyRecordRepository, null);
+        this(monthlyRecordRepository, null, null);
+    }
+
+    public MonthlyRecordService(
+            MonthlyRecordRepository monthlyRecordRepository,
+            @Autowired(required = false) ScoringService scoringService
+    ) {
+        this(monthlyRecordRepository, scoringService, null);
     }
 
     @Autowired
     public MonthlyRecordService(
             MonthlyRecordRepository monthlyRecordRepository,
-            @Autowired(required = false) ScoringService scoringService
+            @Autowired(required = false) ScoringService scoringService,
+            @Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
     ) {
         this.monthlyRecordRepository = monthlyRecordRepository;
         this.scoringService = scoringService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -47,8 +57,10 @@ public class MonthlyRecordService {
 
         record.setUpdatedAt(LocalDateTime.now());
 
-        MonthlyRecord saved = monthlyRecordRepository
-                .findByUserIdAndMonth(record.getUserId(), record.getMonth())
+        Optional<MonthlyRecord> existingOpt = monthlyRecordRepository.findByUserIdAndMonth(record.getUserId(), record.getMonth());
+        boolean isUpdate = existingOpt.isPresent();
+
+        MonthlyRecord saved = existingOpt
                 .map(existingRecord -> {
                     updateExistingRecord(existingRecord, record);
                     return monthlyRecordRepository.save(existingRecord);
@@ -57,6 +69,21 @@ public class MonthlyRecordService {
 
         if (scoringService != null) {
             recalculateAffectedScores(saved.getUserId(), saved.getMonth());
+        }
+
+        if (auditService != null) {
+            com.app.sme_health_backend.audit.model.AuditEventType eventType = isUpdate
+                    ? com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_UPDATED
+                    : com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_CREATED;
+            auditService.logSuccess(
+                    eventType,
+                    saved.getUserId(),
+                    null,
+                    null,
+                    "monthly_record",
+                    saved.getId() != null ? saved.getId().toString() : null,
+                    java.util.Map.of("month", saved.getMonth())
+            );
         }
 
         return saved;

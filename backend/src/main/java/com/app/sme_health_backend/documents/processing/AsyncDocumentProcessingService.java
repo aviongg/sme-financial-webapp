@@ -18,9 +18,19 @@ public class AsyncDocumentProcessingService {
     private static final Logger log = LoggerFactory.getLogger(AsyncDocumentProcessingService.class);
 
     private final DocumentDraftProcessor processor;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public AsyncDocumentProcessingService(DocumentDraftProcessor processor) {
+        this(processor, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AsyncDocumentProcessingService(
+            DocumentDraftProcessor processor,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.processor = Objects.requireNonNull(processor, "processor is required");
+        this.auditService = auditService;
     }
 
     /**
@@ -50,9 +60,29 @@ public class AsyncDocumentProcessingService {
             log.info("Starting background OCR extraction for document {}", documentId);
             Optional<DocumentStatus> result = processor.process(documentId);
             log.info("Completed background OCR extraction for document {}: result={}", documentId, result.orElse(null));
+            if (result.isPresent() && result.get() == DocumentStatus.failed && auditService != null) {
+                auditService.logSystemFailure(
+                        com.app.sme_health_backend.audit.model.AuditEventType.OCR_PROCESSING_FAILED,
+                        null,
+                        "document",
+                        documentId.toString(),
+                        "OCR processing failed",
+                        java.util.Map.of("documentId", documentId.toString())
+                );
+            }
             return CompletableFuture.completedFuture(result);
         } catch (Exception e) {
             log.error("Unexpected error during background OCR extraction for document {}: {}", documentId, e.getMessage(), e);
+            if (auditService != null) {
+                auditService.logSystemFailure(
+                        com.app.sme_health_backend.audit.model.AuditEventType.OCR_PROCESSING_FAILED,
+                        null,
+                        "document",
+                        documentId.toString(),
+                        e.getMessage() != null ? e.getMessage() : "Unexpected error during OCR",
+                        java.util.Map.of("documentId", documentId.toString())
+                );
+            }
             return CompletableFuture.completedFuture(Optional.of(DocumentStatus.failed));
         }
     }

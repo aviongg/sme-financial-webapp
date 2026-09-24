@@ -26,15 +26,27 @@ public class DocumentUploadService {
     private final UploadedDocumentRepository repository;
     private final DocumentStorageService storageService;
     private final AsyncDocumentProcessingService asyncProcessingService;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public DocumentUploadService(
             UploadedDocumentRepository repository,
             DocumentStorageService storageService,
             AsyncDocumentProcessingService asyncProcessingService
     ) {
+        this(repository, storageService, asyncProcessingService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DocumentUploadService(
+            UploadedDocumentRepository repository,
+            DocumentStorageService storageService,
+            AsyncDocumentProcessingService asyncProcessingService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.storageService = Objects.requireNonNull(storageService, "storageService is required");
         this.asyncProcessingService = Objects.requireNonNull(asyncProcessingService, "asyncProcessingService is required");
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -62,6 +74,21 @@ public class DocumentUploadService {
             doc.setStoragePath(stored.storagePath());
 
             UploadedDocument saved = repository.save(doc);
+
+            if (auditService != null) {
+                auditService.logSuccess(
+                        com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
+                        saved.getUserId(),
+                        null,
+                        null,
+                        "document",
+                        saved.getId().toString(),
+                        java.util.Map.of(
+                                "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
+                                "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
+                        )
+                );
+            }
 
             asyncProcessingService.processAfterCommit(saved.getId());
 
@@ -112,6 +139,21 @@ public class DocumentUploadService {
 
                     UploadedDocument saved = repository.save(doc);
                     results.add(saved);
+
+                    if (auditService != null) {
+                        auditService.logSuccess(
+                                com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
+                                saved.getUserId(),
+                                null,
+                                null,
+                                "document",
+                                saved.getId().toString(),
+                                java.util.Map.of(
+                                        "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
+                                        "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
+                                )
+                        );
+                    }
 
                     asyncProcessingService.processAfterCommit(saved.getId());
                 }

@@ -28,15 +28,27 @@ public class BusinessService {
     private final BusinessRepository businessRepository;
     private final BusinessProfileRepository businessProfileRepository;
     private final BusinessMembershipRepository membershipRepository;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public BusinessService(
             BusinessRepository businessRepository,
             BusinessProfileRepository businessProfileRepository,
             BusinessMembershipRepository membershipRepository
     ) {
+        this(businessRepository, businessProfileRepository, membershipRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public BusinessService(
+            BusinessRepository businessRepository,
+            BusinessProfileRepository businessProfileRepository,
+            BusinessMembershipRepository membershipRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
         this.businessRepository = businessRepository;
         this.businessProfileRepository = businessProfileRepository;
         this.membershipRepository = membershipRepository;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -82,7 +94,32 @@ public class BusinessService {
                 MembershipRole.OWNER,
                 MembershipStatus.ACTIVE
         );
-        membershipRepository.save(membership);
+        BusinessMembership savedMembership = membershipRepository.save(membership);
+
+        if (auditService != null) {
+            auditService.recordEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.BUSINESS_CREATED,
+                    userId,
+                    null,
+                    businessId,
+                    "BUSINESS",
+                    businessId.toString(),
+                    com.app.sme_health_backend.audit.model.AuditOutcome.SUCCESS,
+                    null,
+                    java.util.Map.of("business_type", request.businessType())
+            );
+            auditService.recordEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.MEMBERSHIP_CREATED,
+                    userId,
+                    null,
+                    businessId,
+                    "BUSINESS_MEMBERSHIP",
+                    savedMembership.getId() != null ? savedMembership.getId().toString() : businessId.toString(),
+                    com.app.sme_health_backend.audit.model.AuditOutcome.SUCCESS,
+                    null,
+                    java.util.Map.of("role", "OWNER")
+            );
+        }
 
         return new BusinessResponse(
                 businessId,

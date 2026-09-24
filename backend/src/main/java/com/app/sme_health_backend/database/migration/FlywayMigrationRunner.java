@@ -62,6 +62,7 @@ public class FlywayMigrationRunner {
                     .cleanDisabled(true)
                     .validateOnMigrate(true)
                     .baselineOnMigrate(false)
+                    .ignoreMigrationPatterns("*:pending")
                     .locations("classpath:db/migration")
                     .load();
 
