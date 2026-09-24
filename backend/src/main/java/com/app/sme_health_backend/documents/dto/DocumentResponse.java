@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record DocumentResponse(
         UUID id,
-        UUID userId,
+        UUID businessId,
         String fileUrl,
         String originalFilename,
         String contentType,

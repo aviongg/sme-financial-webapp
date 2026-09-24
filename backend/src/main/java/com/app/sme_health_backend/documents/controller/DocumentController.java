@@ -1,18 +1,30 @@
 package com.app.sme_health_backend.documents.controller;
 
 import com.app.sme_health_backend.documents.dto.BulkUploadResponse;
+import com.app.sme_health_backend.documents.dto.DocumentConfirmationRequest;
+import com.app.sme_health_backend.documents.dto.DocumentDraftCorrectionRequest;
 import com.app.sme_health_backend.documents.dto.DocumentMapper;
+import com.app.sme_health_backend.documents.dto.DocumentQueryRequest;
 import com.app.sme_health_backend.documents.dto.DocumentResponse;
 import com.app.sme_health_backend.documents.entity.UploadedDocument;
 import com.app.sme_health_backend.documents.exception.DocumentAlreadyConfirmedException;
 import com.app.sme_health_backend.documents.exception.DocumentNotFoundException;
 import com.app.sme_health_backend.documents.exception.DocumentValidationException;
 import com.app.sme_health_backend.documents.processing.DocumentStatus;
+import com.app.sme_health_backend.documents.service.DocumentConfirmationService;
 import com.app.sme_health_backend.documents.service.DocumentUploadService;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,34 +38,40 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentUploadService uploadService;
-    private final com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService;
+    private final DocumentConfirmationService confirmationService;
+    private final BusinessAuthorizationService authService;
 
     public DocumentController(
             DocumentUploadService uploadService,
-            com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService
+            DocumentConfirmationService confirmationService,
+            BusinessAuthorizationService authService
     ) {
         this.uploadService = Objects.requireNonNull(uploadService, "uploadService is required");
         this.confirmationService = Objects.requireNonNull(confirmationService, "confirmationService is required");
+        this.authService = Objects.requireNonNull(authService, "authService is required");
     }
-
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentResponse> uploadDocument(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") UUID userId,
-            @RequestParam(value = "documentTypeHint", required = false) String documentTypeHint
+            @RequestParam(value = "documentTypeHint", required = false) String documentTypeHint,
+            HttpServletRequest request
     ) {
-        UploadedDocument doc = uploadService.uploadSingle(userId, file, documentTypeHint);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_UPLOAD);
+
+        UploadedDocument doc = uploadService.uploadSingle(context.businessId(), file, documentTypeHint);
         return ResponseEntity.status(HttpStatus.CREATED).body(DocumentMapper.toResponse(doc));
     }
 
     @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BulkUploadResponse> uploadBulk(
             @RequestParam("files") List<MultipartFile> files,
-            @RequestParam("userId") UUID userId,
-            @RequestParam(value = "documentTypeHint", required = false) String documentTypeHint
+            @RequestParam(value = "documentTypeHint", required = false) String documentTypeHint,
+            HttpServletRequest request
     ) {
-        List<UploadedDocument> docs = uploadService.uploadBulk(userId, files, documentTypeHint);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_UPLOAD);
+
+        List<UploadedDocument> docs = uploadService.uploadBulk(context.businessId(), files, documentTypeHint);
         List<DocumentResponse> responses = docs.stream().map(DocumentMapper::toResponse).toList();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(new BulkUploadResponse(responses.size(), responses));
     }
@@ -61,42 +79,55 @@ public class DocumentController {
     @GetMapping("/{id}")
     public ResponseEntity<DocumentResponse> getDocument(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId
+            HttpServletRequest request
     ) {
-        UploadedDocument doc = uploadService.getDocument(userId, id);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+
+        UploadedDocument doc = uploadService.getDocument(context.businessId(), id);
         return ResponseEntity.ok(DocumentMapper.toResponse(doc));
     }
 
     @GetMapping
-    public ResponseEntity<List<DocumentResponse>> listDocuments(
-            @RequestParam("userId") UUID userId,
-            @RequestParam(value = "status", required = false) DocumentStatus status,
-            @RequestParam(value = "month", required = false) String month
+    public ResponseEntity<List<DocumentResponse>> listDocuments(HttpServletRequest request) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+
+        List<UploadedDocument> docs = uploadService.listDocuments(context.businessId(), null, null);
+        return ResponseEntity.ok(docs.stream().map(DocumentMapper::toResponse).toList());
+    }
+
+    @PostMapping("/query")
+    public ResponseEntity<List<DocumentResponse>> queryDocuments(
+            @RequestBody(required = false) DocumentQueryRequest queryRequest,
+            HttpServletRequest request
     ) {
-        List<UploadedDocument> docs = uploadService.listDocuments(userId, status, month);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+
+        DocumentStatus status = queryRequest != null ? queryRequest.status() : null;
+        String month = queryRequest != null ? queryRequest.month() : null;
+
+        List<UploadedDocument> docs = uploadService.listDocuments(context.businessId(), status, month);
         return ResponseEntity.ok(docs.stream().map(DocumentMapper::toResponse).toList());
     }
 
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> getDocumentFile(
             @PathVariable("id") UUID id,
-            @RequestParam(value = "userId", required = false) UUID userId,
-            org.springframework.security.core.Authentication authentication,
-            jakarta.servlet.http.HttpServletRequest request
+            Authentication authentication,
+            HttpServletRequest request
     ) {
         boolean isInternalService = isInternalOcrService(authentication, request);
 
         UploadedDocument doc;
         byte[] bytes;
         if (isInternalService) {
+            // Narrowly scoped internal OCR branch (no session or active business context)
             doc = uploadService.getDocument(id);
             bytes = uploadService.getDocumentBytes(id);
         } else {
-            if (userId == null) {
-                throw new DocumentValidationException("User ID is required");
-            }
-            doc = uploadService.getDocument(userId, id);
-            bytes = uploadService.getDocumentBytes(userId, id);
+            // Browser user branch: requires active business + DOCUMENT_READ permission + tenant-scoped lookup
+            BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+            doc = uploadService.getDocument(context.businessId(), id);
+            bytes = uploadService.getDocumentBytes(context.businessId(), id);
         }
 
         String contentType = doc.getContentType() != null ? doc.getContentType() : MediaType.APPLICATION_OCTET_STREAM_VALUE;
@@ -108,21 +139,21 @@ public class DocumentController {
                 .body(bytes);
     }
 
-    private boolean isInternalOcrService(org.springframework.security.core.Authentication authentication, jakarta.servlet.http.HttpServletRequest request) {
-        org.springframework.security.core.Authentication auth = authentication;
+    private boolean isInternalOcrService(Authentication authentication, HttpServletRequest request) {
+        Authentication auth = authentication;
         if (auth == null) {
-            auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            auth = SecurityContextHolder.getContext().getAuthentication();
         }
         if (auth == null && request != null) {
-            if (request.getUserPrincipal() instanceof org.springframework.security.core.Authentication userAuth) {
+            if (request.getUserPrincipal() instanceof Authentication userAuth) {
                 auth = userAuth;
             } else if (request.getSession(false) != null) {
                 Object sessionContext = request.getSession(false).getAttribute("SPRING_SECURITY_CONTEXT");
-                if (sessionContext instanceof org.springframework.security.core.context.SecurityContext secContext) {
+                if (sessionContext instanceof SecurityContext secContext) {
                     auth = secContext.getAuthentication();
                 }
             }
-            if (auth == null && request.getAttribute("SPRING_SECURITY_CONTEXT") instanceof org.springframework.security.core.context.SecurityContext secContext) {
+            if (auth == null && request.getAttribute("SPRING_SECURITY_CONTEXT") instanceof SecurityContext secContext) {
                 auth = secContext.getAuthentication();
             }
         }
@@ -141,41 +172,48 @@ public class DocumentController {
     @PostMapping("/{id}/retry")
     public ResponseEntity<DocumentResponse> retryProcessing(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId
+            HttpServletRequest request
     ) {
-        UploadedDocument doc = uploadService.retryProcessing(userId, id);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_EDIT);
+
+        UploadedDocument doc = uploadService.retryProcessing(context.businessId(), id);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(DocumentMapper.toResponse(doc));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDraft(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId
+            HttpServletRequest request
     ) {
-        uploadService.deleteDraft(userId, id);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_DELETE);
+
+        uploadService.deleteDraft(context.businessId(), id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<DocumentResponse> updateDraft(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId,
-            @RequestBody com.app.sme_health_backend.documents.dto.DocumentDraftCorrectionRequest request
+            @RequestBody DocumentDraftCorrectionRequest correctionRequest,
+            HttpServletRequest request
     ) {
-        UploadedDocument doc = uploadService.updateDraft(userId, id, request);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_EDIT);
+
+        UploadedDocument doc = uploadService.updateDraft(context.businessId(), id, correctionRequest);
         return ResponseEntity.ok(DocumentMapper.toResponse(doc));
     }
 
     @PostMapping("/{id}/confirm")
     public ResponseEntity<DocumentResponse> confirmDocument(
             @PathVariable("id") UUID id,
-            @RequestParam("userId") UUID userId,
-            @jakarta.validation.Valid @RequestBody com.app.sme_health_backend.documents.dto.DocumentConfirmationRequest request
+            @Valid @RequestBody DocumentConfirmationRequest confirmationRequest,
+            HttpServletRequest request
     ) {
-        UploadedDocument doc = confirmationService.confirmDocument(userId, id, request);
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_CONFIRM);
+
+        UploadedDocument doc = confirmationService.confirmDocument(context.businessId(), id, confirmationRequest);
         return ResponseEntity.ok(DocumentMapper.toResponse(doc));
     }
-
 
     @ExceptionHandler(DocumentNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(DocumentNotFoundException ex) {

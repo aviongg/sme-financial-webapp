@@ -222,12 +222,15 @@ public class MonthlyRecordService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<MonthlyRecord> getRecordById(UUID id) {
+    public Optional<MonthlyRecord> getRecordById(UUID id, UUID businessId) {
         if (id == null) {
             throw new IllegalArgumentException("Record ID is required");
         }
+        if (businessId == null) {
+            throw new IllegalArgumentException("Business ID is required");
+        }
 
-        return monthlyRecordRepository.findById(id);
+        return monthlyRecordRepository.findByIdAndUserId(id, businessId);
     }
 
     private void validateMonthlyRecord(MonthlyRecord record) {

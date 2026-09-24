@@ -232,11 +232,14 @@ public class WhatsAppDeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<WhatsAppDeliveryResponse> getDelivery(UUID deliveryId) {
+    public Optional<WhatsAppDeliveryResponse> getDelivery(UUID deliveryId, UUID businessId) {
         if (deliveryId == null) {
             throw new IllegalArgumentException("Delivery ID is required");
         }
-        return deliveryRepository.findById(deliveryId)
+        if (businessId == null) {
+            throw new IllegalArgumentException("Business ID is required");
+        }
+        return deliveryRepository.findByIdAndUserId(deliveryId, businessId)
                 .map(WhatsAppDeliveryResponse::fromEntity);
     }
 }

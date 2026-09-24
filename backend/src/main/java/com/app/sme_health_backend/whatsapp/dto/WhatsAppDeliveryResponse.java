@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public record WhatsAppDeliveryResponse(
         UUID id,
-        UUID userId,
+        UUID businessId,
         UUID scoreResultId,
         String targetMonth,
         String sourceFingerprint,

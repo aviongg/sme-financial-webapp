@@ -15,6 +15,8 @@ import java.util.UUID;
 
 public interface WhatsAppDeliveryRepository extends JpaRepository<WhatsAppDelivery, UUID> {
 
+    Optional<WhatsAppDelivery> findByIdAndUserId(UUID id, UUID userId);
+
     Optional<WhatsAppDelivery> findByUserIdAndDeliveryCycle(UUID userId, String deliveryCycle);
 
     boolean existsByUserIdAndDeliveryCycle(UUID userId, String deliveryCycle);

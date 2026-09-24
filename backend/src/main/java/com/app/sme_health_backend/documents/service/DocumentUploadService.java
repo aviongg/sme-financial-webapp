@@ -155,7 +155,7 @@ public class DocumentUploadService {
 
     @Transactional
     public UploadedDocument retryProcessing(UUID userId, UUID documentId) {
-        UploadedDocument doc = getDocument(userId, documentId);
+        UploadedDocument doc = getDocumentForUpdate(userId, documentId);
 
         if (doc.getProcessingStatus() == DocumentStatus.confirmed) {
             throw new IllegalStateException("Cannot retry a confirmed document");
@@ -180,7 +180,7 @@ public class DocumentUploadService {
 
     @Transactional
     public void deleteDraft(UUID userId, UUID documentId) {
-        UploadedDocument doc = getDocument(userId, documentId);
+        UploadedDocument doc = getDocumentForUpdate(userId, documentId);
 
         if (doc.getProcessingStatus() == DocumentStatus.confirmed) {
             throw new IllegalStateException("Confirmed financial source documents cannot be deleted");
@@ -196,7 +196,7 @@ public class DocumentUploadService {
             UUID documentId,
             com.app.sme_health_backend.documents.dto.DocumentDraftCorrectionRequest request
     ) {
-        UploadedDocument doc = getDocument(userId, documentId);
+        UploadedDocument doc = getDocumentForUpdate(userId, documentId);
 
         if (doc.getProcessingStatus() == DocumentStatus.confirmed) {
             throw new IllegalStateException("Cannot edit a confirmed document");
@@ -238,6 +238,14 @@ public class DocumentUploadService {
     public byte[] getDocumentBytes(UUID documentId) {
         UploadedDocument doc = getDocument(documentId);
         return storageService.loadBytes(doc.getStoragePath());
+    }
+
+    private UploadedDocument getDocumentForUpdate(UUID userId, UUID documentId) {
+        if (userId == null) throw new DocumentValidationException("User ID is required");
+        if (documentId == null) throw new DocumentValidationException("Document ID is required");
+
+        return repository.findByIdAndUserIdForUpdate(documentId, userId)
+                .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));
     }
 
     private String escapeJson(String raw) {
