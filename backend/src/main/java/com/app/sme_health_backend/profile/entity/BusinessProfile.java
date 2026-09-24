@@ -1,6 +1,8 @@
 package com.app.sme_health_backend.profile.entity;
 
+import com.app.sme_health_backend.crypto.converter.EncryptedWhatsAppNumberConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
@@ -23,7 +25,8 @@ public class BusinessProfile {
     @Column(name = "language_preference", nullable = false, length = 5)
     private String languagePreference = "en";
 
-    @Column(name = "whatsapp_number", length = 20)
+    @Column(name = "whatsapp_number", length = 255)
+    @Convert(converter = EncryptedWhatsAppNumberConverter.class)
     private String whatsappNumber;
 
     @Column(name = "whatsapp_opt_in", nullable = false)

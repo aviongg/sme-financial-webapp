@@ -1,5 +1,6 @@
 package com.app.sme_health_backend.documents.entity;
 
+import com.app.sme_health_backend.crypto.converter.EncryptedFilenameConverter;
 import com.app.sme_health_backend.documents.processing.DocumentStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -57,7 +58,8 @@ public class UploadedDocument implements Persistable<UUID> {
     @Column(name = "linked_month", length = 7)
     private String linkedMonth;
 
-    @Column(name = "original_filename")
+    @Column(name = "original_filename", columnDefinition = "TEXT")
+    @Convert(converter = EncryptedFilenameConverter.class)
     private String originalFilename;
 
     @Column(name = "content_type", length = 100)

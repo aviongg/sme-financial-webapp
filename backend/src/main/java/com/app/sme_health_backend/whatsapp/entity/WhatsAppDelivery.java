@@ -1,5 +1,6 @@
 package com.app.sme_health_backend.whatsapp.entity;
 
+import com.app.sme_health_backend.crypto.converter.EncryptedDestinationNumberConverter;
 import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -37,7 +38,8 @@ public class WhatsAppDelivery {
     @Column(name = "idempotency_key", length = 150)
     private String idempotencyKey;
 
-    @Column(name = "destination_number", nullable = false, length = 25)
+    @Column(name = "destination_number", nullable = false, length = 255)
+    @Convert(converter = EncryptedDestinationNumberConverter.class)
     private String destinationNumber;
 
     @Column(name = "language", nullable = false, length = 5)

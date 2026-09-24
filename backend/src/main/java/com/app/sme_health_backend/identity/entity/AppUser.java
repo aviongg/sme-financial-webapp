@@ -1,5 +1,6 @@
 package com.app.sme_health_backend.identity.entity;
 
+import com.app.sme_health_backend.crypto.converter.EncryptedFullNameConverter;
 import com.app.sme_health_backend.identity.model.AccountStatus;
 import jakarta.persistence.*;
 
@@ -20,7 +21,8 @@ public class AppUser {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "full_name", nullable = false, length = 150)
+    @Column(name = "full_name", nullable = false)
+    @Convert(converter = EncryptedFullNameConverter.class)
     private String fullName;
 
     @Enumerated(EnumType.STRING)
