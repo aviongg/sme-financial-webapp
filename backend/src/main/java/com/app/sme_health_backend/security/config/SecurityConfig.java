@@ -34,6 +34,7 @@ import java.util.List;
 
 import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.security.filter.AccountStatusValidationFilter;
+import com.app.sme_health_backend.security.filter.AuthenticationStageValidationFilter;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 
@@ -81,6 +82,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(tokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
+                        .ignoringRequestMatchers("/api/auth/password-reset/**")
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -97,9 +99,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/change-password").permitAll()
+                        .requestMatchers("/api/auth/mfa/**").permitAll()
+                        .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(new AuthenticationStageValidationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new AccountStatusValidationFilter(userRepository), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new SessionMaxLifetimeFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);

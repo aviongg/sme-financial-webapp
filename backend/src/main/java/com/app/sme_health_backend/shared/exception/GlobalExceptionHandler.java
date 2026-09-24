@@ -108,6 +108,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                exception.getMessage() != null ? exception.getMessage() : "Authentication required"
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
     @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
     public ResponseEntity<Map<String, Object>> handleDisabled(
             org.springframework.security.authentication.DisabledException exception) {

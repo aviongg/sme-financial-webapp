@@ -18,6 +18,8 @@ public class AppUserDetails implements UserDetails {
     private final String fullName;
     private final boolean active;
     private final boolean mustChangePassword;
+    private final String platformRole;
+    private final long authVersion;
 
     public AppUserDetails(AppUser user) {
         this.id = user.getId();
@@ -26,6 +28,8 @@ public class AppUserDetails implements UserDetails {
         this.fullName = user.getFullName();
         this.active = user.getAccountStatus() == AccountStatus.ACTIVE;
         this.mustChangePassword = user.isMustChangePassword();
+        this.platformRole = user.getPlatformRole();
+        this.authVersion = user.getAuthVersion();
     }
 
     public UUID getId() {
@@ -40,8 +44,22 @@ public class AppUserDetails implements UserDetails {
         return mustChangePassword;
     }
 
+    public String getPlatformRole() {
+        return platformRole;
+    }
+
+    public long getAuthVersion() {
+        return authVersion;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if ("PLATFORM_ADMIN".equals(platformRole)) {
+            return List.of(
+                    new SimpleGrantedAuthority("ROLE_USER"),
+                    new SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN")
+            );
+        }
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
