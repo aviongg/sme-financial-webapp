@@ -10,6 +10,7 @@ import com.app.sme_health_backend.identity.credential.service.PasswordResetServi
 import com.app.sme_health_backend.mfa.service.MfaService;
 import com.app.sme_health_backend.security.test.WithMockAppUser;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
+import com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AppUserRepository userRepository;
+
+    @MockitoBean
+    private IdentityRateLimitingService rateLimitingService;
 
     @Test
     @DisplayName("GET /api/auth/csrf returns CSRF token with header and parameter names")

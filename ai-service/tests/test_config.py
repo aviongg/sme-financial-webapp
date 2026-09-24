@@ -59,3 +59,12 @@ def test_pdf_capability_belongs_to_adapter_not_shared_config():
         create_provider(settings)
     replacement = Mock()
     assert create_provider(settings, {"google-cloud-vision": lambda _: replacement}) is replacement
+
+
+def test_secret_loaded_from_file(tmp_path):
+    secret_path = tmp_path / "secret.txt"
+    secret_path.write_text("my-super-secret-key-123\n", encoding="utf-8")
+    settings = Settings.from_env({"OCR_SERVICE_SECRET_FILE": str(secret_path)})
+    assert settings.ocr_service_key == "my-super-secret-key-123"
+    assert settings.internal_service_key == "my-super-secret-key-123"
+

@@ -402,3 +402,11 @@ def test_extract_pdf_6_pages_rejected():
     assert response.json()["error"]["code"] == "invalid_document"
     assert "page count" in response.json()["error"]["message"]
     provider.extract.assert_not_called()
+
+
+def test_health_endpoint():
+    client, _, _, _ = client_for()
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
