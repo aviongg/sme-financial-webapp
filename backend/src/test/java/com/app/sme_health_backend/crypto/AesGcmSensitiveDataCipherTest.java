@@ -31,7 +31,7 @@ class AesGcmSensitiveDataCipherTest {
     void setUp() {
         properties = new CryptoProperties();
         properties.setActiveKeyId("k1");
-        properties.setAllowLegacyPlaintext(true);
+        properties.setAllowLegacyPlaintext(false);
         properties.setKeys(Map.of("k1", KEY_K1, "k2", KEY_K2));
 
         keyringProvider = new LocalKeyringProvider(properties);

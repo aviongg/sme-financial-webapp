@@ -18,8 +18,9 @@ public class CryptoProperties {
     /**
      * If true, legacy plaintext values in encrypted columns are returned as-is during migration.
      * If false (strict mode), encountering legacy plaintext throws a DecryptionException.
+     * Secure default is false (strict mode).
      */
-    private boolean allowLegacyPlaintext = true;
+    private boolean allowLegacyPlaintext = false;
 
     /**
      * Keyring mapping key IDs to Base64-encoded 256-bit (32-byte) secret keys.

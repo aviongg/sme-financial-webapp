@@ -252,6 +252,35 @@ public class EncryptedEntityPostgreSqlIT {
     }
 
     @Test
+    @DisplayName("Startup hook with autoRunMigration=false performs zero migration")
+    void testStartupHookDoesNotMigrateWhenDisabled() {
+        UUID userId = UUID.randomUUID();
+        String rawPlaintext = "Unmigrated User on Startup";
+
+        // Insert raw legacy plaintext row directly via JDBC
+        jdbcTemplate.update(
+                "INSERT INTO app_users (id, email, password_hash, full_name, account_status, must_change_password, created_at, updated_at) " +
+                        "VALUES (?, ?, ?, ?, 'ACTIVE', false, NOW(), NOW())",
+                userId, "unmigrated-" + userId + "@test.com", "hash", rawPlaintext
+        );
+        createdUserIds.add(userId);
+
+        // Ensure autoRunMigration is false (default)
+        cryptoProperties.setAutoRunMigration(false);
+
+        // Simulate onStartup hook
+        cryptoMigrationService.onStartup();
+
+        // Row must remain unmigrated plaintext
+        String dbValue = jdbcTemplate.queryForObject(
+                "SELECT full_name FROM app_users WHERE id = ?",
+                String.class,
+                userId
+        );
+        assertEquals(rawPlaintext, dbValue, "Row must not be mutated when autoRunMigration=false");
+    }
+
+    @Test
     @DisplayName("Controlled backfill migrates legacy plaintext rows, repeat run is idempotent (no double encryption)")
     void testBackfillMigrationAndIdempotency() {
         UUID userId = UUID.randomUUID();

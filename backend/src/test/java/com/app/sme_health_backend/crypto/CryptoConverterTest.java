@@ -29,7 +29,7 @@ class CryptoConverterTest {
     void setUp() {
         CryptoProperties props = new CryptoProperties();
         props.setActiveKeyId("k1");
-        props.setAllowLegacyPlaintext(true);
+        props.setAllowLegacyPlaintext(false);
         props.setKeys(Map.of("k1", KEY_K1));
 
         LocalKeyringProvider keyring = new LocalKeyringProvider(props);
