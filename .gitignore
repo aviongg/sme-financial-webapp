@@ -221,3 +221,8 @@ docker-data/
 # Runtime document storage
 /storage/
 /backend/storage/
+
+# Security, Certificates & Secrets (Phase S6)
+*.key
+/secrets/
+/docker/secrets/
