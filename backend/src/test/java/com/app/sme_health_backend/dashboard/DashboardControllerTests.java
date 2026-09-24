@@ -5,6 +5,10 @@ import com.app.sme_health_backend.cashflow.dto.CashFlowProjectionResponse;
 import com.app.sme_health_backend.dashboard.controller.DashboardController;
 import com.app.sme_health_backend.dashboard.dto.DashboardResponse;
 import com.app.sme_health_backend.dashboard.service.DashboardService;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.insight.dto.InsightResponse;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.profile.dto.BusinessProfileResponse;
@@ -16,6 +20,7 @@ import com.app.sme_health_backend.scoring.dto.ScoreResultResponse;
 import com.app.sme_health_backend.scoring.entity.ScoreResult;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -29,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -43,12 +49,22 @@ class DashboardControllerTests {
     @MockitoBean
     private DashboardService dashboardService;
 
+    @MockitoBean
+    private BusinessAuthorizationService authService;
+
+    private final UUID userId = UUID.randomUUID();
+    private final UUID businessId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+    }
+
     @Test
     void shouldReturn200AndFullyPopulatedDashboard() throws Exception {
-        UUID userId = UUID.randomUUID();
-
         BusinessProfile profile = new BusinessProfile();
-        profile.setUserId(userId);
+        profile.setUserId(businessId);
         profile.setBusinessType("trade");
         profile.setLanguagePreference("en");
         profile.setCreatedAt(LocalDateTime.now());
@@ -56,7 +72,7 @@ class DashboardControllerTests {
 
         ScoreResult score = new ScoreResult();
         score.setId(UUID.randomUUID());
-        score.setUserId(userId);
+        score.setUserId(businessId);
         score.setMonth("2026-08");
         score.setCompositeScore(new BigDecimal("78.50"));
         score.setBand("Stable");
@@ -73,7 +89,7 @@ class DashboardControllerTests {
         ScoreResultResponse scoreResponse = ScoreResultResponse.fromEntity(score);
 
         Insight insight = new Insight();
-        insight.setUserId(userId);
+        insight.setUserId(businessId);
         insight.setMonth("2026-08");
         insight.setCategory("repayment");
         insight.setPriority("high");
@@ -82,7 +98,7 @@ class DashboardControllerTests {
         InsightResponse topInsight = InsightResponse.fromEntity(insight);
 
         Recommendation rec = new Recommendation();
-        rec.setUserId(userId);
+        rec.setUserId(businessId);
         rec.setMonth("2026-08");
         rec.setCategory("repayment");
         rec.setPriority("high");
@@ -105,7 +121,7 @@ class DashboardControllerTests {
         );
 
         DashboardResponse response = new DashboardResponse(
-                userId,
+                businessId,
                 profileResponse,
                 scoreResponse,
                 topInsight,
@@ -115,11 +131,11 @@ class DashboardControllerTests {
                 true
         );
 
-        when(dashboardService.getDashboard(userId)).thenReturn(response);
+        when(dashboardService.getDashboard(businessId)).thenReturn(response);
 
-        mockMvc.perform(get("/api/dashboard/{userId}", userId))
+        mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.businessId").value(businessId.toString()))
                 .andExpect(jsonPath("$.hasHistory").value(true))
                 .andExpect(jsonPath("$.profile.businessType").value("trade"))
                 .andExpect(jsonPath("$.score.compositeScore").value(78.50))
@@ -135,15 +151,13 @@ class DashboardControllerTests {
 
     @Test
     void shouldReturn200ForEmptyStateNewUser() throws Exception {
-        UUID userId = UUID.randomUUID();
-
         BusinessProfile profile = new BusinessProfile();
-        profile.setUserId(userId);
+        profile.setUserId(businessId);
         profile.setBusinessType("services");
         profile.setCreatedAt(LocalDateTime.now());
 
         DashboardResponse response = new DashboardResponse(
-                userId,
+                businessId,
                 BusinessProfileResponse.fromEntity(profile),
                 null,
                 null,
@@ -153,11 +167,11 @@ class DashboardControllerTests {
                 false
         );
 
-        when(dashboardService.getDashboard(userId)).thenReturn(response);
+        when(dashboardService.getDashboard(businessId)).thenReturn(response);
 
-        mockMvc.perform(get("/api/dashboard/{userId}", userId))
+        mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.businessId").value(businessId.toString()))
                 .andExpect(jsonPath("$.hasHistory").value(false))
                 .andExpect(jsonPath("$.profile.businessType").value("services"))
                 .andExpect(jsonPath("$.score").doesNotExist())
@@ -169,12 +183,10 @@ class DashboardControllerTests {
 
     @Test
     void shouldReturn404WhenProfileNotFound() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        when(dashboardService.getDashboard(userId))
+        when(dashboardService.getDashboard(businessId))
                 .thenThrow(new ResourceNotFoundException("Business profile not found for this user"));
 
-        mockMvc.perform(get("/api/dashboard/{userId}", userId))
+        mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
@@ -182,10 +194,8 @@ class DashboardControllerTests {
     }
 
     @Test
-    void shouldReturn400ForMalformedUserId() throws Exception {
-        mockMvc.perform(get("/api/dashboard/{userId}", "invalid-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid user ID format: invalid-uuid"));
+    void shouldRejectLegacyDashboardWithUserIdUrl() throws Exception {
+        mockMvc.perform(get("/api/dashboard/{userId}", UUID.randomUUID()))
+                .andExpect(status().isNotFound());
     }
 }

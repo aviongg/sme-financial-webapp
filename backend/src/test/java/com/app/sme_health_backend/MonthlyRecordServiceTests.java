@@ -291,27 +291,27 @@ class MonthlyRecordServiceTests {
         MonthlyRecord record = validRecord();
         record.setId(recordId);
 
-        when(monthlyRecordRepository.findById(recordId))
+        when(monthlyRecordRepository.findByIdAndUserId(recordId, userId))
                 .thenReturn(Optional.of(record));
 
-        Optional<MonthlyRecord> result = monthlyRecordService.getRecordById(recordId);
+        Optional<MonthlyRecord> result = monthlyRecordService.getRecordById(recordId, userId);
 
         assertTrue(result.isPresent());
         assertEquals(recordId, result.get().getId());
-        verify(monthlyRecordRepository).findById(recordId);
+        verify(monthlyRecordRepository).findByIdAndUserId(recordId, userId);
     }
 
     @Test
     void shouldReturnEmptyWhenRecordIdNotFound() {
         UUID recordId = UUID.randomUUID();
 
-        when(monthlyRecordRepository.findById(recordId))
+        when(monthlyRecordRepository.findByIdAndUserId(recordId, userId))
                 .thenReturn(Optional.empty());
 
-        Optional<MonthlyRecord> result = monthlyRecordService.getRecordById(recordId);
+        Optional<MonthlyRecord> result = monthlyRecordService.getRecordById(recordId, userId);
 
         assertTrue(result.isEmpty());
-        verify(monthlyRecordRepository).findById(recordId);
+        verify(monthlyRecordRepository).findByIdAndUserId(recordId, userId);
     }
 
     @Test
@@ -319,11 +319,24 @@ class MonthlyRecordServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> monthlyRecordService.getRecordById(null)
+                        () -> monthlyRecordService.getRecordById(null, userId)
                 );
 
         assertEquals("Record ID is required", exception.getMessage());
-        verify(monthlyRecordRepository, never()).findById(any());
+        verify(monthlyRecordRepository, never()).findByIdAndUserId(any(), any());
+    }
+
+    @Test
+    void shouldThrowWhenBusinessIdIsNull() {
+        UUID recordId = UUID.randomUUID();
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> monthlyRecordService.getRecordById(recordId, null)
+                );
+
+        assertEquals("Business ID is required", exception.getMessage());
+        verify(monthlyRecordRepository, never()).findByIdAndUserId(any(), any());
     }
 
     @Test

@@ -4,7 +4,12 @@ import com.app.sme_health_backend.cashflow.controller.CashFlowController;
 import com.app.sme_health_backend.cashflow.dto.CashFlowChartPointResponse;
 import com.app.sme_health_backend.cashflow.dto.CashFlowProjectionResponse;
 import com.app.sme_health_backend.cashflow.service.CashFlowService;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -17,9 +22,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CashFlowController.class)
 @Import(GlobalExceptionHandler.class)
@@ -31,10 +38,20 @@ class CashFlowControllerTests {
     @MockitoBean
     private CashFlowService cashFlowService;
 
+    @MockitoBean
+    private BusinessAuthorizationService authService;
+
+    private final UUID userId = UUID.randomUUID();
+    private final UUID businessId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+    }
+
     @Test
     void shouldReturnCashFlowHistorySuccess() throws Exception {
-        UUID userId = UUID.randomUUID();
-
         List<CashFlowChartPointResponse> response = List.of(
                 new CashFlowChartPointResponse(
                         "2026-07",
@@ -52,9 +69,9 @@ class CashFlowControllerTests {
                 )
         );
 
-        when(cashFlowService.getCashFlowHistory(userId)).thenReturn(response);
+        when(cashFlowService.getCashFlowHistory(businessId)).thenReturn(response);
 
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].month").value("2026-07"))
@@ -71,26 +88,15 @@ class CashFlowControllerTests {
 
     @Test
     void shouldReturnEmptyArrayWhenNoHistory() throws Exception {
-        UUID userId = UUID.randomUUID();
+        when(cashFlowService.getCashFlowHistory(businessId)).thenReturn(Collections.emptyList());
 
-        when(cashFlowService.getCashFlowHistory(userId)).thenReturn(Collections.emptyList());
-
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
-    void shouldReturn400WhenUserIdIsMalformed() throws Exception {
-        mockMvc.perform(get("/api/cashflow/not-a-valid-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid user ID format: not-a-valid-uuid"));
-    }
-
-    @Test
     void shouldReturnTrendProjectionSuccess() throws Exception {
-        UUID userId = UUID.randomUUID();
         CashFlowProjectionResponse response = new CashFlowProjectionResponse(
                 "2026-10",
                 new BigDecimal("320000.00"),
@@ -100,9 +106,9 @@ class CashFlowControllerTests {
                 null
         );
 
-        when(cashFlowService.getTrendProjection(userId)).thenReturn(response);
+        when(cashFlowService.getTrendProjection(businessId)).thenReturn(response);
 
-        mockMvc.perform(get("/api/cashflow/{userId}/projection", userId))
+        mockMvc.perform(get("/api/cashflow/projection"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.projectedMonth").value("2026-10"))
                 .andExpect(jsonPath("$.projectedNetCashFlow").value(320000.00))
@@ -114,12 +120,11 @@ class CashFlowControllerTests {
 
     @Test
     void shouldReturnTrendProjectionWithInsufficientData() throws Exception {
-        UUID userId = UUID.randomUUID();
         CashFlowProjectionResponse response = CashFlowProjectionResponse.insufficientData(1);
 
-        when(cashFlowService.getTrendProjection(userId)).thenReturn(response);
+        when(cashFlowService.getTrendProjection(businessId)).thenReturn(response);
 
-        mockMvc.perform(get("/api/cashflow/{userId}/projection", userId))
+        mockMvc.perform(get("/api/cashflow/projection"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.projectedMonth").doesNotExist())
                 .andExpect(jsonPath("$.projectedNetCashFlow").doesNotExist())
@@ -130,10 +135,14 @@ class CashFlowControllerTests {
     }
 
     @Test
-    void shouldReturn400WhenUserIdIsMalformedForProjection() throws Exception {
-        mockMvc.perform(get("/api/cashflow/invalid-uuid-format/projection"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Invalid user ID format: invalid-uuid-format"));
+    void shouldRejectLegacyCashFlowWithUserIdUrl() throws Exception {
+        mockMvc.perform(get("/api/cashflow/{userId}", UUID.randomUUID()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectLegacyProjectionWithUserIdUrl() throws Exception {
+        mockMvc.perform(get("/api/cashflow/{userId}/projection", UUID.randomUUID()))
+                .andExpect(status().isNotFound());
     }
 }

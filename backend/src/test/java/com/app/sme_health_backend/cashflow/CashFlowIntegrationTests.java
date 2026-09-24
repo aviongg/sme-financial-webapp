@@ -1,13 +1,18 @@
 package com.app.sme_health_backend.cashflow;
 
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +20,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -35,8 +42,22 @@ class CashFlowIntegrationTests {
     @Autowired
     private com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
 
+    @MockitoBean
+    private BusinessAuthorizationService authService;
+
+    private UUID currentBusinessId;
+
+    @BeforeEach
+    void setUp() {
+        currentBusinessId = UUID.randomUUID();
+        when(authService.requirePermission(any(), any())).thenAnswer(inv ->
+                new BusinessAccessContext(currentBusinessId, currentBusinessId, MembershipRole.OWNER)
+        );
+    }
+
     private UUID createTestUserWithProfile() {
         UUID userId = UUID.randomUUID();
+        currentBusinessId = userId;
         businessRepository.save(new com.app.sme_health_backend.identity.entity.Business(userId, "ACTIVE"));
         BusinessProfile profile = new BusinessProfile();
         profile.setUserId(userId);
@@ -64,9 +85,9 @@ class CashFlowIntegrationTests {
 
     @Test
     void shouldReturnEmptyListWhenUserHasNoRecords() throws Exception {
-        UUID userId = UUID.randomUUID();
+        createTestUserWithProfile();
 
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
@@ -80,7 +101,7 @@ class CashFlowIntegrationTests {
         createRecord(userId, "2026-03", "120000", "80000", "130000");
         createRecord(userId, "2026-04", "135000", "90000", "160000");
 
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 // Ascending chronological order: 2026-03, 2026-04, 2026-05
@@ -115,7 +136,7 @@ class CashFlowIntegrationTests {
         createRecord(userId, "2026-07", "160000", "90000", "100000");
         createRecord(userId, "2026-08", "170000", "95000", "110000");
 
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 // Exactly 6 latest months
                 .andExpect(jsonPath("$.length()").value(6))
@@ -133,7 +154,7 @@ class CashFlowIntegrationTests {
 
         createRecord(userId, "2026-08", "100000", "0", "150000");
 
-        mockMvc.perform(get("/api/cashflow/{userId}", userId))
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].inflow").value(100000))
@@ -153,7 +174,8 @@ class CashFlowIntegrationTests {
         createRecord(userB, "2026-08", "999999", "888888", "777777");
 
         // Query user A
-        mockMvc.perform(get("/api/cashflow/{userId}", userA))
+        currentBusinessId = userA;
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].month").value("2026-07"))
@@ -162,7 +184,8 @@ class CashFlowIntegrationTests {
                 .andExpect(jsonPath("$[1].inflow").value(120000));
 
         // Query user B
-        mockMvc.perform(get("/api/cashflow/{userId}", userB))
+        currentBusinessId = userB;
+        mockMvc.perform(get("/api/cashflow"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].month").value("2026-08"))

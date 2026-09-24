@@ -113,7 +113,7 @@ class DocumentUploadServiceTests {
         doc.setProcessingStatus(DocumentStatus.failed);
         doc.setFailureReason("timeout");
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
         when(repository.save(doc)).thenReturn(doc);
 
         UploadedDocument retried = service.retryProcessing(userId, docId);
@@ -130,7 +130,7 @@ class DocumentUploadServiceTests {
         doc.setUserId(userId);
         doc.setProcessingStatus(DocumentStatus.confirmed);
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
 
         assertThrows(IllegalStateException.class, () -> service.retryProcessing(userId, docId));
     }
@@ -143,7 +143,7 @@ class DocumentUploadServiceTests {
         doc.setStoragePath("/storage/test.png");
         doc.setProcessingStatus(DocumentStatus.needs_review);
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
 
         service.deleteDraft(userId, docId);
 
@@ -158,7 +158,7 @@ class DocumentUploadServiceTests {
         doc.setUserId(userId);
         doc.setProcessingStatus(DocumentStatus.confirmed);
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
 
         assertThrows(IllegalStateException.class, () -> service.deleteDraft(userId, docId));
         verify(storageService, never()).delete(any());
@@ -188,7 +188,7 @@ class DocumentUploadServiceTests {
         doc.setProcessingStatus(DocumentStatus.processing);
         doc.setProcessingStartedAt(java.time.LocalDateTime.now().minusMinutes(1)); // 1 min ago (active < 5 min)
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.retryProcessing(userId, docId));
         assertTrue(ex.getMessage().contains("currently being processed"));
@@ -203,7 +203,7 @@ class DocumentUploadServiceTests {
         doc.setProcessingStatus(DocumentStatus.processing);
         doc.setProcessingStartedAt(java.time.LocalDateTime.now().minusMinutes(10)); // 10 min ago (stale > 5 min)
 
-        when(repository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
         when(repository.save(any(UploadedDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UploadedDocument retried = service.retryProcessing(userId, docId);

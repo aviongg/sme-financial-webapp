@@ -1,15 +1,20 @@
 package com.app.sme_health_backend.search;
 
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.search.controller.SearchController;
 import com.app.sme_health_backend.search.dto.SearchResultResponse;
 import com.app.sme_health_backend.search.service.SearchService;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
-import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,10 +23,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SearchController.class)
 @Import(GlobalExceptionHandler.class)
@@ -33,10 +41,21 @@ class SearchControllerTests {
     @MockitoBean
     private SearchService searchService;
 
+    @MockitoBean
+    private BusinessAuthorizationService authService;
+
+    private final UUID userId = UUID.randomUUID();
+    private final UUID businessId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+    }
+
     @Test
     @DisplayName("Matching query returns 200 with result list")
     void shouldReturn200WithResultsWhenQueryMatches() throws Exception {
-        UUID userId = UUID.randomUUID();
         SearchResultResponse item = new SearchResultResponse(
                 "res-1",
                 "August 2026 Monthly Record",
@@ -49,12 +68,12 @@ class SearchControllerTests {
                 "Official"
         );
 
-        when(searchService.search(eq(userId), eq("August"), eq("all")))
+        when(searchService.search(eq(businessId), eq("August"), eq("all")))
                 .thenReturn(List.of(item));
 
-        mockMvc.perform(get("/api/search/{userId}", userId)
-                        .param("q", "August")
-                        .param("type", "all"))
+        mockMvc.perform(post("/api/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"August\",\"type\":\"all\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value("res-1"))
@@ -68,14 +87,12 @@ class SearchControllerTests {
     @Test
     @DisplayName("Blank query returns 200 with empty array []")
     void shouldReturn200WithEmptyListWhenQueryIsBlank() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        when(searchService.search(eq(userId), eq(""), eq("all")))
+        when(searchService.search(eq(businessId), eq(""), eq("all")))
                 .thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/search/{userId}", userId)
-                        .param("q", "")
-                        .param("type", "all"))
+        mockMvc.perform(post("/api/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"\",\"type\":\"all\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
@@ -83,54 +100,21 @@ class SearchControllerTests {
     @Test
     @DisplayName("No matches returns 200 with empty array []")
     void shouldReturn200WithEmptyListWhenNoMatchesFound() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        when(searchService.search(eq(userId), eq("nonexistentterm123"), eq("all")))
+        when(searchService.search(eq(businessId), eq("nonexistentterm123"), eq("all")))
                 .thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/search/{userId}", userId)
-                        .param("q", "nonexistentterm123"))
+        mockMvc.perform(post("/api/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"nonexistentterm123\",\"type\":\"all\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
-    @DisplayName("Malformed UUID returns 400 Bad Request")
-    void shouldReturn400WhenUserIdIsMalformed() throws Exception {
-        mockMvc.perform(get("/api/search/{userId}", "invalid-uuid-format")
+    @DisplayName("Legacy GET /api/search/{userId} returns 404")
+    void shouldRejectLegacySearchWithUserIdUrl() throws Exception {
+        mockMvc.perform(get("/api/search/{userId}", UUID.randomUUID())
                         .param("q", "August"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("Invalid user ID format: invalid-uuid-format"));
-    }
-
-    @Test
-    @DisplayName("Missing business profile returns 404 Not Found")
-    void shouldReturn404WhenProfileNotFound() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        when(searchService.search(eq(userId), eq("August"), eq("all")))
-                .thenThrow(new ResourceNotFoundException("Business profile not found for user: " + userId));
-
-        mockMvc.perform(get("/api/search/{userId}", userId)
-                        .param("q", "August"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Business profile not found for user: " + userId));
-    }
-
-    @Test
-    @DisplayName("Passes type filter parameter correctly to service")
-    void shouldPassTypeFilterParameter() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        when(searchService.search(eq(userId), eq("cash"), eq("insight")))
-                .thenReturn(Collections.emptyList());
-
-        mockMvc.perform(get("/api/search/{userId}", userId)
-                        .param("q", "cash")
-                        .param("type", "insight"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isNotFound());
     }
 }

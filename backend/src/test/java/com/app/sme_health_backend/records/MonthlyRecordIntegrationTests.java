@@ -1,14 +1,19 @@
 package com.app.sme_health_backend.records;
 
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +24,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -40,8 +47,22 @@ class MonthlyRecordIntegrationTests {
     @Autowired
     private com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
 
+    @MockitoBean
+    private BusinessAuthorizationService authService;
+
+    private UUID currentBusinessId;
+
+    @BeforeEach
+    void setUp() {
+        currentBusinessId = UUID.randomUUID();
+        when(authService.requirePermission(any(), any())).thenAnswer(inv ->
+                new BusinessAccessContext(currentBusinessId, currentBusinessId, MembershipRole.OWNER)
+        );
+    }
+
     private UUID createTestUserWithProfile() {
         UUID userId = UUID.randomUUID();
+        currentBusinessId = userId;
         businessRepository.save(new com.app.sme_health_backend.identity.entity.Business(userId, "ACTIVE"));
         BusinessProfile profile = new BusinessProfile();
         profile.setUserId(userId);
@@ -59,7 +80,6 @@ class MonthlyRecordIntegrationTests {
 
         String payload = """
                 {
-                  "userId": "%s",
                   "month": "2026-07",
                   "cashInflow": 500000,
                   "cashOutflow": 200000,
@@ -69,13 +89,13 @@ class MonthlyRecordIntegrationTests {
                   "cashBalanceEom": 300000,
                   "financingType": "none"
                 }
-                """.formatted(userId);
+                """;
 
         mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.businessId").value(userId.toString()))
                 .andExpect(jsonPath("$.month").value("2026-07"))
                 .andExpect(jsonPath("$.cogs").doesNotExist());
 
@@ -89,7 +109,7 @@ class MonthlyRecordIntegrationTests {
         mockMvc.perform(get("/api/records/monthly/id/{id}", recordId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(recordId.toString()))
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.businessId").value(userId.toString()))
                 .andExpect(jsonPath("$.cogs").doesNotExist());
     }
 
@@ -100,7 +120,6 @@ class MonthlyRecordIntegrationTests {
         // 1. Initial submission
         String initialPayload = """
                 {
-                  "userId": "%s",
                   "month": "2026-05",
                   "cashInflow": 100000,
                   "cashOutflow": 40000,
@@ -110,7 +129,7 @@ class MonthlyRecordIntegrationTests {
                   "cashBalanceEom": 60000,
                   "financingType": "none"
                 }
-                """.formatted(userId);
+                """;
 
         mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -120,7 +139,6 @@ class MonthlyRecordIntegrationTests {
         // 2. Second submission for same (userId, month) - manual snapshot edit
         String updatedPayload = """
                 {
-                  "userId": "%s",
                   "month": "2026-05",
                   "cashInflow": 130000,
                   "cashOutflow": 50000,
@@ -130,7 +148,7 @@ class MonthlyRecordIntegrationTests {
                   "cashBalanceEom": 80000,
                   "financingType": "conventional"
                 }
-                """.formatted(userId);
+                """;
 
         mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -186,7 +204,6 @@ class MonthlyRecordIntegrationTests {
             // repayment cannot be calculated. Available weight = 0, scoring throws IllegalArgumentException: Insufficient financial data
             String payload = """
                     {
-                      "userId": "%s",
                       "month": "2026-08",
                       "cashInflow": 0,
                       "cashOutflow": 0,
@@ -195,7 +212,7 @@ class MonthlyRecordIntegrationTests {
                       "cashBalanceEom": 0,
                       "financingType": "none"
                     }
-                    """.formatted(userId);
+                    """;
 
             mockMvc.perform(post("/api/records/monthly")
                             .contentType(MediaType.APPLICATION_JSON)

@@ -126,7 +126,7 @@ class DashboardServiceTests {
         DashboardResponse response = dashboardService.getDashboard(userId);
 
         assertNotNull(response);
-        assertEquals(userId, response.getUserId());
+        assertEquals(userId, response.getBusinessId());
         assertNotNull(response.getProfile());
         assertNotNull(response.getScore());
         assertEquals("2026-08", response.getScore().getMonth());
@@ -165,7 +165,7 @@ class DashboardServiceTests {
         DashboardResponse response = dashboardService.getDashboard(userId);
 
         assertNotNull(response);
-        assertEquals(userId, response.getUserId());
+        assertEquals(userId, response.getBusinessId());
         assertNotNull(response.getProfile());
         assertNull(response.getScore());
         assertNull(response.getTopInsight());

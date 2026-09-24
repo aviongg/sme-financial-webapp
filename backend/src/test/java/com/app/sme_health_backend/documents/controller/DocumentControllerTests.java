@@ -1,9 +1,16 @@
 package com.app.sme_health_backend.documents.controller;
 
 import com.app.sme_health_backend.documents.entity.UploadedDocument;
+import com.app.sme_health_backend.documents.exception.DocumentAlreadyConfirmedException;
 import com.app.sme_health_backend.documents.exception.DocumentNotFoundException;
 import com.app.sme_health_backend.documents.processing.DocumentStatus;
+import com.app.sme_health_backend.documents.service.DocumentConfirmationService;
 import com.app.sme_health_backend.documents.service.DocumentUploadService;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -30,32 +37,40 @@ class DocumentControllerTests {
     private DocumentUploadService uploadService;
 
     @MockitoBean
-    private com.app.sme_health_backend.documents.service.DocumentConfirmationService confirmationService;
+    private DocumentConfirmationService confirmationService;
+
+    @MockitoBean
+    private BusinessAuthorizationService authService;
 
     private final UUID userId = UUID.randomUUID();
+    private final UUID businessId = UUID.randomUUID();
     private final UUID docId = UUID.randomUUID();
 
+    @BeforeEach
+    void setUp() {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+    }
 
     @Test
     void uploadSingleDocumentReturns201Created() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "receipt.png", "image/png", new byte[]{1, 2, 3});
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setUserId(userId);
+        doc.setUserId(businessId);
         doc.setFileUrl("http://localhost:8080/api/documents/" + docId + "/file");
         doc.setOriginalFilename("receipt.png");
         doc.setContentType("image/png");
         doc.setProcessingStatus(DocumentStatus.pending);
 
-        when(uploadService.uploadSingle(eq(userId), any(), eq("receipt"))).thenReturn(doc);
+        when(uploadService.uploadSingle(eq(businessId), any(), eq("receipt"))).thenReturn(doc);
 
         mockMvc.perform(multipart("/api/documents/upload")
                         .file(file)
-                        .param("userId", userId.toString())
                         .param("documentTypeHint", "receipt"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(docId.toString()))
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.businessId").value(businessId.toString()))
                 .andExpect(jsonPath("$.processingStatus").value("pending"))
                 .andExpect(jsonPath("$.originalFilename").value("receipt.png"));
     }
@@ -67,20 +82,19 @@ class DocumentControllerTests {
 
         UploadedDocument doc1 = new UploadedDocument();
         doc1.setId(UUID.randomUUID());
-        doc1.setUserId(userId);
+        doc1.setUserId(businessId);
         doc1.setProcessingStatus(DocumentStatus.pending);
 
         UploadedDocument doc2 = new UploadedDocument();
         doc2.setId(UUID.randomUUID());
-        doc2.setUserId(userId);
+        doc2.setUserId(businessId);
         doc2.setProcessingStatus(DocumentStatus.pending);
 
-        when(uploadService.uploadBulk(eq(userId), anyList(), any())).thenReturn(List.of(doc1, doc2));
+        when(uploadService.uploadBulk(eq(businessId), anyList(), any())).thenReturn(List.of(doc1, doc2));
 
         mockMvc.perform(multipart("/api/documents/bulk")
                         .file(file1)
-                        .file(file2)
-                        .param("userId", userId.toString()))
+                        .file(file2))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.documents.length()").value(2));
@@ -90,27 +104,26 @@ class DocumentControllerTests {
     void getDocumentReturns200WithDraftDetails() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setUserId(userId);
+        doc.setUserId(businessId);
         doc.setProcessingStatus(DocumentStatus.extracted);
         doc.setExtractedData("{\"date\":\"2026-09-10\",\"amount\":1500.00}");
 
-        when(uploadService.getDocument(userId, docId)).thenReturn(doc);
+        when(uploadService.getDocument(businessId, docId)).thenReturn(doc);
 
-        mockMvc.perform(get("/api/documents/{id}", docId)
-                        .param("userId", userId.toString()))
+        mockMvc.perform(get("/api/documents/{id}", docId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(docId.toString()))
+                .andExpect(jsonPath("$.businessId").value(businessId.toString()))
                 .andExpect(jsonPath("$.processingStatus").value("extracted"))
                 .andExpect(jsonPath("$.extractedData").isNotEmpty());
     }
 
     @Test
     void getDocumentReturns404WhenNotFound() throws Exception {
-        when(uploadService.getDocument(userId, docId))
+        when(uploadService.getDocument(businessId, docId))
                 .thenThrow(new DocumentNotFoundException("Document not found"));
 
-        mockMvc.perform(get("/api/documents/{id}", docId)
-                        .param("userId", userId.toString()))
+        mockMvc.perform(get("/api/documents/{id}", docId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("not_found"));
     }
@@ -119,22 +132,22 @@ class DocumentControllerTests {
     void getDocumentFileReturnsBytesWithCorrectContentType() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
+        doc.setUserId(businessId);
         doc.setContentType("image/png");
         doc.setOriginalFilename("test.png");
 
         byte[] fakeBytes = new byte[]{1, 2, 3, 4};
-        when(uploadService.getDocument(userId, docId)).thenReturn(doc);
-        when(uploadService.getDocumentBytes(userId, docId)).thenReturn(fakeBytes);
+        when(uploadService.getDocument(businessId, docId)).thenReturn(doc);
+        when(uploadService.getDocumentBytes(businessId, docId)).thenReturn(fakeBytes);
 
-        mockMvc.perform(get("/api/documents/{id}/file", docId)
-                        .param("userId", userId.toString()))
+        mockMvc.perform(get("/api/documents/{id}/file", docId))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_PNG))
                 .andExpect(content().bytes(fakeBytes));
     }
 
     @Test
-    void getDocumentFileInternalServiceWithoutUserIdSucceeds() throws Exception {
+    void getDocumentFileInternalServiceWithoutSessionSucceeds() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
         doc.setContentType("image/png");
@@ -153,49 +166,41 @@ class DocumentControllerTests {
     }
 
     @Test
-    void getDocumentFileMissingUserIdThrowsValidationException() throws Exception {
-        mockMvc.perform(get("/api/documents/{id}/file", docId))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void retryProcessingReturns202Accepted() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setUserId(userId);
+        doc.setUserId(businessId);
         doc.setProcessingStatus(DocumentStatus.pending);
 
-        when(uploadService.retryProcessing(userId, docId)).thenReturn(doc);
+        when(uploadService.retryProcessing(businessId, docId)).thenReturn(doc);
 
-        mockMvc.perform(post("/api/documents/{id}/retry", docId)
-                        .param("userId", userId.toString()))
+        mockMvc.perform(post("/api/documents/{id}/retry", docId))
                 .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(docId.toString()))
                 .andExpect(jsonPath("$.processingStatus").value("pending"));
     }
 
     @Test
     void deleteDraftReturns204NoContent() throws Exception {
-        doNothing().when(uploadService).deleteDraft(userId, docId);
+        doNothing().when(uploadService).deleteDraft(businessId, docId);
 
-        mockMvc.perform(delete("/api/documents/{id}", docId)
-                        .param("userId", userId.toString()))
+        mockMvc.perform(delete("/api/documents/{id}", docId))
                 .andExpect(status().isNoContent());
 
-        verify(uploadService).deleteDraft(userId, docId);
+        verify(uploadService).deleteDraft(businessId, docId);
     }
 
     @Test
     void updateDraftReturns200WithUpdatedDraft() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setUserId(userId);
+        doc.setUserId(businessId);
         doc.setProcessingStatus(DocumentStatus.extracted);
         doc.setExtractedData("{\"date\":\"2026-03-15\",\"amount\":12000.00}");
 
-        when(uploadService.updateDraft(eq(userId), eq(docId), any())).thenReturn(doc);
+        when(uploadService.updateDraft(eq(businessId), eq(docId), any())).thenReturn(doc);
 
         mockMvc.perform(patch("/api/documents/{id}", docId)
-                        .param("userId", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":12000.00,\"vendorOrParty\":\"Al-Madina\",\"category\":\"expense\"}"))
                 .andExpect(status().isOk())
@@ -207,14 +212,13 @@ class DocumentControllerTests {
     void confirmDocumentReturns200WithConfirmedStatus() throws Exception {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setUserId(userId);
+        doc.setUserId(businessId);
         doc.setProcessingStatus(DocumentStatus.confirmed);
         doc.setLinkedMonth("2026-03");
 
-        when(confirmationService.confirmDocument(eq(userId), eq(docId), any())).thenReturn(doc);
+        when(confirmationService.confirmDocument(eq(businessId), eq(docId), any())).thenReturn(doc);
 
         mockMvc.perform(post("/api/documents/{id}/confirm", docId)
-                        .param("userId", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":12000.00,\"targetClassification\":\"operating_expenses\",\"cashFlowImpact\":\"cash_outflow\"}"))
                 .andExpect(status().isOk())
@@ -225,11 +229,10 @@ class DocumentControllerTests {
 
     @Test
     void confirmDuplicateDocumentReturns409Conflict() throws Exception {
-        when(confirmationService.confirmDocument(eq(userId), eq(docId), any()))
-                .thenThrow(new com.app.sme_health_backend.documents.exception.DocumentAlreadyConfirmedException("Already confirmed"));
+        when(confirmationService.confirmDocument(eq(businessId), eq(docId), any()))
+                .thenThrow(new DocumentAlreadyConfirmedException("Already confirmed"));
 
         mockMvc.perform(post("/api/documents/{id}/confirm", docId)
-                        .param("userId", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":12000.00,\"targetClassification\":\"operating_expenses\",\"cashFlowImpact\":\"cash_outflow\"}"))
                 .andExpect(status().isConflict())

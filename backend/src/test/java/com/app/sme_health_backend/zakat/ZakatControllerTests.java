@@ -1,5 +1,9 @@
 package com.app.sme_health_backend.zakat;
 
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
+import com.app.sme_health_backend.identity.model.BusinessPermission;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
@@ -7,6 +11,7 @@ import com.app.sme_health_backend.zakat.controller.ZakatController;
 import com.app.sme_health_backend.zakat.controller.ZakatExceptionHandler;
 import com.app.sme_health_backend.zakat.service.ZakatCalculationService;
 import com.app.sme_health_backend.zakat.service.ZakatService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -22,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -34,6 +40,9 @@ class ZakatControllerTests {
 
     @MockitoBean
     private MonthlyRecordRepository repository;
+
+    @MockitoBean
+    private BusinessAuthorizationService authService;
 
     private static final UUID USER_ID = UUID.fromString("a8fa09ed-7e46-4b50-94ea-91bebfa5d772");
     private static final String ASSESSMENT = """
@@ -70,6 +79,12 @@ class ZakatControllerTests {
             }
             """.formatted(ASSESSMENT);
 
+    @BeforeEach
+    void setUp() {
+        BusinessAccessContext context = new BusinessAccessContext(USER_ID, USER_ID, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+    }
+
     @Test
     void manualEndpointIntegratesSerializationValidationAndRealCalculation() throws Exception {
         mvc.perform(post("/api/zakat/preview").contentType(MediaType.APPLICATION_JSON).content(MANUAL_REQUEST))
@@ -89,11 +104,12 @@ class ZakatControllerTests {
     void savedEndpointUsesUuidAndReturnsSourceWithoutWriting() throws Exception {
         MonthlyRecord record = zeroRecord();
         when(repository.findByUserIdAndMonth(USER_ID, "2026-09")).thenReturn(Optional.of(record));
-        mvc.perform(post("/api/zakat/{userId}/{month}/preview", USER_ID, "2026-09")
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"assessment\":" + ASSESSMENT + "}"))
+        mvc.perform(post("/api/zakat/monthly/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"month\":\"2026-09\",\"assessment\":" + ASSESSMENT + "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zakatDue").value(2500))
-                .andExpect(jsonPath("$.source.userId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.source.businessId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.source.balancesDate").value("2026-09-30"));
         verify(repository).findByUserIdAndMonth(USER_ID, "2026-09");
         verifyNoMoreInteractions(repository);
@@ -164,18 +180,11 @@ class ZakatControllerTests {
     }
 
     @Test
-    void invalidUuidAndMonthAreBadRequests() throws Exception {
-        mvc.perform(post("/api/zakat/not-a-uuid/2026-09/preview").contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/zakat/{userId}/2026-13/preview", USER_ID).contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest());
-        verifyNoInteractions(repository);
-    }
-
-    @Test
     void missingRecordReturnsNotFound() throws Exception {
         when(repository.findByUserIdAndMonth(USER_ID, "2026-09")).thenReturn(Optional.empty());
-        mvc.perform(post("/api/zakat/{userId}/2026-09/preview", USER_ID).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mvc.perform(post("/api/zakat/monthly/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"month\":\"2026-09\",\"assessment\":" + ASSESSMENT + "}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -184,9 +193,19 @@ class ZakatControllerTests {
     void unexpectedRepositoryFailureUsesExistingGenericErrorResponse() throws Exception {
         when(repository.findByUserIdAndMonth(USER_ID, "2026-09"))
                 .thenThrow(new IllegalStateException("Database detail must not be exposed"));
-        mvc.perform(post("/api/zakat/{userId}/2026-09/preview", USER_ID).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mvc.perform(post("/api/zakat/monthly/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"month\":\"2026-09\",\"assessment\":" + ASSESSMENT + "}"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("An unexpected error occurred"));
+    }
+
+    @Test
+    void shouldRejectLegacyPostZakatWithUserIdAndMonthUrl() throws Exception {
+        mvc.perform(post("/api/zakat/{userId}/{month}/preview", USER_ID, "2026-09")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assessment\":" + ASSESSMENT + "}"))
+                .andExpect(status().isNotFound());
     }
 
     private MonthlyRecord zeroRecord() {

@@ -72,7 +72,7 @@ class BusinessProfileServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         BusinessProfile result =
-                businessProfileService.createProfile(request);
+                businessProfileService.createProfile(userId, request);
 
         assertNotNull(result);
         assertEquals(userId, result.getUserId());
@@ -94,7 +94,7 @@ class BusinessProfileServiceTests {
         DuplicateResourceException exception =
                 assertThrows(
                         DuplicateResourceException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -152,7 +152,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -174,7 +174,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -200,7 +200,7 @@ class BusinessProfileServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         BusinessProfile result =
-                businessProfileService.createProfile(request);
+                businessProfileService.createProfile(userId, request);
 
         assertNotNull(result);
         assertTrue(result.isWhatsappOptIn());
@@ -213,16 +213,15 @@ class BusinessProfileServiceTests {
     @Test
     void shouldRejectNullUserId() {
         BusinessProfileRequest request = validRequest();
-        request.setUserId(null);
 
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(null, request)
                 );
 
         assertEquals(
-                "User ID is required",
+                "Business ID is required",
                 exception.getMessage()
         );
 
@@ -234,7 +233,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(null)
+                        () -> businessProfileService.createProfile(userId, null)
                 );
 
         assertEquals(
@@ -272,7 +271,7 @@ class BusinessProfileServiceTests {
         when(businessProfileRepository.save(any(BusinessProfile.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        BusinessProfile result = businessProfileService.createProfile(request);
+        BusinessProfile result = businessProfileService.createProfile(userId, request);
 
         assertNotNull(result);
         assertEquals("immediate", result.getPaymentBehavior());
@@ -333,7 +332,6 @@ class BusinessProfileServiceTests {
         BusinessProfileRequest request =
                 new BusinessProfileRequest();
 
-        request.setUserId(userId);
         request.setBusinessType("retail");
         request.setLanguagePreference("en");
         request.setWhatsappNumber(null);
