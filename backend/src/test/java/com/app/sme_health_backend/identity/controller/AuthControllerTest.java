@@ -4,7 +4,10 @@ import com.app.sme_health_backend.identity.dto.LoginRequest;
 import com.app.sme_health_backend.identity.dto.RegisterRequest;
 import com.app.sme_health_backend.identity.dto.UserResponse;
 import com.app.sme_health_backend.identity.model.AccountStatus;
+import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.identity.service.AuthenticationService;
+import com.app.sme_health_backend.identity.credential.service.PasswordResetService;
+import com.app.sme_health_backend.mfa.service.MfaService;
 import com.app.sme_health_backend.security.test.WithMockAppUser;
 import com.app.sme_health_backend.shared.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +39,15 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthenticationService authenticationService;
+
+    @MockitoBean
+    private PasswordResetService passwordResetService;
+
+    @MockitoBean
+    private MfaService mfaService;
+
+    @MockitoBean
+    private AppUserRepository userRepository;
 
     @Test
     @DisplayName("GET /api/auth/csrf returns CSRF token with header and parameter names")
