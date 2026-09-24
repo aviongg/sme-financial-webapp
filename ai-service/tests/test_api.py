@@ -21,14 +21,20 @@ def sample_png():
     return buf.getvalue()
 
 
-def client_for(result=EVIDENCE, settings=None):
+def client_for(result=EVIDENCE, settings=None, inspector=None, real_inspector=False):
     provider = Mock()
     provider.extract.return_value = result
     sleep = Mock()
-    inspector = Mock(return_value=OcrDocument(b"fixture", "image/png"))
+    from app.documents import inspect_document
+    if real_inspector:
+        insp = inspect_document
+    elif inspector is not None:
+        insp = inspector
+    else:
+        insp = Mock(return_value=OcrDocument(b"fixture", "image/png"))
     config = settings if settings is not None else Settings(ocr_service_key=SECRET)
-    app = create_app(config, provider=provider, sleep=sleep, inspector=inspector)
-    return TestClient(app, raise_server_exceptions=False), provider, inspector, sleep
+    app = create_app(config, provider=provider, sleep=sleep, inspector=insp)
+    return TestClient(app, raise_server_exceptions=False), provider, insp, sleep
 
 
 def test_multipart_draft_extraction_success():
@@ -353,3 +359,46 @@ def test_temp_file_cleaned_up_on_both_success_and_error():
         headers=AUTH_HEADERS,
     )
     assert response_fail.status_code == 422
+
+
+def test_extract_oversized_upload_rejected_without_processing():
+    settings = Settings(ocr_service_key=SECRET, max_document_bytes=100)
+    client, provider, inspector, _ = client_for(settings=settings)
+    oversized_content = b"x" * 101
+    response = client.post(
+        "/extract",
+        files={"file": ("too_large.png", oversized_content, "image/png")},
+        data={"document_type_hint": "invoice"},
+        headers=AUTH_HEADERS,
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "payload_too_large"
+    provider.extract.assert_not_called()
+    inspector.assert_not_called()
+
+
+def test_extract_pdf_5_pages_accepted():
+    from tests.test_documents import pdf
+    client, provider, _, _ = client_for(real_inspector=True)
+    response = client.post(
+        "/extract",
+        files={"file": ("valid_5_pages.pdf", pdf(5), "application/pdf")},
+        data={"document_type_hint": "invoice"},
+        headers=AUTH_HEADERS,
+    )
+    assert response.status_code == 200
+
+
+def test_extract_pdf_6_pages_rejected():
+    from tests.test_documents import pdf
+    client, provider, _, _ = client_for(real_inspector=True)
+    response = client.post(
+        "/extract",
+        files={"file": ("invalid_6_pages.pdf", pdf(6), "application/pdf")},
+        data={"document_type_hint": "invoice"},
+        headers=AUTH_HEADERS,
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_document"
+    assert "page count" in response.json()["error"]["message"]
+    provider.extract.assert_not_called()

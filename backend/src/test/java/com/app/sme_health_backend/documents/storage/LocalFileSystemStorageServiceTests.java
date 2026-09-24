@@ -3,16 +3,20 @@ package com.app.sme_health_backend.documents.storage;
 import com.app.sme_health_backend.documents.exception.DocumentNotFoundException;
 import com.app.sme_health_backend.documents.exception.DocumentStorageException;
 import com.app.sme_health_backend.documents.exception.DocumentValidationException;
+import com.app.sme_health_backend.documents.exception.StorageCollisionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -155,5 +159,87 @@ class LocalFileSystemStorageServiceTests {
         UUID docId = UUID.randomUUID();
         String url = storageService.resolveFileUrl(docId);
         assertEquals("http://localhost:8080/api/documents/" + docId + "/file", url);
+    }
+
+    @Test
+    void existingTargetIsNeverOverwrittenAndThrowsCollisionException() throws Exception {
+        byte[] original = "ORIGINAL_DOCUMENT_CONTENT".getBytes();
+        String yearMonth = java.time.YearMonth.now().toString();
+        Path userDir = tempDir.resolve(userId.toString()).resolve(yearMonth);
+        Files.createDirectories(userDir);
+
+        // Pre-create target file
+        String collisionFilename = UUID.randomUUID() + ".png";
+        Path targetFile = userDir.resolve(collisionFilename);
+        Files.write(targetFile, original);
+
+        // Subclass that returns the colliding filename
+        LocalFileSystemStorageService collidingStorage = new LocalFileSystemStorageService(
+                tempDir.toString(),
+                "http://localhost:8080",
+                validator
+        ) {
+            @Override
+            public StoredFile store(UUID uid, MultipartFile f) {
+                // Same logic as parent but uses collisionFilename
+                try {
+                    String detectedMime = validator.validateAndDetectMimeType(f);
+                    Path destination = userDir.resolve(collisionFilename).normalize();
+                    if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                        throw new StorageCollisionException("Storage collision detected for filename: " + collisionFilename);
+                    }
+                    Path tempFile = userDir.resolve(collisionFilename + ".tmp." + UUID.randomUUID()).normalize();
+                    try (InputStream is = f.getInputStream()) {
+                        Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    try {
+                        Files.move(tempFile, destination, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (AtomicMoveNotSupportedException e) {
+                        Files.move(tempFile, destination);
+                    } finally {
+                        Files.deleteIfExists(tempFile);
+                    }
+                    return new StoredFile(uid + "/" + yearMonth + "/" + collisionFilename, f.getOriginalFilename(), detectedMime, f.getSize());
+                } catch (StorageCollisionException e) {
+                    throw e;
+                } catch (java.io.IOException e) {
+                    throw new DocumentStorageException("Failed: " + e.getMessage(), e);
+                }
+            }
+        };
+
+        byte[] newBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00};
+        MockMultipartFile newFile = new MockMultipartFile("file", "new.png", "image/png", newBytes);
+
+        assertThrows(StorageCollisionException.class, () -> collidingStorage.store(userId, newFile));
+
+        // CRITICAL: verify original content was never overwritten
+        assertArrayEquals(original, Files.readAllBytes(targetFile), "Existing target must never be overwritten on collision");
+    }
+
+    @Test
+    void symlinkEscapeOutsideStorageRootIsPrevented(@TempDir Path outsideDir) throws Exception {
+        Path outsideSecret = outsideDir.resolve("secret.txt");
+        Files.writeString(outsideSecret, "TOP_SECRET_DATA");
+
+        Path symlinkInStorage = tempDir.resolve("evil_link.txt");
+        boolean symlinkCreated = false;
+        try {
+            Files.createSymbolicLink(symlinkInStorage, outsideSecret);
+            symlinkCreated = true;
+        } catch (UnsupportedOperationException | java.nio.file.FileSystemException e) {
+            // Windows unprivileged environment without developer mode
+        }
+
+        org.junit.jupiter.api.Assumptions.assumeTrue(symlinkCreated, "Skipping symlink test: OS environment does not permit symlink creation without elevated privileges");
+
+        // Verify symlink access is blocked
+        assertThrows(DocumentStorageException.class, () -> storageService.loadBytes("evil_link.txt"));
+        assertThrows(DocumentStorageException.class, () -> storageService.loadStream("evil_link.txt"));
+        assertFalse(storageService.exists("evil_link.txt"), "Symlink pointing outside root must not report existing");
+
+        // Deleting via symlink must not delete target
+        assertDoesNotThrow(() -> storageService.delete("evil_link.txt"));
+        assertTrue(Files.exists(outsideSecret), "External target must not be deleted through symlink");
     }
 }

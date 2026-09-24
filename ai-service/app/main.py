@@ -80,7 +80,20 @@ def create_app(settings: Settings | None = None, *, provider: OcrProvider | None
     ):
         verify_ocr_service_key(request)
         try:
-            content = await file.read()
+            max_allowed = request.app.state.settings.max_document_bytes
+            chunk_size = 64 * 1024
+            buffer = bytearray()
+            while True:
+                remaining = (max_allowed + 1) - len(buffer)
+                read_len = min(chunk_size, remaining)
+                chunk = await file.read(read_len)
+                if not chunk:
+                    break
+                buffer.extend(chunk)
+                if len(buffer) > max_allowed:
+                    raise OcrError("payload_too_large", f"Document exceeds maximum allowed size of {max_allowed} bytes", 413)
+
+            content = bytes(buffer)
             return service.extract(content, document_type_hint=document_type_hint, document_id=document_id)
         finally:
             await file.close()
