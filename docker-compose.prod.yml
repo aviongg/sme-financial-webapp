@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: finsight-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sme_health
+      POSTGRES_USER: finsight_dba
+    # NO port mapping in production - strictly isolated to internal database network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./certs/postgres-server.crt:/var/lib/postgresql/certs/postgres-server.crt:ro
+      - ./certs/postgres-server.key:/var/lib/postgresql/certs/postgres-server.key:ro
+      - ./docker/postgres/pg_hba.prod.conf:/var/lib/postgresql/data/pg_hba.conf:ro
+    networks:
+      finsight-db-net:
+        aliases:
+          - postgres.finsight.internal
+          - postgres
+
+  backend-migration:
+    image: finsight-backend:latest
+    container_name: finsight-migration-job
+    profiles: ["migration"]
+    environment:
+      SPRING_PROFILES_ACTIVE: migrate,prod
+      DB_HOST: postgres.finsight.internal
+      DB_PORT: 5432
+      DB_NAME: sme_health
+      DB_SSL_ROOT_CERT: /etc/finsight/certs/postgres-ca.crt
+    secrets:
+      - migrator_db_password
+    volumes:
+      - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+    networks:
+      - finsight-db-net
+    depends_on:
+      - postgres
+
+  backend-runtime:
+    image: finsight-backend:latest
+    container_name: finsight-backend-runtime
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres.finsight.internal
+      DB_PORT: 5432
+      DB_NAME: sme_health
+      DB_SSL_ROOT_CERT: /etc/finsight/certs/postgres-ca.crt
+      FINSIGHT_CRYPTO_ACTIVE_KEY_ID: k1
+    secrets:
+      - app_db_password
+      - crypto_key_k1
+    volumes:
+      - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+    networks:
+      - finsight-db-net
+      - finsight-app-net
+    depends_on:
+      - postgres
+
+secrets:
+  migrator_db_password:
+    file: ./secrets/migrator_db_password
+  app_db_password:
+    file: ./secrets/app_db_password
+  crypto_key_k1:
+    file: ./secrets/crypto_key_k1
+
+volumes:
+  postgres_data:
+
+networks:
+  finsight-db-net:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.10.0/24
+  finsight-app-net:
+    driver: bridge

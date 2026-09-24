@@ -4,13 +4,29 @@ services:
     container_name: sme-health-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sme_health}
+      POSTGRES_USER: ${POSTGRES_USER:-sme_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sme_password}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      # Bound strictly to loopback interface - never 0.0.0.0
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./certs/postgres-server.crt:/var/lib/postgresql/certs/postgres-server.crt:ro
+      - ./certs/postgres-server.key:/var/lib/postgresql/certs/postgres-server.key:ro
+    networks:
+      finsight-db-net:
+        aliases:
+          - postgres.finsight.internal
+          - postgres
 
 volumes:
   postgres_data:
+
+networks:
+  finsight-db-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.10.0/24
