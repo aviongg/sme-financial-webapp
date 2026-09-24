@@ -47,6 +47,14 @@ class Settings:
             return tuple(v.strip() for v in env.get(name, default).split(",") if v.strip())
 
         secret = env.get("OCR_SERVICE_SECRET") or env.get("INTERNAL_SERVICE_SECRET", "")
+        if not secret:
+            secret_file = env.get("OCR_SERVICE_SECRET_FILE", "/run/secrets/ocr_service_key")
+            if os.path.isfile(secret_file):
+                try:
+                    with open(secret_file, "r", encoding="utf-8") as f:
+                        secret = f.read().strip()
+                except Exception:
+                    pass
         return cls(
             provider=env.get("OCR_PROVIDER", "google-cloud-vision"),
             allowed_image_hosts=tuple(h.lower().rstrip(".") for h in csv("OCR_ALLOWED_IMAGE_HOSTS")),

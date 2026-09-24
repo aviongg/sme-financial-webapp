@@ -70,6 +70,10 @@ def create_app(settings: Settings | None = None, *, provider: OcrProvider | None
             "code": "processing_failed", "message": "Document processing failed",
         }})
 
+    @api.get("/health")
+    async def health():
+        return {"status": "ok"}
+
     @api.post("/extract", response_model=ExtractResponse)
     async def extract(
         request: Request,

@@ -46,6 +46,15 @@ public record OcrClientSettings(
         String secret = environment.getProperty("OCR_SERVICE_SECRET",
                 environment.getProperty("INTERNAL_SERVICE_SECRET",
                         environment.getProperty("app.security.internal-service-secret", "")));
+        if (secret == null || secret.isBlank()) {
+            java.nio.file.Path secretPath = java.nio.file.Paths.get("/run/secrets/ocr_service_key");
+            if (java.nio.file.Files.exists(secretPath)) {
+                try {
+                    secret = java.nio.file.Files.readString(secretPath, java.nio.charset.StandardCharsets.UTF_8).trim();
+                } catch (java.io.IOException ignored) {
+                }
+            }
+        }
         new OcrClientSettings(service, connect, request, limit, secret);
         return new OcrClientSettings(URI.create(base.replaceAll("/+$", "") + "/extract"), connect, request, limit, secret);
     }
