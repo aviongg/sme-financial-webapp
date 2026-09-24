@@ -28,6 +28,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -231,5 +236,115 @@ public class CredentialLifecycleIT {
                         .content(objectMapper.writeValueAsString(new LoginRequest(email, resetPassword))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authStage").value("FULLY_AUTHENTICATED"));
+    }
+
+    @Test
+    @DisplayName("Concurrent password reset confirmation: exactly one succeeds and second is rejected")
+    void testConcurrentPasswordResetConfirmation() throws Exception {
+        String email = "reset-concur-" + UUID.randomUUID() + "@example.com";
+        String oldPassword = "old-password-123";
+
+        AppUser user = new AppUser();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(oldPassword));
+        user.setFullName("Concurrent Reset User");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setMustChangePassword(false);
+        user.setAuthVersion(0L);
+        userRepository.saveAndFlush(user);
+
+        // Request reset
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new PasswordResetRequest(email))))
+                .andExpect(status().isOk());
+
+        String rawToken = resetNotifier.getLastDeliveredRawToken(email);
+        assertNotNull(rawToken);
+
+        int threads = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failureCount = new AtomicInteger(0);
+
+        for (int i = 0; i < threads; i++) {
+            final String newPassword = "new-password-" + i + "-!xyz";
+            executor.submit(() -> {
+                try {
+                    latch.await();
+                    MvcResult result = mockMvc.perform(post("/api/auth/password-reset/confirm")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(new PasswordResetConfirmRequest(rawToken, newPassword))))
+                            .andReturn();
+                    if (result.getResponse().getStatus() == 200) {
+                        successCount.incrementAndGet();
+                    } else if (result.getResponse().getStatus() == 400) {
+                        failureCount.incrementAndGet();
+                    }
+                } catch (Exception ignored) {
+                }
+            });
+        }
+
+        latch.countDown();
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        // Exactly one thread succeeds in claiming the token
+        assertEquals(1, successCount.get(), "Exactly one concurrent confirmation must succeed");
+        assertEquals(threads - 1, failureCount.get(), "Remaining concurrent confirmations must be rejected with 400");
+    }
+
+    @Test
+    @DisplayName("Session-bound mutations require CSRF token whereas reset request is narrow exception")
+    void testSessionBoundMutationsRequireCsrf() throws Exception {
+        String email = "csrf-audit-" + UUID.randomUUID() + "@example.com";
+        String password = "audit-password-123";
+
+        AppUser user = new AppUser();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setFullName("CSRF Audit User");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setMustChangePassword(false);
+        user.setAuthVersion(0L);
+        userRepository.saveAndFlush(user);
+
+        // Login to acquire session cookie
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, password))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        jakarta.servlet.http.Cookie sessionCookie = loginResult.getResponse().getCookie("FINSIGHT_SESSION");
+        assertNotNull(sessionCookie);
+
+        // 1. POST /api/auth/change-password without CSRF -> 403 Forbidden
+        mockMvc.perform(post("/api/auth/change-password")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ChangePasswordRequest(password, "new-pass-123!456"))))
+                .andExpect(status().isForbidden());
+
+        // 2. POST /api/auth/mfa/enroll/initiate without CSRF -> 403 Forbidden
+        mockMvc.perform(post("/api/auth/mfa/enroll/initiate")
+                        .cookie(sessionCookie))
+                .andExpect(status().isForbidden());
+
+        // 3. POST /api/auth/mfa/disable without CSRF -> 403 Forbidden
+        mockMvc.perform(post("/api/auth/mfa/disable")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"" + password + "\",\"verificationCode\":\"123456\"}"))
+                .andExpect(status().isForbidden());
+
+        // 4. Narrow unauthenticated exception: POST /api/auth/password-reset/request works WITHOUT CSRF
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new PasswordResetRequest(email))))
+                .andExpect(status().isOk());
     }
 }

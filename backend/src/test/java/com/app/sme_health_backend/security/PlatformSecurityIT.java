@@ -11,6 +11,10 @@ import com.app.sme_health_backend.identity.model.MembershipStatus;
 import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.identity.repository.BusinessMembershipRepository;
 import com.app.sme_health_backend.identity.repository.BusinessRepository;
+import com.app.sme_health_backend.mfa.repository.UserMfaRecoveryCodeRepository;
+import com.app.sme_health_backend.mfa.repository.UserMfaRepository;
+import com.app.sme_health_backend.mfa.service.MfaService;
+import com.app.sme_health_backend.mfa.service.TotpEngine;
 import com.app.sme_health_backend.platform.cli.PlatformAdminOperatorService;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -65,6 +69,18 @@ public class PlatformSecurityIT {
 
     @Autowired
     private PlatformAdminOperatorService operatorService;
+
+    @Autowired
+    private UserMfaRepository userMfaRepository;
+
+    @Autowired
+    private UserMfaRecoveryCodeRepository recoveryCodeRepository;
+
+    @Autowired
+    private MfaService mfaService;
+
+    @Autowired
+    private TotpEngine totpEngine;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -217,5 +233,149 @@ public class PlatformSecurityIT {
         // Platform admin cannot access tenant endpoints
         mockMvc.perform(get("/api/businesses/active").cookie(sessionCookie))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Operator MFA reset deletes MFA, recovery codes, sets must_change_password, increments auth_version, and revokes sessions")
+    void testOperatorMfaResetLifecycle() throws Exception {
+        String email = "op-reset-mfa-" + UUID.randomUUID() + "@example.com";
+        String password = "admin-password-123";
+
+        AppUser admin = new AppUser();
+        admin.setEmail(email);
+        admin.setPasswordHash(passwordEncoder.encode(password));
+        admin.setFullName("MFA Reset Admin");
+        admin.setAccountStatus(AccountStatus.ACTIVE);
+        admin.setMustChangePassword(false);
+        admin.setPlatformRole("PLATFORM_ADMIN");
+        admin.setAuthVersion(0L);
+        AppUser savedAdmin = userRepository.saveAndFlush(admin);
+
+        // Enroll MFA
+        String secret = mfaService.initiateEnrollment(savedAdmin.getId()).secret();
+        String code = totpEngine.generateCode(secret);
+        mfaService.confirmEnrollment(savedAdmin.getId(), password, code);
+
+        assertTrue(userMfaRepository.findByUserId(savedAdmin.getId()).isPresent());
+        assertEquals(10, recoveryCodeRepository.findByUserId(savedAdmin.getId()).size());
+
+        // Perform login: step 1 returns MFA_CHALLENGE_REQUIRED
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, password))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authStage").value("MFA_CHALLENGE_REQUIRED"))
+                .andReturn();
+
+        jakarta.servlet.http.Cookie preAuthCookie = loginResult.getResponse().getCookie("FINSIGHT_SESSION");
+        assertNotNull(preAuthCookie);
+
+        // Step 2: Challenge with TOTP code
+        long timestep = System.currentTimeMillis() / 1000L / 30L;
+        String challengeCode = totpEngine.generateCode(secret, timestep + 1);
+        MvcResult challengeResult = mockMvc.perform(post("/api/auth/mfa/challenge")
+                        .cookie(preAuthCookie)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"" + challengeCode + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authStage").value("FULLY_AUTHENTICATED"))
+                .andReturn();
+
+        jakarta.servlet.http.Cookie fullSessionCookie = challengeResult.getResponse().getCookie("FINSIGHT_SESSION");
+        if (fullSessionCookie == null) {
+            fullSessionCookie = preAuthCookie;
+        }
+
+        // Session can access platform API
+        mockMvc.perform(get("/api/platform/audit-events").cookie(fullSessionCookie))
+                .andExpect(status().isOk());
+
+        // Operator resets MFA
+        try (Connection opConn = createConnection(MIGRATOR_USER, MIGRATOR_PASSWORD)) {
+            operatorService.resetPlatformAdminMfa(opConn, email);
+        }
+
+        // Verify user_mfa and recovery codes are deleted
+        assertTrue(userMfaRepository.findByUserId(savedAdmin.getId()).isEmpty());
+        assertTrue(recoveryCodeRepository.findByUserId(savedAdmin.getId()).isEmpty());
+
+        // Verify user state: must_change_password=true, auth_version incremented
+        AppUser reloaded = userRepository.findByEmail(email).orElseThrow();
+        assertTrue(reloaded.isMustChangePassword());
+        assertEquals(1L, reloaded.getAuthVersion());
+
+        // Verify active session was invalidated (AccountStatusValidationFilter returns 401)
+        mockMvc.perform(get("/api/platform/audit-events").cookie(fullSessionCookie))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Revoking PLATFORM_ADMIN increments auth_version and terminates active platform sessions")
+    void testPlatformAdminRevocationTerminatesActivePlatformSessions() throws Exception {
+        String email = "revoke-session-" + UUID.randomUUID() + "@example.com";
+        String password = "admin-password-123";
+
+        AppUser admin = new AppUser();
+        admin.setEmail(email);
+        admin.setPasswordHash(passwordEncoder.encode(password));
+        admin.setFullName("Session Revoke Target");
+        admin.setAccountStatus(AccountStatus.ACTIVE);
+        admin.setMustChangePassword(false);
+        admin.setPlatformRole("PLATFORM_ADMIN");
+        admin.setAuthVersion(0L);
+        AppUser savedAdmin = userRepository.saveAndFlush(admin);
+
+        // Platform Admin has mandatory MFA: enroll MFA
+        String secret = mfaService.initiateEnrollment(savedAdmin.getId()).secret();
+        String code = totpEngine.generateCode(secret);
+        mfaService.confirmEnrollment(savedAdmin.getId(), password, code);
+
+        // Step 1: Login
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, password))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authStage").value("MFA_CHALLENGE_REQUIRED"))
+                .andReturn();
+
+        jakarta.servlet.http.Cookie preAuthCookie = loginResult.getResponse().getCookie("FINSIGHT_SESSION");
+        assertNotNull(preAuthCookie);
+
+        // Step 2: Challenge
+        long timestep = System.currentTimeMillis() / 1000L / 30L;
+        String challengeCode = totpEngine.generateCode(secret, timestep + 1);
+        MvcResult challengeResult = mockMvc.perform(post("/api/auth/mfa/challenge")
+                        .cookie(preAuthCookie)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"" + challengeCode + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authStage").value("FULLY_AUTHENTICATED"))
+                .andReturn();
+
+        jakarta.servlet.http.Cookie sessionCookie = challengeResult.getResponse().getCookie("FINSIGHT_SESSION");
+        if (sessionCookie == null) {
+            sessionCookie = preAuthCookie;
+        }
+
+        // Access platform API succeeds
+        mockMvc.perform(get("/api/platform/audit-events").cookie(sessionCookie))
+                .andExpect(status().isOk());
+
+        // Operator revokes PLATFORM_ADMIN
+        try (Connection opConn = createConnection(MIGRATOR_USER, MIGRATOR_PASSWORD)) {
+            operatorService.revokePlatformAdmin(opConn, email);
+        }
+
+        AppUser revoked = userRepository.findByEmail(email).orElseThrow();
+        assertNull(revoked.getPlatformRole());
+        assertEquals(1L, revoked.getAuthVersion());
+
+        // Prior session cannot continue accessing /api/platform/** (session invalidated -> 401)
+        mockMvc.perform(get("/api/platform/audit-events").cookie(sessionCookie))
+                .andExpect(status().isUnauthorized());
     }
 }

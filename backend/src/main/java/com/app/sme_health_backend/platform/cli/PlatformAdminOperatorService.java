@@ -155,19 +155,107 @@ public class PlatformAdminOperatorService {
     }
 
     private java.sql.Connection openOperatorConnection() throws java.sql.SQLException {
-        String migratorPw = System.getenv("POSTGRES_MIGRATOR_PASSWORD");
-        if (migratorPw == null || migratorPw.isBlank()) {
-            migratorPw = System.getProperty("migrator_db_password", DEFAULT_DEV_MIGRATOR_PASSWORD);
+        String migratorPw = resolveOperatorPassword();
+        String url = resolveOperatorUrl();
+        String user = resolveOperatorUser();
+        return java.sql.DriverManager.getConnection(url, user, migratorPw);
+    }
+
+    private static String resolveOperatorUser() {
+        String sysProp = System.getProperty("spring.flyway.user");
+        if (sysProp != null && !sysProp.trim().isEmpty()) {
+            return sysProp;
         }
-        String url = System.getProperty("spring.flyway.url");
-        if (url == null || url.isBlank()) {
-            url = "jdbc:postgresql://localhost:5432/sme_health";
+        String envUser = System.getenv("POSTGRES_MIGRATOR_USER");
+        if (envUser != null && !envUser.trim().isEmpty()) {
+            return envUser;
         }
-        return java.sql.DriverManager.getConnection(url, "finsight_migrator", migratorPw);
+        return "finsight_migrator";
+    }
+
+    private static String resolveOperatorUrl() {
+        String sysProp = System.getProperty("spring.flyway.url");
+        if (sysProp != null && !sysProp.trim().isEmpty()) {
+            return sysProp;
+        }
+        String envUrl = System.getenv("SPRING_FLYWAY_URL");
+        if (envUrl != null && !envUrl.trim().isEmpty()) {
+            return envUrl;
+        }
+        envUrl = System.getenv("POSTGRES_URL");
+        if (envUrl != null && !envUrl.trim().isEmpty()) {
+            return envUrl;
+        }
+        return "jdbc:postgresql://localhost:5432/sme_health";
+    }
+
+    private static String resolveOperatorPassword() {
+        // 1. Check configtree secret /run/secrets/migrator_db_password
+        java.nio.file.Path secretPath = java.nio.file.Paths.get("/run/secrets/migrator_db_password");
+        if (java.nio.file.Files.exists(secretPath)) {
+            try {
+                String content = java.nio.file.Files.readString(secretPath, java.nio.charset.StandardCharsets.UTF_8).trim();
+                if (!content.isEmpty()) {
+                    return content;
+                }
+            } catch (java.io.IOException ignored) {
+            }
+        }
+
+        // 2. Check custom secrets dir
+        String secretsDir = System.getProperty("finsight.secrets.dir");
+        if (secretsDir != null) {
+            java.nio.file.Path customSecret = java.nio.file.Paths.get(secretsDir, "migrator_db_password");
+            if (java.nio.file.Files.exists(customSecret)) {
+                try {
+                    String content = java.nio.file.Files.readString(customSecret, java.nio.charset.StandardCharsets.UTF_8).trim();
+                    if (!content.isEmpty()) {
+                        return content;
+                    }
+                } catch (java.io.IOException ignored) {
+                }
+            }
+        }
+
+        // 3. Check system properties
+        String sysProp = System.getProperty("migrator_db_password");
+        if (sysProp != null && !sysProp.trim().isEmpty()) {
+            return sysProp;
+        }
+        sysProp = System.getProperty("spring.flyway.password");
+        if (sysProp != null && !sysProp.trim().isEmpty()) {
+            return sysProp;
+        }
+
+        // 4. Check environment variables
+        String envPass = System.getenv("MIGRATOR_DB_PASSWORD");
+        if (envPass != null && !envPass.trim().isEmpty()) {
+            return envPass;
+        }
+        envPass = System.getenv("POSTGRES_MIGRATOR_PASSWORD");
+        if (envPass != null && !envPass.trim().isEmpty()) {
+            return envPass;
+        }
+        envPass = System.getenv("migrator_db_password");
+        if (envPass != null && !envPass.trim().isEmpty()) {
+            return envPass;
+        }
+
+        // 5. Development default fallback
+        return DEFAULT_DEV_MIGRATOR_PASSWORD;
     }
 
     @Transactional
     public void resetPlatformAdminMfa(String email) {
+        try (java.sql.Connection conn = openOperatorConnection()) {
+            resetPlatformAdminMfa(conn, email);
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException("Operator command failed to acquire operator connection: " + e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public void resetPlatformAdminMfa(java.sql.Connection operatorConn, String email) {
         Objects.requireNonNull(email, "email is required");
         String normalizedEmail = EmailValidator.normalizeAndValidate(email);
 
@@ -177,10 +265,13 @@ public class PlatformAdminOperatorService {
         userMfaRepository.deleteByUserId(user.getId());
         recoveryCodeRepository.deleteByUserId(user.getId());
 
-        jdbcTemplate.update(
-                "UPDATE app_users SET must_change_password = true, auth_version = auth_version + 1, updated_at = now() WHERE id = ?",
-                user.getId()
-        );
+        try (java.sql.PreparedStatement ps = operatorConn.prepareStatement(
+                "UPDATE app_users SET must_change_password = true, auth_version = auth_version + 1, updated_at = now() WHERE id = ?")) {
+            ps.setObject(1, user.getId());
+            ps.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException("Database error executing MFA reset: " + e.getMessage(), e);
+        }
 
         sessionRevocationService.revokeAllSessions(user.getEmail(), user.getId(), "PLATFORM_ADMIN_MFA_RESET");
 
