@@ -1,6 +1,35 @@
 # Frontend alignment with Phase 1
 
-Reviewed 23 September 2026 against freshly fetched GitHub branches. Fatima can work on the existing frontend while Suleman completes the remaining backend integration. The first implementation connects profiles and monthly records; the financial dashboard follows once the combined backend is stable.
+The first implementation connects profiles and monthly records against Fatima's standalone backend. The financial dashboard follows once the combined backend and its authenticated API contract are verified.
+
+## Current integration status — 24 September 2026
+
+Frontend commit `f4b738a` is published on `dev/fatima`. The frontend-only pull request is prepared separately from `origin/main` (`9becac3`), without Fatima's backend commits. Keep it in draft until the backend contract below is integrated and verified; do not merge the entire development branch into main.
+
+A fresh fetch now places `origin/dev/suleman` at `0273286`. This supersedes the 23 September backend snapshot below:
+
+- Advice/dashboard integration is present (`c671c7e`). Scoring failures now propagate transactionally and historical edits rescore the edited record plus the next five records (`8d9062b`). Cash-flow projection uses calendar-month gaps (`2b2e628`). These three earlier scoring/projection blockers are resolved in the upstream source.
+- Suleman has also added document upload/review/confirmation, WhatsApp delivery, account authentication, session/CSRF protection, business membership and tenant-scoped APIs. Their presence in source does not establish browser integration or completion of all Phase 2 acceptance checks.
+- The implemented frontend still uses the earlier development UUID contract. It is **not compatible with the latest authenticated backend**. A localStorage UUID must never substitute for a session or authorize access to a business.
+
+| Workflow | Current frontend / standalone Fatima backend | Latest Suleman backend |
+| --- | --- | --- |
+| Identity | Create/reopen a development profile UUID | `/api/auth/csrf`, registration/login/logout and `/api/auth/me`; cookie session and CSRF token handling |
+| Business | `POST /api/profile` | `POST /api/businesses`, list memberships, select active business with `POST /api/businesses/active` |
+| Profile | `GET /api/profile/{userId}` | `GET /api/profile` for the authorized active business |
+| Language | `PATCH /api/profile/{userId}/language` | `PATCH /api/profile/language` |
+| Record list/month | UUID-based GET paths | `GET /api/records/monthly`; `POST /api/records/monthly/query` with `{month}` |
+| Record save | POST includes `userId` | Same POST collection path, with ownership resolved from the authenticated business; remove client-supplied `userId` and map `businessId` response fields |
+
+Next frontend work must connect registration/login, CSRF/session lifecycle, business creation/selection and logout first, then migrate profile/record adapters and error states. Verify signed-out access, expired sessions, permission failures, business switching without stale records and cross-business isolation before proceeding to dashboard/advice. Preserve the current visual components and explicit demo mode.
+
+Verification against exact upstream `0273286`: **31 targeted unit tests passed** (`MonthlyRecordServiceTests`: 16; `TrendProjectionCalculatorTests`: 15), with no failures, errors or skipped tests. They cover scoring failure propagation, dependent rescoring and calendar-gap projection. This is not full authenticated integration verification.
+
+The existing `backend/scripts/verify-suleman-integration.ps1` stopped at its dashboard source-hash guard before Maven, so it executed **zero combined suites** on the new upstream. Its old overlay/handoff assumptions need review against the newly integrated dashboard and identity modules. Do not bypass that guard or copy the old dashboard over the latest implementation. Local evidence is in ignored `backend/target/frontend-pr-validation/` (`summary.json`, `latest-integration.log`, `upstream-fix-tests.log`).
+
+## Historical review — 23 September 2026
+
+The remaining sections record the original review and implementation against `dev/fatima` at `e3ccd65` and Suleman's then-current `4202dc1`. References below to pending scoring fixes, old endpoint paths and missing document/delivery workflows describe that snapshot; the current status above takes precedence.
 
 ## Sources and branch state
 
@@ -33,9 +62,9 @@ Fatima's advice workflow is refresh on read. Advice defaults to the latest score
 
 The existing handoff records 261 Fatima unit/controller tests, 12 PostgreSQL integration tests, 150 retained Suleman tests and two combined workflow tests passing on 21 September. These are historical recorded results, not a claim that all suites were rerun for this frontend change. Some suite coverage overlaps.
 
-## Remaining backend integration work
+## Backend integration work identified in the original snapshot
 
-Confirmed in the fetched Suleman source:
+Confirmed in the original `4202dc1` Suleman source (superseded by the current status above):
 
 1. `MonthlyRecordController.triggerRescore` catches scoring exceptions while allowing the record request to succeed. A successful record save does not establish that scoring succeeded.
 2. `ScoringService` recalculates the selected month only. Older record corrections can leave later history-dependent scores stale.
@@ -92,7 +121,7 @@ Connect the already implemented search, accounting for its cached-advice behavio
 
 ## Working agreement
 
-Keep working on `dev/fatima` for this frontend slice. Preserve Suleman's backend ownership. Make each slice reviewable with its endpoint mapping, visible error/empty states and relevant tests. The original document requires the other developer's review before merging changes to shared schema/contracts; this slice consumes existing contracts and makes no backend/schema changes. No merge or publication is performed here.
+Keep working on `dev/fatima` for this frontend slice. Preserve Suleman's backend ownership. Make each slice reviewable with its endpoint mapping, visible error/empty states and relevant tests. The original document requires the other developer's review before merging changes to shared schema/contracts; this slice consumes existing contracts and makes no backend/schema changes. Publication is limited to development/PR branches; main is not changed.
 
 See `frontend/README.md` for local startup, data modes and the verification results for this implementation.
 

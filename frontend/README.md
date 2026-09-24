@@ -2,6 +2,8 @@
 
 The existing Next.js interface has been brought from `origin/dev/suleman` (`4202dc1`) into `dev/fatima`. Live API integration currently covers profile creation/reopening, profile language, and monthly record create/list/read/edit. The remaining screens are preserved in explicit demo mode.
 
+**Backend compatibility:** this slice uses the standalone Fatima development API at `e3ccd65` (unchanged in frontend commit `f4b738a`). Suleman's latest `0273286` adds cookie-session authentication, CSRF and active-business APIs, replacing the UUID routes below. The current live frontend cannot be used with that backend until its auth, business selection and API adapters are migrated. Keep the frontend PR in draft pending that integration; main is unchanged.
+
 See [the review and integration workflow](../docs/frontend-phase-1-workflow.md) for backend ownership, unresolved integration issues and the next slices.
 
 ## Run locally
@@ -25,7 +27,7 @@ Open http://localhost:3000/onboarding. Create a profile or reopen a saved UUID, 
 
 The existing typography uses `next/font/google`, so production builds need access to Google Fonts. Local development may use fallback fonts without access.
 
-## Actual API behavior
+## Implemented API behavior (standalone Fatima backend)
 
 - Profile: `POST /api/profile`, `GET /api/profile/{userId}`.
 - Language: `PATCH /api/profile/{userId}/language` with `languagePreference`.
@@ -64,3 +66,5 @@ Verification on 24 September 2026:
 - Desktop/mobile visual checks covered record controls and Urdu layout. Demo checks confirmed cash-flow expand/filter/table behavior, weight placement, business selection without a tick, and WhatsApp checkbox disclosure with keyboard Space.
 
 The temporary backend and smoke evidence live in ignored `backend/target/frontend-smoke/`. They are local QA infrastructure, not a committed service or production database. The separate backend integration handoff documents the reproducible combined scoring/advice checks.
+
+A later fetch on 24 September found Suleman's new authenticated contract at `0273286`. Its scoring/projection fixes passed 31 targeted upstream unit tests, but the old combined integration harness stopped at its dashboard hash guard before running any suites. These results do not validate the current frontend against that new backend. See the workflow's current-status section for the endpoint migration and acceptance gates.
