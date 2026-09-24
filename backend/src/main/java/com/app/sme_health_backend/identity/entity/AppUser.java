@@ -32,6 +32,12 @@ public class AppUser {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = false;
 
+    @Column(name = "platform_role", length = 30)
+    private String platformRole;
+
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion = 0L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -87,6 +93,22 @@ public class AppUser {
 
     public void setMustChangePassword(boolean mustChangePassword) {
         this.mustChangePassword = mustChangePassword;
+    }
+
+    public String getPlatformRole() {
+        return platformRole;
+    }
+
+    public void setPlatformRole(String platformRole) {
+        this.platformRole = platformRole;
+    }
+
+    public long getAuthVersion() {
+        return authVersion;
+    }
+
+    public void setAuthVersion(long authVersion) {
+        this.authVersion = authVersion;
     }
 
     public OffsetDateTime getCreatedAt() {

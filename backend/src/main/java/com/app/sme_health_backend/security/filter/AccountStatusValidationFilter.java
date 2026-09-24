@@ -57,6 +57,26 @@ public class AccountStatusValidationFilter extends OncePerRequestFilter {
                     response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Account is disabled\"}");
                     return;
                 }
+
+                // Verify session auth_version matches current database auth_version
+                HttpSession session = request.getSession(false);
+                Long sessionAuthVersion = null;
+                if (session != null && session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_VERSION) instanceof Long v) {
+                    sessionAuthVersion = v;
+                } else if (auth.getPrincipal() instanceof AppUserDetails userDetails) {
+                    sessionAuthVersion = userDetails.getAuthVersion();
+                }
+
+                if (sessionAuthVersion != null && sessionAuthVersion != user.getAuthVersion()) {
+                    SecurityContextHolder.clearContext();
+                    if (session != null) {
+                        session.invalidate();
+                    }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"session_invalidated\",\"message\":\"Session has been invalidated due to security state modification.\"}");
+                    return;
+                }
             }
         }
 
