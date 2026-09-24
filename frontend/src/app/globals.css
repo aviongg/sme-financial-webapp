@@ -1,0 +1,220 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme {
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-active: var(--color-brand-active);
+  --color-brand-surface: var(--color-brand-surface);
+  --color-brand-border: var(--color-brand-border);
+  --color-brand-navy: var(--color-brand-navy);
+
+  --color-surface-canvas: var(--color-surface-canvas);
+  --color-surface-card: var(--color-surface-card);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-subtle: var(--color-surface-subtle);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-disabled: var(--color-text-disabled);
+  --color-text-inverse: var(--color-text-inverse);
+
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-health-strong: var(--color-health-strong);
+  --color-health-strong-bg: var(--color-health-strong-bg);
+  --color-health-strong-border: var(--color-health-strong-border);
+
+  --color-health-stable: var(--color-health-stable);
+  --color-health-stable-bg: var(--color-health-stable-bg);
+  --color-health-stable-border: var(--color-health-stable-border);
+
+  --color-health-attention: var(--color-health-attention);
+  --color-health-attention-bg: var(--color-health-attention-bg);
+  --color-health-attention-border: var(--color-health-attention-border);
+
+  --color-health-risk: var(--color-health-risk);
+  --color-health-risk-bg: var(--color-health-risk-bg);
+  --color-health-risk-border: var(--color-health-risk-border);
+
+  --color-status-success: var(--color-status-success);
+  --color-status-success-bg: var(--color-status-success-bg);
+  --color-status-success-border: var(--color-status-success-border);
+
+  --color-status-warning: var(--color-status-warning);
+  --color-status-warning-bg: var(--color-status-warning-bg);
+  --color-status-warning-border: var(--color-status-warning-border);
+
+  --color-status-error: var(--color-status-error);
+  --color-status-error-bg: var(--color-status-error-bg);
+  --color-status-error-border: var(--color-status-error-border);
+
+  --color-status-info: var(--color-status-info);
+  --color-status-info-bg: var(--color-status-info-bg);
+  --color-status-info-border: var(--color-status-info-border);
+
+  --font-heading: var(--font-heading), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
+  --font-urdu: var(--font-urdu), "Noto Nastaliq Urdu", "Urdu Typesetting", system-ui, sans-serif;
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+}
+
+/* ==========================================================================
+   Base Layer & Accessibility
+   ========================================================================== */
+html {
+  background-color: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  scroll-padding-bottom: 84px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+}
+
+/* Default Focus Indicator: 2px solid brand outline with 2px offset (WCAG 2.2 AA) */
+:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-outline-color);
+  outline-offset: var(--focus-outline-offset);
+}
+
+/* Tabular Numerals for stable, non-jumping financial columns */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Typography Hierarchy Utilities matching Section 3.2 */
+.text-display {
+  font-family: var(--font-heading);
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text-h1 {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.text-h2 {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.text-h3 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.text-body-large {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.text-body {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+.text-body-small {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.text-caption {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Urdu Nastaliq Typography Rules
+   Authority: Noto Nastaliq Urdu is the authoritative Urdu font for FinSight.
+   Nastaliq has cascading baselines, tall ascenders, and deep descending loops.
+   Requires generous line-height (1.75–1.9x) and normal letter-spacing.
+   ========================================================================== */
+[lang="ur"] {
+  font-family: var(--font-urdu);
+  line-height: 1.85;
+}
+
+[lang="ur"] body {
+  font-family: var(--font-urdu);
+}
+
+[lang="ur"] h1,
+[lang="ur"] h2,
+[lang="ur"] h3,
+[lang="ur"] h4,
+[lang="ur"] h5,
+[lang="ur"] h6,
+[lang="ur"] .font-heading,
+[lang="ur"] .text-display,
+[lang="ur"] .text-h1,
+[lang="ur"] .text-h2,
+[lang="ur"] .text-h3 {
+  font-family: var(--font-urdu);
+  line-height: 1.75;
+  letter-spacing: normal !important;
+}
+
+[lang="ur"] button,
+[lang="ur"] input,
+[lang="ur"] select,
+[lang="ur"] textarea {
+  font-family: var(--font-urdu);
+}
+
+[lang="ur"] button {
+  line-height: 1.6;
+}
+
+[lang="ur"] .font-urdu {
+  font-family: var(--font-urdu);
+  line-height: 1.85;
+}
+
+/* Ensure numbers & financial amounts in Urdu remain in Latin Inter with stable tabular numerals */
+[lang="ur"] .tabular-nums,
+[lang="ur"] [dir="ltr"] {
+  font-family: var(--font-sans);
+}
+
+
+/* Prefers Reduced Motion (Accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

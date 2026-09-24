@@ -1,0 +1,113 @@
+:root {
+  /* ==========================================================================
+     FinSight Design System Tokens v1.0
+     Authority: Deep Spruce Teal brand system + Neutral financial surfaces
+     ========================================================================== */
+
+  /* Brand Palette (Deep Spruce Teal & Navy) */
+  --color-brand-primary: #0D5C52;
+  --color-brand-hover: #0A473F;
+  --color-brand-active: #07352F;
+  --color-brand-surface: #F0FDFA;
+  --color-brand-border: #99F6E4;
+  --color-brand-navy: #030E2E;
+
+  /* Neutral Palette */
+  --color-surface-canvas: #F8FAFC;
+  --color-surface-card: #FFFFFF;
+  --color-surface-hover: #F1F5F9;
+  --color-surface-subtle: #F8FAFC;
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748B;
+  --color-text-disabled: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+
+  --color-border-subtle: #F1F5F9;
+  --color-border-default: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+
+  /* Semantic Health-State Palette (Strictly separate from brand teal) */
+  /* Strong (80-100) */
+  --color-health-strong: #047857;
+  --color-health-strong-bg: #ECFDF5;
+  --color-health-strong-border: #A7F3D0;
+
+  /* Stable (60-79.99) */
+  --color-health-stable: #0369A1;
+  --color-health-stable-bg: #F0F9FF;
+  --color-health-stable-border: #BAE6FD;
+
+  /* Needs Attention (40-59.99) */
+  --color-health-attention: #B45309;
+  --color-health-attention-bg: #FFFBEB;
+  --color-health-attention-border: #FDE68A;
+
+  /* At Risk (0-39.99) */
+  --color-health-risk: #B91C1C;
+  --color-health-risk-bg: #FEF2F2;
+  --color-health-risk-border: #FECACA;
+
+  /* System Status Colors */
+  --color-status-success: #16A34A;
+  --color-status-success-bg: #F0FDF4;
+  --color-status-success-border: #BBF7D0;
+
+  --color-status-warning: #D97706;
+  --color-status-warning-bg: #FFFBEB;
+  --color-status-warning-border: #FDE68A;
+
+  --color-status-error: #DC2626;
+  --color-status-error-bg: #FEF2F2;
+  --color-status-error-border: #FECACA;
+
+  --color-status-info: #0284C7;
+  --color-status-info-bg: #F0F9FF;
+  --color-status-info-border: #BAE6FD;
+
+  /* Spacing Tokens */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Radius Tokens */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Elevation / Shadows */
+  --elevation-0: 0 0 #0000;
+  --elevation-1: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --elevation-2: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+
+  /* Focus Indicator */
+  --focus-outline-width: 2px;
+  --focus-outline-offset: 2px;
+  --focus-outline-color: var(--color-brand-primary);
+
+  /* Motion Tokens */
+  --duration-fast: 150ms;
+  --duration-normal: 220ms;
+  --duration-score: 600ms;
+
+  --ease-fast: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-score: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layout Widths */
+  --max-width-dashboard: 1280px;
+  --max-width-reading: 680px;
+  --max-width-form: 720px;
+  --max-width-dialog: 640px;
+}
