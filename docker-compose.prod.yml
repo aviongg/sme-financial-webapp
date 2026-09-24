@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: sme_health
       POSTGRES_USER: finsight_dba
-    # NO port mapping in production - strictly isolated to internal database network
+    # S8-3: NO public port mapping - isolated to internal database network
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./certs/postgres-server.crt:/var/lib/postgresql/certs/postgres-server.crt:ro
@@ -17,6 +17,13 @@ services:
         aliases:
           - postgres.finsight.internal
           - postgres
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend-migration:
     image: finsight-backend:latest
@@ -36,6 +43,8 @@ services:
       - finsight-db-net
     depends_on:
       - postgres
+    security_opt:
+      - no-new-privileges:true
 
   backend-runtime:
     image: finsight-backend:latest
@@ -48,16 +57,104 @@ services:
       DB_NAME: sme_health
       DB_SSL_ROOT_CERT: /etc/finsight/certs/postgres-ca.crt
       FINSIGHT_CRYPTO_ACTIVE_KEY_ID: k1
+      APP_SECURITY_PROXY_TRUSTED_IPS: 172.28.20.0/24,127.0.0.1
+      APP_OCR_URL: https://ai-service:8000/extract
+      OCR_SERVICE_KEY_FILE: /run/secrets/ocr_service_key
+      OCR_SSL_ROOT_CERT: /etc/finsight/certs/ai-ca.crt
     secrets:
       - app_db_password
       - crypto_key_k1
+      - ocr_service_key
     volumes:
       - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+      - ./certs/ai-ca.crt:/etc/finsight/certs/ai-ca.crt:ro
+      - document_storage:/storage
     networks:
-      - finsight-db-net
-      - finsight-app-net
+      finsight-db-net:
+      finsight-web-net:
+        aliases:
+          - backend-runtime
+          - backend
+      finsight-ai-net:
     depends_on:
       - postgres
+      - ai-service
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ai-service:
+    image: finsight-ai:latest
+    container_name: finsight-ai-service
+    restart: unless-stopped
+    environment:
+      AI_SSL_CERTFILE: /etc/finsight/certs/ai-server.crt
+      AI_SSL_KEYFILE: /etc/finsight/certs/ai-server.key
+      OCR_SERVICE_SECRET_FILE: /run/secrets/ocr_service_key
+    secrets:
+      - ocr_service_key
+    volumes:
+      - ./certs/ai-server.crt:/etc/finsight/certs/ai-server.crt:ro
+      - ./certs/ai-server.key:/etc/finsight/certs/ai-server.key:ro
+    networks:
+      finsight-ai-net:
+        aliases:
+          - ai-service
+          - ai.finsight.internal
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend-runtime:
+    image: finsight-frontend:latest
+    container_name: finsight-frontend-runtime
+    restart: unless-stopped
+    networks:
+      finsight-web-net:
+        aliases:
+          - frontend-runtime
+          - frontend
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: finsight-nginx:latest
+    container_name: finsight-nginx-edge
+    restart: unless-stopped
+    # S8-3: Only Nginx exposes host ports (80 -> HTTP redirect, 443 -> public HTTPS)
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d/finsight.conf:/etc/nginx/conf.d/finsight.conf:ro
+      - ./certs/edge.crt:/etc/nginx/certs/edge.crt:ro
+      - ./certs/edge.key:/etc/nginx/certs/edge.key:ro
+    networks:
+      - finsight-web-net
+    depends_on:
+      - backend-runtime
+      - frontend-runtime
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 secrets:
   migrator_db_password:
@@ -66,11 +163,15 @@ secrets:
     file: ./secrets/app_db_password
   crypto_key_k1:
     file: ./secrets/crypto_key_k1
+  ocr_service_key:
+    file: ./secrets/ocr_service_key
 
 volumes:
   postgres_data:
+  document_storage:
 
 networks:
+  # S8-3: Isolated Database Network (Internal only)
   finsight-db-net:
     driver: bridge
     internal: true
@@ -78,5 +179,20 @@ networks:
       driver: default
       config:
         - subnet: 172.28.10.0/24
-  finsight-app-net:
+
+  # S8-3: Isolated Web Routing Network
+  finsight-web-net:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.20.0/24
+
+  # S8-3: Isolated AI / OCR Network (Internal only)
+  finsight-ai-net:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.30.0/24

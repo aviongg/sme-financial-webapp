@@ -222,7 +222,13 @@ docker-data/
 /storage/
 /backend/storage/
 
-# Security, Certificates & Secrets (Phase S6)
+# Security, Certificates & Secrets (Phase S6 - S9)
 *.key
+*.pem
+*.age
+*.partial
 /secrets/
 /docker/secrets/
+/docker/certs/
+/backups/
+

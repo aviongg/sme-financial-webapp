@@ -1,0 +1,23 @@
+# Stage 1: Build
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /workspace/app
+
+COPY backend/.mvn backend/.mvn
+COPY backend/mvnw backend/pom.xml backend/
+WORKDIR /workspace/app/backend
+RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
+
+COPY backend/src backend/src
+RUN ./mvnw clean package -DskipTests -B
+
+# Stage 2: Hardened Runtime
+FROM eclipse-temurin:21-jre-alpine
+RUN addgroup -g 10001 -S finsight && adduser -u 10001 -S finsight -G finsight
+
+WORKDIR /app
+COPY --from=builder --chown=finsight:finsight /workspace/app/backend/target/sme-health-backend-*.jar app.jar
+
+USER finsight:finsight
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

@@ -1,0 +1,16 @@
+FROM nginx:1.27-alpine
+
+# Hardened non-root runtime permissions
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+    && touch /tmp/nginx.pid \
+    && chown -R nginx:nginx /tmp/nginx.pid
+
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/conf.d/finsight.conf /etc/nginx/conf.d/finsight.conf
+
+USER nginx
+EXPOSE 8080 8443
+
+STOPSIGNAL SIGQUIT
+
+CMD ["nginx", "-g", "daemon off;"]
