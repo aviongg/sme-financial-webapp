@@ -14,6 +14,8 @@ public final class OcrJsonCodec {
     private static final Set<String> FIELDS = Set.of(
             "date", "amount", "vendor_or_party", "category", "confidence", "document_type_detected");
 
+    private static final BigDecimal MAX_REASONABLE_AMOUNT = new BigDecimal("1000000000000"); // 1 Trillion
+
     private final JsonMapper mapper = JsonMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
@@ -36,15 +38,28 @@ public final class OcrJsonCodec {
                 throw new IllegalArgumentException("Invalid date format");
             }
             LocalDate date = dateString == null ? null : LocalDate.parse(dateString);
+
             JsonNode amountNode = root.get("amount");
             if (!amountNode.isNull() && !amountNode.isNumber()) {
                 throw new IllegalArgumentException("Amount must be numeric or null");
             }
             BigDecimal amount = amountNode.isNull() ? null : amountNode.decimalValue();
-            return new OcrExtraction(date, amount, nullableString(root.get("vendor_or_party")),
-                    OcrExtraction.Category.valueOf(requiredString(root.get("category"))),
-                    OcrExtraction.Confidence.valueOf(requiredString(root.get("confidence"))),
-                    OcrExtraction.DocumentType.valueOf(requiredString(root.get("document_type_detected"))));
+            if (amount != null) {
+                if (amount.compareTo(BigDecimal.ZERO) < 0 || amount.compareTo(MAX_REASONABLE_AMOUNT) > 0) {
+                    throw new IllegalArgumentException("Amount out of valid range");
+                }
+            }
+
+            String vendor = nullableString(root.get("vendor_or_party"));
+            if (vendor != null && vendor.length() > 255) {
+                throw new IllegalArgumentException("Vendor name exceeds max length of 255");
+            }
+
+            OcrExtraction.Category category = OcrExtraction.Category.valueOf(requiredString(root.get("category")));
+            OcrExtraction.Confidence confidence = OcrExtraction.Confidence.valueOf(requiredString(root.get("confidence")));
+            OcrExtraction.DocumentType docType = OcrExtraction.DocumentType.valueOf(requiredString(root.get("document_type_detected")));
+
+            return new OcrExtraction(date, amount, vendor, category, confidence, docType);
         } catch (RuntimeException exception) {
             throw new OcrClientException(OcrClientException.Reason.invalid_response);
         }

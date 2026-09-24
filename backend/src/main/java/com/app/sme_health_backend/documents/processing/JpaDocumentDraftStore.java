@@ -5,6 +5,7 @@ import com.app.sme_health_backend.documents.ocr.OcrClientException;
 import com.app.sme_health_backend.documents.ocr.OcrExtraction;
 import com.app.sme_health_backend.documents.ocr.OcrRequest;
 import com.app.sme_health_backend.documents.repository.UploadedDocumentRepository;
+import com.app.sme_health_backend.documents.storage.DocumentStorageService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class JpaDocumentDraftStore implements DocumentDraftStore {
 
     private final UploadedDocumentRepository repository;
+    private final DocumentStorageService storageService;
 
-    public JpaDocumentDraftStore(UploadedDocumentRepository repository) {
+    public JpaDocumentDraftStore(UploadedDocumentRepository repository, DocumentStorageService storageService) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
+        this.storageService = Objects.requireNonNull(storageService, "storageService is required");
     }
 
     @Override
@@ -35,8 +38,22 @@ public class JpaDocumentDraftStore implements DocumentDraftStore {
             return Optional.empty();
         }
 
+        byte[] fileBytes;
+        try {
+            fileBytes = storageService.loadBytes(doc.getStoragePath());
+        } catch (Exception e) {
+            repository.failIfStatus(documentId, DocumentStatus.processing, DocumentStatus.failed, "file_storage_error");
+            return Optional.empty();
+        }
+
         OcrExtraction.DocumentType hint = parseHint(doc.getDocumentTypeHint());
-        return Optional.of(new OcrRequest(doc.getFileUrl(), hint));
+        return Optional.of(new OcrRequest(
+                doc.getId(),
+                fileBytes,
+                doc.getOriginalFilename(),
+                doc.getContentType(),
+                hint
+        ));
     }
 
     @Override

@@ -19,12 +19,13 @@ class Settings:
     max_concurrent_requests: int = 4
     vision_endpoint: str = "vision.googleapis.com"
     vision_language_hints: tuple[str, ...] = ()
+    ocr_service_key: str = ""
     internal_service_key: str = ""
 
     def __post_init__(self):
         import math
-        for name in ("download_timeout_seconds", "provider_timeout_seconds", "max_document_bytes",
-                     "max_pdf_pages", "max_image_pixels", "max_url_length", "max_text_chars",
+        for name in ("provider_timeout_seconds", "max_document_bytes",
+                     "max_pdf_pages", "max_image_pixels", "max_text_chars",
                      "max_concurrent_requests"):
             value = getattr(self, name)
             if not math.isfinite(value) or value <= 0:
@@ -35,6 +36,8 @@ class Settings:
             raise ValueError("Configure exactly two finite, non-negative retry delays")
         if not self.provider or not self.vision_endpoint:
             raise ValueError("Provider and Vision endpoint must be non-empty")
+        if not self.ocr_service_key and self.internal_service_key:
+            object.__setattr__(self, "ocr_service_key", self.internal_service_key)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -43,6 +46,7 @@ class Settings:
         def csv(name: str, default: str = "") -> tuple[str, ...]:
             return tuple(v.strip() for v in env.get(name, default).split(",") if v.strip())
 
+        secret = env.get("OCR_SERVICE_SECRET") or env.get("INTERNAL_SERVICE_SECRET", "")
         return cls(
             provider=env.get("OCR_PROVIDER", "google-cloud-vision"),
             allowed_image_hosts=tuple(h.lower().rstrip(".") for h in csv("OCR_ALLOWED_IMAGE_HOSTS")),
@@ -57,5 +61,6 @@ class Settings:
             max_concurrent_requests=int(env.get("OCR_MAX_CONCURRENT_REQUESTS", "4")),
             vision_endpoint=env.get("GOOGLE_CLOUD_VISION_ENDPOINT", "vision.googleapis.com"),
             vision_language_hints=csv("GOOGLE_CLOUD_VISION_LANGUAGE_HINTS"),
-            internal_service_key=env.get("INTERNAL_SERVICE_SECRET", ""),
+            ocr_service_key=secret,
+            internal_service_key=secret,
         )

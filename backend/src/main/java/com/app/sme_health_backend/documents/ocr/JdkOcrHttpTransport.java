@@ -9,8 +9,8 @@ import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
@@ -24,18 +24,27 @@ public final class JdkOcrHttpTransport implements OcrHttpTransport {
     }
 
     @Override
-    public Response post(URI endpoint, byte[] requestBody, Duration timeout, int maxResponseBytes)
-            throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(endpoint)
+    public Response postMultipart(
+            URI endpoint,
+            String boundary,
+            byte[] multipartBody,
+            String serviceSecret,
+            Duration timeout,
+            int maxResponseBytes
+    ) throws IOException, InterruptedException {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint)
                 .timeout(timeout)
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody))
-                .build();
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header("Accept", "application/json");
+
+        if (serviceSecret != null && !serviceSecret.isBlank()) {
+            builder.header("X-OCR-Service-Key", serviceSecret);
+        }
+
+        HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(multipartBody)).build();
         CompletableFuture<HttpResponse<byte[]>> pending = client.sendAsync(request,
                 info -> new BoundedBodySubscriber(maxResponseBytes));
         try {
-            // Cover body consumption as well as headers on every supported JDK version.
             HttpResponse<byte[]> response = pending.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
             return new Response(response.statusCode(), response.headers().firstValue("Content-Type").orElse(""),
                     response.body());
