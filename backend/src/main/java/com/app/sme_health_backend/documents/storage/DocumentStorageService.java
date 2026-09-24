@@ -15,5 +15,7 @@ public interface DocumentStorageService {
 
     void delete(String storagePath);
 
+    boolean exists(String storagePath);
+
     String resolveFileUrl(UUID documentId);
 }

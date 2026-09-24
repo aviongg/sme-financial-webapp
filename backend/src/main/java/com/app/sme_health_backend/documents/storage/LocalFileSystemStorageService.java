@@ -44,7 +44,8 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
         String extension = getExtensionForMime(detectedMime);
         String secureFilename = UUID.randomUUID() + extension;
 
-        Path userDir = rootLocation.resolve(userId.toString()).normalize();
+        String yearMonth = java.time.YearMonth.now().toString();
+        Path userDir = rootLocation.resolve(userId.toString()).resolve(yearMonth).normalize();
         if (!userDir.startsWith(rootLocation)) {
             throw new DocumentStorageException("Security exception: Invalid storage path");
         }
@@ -55,14 +56,35 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
             if (!destinationFile.startsWith(userDir)) {
                 throw new DocumentStorageException("Security exception: Cannot store file outside current directory");
             }
-
-            try (InputStream inputStream = file.getInputStream()) {
-                Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+            if (Files.exists(destinationFile)) {
+                throw new DocumentStorageException("Storage collision detected for filename: " + secureFilename);
             }
 
+            Path tempFile = userDir.resolve(secureFilename + ".tmp." + UUID.randomUUID()).normalize();
+            try {
+                try (InputStream inputStream = file.getInputStream()) {
+                    Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+                }
+                try {
+                    Files.move(tempFile, destinationFile, StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(tempFile, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (Exception ignored) {}
+                throw new DocumentStorageException("Failed to store file: " + e.getMessage(), e);
+            } finally {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (Exception ignored) {}
+            }
+
+            String relativeStorageKey = userId + "/" + yearMonth + "/" + secureFilename;
             String originalFilename = sanitizeFilename(file.getOriginalFilename());
             return new StoredFile(
-                    destinationFile.toString(),
+                    relativeStorageKey,
                     originalFilename,
                     detectedMime,
                     file.getSize()
@@ -112,6 +134,19 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
     }
 
     @Override
+    public boolean exists(String storagePath) {
+        if (storagePath == null || storagePath.isBlank()) {
+            return false;
+        }
+        try {
+            Path path = validateAndResolvePath(storagePath);
+            return Files.exists(path);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
     public String resolveFileUrl(UUID documentId) {
         Objects.requireNonNull(documentId, "documentId is required");
         return baseUrl + "/api/documents/" + documentId + "/file";
@@ -119,11 +154,17 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
 
     private Path validateAndResolvePath(String storagePath) {
         Objects.requireNonNull(storagePath, "storagePath is required");
-        Path path = Paths.get(storagePath).toAbsolutePath().normalize();
-        if (!path.startsWith(rootLocation)) {
+        if (storagePath.contains("\0") || storagePath.contains("\r") || storagePath.contains("\n")
+                || storagePath.contains("..")) {
+            throw new DocumentStorageException("Security exception: Invalid storage path characters or traversal sequence");
+        }
+        Path rawPath = Paths.get(storagePath);
+        Path resolved = rawPath.isAbsolute() ? rawPath : rootLocation.resolve(rawPath);
+        Path normalized = resolved.toAbsolutePath().normalize();
+        if (!normalized.startsWith(rootLocation)) {
             throw new DocumentStorageException("Security exception: Access outside storage directory denied");
         }
-        return path;
+        return normalized;
     }
 
     private String getExtensionForMime(String mimeType) {
@@ -140,10 +181,9 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
         if (filename == null || filename.isBlank()) {
             return "unnamed_document";
         }
-        // Extract base name without path segments
-        String clean = Paths.get(filename).getFileName().toString();
-        // Remove potentially dangerous characters
-        clean = clean.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String preClean = filename.replaceAll("[\\r\\n\\u0000-\\u001f]", "_");
+        String clean = Paths.get(preClean).getFileName().toString();
+        clean = clean.replaceAll("[\\r\\n\\\"\\\\;\\u0000]", "_").replaceAll("[^a-zA-Z0-9._-]", "_");
         return clean.length() > 200 ? clean.substring(0, 200) : clean;
     }
 }

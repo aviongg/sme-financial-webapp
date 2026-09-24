@@ -28,6 +28,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -112,61 +113,30 @@ public class DocumentController {
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> getDocumentFile(
             @PathVariable("id") UUID id,
-            Authentication authentication,
             HttpServletRequest request
     ) {
-        boolean isInternalService = isInternalOcrService(authentication, request);
-
-        UploadedDocument doc;
-        byte[] bytes;
-        if (isInternalService) {
-            // Narrowly scoped internal OCR branch (no session or active business context)
-            doc = uploadService.getDocument(id);
-            bytes = uploadService.getDocumentBytes(id);
-        } else {
-            // Browser user branch: requires active business + DOCUMENT_READ permission + tenant-scoped lookup
-            BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
-            doc = uploadService.getDocument(context.businessId(), id);
-            bytes = uploadService.getDocumentBytes(context.businessId(), id);
-        }
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+        UploadedDocument doc = uploadService.getDocument(context.businessId(), id);
+        byte[] bytes = uploadService.getDocumentBytes(context.businessId(), id);
 
         String contentType = doc.getContentType() != null ? doc.getContentType() : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        String filename = doc.getOriginalFilename() != null ? doc.getOriginalFilename() : "document.bin";
+        String filename = sanitizeForContentDisposition(doc.getOriginalFilename());
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
                 .body(bytes);
     }
 
-    private boolean isInternalOcrService(Authentication authentication, HttpServletRequest request) {
-        Authentication auth = authentication;
-        if (auth == null) {
-            auth = SecurityContextHolder.getContext().getAuthentication();
+    private String sanitizeForContentDisposition(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return "document.bin";
         }
-        if (auth == null && request != null) {
-            if (request.getUserPrincipal() instanceof Authentication userAuth) {
-                auth = userAuth;
-            } else if (request.getSession(false) != null) {
-                Object sessionContext = request.getSession(false).getAttribute("SPRING_SECURITY_CONTEXT");
-                if (sessionContext instanceof SecurityContext secContext) {
-                    auth = secContext.getAuthentication();
-                }
-            }
-            if (auth == null && request.getAttribute("SPRING_SECURITY_CONTEXT") instanceof SecurityContext secContext) {
-                auth = secContext.getAuthentication();
-            }
-        }
-
-        if (auth != null && auth.getAuthorities() != null) {
-            for (var authority : auth.getAuthorities()) {
-                if ("ROLE_INTERNAL_OCR".equals(authority.getAuthority()) || "INTERNAL_OCR".equals(authority.getAuthority())) {
-                    return true;
-                }
-            }
-        }
-
-        return request != null && (request.isUserInRole("INTERNAL_OCR") || request.isUserInRole("ROLE_INTERNAL_OCR"));
+        String clean = Paths.get(filename).getFileName().toString();
+        clean = clean.replaceAll("[\\r\\n\\\"\\\\;\\u0000]", "_").replaceAll("[^a-zA-Z0-9._-]", "_");
+        return clean.length() > 200 ? clean.substring(0, 200) : clean;
     }
 
     @PostMapping("/{id}/retry")

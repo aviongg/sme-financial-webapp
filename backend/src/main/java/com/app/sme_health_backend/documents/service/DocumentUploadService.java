@@ -222,21 +222,8 @@ public class DocumentUploadService {
     }
 
     @Transactional(readOnly = true)
-    public UploadedDocument getDocument(UUID documentId) {
-        if (documentId == null) throw new DocumentValidationException("Document ID is required");
-        return repository.findById(documentId)
-                .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));
-    }
-
-    @Transactional(readOnly = true)
     public byte[] getDocumentBytes(UUID userId, UUID documentId) {
         UploadedDocument doc = getDocument(userId, documentId);
-        return storageService.loadBytes(doc.getStoragePath());
-    }
-
-    @Transactional(readOnly = true)
-    public byte[] getDocumentBytes(UUID documentId) {
-        UploadedDocument doc = getDocument(documentId);
         return storageService.loadBytes(doc.getStoragePath());
     }
 

@@ -35,33 +35,27 @@ public class AccountStatusValidationFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
-            // Bypass internal OCR service identity
-            boolean isInternalService = auth.getAuthorities().stream()
-                    .anyMatch(a -> "ROLE_INTERNAL_OCR".equals(a.getAuthority()) || "INTERNAL_OCR".equals(a.getAuthority()));
+            UUID userId = null;
+            if (auth.getPrincipal() instanceof AppUserDetails userDetails) {
+                userId = userDetails.getId();
+            } else if (auth.getName() != null) {
+                userId = userRepository.findByEmail(auth.getName())
+                        .map(AppUser::getId)
+                        .orElse(null);
+            }
 
-            if (!isInternalService) {
-                UUID userId = null;
-                if (auth.getPrincipal() instanceof AppUserDetails userDetails) {
-                    userId = userDetails.getId();
-                } else if (auth.getName() != null) {
-                    userId = userRepository.findByEmail(auth.getName())
-                            .map(AppUser::getId)
-                            .orElse(null);
-                }
-
-                if (userId != null) {
-                    AppUser user = userRepository.findById(userId).orElse(null);
-                    if (user == null || user.getAccountStatus() == AccountStatus.DISABLED) {
-                        SecurityContextHolder.clearContext();
-                        HttpSession session = request.getSession(false);
-                        if (session != null) {
-                            session.invalidate();
-                        }
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                        response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Account is disabled\"}");
-                        return;
+            if (userId != null) {
+                AppUser user = userRepository.findById(userId).orElse(null);
+                if (user == null || user.getAccountStatus() == AccountStatus.DISABLED) {
+                    SecurityContextHolder.clearContext();
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.invalidate();
                     }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Account is disabled\"}");
+                    return;
                 }
             }
         }

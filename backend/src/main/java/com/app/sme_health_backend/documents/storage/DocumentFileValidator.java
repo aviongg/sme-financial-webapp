@@ -57,7 +57,25 @@ public class DocumentFileValidator {
             );
         }
 
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && originalFilename.contains(".")) {
+            String ext = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+            if (!isExtensionCompatible(ext, detectedMime)) {
+                throw new DocumentValidationException("File extension ." + ext + " does not match detected format " + detectedMime);
+            }
+        }
+
         return detectedMime;
+    }
+
+    private boolean isExtensionCompatible(String ext, String detectedMime) {
+        return switch (detectedMime) {
+            case MIME_PDF -> ext.equals("pdf");
+            case MIME_JPEG -> ext.equals("jpg") || ext.equals("jpeg");
+            case MIME_PNG -> ext.equals("png");
+            case MIME_WEBP -> ext.equals("webp");
+            default -> false;
+        };
     }
 
     private String detectMimeFromMagicBytes(byte[] header, int length) {
