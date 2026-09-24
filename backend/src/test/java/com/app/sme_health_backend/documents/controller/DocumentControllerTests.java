@@ -16,8 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.app.sme_health_backend.shared.exception.ActiveBusinessRequiredException;
 
 import java.util.List;
 import java.util.UUID;
@@ -143,26 +145,19 @@ class DocumentControllerTests {
         mockMvc.perform(get("/api/documents/{id}/file", docId))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_PNG))
-                .andExpect(content().bytes(fakeBytes));
+                .andExpect(content().bytes(fakeBytes))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "private, no-store"));
     }
 
     @Test
-    void getDocumentFileInternalServiceWithoutSessionSucceeds() throws Exception {
-        UploadedDocument doc = new UploadedDocument();
-        doc.setId(docId);
-        doc.setContentType("image/png");
-        doc.setOriginalFilename("internal.png");
-
-        byte[] fakeBytes = new byte[]{9, 8, 7};
-        when(uploadService.getDocument(docId)).thenReturn(doc);
-        when(uploadService.getDocumentBytes(docId)).thenReturn(fakeBytes);
+    void getDocumentFileInternalServiceWithoutActiveBusinessContextFails() throws Exception {
+        when(authService.requirePermission(any(), eq(BusinessPermission.DOCUMENT_READ)))
+                .thenThrow(new ActiveBusinessRequiredException("No active business"));
 
         mockMvc.perform(get("/api/documents/{id}/file", docId)
-                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("internal-ocr-service")
-                                .roles("INTERNAL_OCR")))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.IMAGE_PNG))
-                .andExpect(content().bytes(fakeBytes));
+                        .header("X-Internal-Service-Key", "legacy-key"))
+                .andExpect(status().isConflict());
     }
 
     @Test

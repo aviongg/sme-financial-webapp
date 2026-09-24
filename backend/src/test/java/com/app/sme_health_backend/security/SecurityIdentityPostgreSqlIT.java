@@ -371,12 +371,10 @@ public class SecurityIdentityPostgreSqlIT {
             mockMvc.perform(get("/api/documents/" + documentId + "/file"))
                     .andExpect(status().isUnauthorized());
 
-            // 2. Trusted OCR service request with valid X-Internal-Service-Key -> 200 OK and bytes
+            // 2. Old OCR service request with X-Internal-Service-Key must NOT gain internal bypass -> 401 Unauthorized
             mockMvc.perform(get("/api/documents/" + documentId + "/file")
                             .header("X-Internal-Service-Key", "internal_ocr_dev_secret_2026"))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentType(MediaType.IMAGE_PNG))
-                    .andExpect(content().bytes(testBytes));
+                    .andExpect(status().isUnauthorized());
 
             // 3. Invalid OCR service credential -> 401 Unauthorized
             mockMvc.perform(get("/api/documents/" + documentId + "/file")

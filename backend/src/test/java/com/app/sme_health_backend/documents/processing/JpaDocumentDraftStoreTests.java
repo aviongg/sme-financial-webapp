@@ -26,32 +26,59 @@ class JpaDocumentDraftStoreTests {
     @Mock
     private UploadedDocumentRepository repository;
 
+    @Mock
+    private com.app.sme_health_backend.documents.storage.DocumentStorageService storageService;
+
     private JpaDocumentDraftStore store;
     private final UUID docId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        store = new JpaDocumentDraftStore(repository);
+        store = new JpaDocumentDraftStore(repository, storageService);
     }
 
     @Test
     void claimPendingSuccessfullyClaimsAndReturnsOcrRequest() {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
-        doc.setFileUrl("http://localhost:8080/api/documents/" + docId + "/file");
+        doc.setStoragePath("user/2026-09/test.pdf");
+        doc.setOriginalFilename("test.pdf");
+        doc.setContentType("application/pdf");
         doc.setDocumentTypeHint("invoice");
         doc.setProcessingStatus(DocumentStatus.processing);
 
         when(repository.claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any()))
                 .thenReturn(1);
         when(repository.findById(docId)).thenReturn(Optional.of(doc));
+        when(storageService.loadBytes("user/2026-09/test.pdf")).thenReturn(new byte[]{1, 2, 3});
 
         Optional<OcrRequest> claimed = store.claimPending(docId);
 
         assertTrue(claimed.isPresent());
-        assertEquals("http://localhost:8080/api/documents/" + docId + "/file", claimed.get().imageUrl());
+        assertArrayEquals(new byte[]{1, 2, 3}, claimed.get().fileBytes());
+        assertEquals("test.pdf", claimed.get().filename());
+        assertEquals("application/pdf", claimed.get().contentType());
         assertEquals(OcrExtraction.DocumentType.invoice, claimed.get().documentTypeHint());
         verify(repository).claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any());
+    }
+
+    @Test
+    void claimPendingFailsCleanlyWhenStorageFileNotFound() {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId);
+        doc.setStoragePath("missing.pdf");
+        doc.setContentType("application/pdf");
+        doc.setDocumentTypeHint("invoice");
+
+        when(repository.claimStatus(eq(docId), eq(DocumentStatus.pending), eq(DocumentStatus.processing), any()))
+                .thenReturn(1);
+        when(repository.findById(docId)).thenReturn(Optional.of(doc));
+        when(storageService.loadBytes("missing.pdf")).thenThrow(new RuntimeException("File not found"));
+
+        Optional<OcrRequest> claimed = store.claimPending(docId);
+
+        assertTrue(claimed.isEmpty());
+        verify(repository).failIfStatus(eq(docId), eq(DocumentStatus.processing), eq(DocumentStatus.failed), eq("file_storage_error"));
     }
 
     @Test

@@ -530,24 +530,19 @@ public class BusinessContextPostgreSqlIT {
         documentRepository.save(doc);
 
         try {
-            // 1. Valid OCR service header succeeds for /api/documents/{id}/file
+            // 1. Old OCR service header no longer gains bypass for /api/documents/{id}/file -> 401 Unauthorized
             mockMvc.perform(get("/api/documents/" + documentId + "/file")
                             .header("X-Internal-Service-Key", "internal_ocr_dev_secret_2026"))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentType(MediaType.IMAGE_PNG))
-                    .andExpect(content().bytes(testBytes));
+                    .andExpect(status().isUnauthorized());
 
-            // 2. Invalid OCR secret is rejected
+            // 2. Invalid OCR secret is also rejected
             mockMvc.perform(get("/api/documents/" + documentId + "/file")
                             .header("X-Internal-Service-Key", "bad_secret_key"))
                     .andExpect(status().isUnauthorized());
 
-            // 3. Internal OCR identity cannot access tenant business listing or onboarding endpoints
-            mockMvc.perform(get("/api/businesses")
-                            .header("X-Internal-Service-Key", "internal_ocr_dev_secret_2026"))
-                    .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.error").value("invalid_internal_credential"))
-                    .andExpect(jsonPath("$.message").value("Internal service credential not permitted for this endpoint"));
+            // 3. Unauthenticated request without session returns 401 Unauthorized
+            mockMvc.perform(get("/api/documents/" + documentId + "/file"))
+                    .andExpect(status().isUnauthorized());
         } finally {
             storageService.delete(storedFile.storagePath());
             documentRepository.deleteById(documentId);

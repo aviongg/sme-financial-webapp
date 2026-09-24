@@ -26,7 +26,7 @@ class DocumentDraftProcessorTests {
     @Mock DocumentDraftStore store;
     private DocumentDraftProcessor processor;
     private final UUID documentId = UUID.randomUUID();
-    private final OcrRequest request = new OcrRequest("https://example.com/invoice.pdf", OcrExtraction.DocumentType.invoice);
+    private final OcrRequest request = new OcrRequest(new byte[]{1, 2, 3}, "image/png", OcrExtraction.DocumentType.invoice);
 
     @BeforeEach
     void setUp() {
