@@ -97,11 +97,8 @@ public class SecurityIdentityPostgreSqlIT {
     @Test
     @DisplayName("Verify V9 migration applied, backfilled businesses, and created no fake users")
     void testV9MigrationAndBackfill() {
-        // 1. Verify V9 migration exists in flyway history
-        Integer v9Count = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM flyway_schema_history WHERE version = '9' AND success = true",
-                Integer.class
-        );
+        // 1. Verify V9 migration exists in flyway history (using migrator credentials since runtime role is denied flyway_schema_history)
+        Integer v9Count = getFlywayVersionCount("9");
         assertNotNull(v9Count);
         assertTrue(v9Count > 0, "Flyway V9 migration must be applied successfully");
 
@@ -384,5 +381,19 @@ public class SecurityIdentityPostgreSqlIT {
             storageService.delete(storedFile.storagePath());
             documentRepository.deleteById(documentId);
         }
+    }
+
+    private int getFlywayVersionCount(String version) {
+        String url = "jdbc:postgresql://localhost:5432/sme_health";
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, "finsight_migrator", "FinSight_Migrator_Ddl_2026_!$4mP");
+             java.sql.PreparedStatement ps = conn.prepareStatement("SELECT count(*) FROM flyway_schema_history WHERE version = ? AND success = true")) {
+            ps.setString(1, version);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
     }
 }
