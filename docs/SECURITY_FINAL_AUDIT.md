@@ -61,10 +61,10 @@ Phases S1 through S9 establish the core defensive perimeter and resilience found
 | **Database** | `finsight_app` DDL prohibition | PostgreSQL S6 audit | **PASS** | Lacks `CREATE`/`ALTER`/`DROP` on schema |
 | **Database** | `flyway_schema_history` isolation | PostgreSQL S6 audit | **PASS** | `finsight_app` lacks access to history |
 | **Database** | Platform role escalation trigger | `PlatformSecurityIT` | **PASS** | `trg_protect_platform_role` blocks mutation |
-| **Database** | Audit log immutability triggers | `SecurityAuditImmutabilityPostgreSqlIT`| **PASS** | `UPDATE`, `DELETE`, `TRUNCATE` blocked |
+| **Database** | Append-only security audit log for normal runtime / finsight_app | `SecurityAuditImmutabilityPostgreSqlIT`| **PASS** | `UPDATE`, `DELETE`, `TRUNCATE` blocked by triggers `trg_audit_*` (not absolute against DBA) |
 | **Database** | PostgreSQL transport encryption (TLS) | PostgreSQL S6 configuration | **PASS** | `hostssl` with SCRAM-SHA-256 only |
 | **Backups** | Dedicated backup role (`finsight_backup`) | `scripts/test_disaster_recovery.py` | **PASS** | SELECT permitted; all mutations denied |
-| **Backups** | Streaming X25519 `age` public key encryption | `crypto_age.py` & `backup_database.py`| **PASS** | Zero plaintext dump touches persistent disk |
+| **Backups** | Standards-compliant X25519 `age` public key encryption | `crypto_age.py` & official `age` CLI | **PASS** | Standard `pyrage` v1.4.0 with official `age.exe` two-way cross-interoperability verified |
 | **Backups** | Offline owner private key verification | `scripts/test_disaster_recovery.py` | **PASS** | Decryption fails closed without owner key |
 | **Backups** | Corrupted backup artifact detection | `scripts/test_disaster_recovery.py` | **PASS** | Poly1305 MAC failure aborts restore |
 | **Backups** | Wrong private key rejection | `scripts/test_disaster_recovery.py` | **PASS** | Decryption fails closed; 0 bytes emitted |
@@ -75,7 +75,10 @@ Phases S1 through S9 establish the core defensive perimeter and resilience found
 | **Codebase Audit**| SQL Injection (Parameterization) | Source code audit | **PASS** | All dynamic queries use bound parameters |
 | **Codebase Audit**| Multiline Log Injection | Filter & configuration audit | **PASS** | Sanitize request IDs, scrub query strings |
 | **Codebase Audit**| Hardcoded Secrets / Private Keys | Ripgrep repository scan | **PASS** | 0 private keys or real credentials tracked |
-| **Dependencies** | Vulnerability scan | `npm audit` / dependency analysis | **PASS** | 0 frontend vulnerabilities; modern pinned backend |
+| **Dependencies** | Frontend dependency audit | `npm audit` | **PASS** | 0 vulnerabilities found |
+| **Dependencies** | Python service dependency audit | `pip-audit -r requirements-tested.txt`| **PASS** | 0 vulnerabilities found against PyPA database |
+| **Dependencies** | Container image vulnerability scan | `docker scout quickview postgres:17` | **PASS WITH KNOWN LIMITATION** | Upstream Debian base packages flagged; isolated by container network, zero host port exposure |
+| **Dependencies** | Maven backend dependency audit | OSV API query & manual assessment | **PASS WITH KNOWN LIMITATION** | NIST NVD/Sonatype API tokens unavailable offline; direct deps checked against OSV database |
 
 ---
 
@@ -97,6 +100,9 @@ Phases S1 through S9 establish the core defensive perimeter and resilience found
   - `trg_audit_no_truncate` (Active)
   - `trg_audit_no_update_delete` (Active)
 - **Keyring Recovery Verification**: `k1` recovered and verified.
+- **Standards Interoperability**:
+  - Encrypted by FinSight (`pyrage`) -> Decrypted by official `age` CLI v1.2.1: **PASS (valid SQL)**
+  - Encrypted by official `age` CLI v1.2.1 -> Restored by FinSight (`crypto_age.py`): **PASS**
 
 ---
 
@@ -117,15 +123,35 @@ Phases S1 through S9 establish the core defensive perimeter and resilience found
   - Failures / Errors: 0
 - **Next.js Frontend**:
   - Lint: 0 errors
-  - Build: Compiled successfully in 816ms (12/12 static/dynamic routes verified)
+  - Build: Compiled successfully (all static and dynamic routes verified)
+  - Runtime CSP: Verified in headless Chrome with zero CSP console violations; per-request nonces and strict-dynamic; zero `unsafe-eval`
 - **Production Compose**:
   - `docker compose -f docker-compose.prod.yml config`: VALID
 
 ---
 
-## 5. Known Deployment Dependencies
+## 5. Deployment Dependencies & Operational Invariants
 
-1. **Edge TLS Certificates**: Deployment must mount valid public CA certificates at `/etc/nginx/certs/edge.crt` and `/etc/nginx/certs/edge.key`.
-2. **Offline Age Key Management**: The private age identity key must be stored securely offline (e.g., in a physical safe, offline vault, or hardware token) and presented only during authorized disaster recovery operations.
-3. **Offsite Backup Mirroring**: Routine backup artifacts (`*.age` and `*_manifest.json`) should be synchronized to an offsite encrypted object storage target (e.g., AWS S3 with Object Lock or cloud immutable bucket).
-4. **Horizontal Scaling**: If the backend is horizontally scaled across multiple container nodes, identity-based rate limiting (Layer B) must be backed by a centralized Redis cluster.
+The following matrix distinguishes between features **implemented in repository** and operational tasks that are **deployment-environment dependent**:
+
+1. **Public Production CA Certificate Issuance & Renewal**:
+   - *Implemented in Repository*: Ingress TLS termination (1.2/1.3), strict HSTS, secure ciphers, and automated test fixtures.
+   - *Deployment Dependent*: Production public CA certificate (Let's Encrypt / Certbot / cloud ALB certificate) mounted to `/etc/nginx/certs/edge.crt` and `edge.key` with automated cron-based renewal.
+2. **Owner Offline Age Private Identity Storage**:
+   - *Implemented in Repository*: Public-key-only streaming encryption via `pyrage`/`age.exe` (`age1...`), restore verification, corruption detection.
+   - *Deployment Dependent*: Owner private age identity (`AGE-SECRET-KEY-1...`) must be stored strictly offline in an air-gapped secure environment (hardware token, physical safe) and never committed or stored on servers.
+3. **Offsite Encrypted Backup Replication**:
+   - *Implemented in Repository*: Local generation of encrypted `*.age` archives and cryptographic SHA-256 manifests.
+   - *Deployment Dependent*: Replication script or bucket sync to an offsite immutable object storage bucket (e.g., AWS S3 Object Lock, GCP Bucket Lock, or air-gapped secondary site).
+4. **Production Password-Reset Email Provider**:
+   - *Implemented in Repository*: Single-use token generation, SHA-256 storage, strict expiry, account anti-enumeration, and identity rate limiting.
+   - *Deployment Dependent*: Production transactional email service (AWS SES, SendGrid, or corporate SMTP) credentials injected via environment variables.
+5. **Host / Cloud Block-Volume Encryption**:
+   - *Implemented in Repository*: AES-256-GCM application field-level encryption (PII/TOTP) and encrypted age backups.
+   - *Deployment Dependent*: Operating system / cloud provider at-rest block-level volume encryption (LUKS, AWS EBS KMS encryption, or dm-crypt) enabled on all persistent mount volumes.
+6. **Centralized Vault / KMS Migration**:
+   - *Implemented in Repository*: Secure Docker secrets import (`/run/secrets/*`), key rotation engine supporting active and historical key IDs.
+   - *Deployment Dependent*: Migration to centralized HashiCorp Vault, AWS KMS, or GCP Secret Manager when horizontal auto-scaling or enterprise compliance mandates centralized secret lifecycle.
+7. **Distributed Rate Limiting**:
+   - *Implemented in Repository*: Dual-layer rate limiting: Layer A Nginx IP-based rate limiting + Layer B Spring identity-based rate limiting with in-memory bounded cache.
+   - *Deployment Dependent*: Centralized Redis rate-limiter when horizontally scaling Spring Boot across multiple backend container instances.

@@ -5,6 +5,7 @@ RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
     && touch /tmp/nginx.pid \
     && chown -R nginx:nginx /tmp/nginx.pid
 
+RUN rm -f /etc/nginx/conf.d/default.conf
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/conf.d/finsight.conf /etc/nginx/conf.d/finsight.conf
 

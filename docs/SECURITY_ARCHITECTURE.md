@@ -56,7 +56,7 @@ FinSight is an SME Financial Health Platform designed with defense-in-depth secu
 
 ### S2 & S3: Multi-Tenant Context & Authorization
 - **Tenant Isolation**: All tenant resources are scoped by immutable UUIDs (`business_id`).
-- **Membership Roles**: Strict RBAC per tenant (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`).
+- **Membership Roles**: Strict RBAC per tenant (`OWNER`, `ACCOUNTANT`, `MANAGER`, `VIEWER`).
 - **Horizontal & Vertical IDOR Protection**: Business authorization checks verify active user membership before executing operations.
 - **Platform Separation**: Platform administrators (`SUPER_ADMIN`, `SUPPORT_ADMIN`) are isolated from tenant business data. Platform APIs strictly require platform role authority.
 
@@ -79,12 +79,12 @@ FinSight is an SME Financial Health Platform designed with defense-in-depth secu
 - **Transport Security**: Database connections enforce `hostssl` with SCRAM-SHA-256 authentication and `verify-full` root CA verification.
 
 ### S7: Security Auditing, Platform Admin & Mandatory MFA
-- **Append-Only Security Audit**: Database triggers (`trg_audit_no_truncate`, `trg_audit_no_update_delete`) prohibit mutation or deletion of audit logs.
+- **Append-Only Security Audit**: Append-only security audit log for normal runtime / `finsight_app` enforced via database triggers (`trg_audit_no_truncate`, `trg_audit_no_update_delete`) prohibiting mutation or deletion of audit logs (not absolute immutability against superuser DBA).
 - **Platform Role Protection**: Database trigger `trg_protect_platform_role` restricts role modifications to authorized DBA processes.
 - **Multi-Factor Authentication**: RFC 6238 TOTP with encrypted secret storage, single-use recovery codes, and strict 5-failure challenge rate limiting.
 
 ### S8: Edge Hardening & Abuse Protection
-- **Nginx Ingress**: TLS 1.2 and TLS 1.3 only; HSTS (`max-age=31536000`); Content Security Policy without `unsafe-eval`; clickjacking protection (`X-Frame-Options: DENY`); MIME sniffing protection (`nosniff`).
+- **Nginx Ingress**: TLS 1.2 and TLS 1.3 only; HSTS (`max-age=31536000`); Content Security Policy with per-request nonces and `strict-dynamic` (zero `unsafe-eval`); clickjacking protection (`X-Frame-Options: DENY`); MIME sniffing protection (`nosniff`).
 - **HTTP Method Hardening**: Non-essential methods (`TRACE`, `TRACK`, `CONNECT`) rejected.
 - **Layered Rate Limiting**:
   - *Layer A (Nginx IP-based)*: 5 req/min on authentication surfaces (`/login`, `/register`, `/password-reset`, `/mfa`), 10 req/min on `/upload`, 30 req/s global API burst.
@@ -94,20 +94,24 @@ FinSight is an SME Financial Health Platform designed with defense-in-depth secu
 
 ### S9: Encrypted Backup & Disaster Recovery
 - **Dedicated Backup Role**: `finsight_backup` holds only `SELECT` privileges; all DDL and DML write permissions are denied.
-- **Owner-Held Offline Key**: Public-key encryption architecture using X25519 (`age`). The backup server holds only the public recipient (`age1...`); the private identity (`AGE-SECRET-KEY-1...`) remains offline.
-- **Streaming Pipeline**: `pg_dump` streams directly into age encryption; zero plaintext logical dump touches disk.
+- **Owner-Held Offline Key**: Public-key encryption architecture using standard X25519 `age` format (via `pyrage` and official `age` CLI interoperability). The backup server holds only the public recipient (`age1...`); the private identity (`AGE-SECRET-KEY-1...`) remains offline.
+- **Streaming Pipeline**: `pg_dump` streams directly into standards-compliant age encryption; zero plaintext logical dump touches disk.
 - **S5 Keyring Recovery Bundle**: Application encryption keys are backed up in a separate in-memory encrypted bundle, ensuring persistent ciphertext remains decryptable after restore.
 - **Post-Restore Ephemeral Data Purge**: Restore tooling automatically invalidates active Spring sessions, password reset tokens, and pending MFA enrollments.
-- **Validated Disaster Recovery**: Full restore drill verified against disposable PostgreSQL instances.
+- **Validated Disaster Recovery**: Full restore drill verified against disposable PostgreSQL instances with cross-implementation CLI interoperability.
 
 ---
 
 ## 4. Operational Invariants & External Deployment Dependencies
 
-| Control Domain | Implementation State | External Deployment Requirement |
-| :--- | :--- | :--- |
-| Edge TLS Certificate | Mount-based secrets (`/etc/nginx/certs/edge.*`) | Production public CA certificates (e.g., Let's Encrypt / Certbot or corporate PKI) |
-| Offline Backup Key | Ephemeral drill / CLI tooling | Owner offline hardware security module (HSM) or offline paper/encrypted key storage |
-| Backup Destination | Configurable destination path | Offsite cloud storage replication (e.g., AWS S3 bucket with Object Lock or encrypted NAS) |
-| Application Keyring | File/environment-based (`/run/secrets/crypto_key_*`) | Production HashiCorp Vault or AWS KMS / GCP Cloud KMS integration |
-| Multi-Node Limiting | Single-node in-memory bounded limiter | Distributed Redis rate-limiter if horizontal scaling beyond single Spring instance occurs |
+The table below clearly delineates defensive controls **implemented in repository** from operational dependencies that are **deployment-environment dependent**:
+
+| Control Area | Implemented in Repository | Deployment-Environment Dependent | Operational Requirement |
+| :--- | :--- | :--- | :--- |
+| **Edge TLS Certificates** | Ingress TLS 1.2/1.3, HSTS, cipher suites, localhost verification fixtures | Public production CA certificate issuance & automated renewal | Deploy certbot/Let's Encrypt or corporate PKI mounting valid public certs at `/etc/nginx/certs/edge.crt` & `edge.key` |
+| **Offline Age Private Key** | Recipient-only public key streaming encryption (`pyrage`/official `age`), restore tooling | Owner offline age private identity storage | Owner private identity (`AGE-SECRET-KEY-1...`) must be stored strictly offline (hardware token, air-gapped physical safe) |
+| **Backup Persistence & Replication** | Streaming encrypted `*.age` generation, manifest SHA-256 checksums, local destination | Offsite encrypted backup replication | Offsite storage replication (AWS S3 with Object Lock, Cloud Storage immutable bucket, or offsite encrypted cold storage) |
+| **Password Reset Delivery** | Secure token generation, SHA-256 token storage, rate limiting, single-use invalidation | Production transactional email provider | Configure external SMTP/SES/SendGrid credentials in deployment environment |
+| **Storage at Rest** | AES-256-GCM application field encryption, encrypted backups, ephemeral directory scrubbing | Host / cloud block-volume encryption | Enable LUKS, AWS EBS Encryption with KMS, or cloud provider default at-rest volume encryption on database & storage mounts |
+| **Centralized Secret Lifecycle** | Container secret mounts (`/run/secrets/*`), key rotation engine with active/historical keys | Centralized Vault / Cloud KMS migration | Migrate from mounted Docker secrets to HashiCorp Vault or AWS/GCP KMS when enterprise policy dictates |
+| **Distributed Rate Limiting** | Layer A Nginx IP limits, Layer B Spring identity rate limiting with in-memory bounded cache | Distributed rate limiter for horizontal multi-instance scaling | Integrate Redis-backed distributed rate limiter when scaling Spring Boot horizontally across multiple container nodes |

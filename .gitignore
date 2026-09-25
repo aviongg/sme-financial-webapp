@@ -230,5 +230,8 @@ docker-data/
 /secrets/
 /docker/secrets/
 /docker/certs/
+/certs/edge.*
 /backups/
+/scripts/tools/
+*.exe
 
