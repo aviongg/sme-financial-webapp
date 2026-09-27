@@ -16,9 +16,14 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
 import { Sheet } from "@/components/ui/Sheet";
+import { isDemoMode } from "@/lib/api/config";
+import { useSession } from "@/components/auth/SessionProvider";
+import { routePermission } from "@/lib/api/navigation";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { can } = useSession();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
   const router = useRouter();
   const { t } = useLanguage();
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
@@ -49,7 +54,7 @@ export function MobileNav() {
       href: "/settings",
       icon: Settings,
     },
-  ];
+  ].filter((tab) => allowed(tab.href));
 
   const handleActionSelect = (path: string) => {
     setIsActionSheetOpen(false);
@@ -90,6 +95,7 @@ export function MobileNav() {
             <button
               type="button"
               onClick={() => setIsActionSheetOpen(true)}
+              disabled={!isDemoMode && !can("RECORD_CREATE_UPDATE") && !can("DOCUMENT_UPLOAD")}
               aria-label={t.quickActions.title}
               className="w-12 h-12 -mt-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center shadow-md hover:bg-[var(--color-brand-hover)] active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]"
             >
@@ -133,6 +139,7 @@ export function MobileNav() {
       >
         <div className="space-y-3 pt-2">
           <button
+            disabled={!allowed("/records/new")}
             type="button"
             onClick={() => handleActionSelect("/records/new")}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none"
@@ -150,7 +157,7 @@ export function MobileNav() {
             </div>
           </button>
 
-          <button
+          {allowed("/scan") && <button
             type="button"
             onClick={() => handleActionSelect("/scan")}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none"
@@ -166,9 +173,9 @@ export function MobileNav() {
                 {t.quickActions.scanDocumentDesc}
               </p>
             </div>
-          </button>
+          </button>}
 
-          <button
+          {allowed("/upload") && <button
             type="button"
             onClick={() => handleActionSelect("/upload")}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none"
@@ -184,7 +191,7 @@ export function MobileNav() {
                 {t.quickActions.uploadFilesDesc}
               </p>
             </div>
-          </button>
+          </button>}
         </div>
       </Sheet>
     </>

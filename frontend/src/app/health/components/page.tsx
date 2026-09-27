@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveHealth } from "@/components/integration/LiveHealth";
+export default function ComponentBreakdownPage(){ return isDemoMode ? <DemoPage/> : <LiveHealth/>; }
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -52,7 +55,7 @@ function PieChartIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function ComponentBreakdownPage() {
+function DemoPage() {
   const { t, direction } = useLanguage();
   const [components, setComponents] = useState<ComponentDetailItem[]>([]);
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
@@ -311,9 +314,6 @@ export default function ComponentBreakdownPage() {
                           <h2 className="text-[17px] font-semibold text-[var(--color-text-primary)] font-heading">
                             {localized.title}
                           </h2>
-                          <Badge variant="neutral" size="sm">
-                            {pillar.weight} {t.componentBreakdown.weightLabel}
-                          </Badge>
                           {pillar.isWeakest && (
                             <Badge variant="warning" size="sm" className="gap-1">
                               <AlertTriangle className="w-3 h-3" />
@@ -328,7 +328,7 @@ export default function ComponentBreakdownPage() {
                     </div>
 
                     {/* Score Value or Pending Status */}
-                    <div className="flex items-center sm:flex-col sm:items-end gap-2 shrink-0">
+                    <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
                       {isPending ? (
                         <Badge variant="neutral" size="md" className="gap-1">
                           <HelpCircle className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
@@ -347,6 +347,9 @@ export default function ComponentBreakdownPage() {
                           />
                         </div>
                       )}
+                      <Badge variant="neutral" size="sm">
+                        {pillar.weight} {t.componentBreakdown.weightLabel}
+                      </Badge>
                     </div>
                   </div>
 

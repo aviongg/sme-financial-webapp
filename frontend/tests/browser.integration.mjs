@@ -1,0 +1,80 @@
+import http from 'node:http';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdirSync,writeFileSync} from 'node:fs';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const out=process.env.BROWSER_ARTIFACT_DIR || 'test-artifacts/browser';mkdirSync(out,{recursive:true});
+const id='11111111-1111-4111-8111-111111111111', other='22222222-2222-4222-8222-222222222222';
+const records=new Map([[id,[{id:'33333333-3333-4333-8333-333333333333',businessId:id,month:'2026-09',cashInflow:1000,cashOutflow:400,revenue:1500,operatingExpenses:300,cashBalanceEom:600,cogs:null,receivablesOutstanding:0,payablesOutstanding:0,inventoryValue:0,loanOutstanding:0,interestExpense:0,financingType:'none',updatedAt:'2026-09-27T00:00:00'}]],[other,[]]]);
+let user=null,active=id,token='csrf0',seq=0;const events=[];
+const profile=()=>({businessId:active,businessType:'trade',languagePreference:'en',whatsappNumber:null,whatsappOptIn:false,createdAt:'2026-09-27'});
+const businesses=()=>[id,other].map((businessId,i)=>({businessId,businessType:i?'services':'trade',languagePreference:'en',role:user?.email.startsWith('viewer')?'VIEWER':'OWNER',membershipStatus:'ACTIVE',active:active===businessId}));
+const json=(res,data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
+const csrf=()=>{token=`csrf${++seq}`;};
+const handler=async(req,res)=>{
+ let body='';for await(const chunk of req)body+=chunk;let payload={};try{payload=JSON.parse(body);}catch{}
+ const url=req.url,method=req.method;events.push({url,method,body:payload});
+ if(url==='/api/auth/csrf'){res.setHeader('Set-Cookie','FINSIGHT_TEST=test-session; HttpOnly; SameSite=Lax; Path=/');return json(res,{token,headerName:'X-XSRF-TOKEN',parameterName:'_csrf'});}
+ if(!['GET','HEAD'].includes(method)&&!url.startsWith('/api/auth/password-reset/')&&req.headers['x-xsrf-token']!==token)return json(res,{message:'CSRF check failed',error:'access_denied'},403);
+ if(url==='/api/auth/login'){
+  if(payload.password!=='test-password-123')return json(res,{message:'Invalid email or password',error:'Unauthorized'},401);
+  user={id:'synthetic-user',fullName:'Test Owner',email:payload.email,authStage:payload.email.startsWith('mfa')?'MFA_CHALLENGE_REQUIRED':'FULLY_AUTHENTICATED',platformRole:null,mustChangePassword:false,accountStatus:'ACTIVE'};active=id;csrf();return json(res,user);
+ }
+ if(url==='/api/auth/register')return json(res,{id:'new-user',authStage:'FULLY_AUTHENTICATED'},201);
+ if(url.startsWith('/api/auth/password-reset/'))return json(res,{message:'If an account exists, reset instructions will be sent.'});
+ if(url==='/api/auth/logout'){user=null;csrf();res.writeHead(204);return res.end();}
+ if(url==='/api/auth/me')return user?.authStage==='FULLY_AUTHENTICATED'?json(res,user):json(res,{message:'Sign in required',error:'unauthorized'},401);
+ if(url==='/api/auth/mfa/challenge'){if(payload.code!=='123456')return json(res,{message:'Invalid MFA verification code',error:'Unauthorized'},401);user.authStage='FULLY_AUTHENTICATED';csrf();return json(res,user);}
+ if(!req.headers.cookie?.includes('FINSIGHT_TEST=test-session')||!user||user.authStage!=='FULLY_AUTHENTICATED')return json(res,{message:'Session expired',error:'unauthorized'},401);
+ if(url==='/api/businesses/active'){if(method==='POST')active=payload.businessId;return json(res,businesses().find(b=>b.businessId===active));}
+ if(url==='/api/businesses')return json(res,businesses());
+ if(url==='/api/profile')return json(res,profile());
+ if(url==='/api/profile/language')return json(res,{...profile(),languagePreference:payload.languagePreference});
+ if(url==='/api/profile/whatsapp')return json(res,{...profile(),whatsappNumber:payload.whatsappNumber,whatsappOptIn:payload.optIn});
+ if(url==='/api/whatsapp/deliveries'||url==='/api/documents')return json(res,[]);
+ if(url==='/api/records/monthly'){
+  if(method==='POST') {if(user.email.startsWith('viewer'))return json(res,{message:'Forbidden'},403);assert.ok(!('userId' in payload)&&!('businessId' in payload));const list=records.get(active);const previous=list.find(r=>r.month===payload.month);const record={...payload,id:previous?.id||crypto.randomUUID(),businessId:active,updatedAt:'2026-09-27'};records.set(active,[...list.filter(r=>r.month!==record.month),record]);return json(res,record,201);}
+  return json(res,records.get(active));
+ }
+ if(url==='/api/records/monthly/query'){const r=records.get(active).find(r=>r.month===payload.month);return json(res,r||{message:'Record not found'},r?200:404);}
+ const latest=records.get(active).at(-1);
+ const score=latest?{id:'saved-score',businessId:active,month:latest.month,compositeScore:72.5,band:'Stable',componentScores:{cashflow:80,profitability:null,repayment:75,trend:null,compliance:60},weakestComponent:'compliance',dataCompleteness:.6,computedAt:'2026-09-27'}:null;
+ if(url==='/api/dashboard')return json(res,{businessId:active,profile:profile(),score,topInsight:null,topRecommendation:null,cashFlowHistory:[],trendProjection:{projectedNetCashFlow:null,message:'Need at least 3 months of data for a trend',historicalMonthsCount:latest?1:0},hasHistory:!!latest});
+ if(url==='/api/scores/query')return score?json(res,{...score,month:payload.month}):json(res,{message:'No score'},404);
+ if(url==='/api/insights/query'||url==='/api/recommendations/query')return json(res,[]);
+ if(url==='/api/search')return json(res,[{id:'record',title:'September 2026',description:'Saved synthetic test record',type:'transaction',date:'2026-09',href:'javascript:alert(1)',amount:0}]);
+ if(url.startsWith('/api/zakat/'))return json(res,{calculationStatus:'INCOMPLETE_HAUL_CONFIRMATION_REQUIRED',zakatDue:null,nisabValue:61236,netZakatableAssets:null,financingComplianceStatus:'NO_FINANCING_DECLARED',missingFields:['assessment.haulStatus'],warnings:[],disclosure:'Test preview only',ruleProfile:'HANAFI_PK_BUSINESS_V1',ruleVersion:'1.0.0',debtPolicy:'Test',assetBreakdown:[],liabilityBreakdown:[]});
+ return json(res,{message:`Fixture does not implement ${url}`},404);
+};
+const server=http.createServer(handler);await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(8080,'127.0.0.1',resolve);});
+let browser;
+const checks=[];const mark=name=>{checks.push(name);console.log('PASS',name);};
+try{
+ browser=await chromium.launch({headless:true,channel:'msedge'});
+ const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage();const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/Content Security Policy|Refused to|Hydration/.test(m.text()))errors.push(m.text());});
+ await page.goto('http://127.0.0.1:3100');await page.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();mark('signed-out user sees login, not financial data');
+ await page.getByLabel(/^Email/).fill('owner@example.test');await page.getByLabel(/^Password/).fill('wrong-password');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('alert').filter({hasText:'Invalid email or password'}).waitFor();mark('login rejection shown without sample fallback');
+ await page.getByLabel(/^Email/).fill('owner@example.test');await page.getByLabel(/^Password/).fill('test-password-123');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByText('72.5',{exact:false}).first().waitFor();mark('cookie session loads canonical score and null-safe dashboard');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('finsight_user_id')),null);mark('no legacy UUID identity in localStorage');
+ await page.getByRole('button',{name:'View cash-flow details'}).click();await page.getByRole('table').first().waitFor();mark('cash-flow chevron expands recorded data');
+ await page.screenshot({path:`${out}/dashboard-desktop.png`,fullPage:true});
+ await page.goto('http://127.0.0.1:3100/records/2026-09');
+ await page.getByLabel(/^Financial Month/).waitFor();assert.ok(await page.getByLabel(/^Financial Month/).isDisabled());mark('record edit locks original month');
+ const numericInput=page.getByLabel(/^Total Cash Received/);await numericInput.fill('1200');const beforeFocus=events.filter(e=>e.url==='/api/businesses/active').length;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await new Promise(resolve=>setTimeout(resolve,500));assert.ok(events.filter(e=>e.url==='/api/businesses/active').length>beforeFocus);assert.equal((await numericInput.inputValue()).replaceAll(',',''),'1200');mark('unchanged session focus revalidation preserves unsaved form inputs');
+ const submit=page.locator('button[type="submit"]');await submit.click();await page.waitForURL('**/records');assert.equal(events.filter(e=>e.url==='/api/records/monthly'&&e.method==='POST').length,1);mark('record edit saves once through tenant-free POST upsert');
+ await page.reload();await page.getByText('September 2026').first().waitFor();mark('saved record survives frontend reload');
+ await page.goto('http://127.0.0.1:3100/settings');await page.getByLabel('Active business').waitFor();await page.getByLabel('Active business').selectOption(other);await page.getByLabel('Active business').waitFor();await page.goto('http://127.0.0.1:3100/records');await page.getByText('Add your first month', {exact:false}).first().waitFor();assert.equal(await page.getByText('September 2026').count(),0);mark('switching businesses removes previous financial rows');
+ await page.goto('http://127.0.0.1:3100/settings');await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();mark('logout removes all private screens');
+ await page.getByLabel(/^Email/).fill('viewer@example.test');await page.getByLabel(/^Password/).fill('test-password-123');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('link',{name:'Dashboard',exact:true}).first().waitFor();await page.goto('http://127.0.0.1:3100/records/new');await page.getByText('Your role has read-only access to monthly records.').waitFor();assert.ok(await page.locator('button[type="submit"]').isDisabled());mark('viewer cannot create or edit records even by direct URL');
+ await page.goto('http://127.0.0.1:3100/search');await page.getByLabel('Search query',{exact:false}).fill('September');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('link',{name:'September 2026',exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'September 2026',exact:true}).getAttribute('href'),'/records/2026-09');mark('search converts results into safe supported local links');
+ user=null;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();mark('expired session cannot retain financial data');
+ await page.getByLabel(/^Email/).fill('mfa@example.test');await page.getByLabel(/^Password/).fill('test-password-123');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('heading',{name:'Verify your sign-in'}).waitFor();assert.equal(await page.getByText('72.5',{exact:false}).count(),0);await page.getByLabel('Authenticator code').fill('123456');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('link',{name:'Dashboard',exact:true}).first().waitFor();await page.goto('http://127.0.0.1:3100');await page.getByText('72.5',{exact:false}).first().waitFor();mark('MFA challenge gates finances until completion');
+ await page.setViewportSize({width:390,height:844});await page.waitForTimeout(300);await page.screenshot({path:`${out}/dashboard-mobile.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));mark('mobile dashboard fits viewport');
+ await page.getByRole('button',{name:'اردو',exact:true}).click();await page.waitForFunction(()=>document.documentElement.dir==='rtl');await page.getByText('72.5',{exact:false}).first().waitFor();await page.screenshot({path:`${out}/dashboard-urdu.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));mark('Urdu direction and mobile layout render');
+ const response=await context.request.get('http://127.0.0.1:3100',{headers:{'x-nonce':'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}});const csp=response.headers()['content-security-policy'];assert.ok(csp&&!csp.includes('unsafe-eval')&&!csp.includes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'));mark('production CSP ignores untrusted caller nonce and omits unsafe-eval');
+ assert.deepEqual(errors,[]);mark('no browser exceptions, CSP violations or hydration errors');
+ writeFileSync(`${out}/results.json`,JSON.stringify({scope:'Production Next build against synthetic backend contract fixture, not deployed Spring/PostgreSQL',checks,errors},null,2));
+}catch(e){if(browser){const pages=browser.contexts()[0]?.pages();await pages?.[0]?.screenshot({path:`${out}/failure.png`,fullPage:true});console.error(await pages?.[0]?.locator('body').innerText());}throw e;}
+finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

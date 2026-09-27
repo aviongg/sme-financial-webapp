@@ -18,8 +18,8 @@ import type {
 
 /**
  * Mock API Adapter
- * Used for isolated UI testing without inventing backend contracts.
- * Matches backend shapes 1:1.
+ * Used only for the explicitly selected demo experience.
+ * These presentation fixtures do not represent the backend HTTP contracts.
  */
 
 export const mockBusinessProfile: BusinessProfile = {
@@ -923,5 +923,3 @@ export const mockApi = {
     });
   },
 };
-
-

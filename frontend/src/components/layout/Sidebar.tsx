@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
+import { isDemoMode } from "@/lib/api/config";
+import { useSession } from "@/components/auth/SessionProvider";
+import { routePermission } from "@/lib/api/navigation";
 
 export interface SidebarProps {
   className?: string;
@@ -25,6 +28,8 @@ export interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
+  const { can } = useSession();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
   const { t, direction } = useLanguage();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -136,7 +141,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-        {navItems.map((item) => {
+        {navItems.filter((item) => allowed(item.href)).map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 
@@ -162,7 +167,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
-        {secondaryNavItems.map((item) => {
+        {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 

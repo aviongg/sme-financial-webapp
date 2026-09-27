@@ -181,4 +181,3 @@ export function DashboardPage({ defaultMode = "mature" }: DashboardPageProps) {
     </AppShell>
   );
 }
-

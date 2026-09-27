@@ -1,6 +1,7 @@
 /**
- * FinSight Core Data Contracts
- * Strictly aligned with backend Spring Boot DTOs and Specification v1.0, Sections 7.1, 9.1, 9.2, 10.2
+ * Existing FinSight presentation and demo models.
+ * These are NOT the HTTP DTOs. Real API contracts live in lib/api/contracts.ts.
+ * In particular, score field names and completeness units differ from the API.
  */
 
 export type HealthBand = "strong" | "stable" | "attention" | "risk";
@@ -38,7 +39,8 @@ export interface MonthlyRecordRequest {
 
 export interface MonthlyRecordResponse extends MonthlyRecordRequest {
   id: string;
-  userId: string;
+  userId?: string;
+  businessId?: string;
   updatedAt: string;
 }
 
@@ -189,5 +191,3 @@ export interface DashboardData {
   recommendation: Recommendation;
   explanation: ScoreExplanationData;
 }
-
-

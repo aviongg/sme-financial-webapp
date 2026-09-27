@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter, Noto_Nastaliq_Urdu } from "next/font/google";
 import { headers } from "next/headers";
+import { SessionProvider } from "@/components/auth/SessionProvider";
+import { IntegrationBoundary } from "@/components/layout/IntegrationBoundary";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -53,7 +55,7 @@ export default async function RootLayout({
       <body className="antialiased bg-[var(--color-surface-canvas)] text-[var(--color-text-primary)]">
         <LanguageProvider>
           <ToastProvider>
-            {children}
+            <SessionProvider><IntegrationBoundary>{children}</IntegrationBoundary></SessionProvider>
           </ToastProvider>
         </LanguageProvider>
       </body>

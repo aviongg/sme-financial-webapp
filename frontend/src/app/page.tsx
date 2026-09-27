@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveDashboard } from "@/components/integration/LiveDashboard";
+export default function Page(){ return isDemoMode ? <DemoPage/> : <LiveDashboard/>; }
 
 import React from "react";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
@@ -8,6 +11,6 @@ import { DashboardPage } from "@/components/dashboard/DashboardPage";
  * Route: /
  * Displays the canonical FinSight Financial Health Dashboard Hub.
  */
-export default function Page() {
+function DemoPage() {
   return <DashboardPage defaultMode="mature" />;
 }

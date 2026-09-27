@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveSettings } from "@/components/integration/LiveSettings";
+export default function SettingsPage(){return isDemoMode ? <DemoPage/> : <LiveSettings/>;}
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -23,7 +26,7 @@ import { useLanguage } from "@/lib/i18n/context";
 import { mockApi } from "@/lib/api/adapter";
 import { cn } from "@/lib/utils/cn";
 
-export default function SettingsPage() {
+function DemoPage() {
   const { t, locale, setLocale, direction } = useLanguage();
   const { toast } = useToast();
 

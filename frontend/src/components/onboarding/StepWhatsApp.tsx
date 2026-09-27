@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { MessageSquare, ShieldCheck, ArrowLeft, ArrowRight } from "lucide-react";
+import React, { useId, useState } from "react";
+import { Check, MessageSquare, ShieldCheck, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { useLanguage } from "@/lib/i18n/context";
 
 export interface StepWhatsAppProps {
@@ -26,6 +25,7 @@ export function StepWhatsApp({
 }: StepWhatsAppProps) {
   const { t, direction } = useLanguage();
   const [phoneError, setPhoneError] = useState("");
+  const phoneEntryId = useId();
 
   const handleValidateAndContinue = () => {
     if (optIn) {
@@ -80,20 +80,35 @@ export function StepWhatsApp({
       </div>
 
       {/* Explicit Opt-In Checkbox (Not Pre-checked per Section 6 & 10) */}
-      <div className="p-4 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-card)]">
-        <Checkbox
-          label={t.onboarding.whatsappOptInLabel}
-          description={t.onboarding.whatsAppOptInDescription}
-          checked={optIn}
-          onChange={(e) => {
-            onOptInChange(e.target.checked);
-            if (!e.target.checked) setPhoneError("");
-          }}
-        />
+      <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-card)]">
+        <label className="flex items-start gap-2.5 p-4 cursor-pointer rounded-[var(--radius-lg)] select-none focus-within:ring-2 focus-within:ring-[var(--color-brand-primary)] focus-within:ring-offset-2">
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={optIn}
+            aria-controls={phoneEntryId}
+            onChange={(e) => {
+              onOptInChange(e.target.checked);
+              if (!e.target.checked) setPhoneError("");
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className={`w-4 h-4 mt-0.5 shrink-0 rounded-[var(--radius-sm)] border flex items-center justify-center ${optIn ? "bg-[var(--color-brand-primary)] border-[var(--color-brand-primary)]" : "bg-[var(--color-surface-card)] border-[var(--color-border-strong)]"}`}
+          >
+            {optIn && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+          </span>
+          <span className="text-[14px] leading-tight text-[var(--color-text-primary)]">
+            <span className="font-medium">{t.onboarding.whatsappOptInLabel}</span>
+            <span className="block text-[12px] text-[var(--color-text-muted)] mt-0.5">
+              {t.onboarding.whatsAppOptInDescription}
+            </span>
+          </span>
+        </label>
 
         {/* Conditional Phone Field when Opted In */}
         {optIn && (
-          <div className="mt-4 pt-3 border-t border-[var(--color-border-subtle)] space-y-2">
+          <div id={phoneEntryId} className="mx-4 mb-4 pt-3 border-t border-[var(--color-border-subtle)] space-y-2">
             <Input
               label={t.onboarding.whatsappPhoneLabel}
               placeholder={t.onboarding.whatsappPhonePlaceholder}

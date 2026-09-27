@@ -8,6 +8,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils/cn";
+import { isDemoMode } from "@/lib/api/config";
+import { LanguageControl } from "@/components/integration/LanguageControl";
 
 export interface PageHeaderProps {
   title?: string;
@@ -19,7 +21,7 @@ export interface PageHeaderProps {
 export function PageHeader({
   title,
   subtitle,
-  businessName = "Al-Rehman Textiles",
+  businessName = isDemoMode ? "Al-Rehman Textiles" : "FinSight",
   actions,
 }: PageHeaderProps) {
   const router = useRouter();
@@ -30,9 +32,9 @@ export function PageHeader({
 
   return (
     <>
-      <header className="h-16 border-b border-[var(--color-border-default)] bg-[var(--color-surface-card)] sticky top-0 z-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+      <header className="min-h-16 sm:h-16 py-3 sm:py-0 border-b border-[var(--color-border-default)] bg-[var(--color-surface-card)] sticky top-0 z-20 px-4 sm:px-6 lg:px-8 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
         {/* Context & Title Area */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 basis-full sm:basis-auto">
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-full)] bg-[var(--color-surface-hover)] border border-[var(--color-border-subtle)] text-[12px] text-[var(--color-text-secondary)] font-medium shrink-0">
             <Building2 className="w-3.5 h-3.5 text-[var(--color-brand-primary)]" />
             <span className="truncate max-w-[160px]">{businessName}</span>
@@ -53,20 +55,20 @@ export function PageHeader({
         </div>
 
         {/* Global Controls & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ms-auto">
           {/* Keyword Search Trigger (Section 5.4) */}
-          <button
+          {<button
             type="button"
-            onClick={() => setIsSearchOpen(true)}
+            onClick={() => isDemoMode ? setIsSearchOpen(true) : router.push("/search")}
             aria-label={t.search.title}
             className="flex items-center gap-2 h-9 px-3 rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] text-[13px] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
           >
             <Search className="w-4 h-4" />
             <span className="hidden sm:inline">{t.nav.search}...</span>
-          </button>
+          </button>}
 
           {/* Language Switcher (EN / اردو) */}
-          <button
+          {isDemoMode ? <button
             type="button"
             onClick={toggleLocale}
             aria-label="Switch interface language"
@@ -74,7 +76,7 @@ export function PageHeader({
           >
             <Globe className="w-4 h-4" />
             <span>{locale === "en" ? "اردو" : "English"}</span>
-          </button>
+          </button> : <LanguageControl />}
 
           {actions}
         </div>

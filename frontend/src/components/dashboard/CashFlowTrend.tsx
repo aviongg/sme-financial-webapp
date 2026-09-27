@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import React, { useId, useState } from "react";
+import { ArrowUpRight, ArrowDownRight, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { FinancialValue } from "@/components/ui/FinancialValue";
 import { useLanguage } from "@/lib/i18n/context";
@@ -23,11 +23,22 @@ export interface CashFlowTrendProps {
  * - Summary metrics: Inflow, Outflow, Net Surplus/Deficit, Ending Cash.
  */
 export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const [expanded, setExpanded] = useState(false);
+  const [period, setPeriod] = useState("6");
+  const detailId = useId();
+  const ur = locale === "ur";
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Chronological order (oldest to newest)
-  const sortedRecords = [...records].sort((a, b) => a.month.localeCompare(b.month));
+  const allRecords = [...records].sort((a, b) => a.month.localeCompare(b.month));
+  const monthNumber = (month: string) => {
+    const [year, number] = month.split("-").map(Number);
+    return year * 12 + number - 1;
+  };
+  const lastMonth = allRecords.at(-1)?.month;
+  const sortedRecords = allRecords.filter((record) => period === "all" ||
+    (lastMonth && monthNumber(lastMonth) - monthNumber(record.month) < Number(period)));
 
   // If no records, fallback
   if (sortedRecords.length === 0) {
@@ -36,20 +47,24 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
 
   // Latest month record for summary cards
   const latest = sortedRecords[sortedRecords.length - 1];
-  const netLatest = latest.cashInflow - latest.cashOutflow;
+  const totalInflow = sortedRecords.reduce((total, record) => total + record.cashInflow, 0);
+  const totalOutflow = sortedRecords.reduce((total, record) => total + record.cashOutflow, 0);
+  const netLatest = totalInflow - totalOutflow;
   const isSurplus = netLatest >= 0;
 
   // Calculate scaling for SVG chart
   const maxVal = Math.max(
     ...sortedRecords.map((r) => Math.max(r.cashInflow, r.cashOutflow)),
-    100000
+    1
   );
-  // Nice ceiling rounded up to nearest 500k
-  const ceiling = Math.ceil((maxVal * 1.15) / 500000) * 500000;
+  // Scale to the supplied values, including small and zero-only records.
+  const step = 10 ** Math.floor(Math.log10(maxVal));
+  const ceiling = Math.ceil((maxVal * 1.15) / step) * step;
 
   // Chart layout dimensions
   const chartHeight = 160;
-  const chartWidth = 520;
+  const calendarSpan = monthNumber(latest.month) - monthNumber(sortedRecords[0].month) + 1;
+  const chartWidth = Math.max(520, calendarSpan * 58 + 80);
   const padLeft = 60;
   const padRight = 20;
   const padTop = 15;
@@ -57,7 +72,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
   const plotWidth = chartWidth - padLeft - padRight;
   const plotHeight = chartHeight - padTop - padBottom;
 
-  const count = sortedRecords.length;
+  const count = calendarSpan;
   const groupWidth = plotWidth / count;
   const barWidth = Math.min(22, Math.max(12, groupWidth * 0.32));
 
@@ -65,7 +80,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
   const formatMonthLabel = (m: string) => {
     const [year, month] = m.split("-");
     const date = new Date(Number(year), Number(month) - 1, 1);
-    return date.toLocaleDateString("en-US", { month: "short" });
+    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
   };
 
   return (
@@ -94,9 +109,68 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 py-4">
+        <p className="text-xs text-[var(--color-text-muted)]" dir="ltr">{sortedRecords[0].month} – {latest.month}</p>
+        <label className="flex items-center gap-2 text-sm">
+          {ur ? "مدت" : "Period"}
+          <select value={period} onChange={(event) => { setPeriod(event.target.value); setHoveredIndex(null); }} className="rounded-md border border-[var(--color-border-default)] p-2 bg-[var(--color-surface-card)]">
+            <option value="3">{ur ? "آخری 3 ماہ" : "Last 3 months"}</option>
+            <option value="6">{ur ? "آخری 6 ماہ" : "Last 6 months"}</option>
+            <option value="12">{ur ? "آخری 12 ماہ" : "Last 12 months"}</option>
+            <option value="all">{ur ? "تمام ریکارڈ" : "All records"}</option>
+          </select>
+        </label>
+      </div>
+      {/* Totals for the selected period; ending cash is the last recorded balance. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-[var(--color-border-subtle)]">
+        {/* Total Inflow */}
+        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
+            {t.dashboard.totalInflow}
+          </span>
+          <FinancialValue value={totalInflow} size="md" />
+        </div>
+
+        {/* Total Outflow */}
+        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
+            {t.dashboard.totalOutflow}
+          </span>
+          <FinancialValue value={totalOutflow} size="md" />
+        </div>
+
+        {/* Net Movement */}
+        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
+            {isSurplus ? t.dashboard.netSurplus : t.dashboard.netDeficit}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {isSurplus ? (
+              <ArrowUpRight className="w-4 h-4 text-[var(--color-health-strong)] shrink-0" />
+            ) : (
+              <ArrowDownRight className="w-4 h-4 text-[var(--color-health-risk)] shrink-0" />
+            )}
+            <FinancialValue value={netLatest} size="md" colorIntent="semantic" showSign />
+          </div>
+        </div>
+
+        {/* Ending Cash */}
+        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-brand-navy)] block mb-1">
+            {t.dashboard.endingCashBalance}
+          </span>
+          <FinancialValue value={latest.cashBalanceEom} size="md" className="text-[var(--color-brand-primary)]" />
+        </div>
+      </div>
+      <button type="button" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)} className="mt-4 w-full flex items-center justify-center gap-2 rounded-md border border-[var(--color-border-default)] px-4 py-2 text-sm font-semibold text-[var(--color-brand-primary)] hover:bg-[var(--color-surface-hover)]">
+        {expanded ? (ur ? "تفصیل بند کریں" : "Hide cash-flow details") : (ur ? "نقد بہاؤ کی تفصیل" : "View cash-flow details")}
+        <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+      </button>
+      <div id={detailId} hidden={!expanded}>
+        <p className="mt-4 text-xs text-[var(--color-text-muted)]">{ur ? "منتخب مدت کے محفوظ مہینے۔ جن مہینوں کا ریکارڈ نہیں، انہیں صفر نہیں سمجھا گیا۔" : "Recorded months in the selected period. Missing months are not treated as zero."}</p>
       {/* SVG Bar Chart (Strictly LTR chronology) */}
       <div className="py-4 overflow-x-auto" dir="ltr">
-        <div className="min-w-[480px]">
+        <div style={{ minWidth: chartWidth }}>
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             className="w-full h-auto overflow-visible select-none"
@@ -133,7 +207,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
 
             {/* Monthly Bar Groups */}
             {sortedRecords.map((r, i) => {
-              const groupCenterX = padLeft + i * groupWidth + groupWidth / 2;
+              const groupCenterX = padLeft + (monthNumber(r.month) - monthNumber(sortedRecords[0].month)) * groupWidth + groupWidth / 2;
               const inflowH = (r.cashInflow / ceiling) * plotHeight;
               const outflowH = (r.cashOutflow / ceiling) * plotHeight;
               const inflowY = padTop + plotHeight - inflowH;
@@ -145,6 +219,10 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
                   key={r.id || r.month}
                   onMouseEnter={() => setHoveredIndex(i)}
                   onMouseLeave={() => setHoveredIndex(null)}
+                  onFocus={() => setHoveredIndex(i)}
+                  onBlur={() => setHoveredIndex(null)}
+                  onClick={() => setHoveredIndex(i)}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setHoveredIndex(i); } }}
                   className="cursor-pointer transition-opacity"
                   tabIndex={0}
                   role="button"
@@ -167,7 +245,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
                     x={groupCenterX - barWidth - 1.5}
                     y={inflowY}
                     width={barWidth}
-                    height={Math.max(2, inflowH)}
+                    height={inflowH}
                     fill="var(--color-brand-primary)"
                     rx="3"
                     className="transition-all duration-300"
@@ -178,7 +256,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
                     x={groupCenterX + 1.5}
                     y={outflowY}
                     width={barWidth}
-                    height={Math.max(2, outflowH)}
+                    height={outflowH}
                     fill="#64748B"
                     rx="3"
                     className="transition-all duration-300"
@@ -204,7 +282,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
       </div>
 
       {/* Active Month Detail Tooltip / Indicator */}
-      {hoveredIndex !== null && (
+      {hoveredIndex !== null && sortedRecords[hoveredIndex] && (
         <div className="mb-4 p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3 text-[12px]">
           <span className="font-semibold text-[var(--color-text-primary)]">
             {sortedRecords[hoveredIndex].month}
@@ -243,45 +321,17 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
         </div>
       )}
 
-      {/* Supporting Metric Tiles (Latest Month) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-[var(--color-border-subtle)]">
-        {/* Total Inflow */}
-        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-            {t.dashboard.totalInflow}
-          </span>
-          <FinancialValue value={latest.cashInflow} size="md" />
-        </div>
-
-        {/* Total Outflow */}
-        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-            {t.dashboard.totalOutflow}
-          </span>
-          <FinancialValue value={latest.cashOutflow} size="md" />
-        </div>
-
-        {/* Net Movement */}
-        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-            {isSurplus ? t.dashboard.netSurplus : t.dashboard.netDeficit}
-          </span>
-          <div className="flex items-center gap-1.5">
-            {isSurplus ? (
-              <ArrowUpRight className="w-4 h-4 text-[var(--color-health-strong)] shrink-0" />
-            ) : (
-              <ArrowDownRight className="w-4 h-4 text-[var(--color-health-risk)] shrink-0" />
-            )}
-            <FinancialValue value={netLatest} size="md" colorIntent="semantic" showSign />
-          </div>
-        </div>
-
-        {/* Ending Cash */}
-        <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-brand-navy)] block mb-1">
-            {t.dashboard.endingCashBalance}
-          </span>
-          <FinancialValue value={latest.cashBalanceEom} size="md" className="text-[var(--color-brand-primary)]" />
+        <div className="overflow-x-auto">
+          <table className="w-full text-start text-sm">
+            <caption className="sr-only">{ur ? "ماہانہ نقد بہاؤ" : "Monthly cash-flow details"}</caption>
+            <thead><tr className="border-b border-[var(--color-border-default)]">
+              {[t.dashboard.monthCol, t.dashboard.inflowCol, t.dashboard.outflowCol, t.dashboard.netCol, t.dashboard.endingCol].map((label) => <th key={label} scope="col" className="p-2 text-start">{label}</th>)}
+            </tr></thead>
+            <tbody>{sortedRecords.map((record) => <tr key={record.month} className="border-b border-[var(--color-border-subtle)]">
+              <th scope="row" className="p-2 text-start font-medium" dir="ltr">{record.month}</th>
+              {[record.cashInflow, record.cashOutflow, record.cashInflow - record.cashOutflow, record.cashBalanceEom].map((value, index) => <td key={index} className="p-2 whitespace-nowrap">{formatPKR(value, { locale })}</td>)}
+            </tr>)}</tbody>
+          </table>
         </div>
       </div>
     </Card>

@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveZakat } from "@/components/integration/LiveZakat";
+export default function ShariaZakatPage(){return isDemoMode ? <DemoPage/> : <LiveZakat/>;}
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -26,7 +29,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { ZakatData } from "@/types/financial";
 
-export default function ShariaZakatPage() {
+function DemoPage() {
   const { t, direction } = useLanguage();
   const [data, setData] = useState<ZakatData | null>(null);
   const [isLoading, setIsLoading] = useState(true);

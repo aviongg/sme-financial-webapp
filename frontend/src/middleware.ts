@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const nonce = request.headers.get("x-nonce") || Buffer.from(crypto.randomUUID()).toString("base64");
+  // Only deployments with an ingress that overwrites x-nonce may opt in.
+  const supplied = process.env.TRUST_INGRESS_NONCE === "true" ? request.headers.get("x-nonce") : null;
+  const nonce = supplied && /^[a-f0-9]{32}$/i.test(supplied) ? supplied : Buffer.from(crypto.randomUUID()).toString("base64");
+  const development = process.env.NODE_ENV !== "production";
 
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${development ? "'unsafe-eval'" : ''};
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self' data:;
@@ -13,7 +16,7 @@ export function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    connect-src 'self';
+    connect-src 'self' ${development ? 'ws: wss:' : ''};
     worker-src 'self' blob:;
   `.replace(/\s{2,}/g, " ").trim();
 
@@ -28,6 +31,9 @@ export function middleware(request: NextRequest) {
   });
 
   response.headers.set("Content-Security-Policy", cspHeader);
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "same-origin");
 
   return response;
 }

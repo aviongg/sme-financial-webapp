@@ -117,6 +117,10 @@ services:
     image: finsight-frontend:latest
     container_name: finsight-frontend-runtime
     restart: unless-stopped
+    environment:
+      # Private service: Nginx overwrites x-nonce with its own request ID.
+      # Never enable this for a directly exposed Next server.
+      TRUST_INGRESS_NONCE: "true"
     networks:
       finsight-web-net:
         aliases:

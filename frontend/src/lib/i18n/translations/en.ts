@@ -247,7 +247,7 @@ export const en = {
   },
   records: {
     newTitle: "Add Monthly Financial Data",
-    newSubtitle: "Tell us what happened financially this month to update your health score and insights.",
+    newSubtitle: "Save your income, expenses and cash balances for this month.",
     editTitle: "Edit Monthly Financial Data",
     editSubtitle: "Update figures for this financial period.",
     backToDashboard: "Back to Dashboard",

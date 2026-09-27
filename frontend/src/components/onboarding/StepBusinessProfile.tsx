@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, ArrowLeft, ArrowRight, Store, Factory, Briefcase, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowRight, Store, Factory, Briefcase, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/context";
@@ -158,9 +158,6 @@ export function StepBusinessProfile({
                     <p className="text-[14px] font-bold text-[var(--color-text-primary)] font-heading">
                       {item.title}
                     </p>
-                    {isSelected && (
-                      <Check className="w-4 h-4 text-[var(--color-brand-primary)] shrink-0 ms-1 stroke-[3]" />
-                    )}
                   </div>
                   <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5 leading-snug">
                     {item.description}

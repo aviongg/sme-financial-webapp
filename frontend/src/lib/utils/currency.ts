@@ -63,4 +63,3 @@ export function formatPKR(
 }
 
 export const formatCurrency = formatPKR;
-

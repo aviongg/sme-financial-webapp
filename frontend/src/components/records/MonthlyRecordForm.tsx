@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -12,6 +12,11 @@ import { useToast } from "@/components/ui/Toast";
 import { useLanguage } from "@/lib/i18n/context";
 import { formatPKR } from "@/lib/utils/currency";
 import { mockApi } from "@/lib/api/adapter";
+import { ApiError } from "@/lib/api/client";
+import { isDemoMode } from "@/lib/api/config";
+import { phaseOneApi } from "@/lib/api/phase-one";
+import { useSession } from "@/components/auth/SessionProvider";
+import type { MonthlyRecordRequest as BackendMonthlyRecordRequest } from "@/lib/api/contracts";
 import { MonthSelector } from "./MonthSelector";
 import {
   CoreVitalsSection,
@@ -24,7 +29,6 @@ import {
   type PrecisionBoostersErrors,
 } from "./PrecisionBoostersSection";
 import type {
-  MonthlyRecordRequest,
   MonthlyRecordResponse,
   FinancingType,
 } from "@/types/financial";
@@ -47,6 +51,8 @@ export function MonthlyRecordForm({
   className,
 }: MonthlyRecordFormProps) {
   const router = useRouter();
+  const session = useSession();
+  const canWrite = isDemoMode || session.can("RECORD_CREATE_UPDATE");
   const { t, direction, locale } = useLanguage();
   const isRTL = direction === "rtl";
   const { toast } = useToast();
@@ -91,6 +97,8 @@ export function MonthlyRecordForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [hasConfirmedWarning, setHasConfirmedWarning] = useState(false);
+  const [existingMonth, setExistingMonth] = useState<string | null>(null);
+  const submissionLock = useRef(false);
 
   // Field change handlers
   const handleCoreChange = <K extends keyof CoreVitalsValues>(
@@ -98,6 +106,7 @@ export function MonthlyRecordForm({
     val: number | null
   ) => {
     setCoreValues((prev) => ({ ...prev, [field]: val }));
+    setHasConfirmedWarning(false);
     // Clear error for field on change
     if (coreErrors[field]) {
       setCoreErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -116,6 +125,7 @@ export function MonthlyRecordForm({
 
   const handleMonthChange = (newMonth: string) => {
     setMonth(newMonth);
+    setExistingMonth(null);
     if (monthError) setMonthError(undefined);
   };
 
@@ -135,8 +145,8 @@ export function MonthlyRecordForm({
     const newPrecisionErrors: PrecisionBoostersErrors = {};
 
     // Validate Month
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      setMonthError("Please select a valid month (YYYY-MM).");
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      setMonthError(locale === "ur" ? "براہ کرم درست مہینہ منتخب کریں۔" : "Please select a valid month (YYYY-MM).");
       isValid = false;
     } else {
       setMonthError(undefined);
@@ -153,7 +163,7 @@ export function MonthlyRecordForm({
 
     for (const field of requiredFields) {
       const val = coreValues[field];
-      if (val === null || val === undefined || Number.isNaN(val)) {
+      if (val === null || val === undefined || !Number.isFinite(val)) {
         newCoreErrors[field] = t.records.validationRequired;
         isValid = false;
       } else if (val < 0) {
@@ -175,7 +185,7 @@ export function MonthlyRecordForm({
     for (const field of optionalNumericFields) {
       const val = precisionValues[field];
       if (val !== null && val !== undefined) {
-        if (Number.isNaN(val)) {
+        if (!Number.isFinite(val)) {
           newPrecisionErrors[field] = t.records.validationRequired;
           isValid = false;
         } else if (val < 0) {
@@ -199,11 +209,17 @@ export function MonthlyRecordForm({
 
   // Save implementation
   const executeSave = async () => {
+    if (submissionLock.current) return;
+    if (!canWrite) {
+      setSubmitError(locale === "ur" ? "پہلے اپنا پروفائل بنائیں یا کھولیں۔" : "Set up or open your profile before saving a record.");
+      return;
+    }
+    submissionLock.current = true;
     setIsSubmitting(true);
     setSubmitError(null);
+    setExistingMonth(null);
 
-    const payload: MonthlyRecordRequest = {
-      userId: initialData?.userId || "bp-1001",
+    const payload: BackendMonthlyRecordRequest = {
       month,
       cashInflow: Number(coreValues.cashInflow),
       cashOutflow: Number(coreValues.cashOutflow),
@@ -237,12 +253,41 @@ export function MonthlyRecordForm({
     };
 
     try {
-      await mockApi.saveMonthlyRecord(payload);
+      if (isDemoMode) {
+        await mockApi.saveMonthlyRecord({ ...payload, userId: initialData?.userId || "bp-1001" });
+      } else if (isEditMode) {
+        await phaseOneApi.updateMonthlyRecord(month, payload);
+      } else {
+        // POST is an upsert on this backend. Direct the user to the edit screen
+        // before replacing a month they may have saved in another session.
+        const records = await phaseOneApi.getMonthlyRecords();
+        if (records.some((record) => record.month === month)) {
+          setExistingMonth(month);
+          setSubmitError(locale === "ur" ? "اس مہینے کا ریکارڈ پہلے سے موجود ہے۔ اسے کھول کر ترمیم کریں۔" : "A record already exists for this month. Open it to review and edit the saved values.");
+          return;
+        }
+        await phaseOneApi.createMonthlyRecord(payload);
+      }
       toast(t.records.saveSuccess, "success");
-      // Redirect cleanly to dashboard where backend/adapter results are rendered
-      router.push("/");
-    } catch {
-      setSubmitError(t.records.saveError);
+      router.push(isDemoMode ? "/" : "/records");
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        const fields = { ...cause.fieldErrors };
+        // The standalone Fatima service uses a message-only error for required COGS.
+        if (cause.status === 400 && cause.message === "COGS is required") fields.cogs = cause.message;
+        setMonthError(fields.month);
+        setCoreErrors(Object.fromEntries(Object.keys(coreValues).filter((key) => fields[key]).map((key) => [key, fields[key]])));
+        setPrecisionErrors(Object.fromEntries(Object.keys(precisionValues).filter((key) => fields[key]).map((key) => [key, fields[key]])));
+        setSubmitError(fields.cogs
+          ? (locale === "ur" ? "اس وقت ریکارڈ محفوظ کرنے کے لیے فروخت شدہ مال کی لاگت درج کرنا ضروری ہے۔ نیچے متعلقہ خانہ مکمل کریں۔" : "Saving currently requires cost of goods sold. Enter that amount in the optional details below, then try again.")
+          : cause.status === 404
+            ? (locale === "ur" ? "پروفائل یا ریکارڈ نہیں ملا۔ اپنا پروفائل دوبارہ کھولیں۔" : "The profile or record was not found. Open your profile again.")
+            : cause.message);
+      } else {
+        setSubmitError(t.records.saveError);
+      }
+    } finally {
+      submissionLock.current = false;
       setIsSubmitting(false);
     }
   };
@@ -273,10 +318,12 @@ export function MonthlyRecordForm({
   return (
     <div className={className}>
       <form onSubmit={handleSubmit} noValidate className="space-y-8">
+        {!canWrite && <p role="status">Your role has read-only access to monthly records.</p>}
+        <fieldset disabled={!canWrite || isSubmitting} className="space-y-8 min-w-0">
         {/* Navigation & Header */}
         <div className="space-y-4 text-start">
           <Link
-            href="/"
+            href={isDemoMode ? "/" : "/records"}
             className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-brand-primary)] hover:underline"
           >
             {isRTL ? (
@@ -284,7 +331,7 @@ export function MonthlyRecordForm({
             ) : (
               <ArrowLeft className="w-4 h-4" />
             )}
-            <span>{t.records.backToDashboard}</span>
+            <span>{isDemoMode ? t.records.backToDashboard : (locale === "ur" ? "ماہانہ ریکارڈ پر واپس جائیں" : "Back to monthly records")}</span>
           </Link>
 
           <div>
@@ -304,7 +351,7 @@ export function MonthlyRecordForm({
           value={month}
           onChange={handleMonthChange}
           error={monthError}
-          disabled={isSubmitting}
+          disabled={isSubmitting || (!isDemoMode && isEditMode)}
         />
 
         <Divider />
@@ -338,12 +385,13 @@ export function MonthlyRecordForm({
         {submitError && (
           <AlertBanner variant="error">
             <p>{submitError}</p>
+            {existingMonth && <Link className="underline font-semibold" href={`/records/${existingMonth}`}>{locale === "ur" ? "موجودہ ریکارڈ کھولیں" : "Open existing record"}</Link>}
           </AlertBanner>
         )}
 
         {/* Actions Bar */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--color-border-subtle)]">
-          <Link href="/">
+          <Link href={isDemoMode ? "/" : "/records"}>
             <Button
               type="button"
               variant="secondary"
@@ -367,6 +415,7 @@ export function MonthlyRecordForm({
             {isSubmitting ? t.records.savingButton : t.records.saveButton}
           </Button>
         </div>
+        </fieldset>
       </form>
 
       {/* Non-Blocking Outflow Warning Confirmation Dialog */}

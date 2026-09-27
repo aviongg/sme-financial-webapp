@@ -9,48 +9,59 @@ import { MonthlyRecordForm } from "@/components/records/MonthlyRecordForm";
 import { RecordFormSkeleton } from "@/components/records/RecordFormSkeleton";
 import { useLanguage } from "@/lib/i18n/context";
 import { mockApi } from "@/lib/api/adapter";
+import { ApiError } from "@/lib/api/client";
+import { isDemoMode } from "@/lib/api/config";
+import { phaseOneApi } from "@/lib/api/phase-one";
+
 import type { MonthlyRecordResponse } from "@/types/financial";
 
 export default function EditMonthlyRecordPage() {
   const params = useParams();
-  const router = useRouter();
-  const { t } = useLanguage();
-
   const recordId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : "";
+  return <RecordEditor key={recordId} recordId={recordId} />;
+}
+
+function RecordEditor({ recordId }: { recordId: string }) {
+  const router = useRouter();
+  const { t, locale } = useLanguage();
 
   const [record, setRecord] = useState<MonthlyRecordResponse | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(recordId));
   const [isNotFound, setIsNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
-  const notFound = !recordId || isNotFound;
+  const invalidMonth = !isDemoMode && !/^\d{4}-(0[1-9]|1[0-2])$/.test(recordId);
+  const notFound = !recordId || invalidMonth || isNotFound;
 
   useEffect(() => {
-    if (!recordId) return;
+    if (!recordId || invalidMonth) return;
 
     let isCancelled = false;
-
-    mockApi
-      .getMonthlyRecord(recordId)
+    const request = isDemoMode ? mockApi.getMonthlyRecord(recordId) : phaseOneApi.getMonthlyRecord(recordId);
+    request
       .then((res) => {
         if (isCancelled) return;
         if (res) {
           setRecord(res);
+          setIsNotFound(false);
+          setError(null);
         } else {
           setIsNotFound(true);
         }
         setIsLoading(false);
       })
-      .catch(() => {
+      .catch((cause) => {
         if (isCancelled) return;
-        setError(t.records.loadError);
+        if (cause instanceof ApiError && cause.status === 404) setIsNotFound(true);
+        else setError(t.records.loadError);
         setIsLoading(false);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [recordId, t.records.loadError]);
+  }, [recordId, invalidMonth, t.records.loadError, retry, router]);
 
   return (
     <AppShell
@@ -60,38 +71,30 @@ export default function EditMonthlyRecordPage() {
       <Container width="dashboard" className="py-6">
         <div className="max-w-[860px] mx-auto">
           {/* Loading state: Geometry-matched structural skeleton */}
-          {isLoading && <RecordFormSkeleton />}
+          {isLoading && !notFound && <RecordFormSkeleton />}
 
           {/* Record not found state */}
-          {!isLoading && notFound && (
+          {notFound && (
             <ErrorState
               title={t.records.notFoundTitle}
               description={t.records.notFoundDescription}
-              retryLabel={t.records.backToDashboard}
-              onRetry={() => router.push("/")}
+              showSafeMessage={false}
+              retryLabel={isDemoMode ? t.records.backToDashboard : (locale === "ur" ? "ماہانہ ریکارڈ" : "Monthly records")}
+              onRetry={() => router.push(isDemoMode ? "/" : "/records")}
             />
           )}
 
           {/* Load error state with retry */}
           {!isLoading && !notFound && error && (
             <ErrorState
-              title={t.records.notFoundTitle}
+              title={locale === "ur" ? "ریکارڈ لوڈ نہیں ہو سکا" : "Could not load this record"}
               description={error}
+              showSafeMessage={false}
               retryLabel={t.common.tryAgain}
               onRetry={() => {
                 setIsLoading(true);
                 setError(null);
-                mockApi
-                  .getMonthlyRecord(recordId)
-                  .then((res) => {
-                    if (res) setRecord(res);
-                    else setIsNotFound(true);
-                    setIsLoading(false);
-                  })
-                  .catch(() => {
-                    setError(t.records.loadError);
-                    setIsLoading(false);
-                  });
+                setRetry((value) => value + 1);
               }}
             />
           )}
@@ -99,6 +102,7 @@ export default function EditMonthlyRecordPage() {
           {/* Successfully loaded record */}
           {!isLoading && !notFound && !error && record && (
             <MonthlyRecordForm
+              key={`${record.businessId ?? record.userId}:${record.month}`}
               initialData={record}
               isEditMode
             />
