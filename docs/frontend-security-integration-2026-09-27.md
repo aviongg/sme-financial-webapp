@@ -37,4 +37,4 @@ The browser API fixture models the contracts; it does not execute Java services,
 5. Validate the actual HTTPS ingress, secure cookies, matching CSP nonces, request limits, multi-tab logout/expiry, restore drill and accessible EN/UR/mobile journeys. Complete Urdu copy for the new screens.
 6. Review the integration diff with Fatima and Suleman, then prepare the main merge only when agreed. Do not merge the entire old `dev/fatima` backend over Suleman's security implementation.
 
-The original detailed audit and its Word version remain in Fatima's primary checkout: `docs/security-and-mvp-audit-2026-09-26.md` and `docs/FinSight_Security_and_MVP_Audit_for_Suleman.docx`. This handoff updates frontend implementation status; it does not replace or close that audit.
+The [original detailed audit](security-and-mvp-audit-2026-09-26.md) and its [Word copy for Suleman](FinSight_Security_and_MVP_Audit_for_Suleman.docx) are now included on this branch. This handoff updates frontend implementation status; it does not replace or close that audit. See the [28 September consolidation check](CONSOLIDATED_APP_BRANCH.md) for the complete branch inventory and UI gaps.

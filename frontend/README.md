@@ -2,6 +2,8 @@
 
 This frontend integrates Fatima's UI work with Suleman's authenticated backend at `f2ed9bda671404598bd73729563c6e0ceb2b08d1`. Work is isolated on `codex/fatima-secure-frontend`; main is unchanged. The former browser-supplied profile UUID is no longer used in live mode.
 
+All 100 frontend files from `dev/fatima` are accounted for here, with 20 additional files. See the [consolidation check](../docs/CONSOLIDATED_APP_BRANCH.md) for the source inventory and remaining product gaps.
+
 ## Run locally
 
 Use Node 20.9+ and the backend's documented PostgreSQL setup. Do not reuse production data for acceptance tests.
