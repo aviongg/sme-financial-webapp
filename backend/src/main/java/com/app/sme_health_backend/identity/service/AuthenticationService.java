@@ -16,7 +16,9 @@ import com.app.sme_health_backend.identity.repository.BusinessMembershipReposito
 import com.app.sme_health_backend.identity.repository.BusinessRepository;
 import com.app.sme_health_backend.identity.validation.EmailValidator;
 import com.app.sme_health_backend.identity.validation.PasswordValidator;
-import com.app.sme_health_backend.mfa.service.MfaService;
+import com.app.sme_health_backend.security.service.PreAuthenticationService;
+import com.app.sme_health_backend.security.service.PreAuthenticationInvalidException;
+import org.springframework.session.FindByIndexNameSessionRepository;
 import com.app.sme_health_backend.security.filter.AuthenticationStageValidationFilter;
 import com.app.sme_health_backend.security.filter.SessionMaxLifetimeFilter;
 import com.app.sme_health_backend.security.service.AppUserDetails;
@@ -57,7 +59,7 @@ public class AuthenticationService {
     private final SessionAuthenticationStrategy sessionAuthenticationStrategy;
     private final BusinessMembershipRepository membershipRepository;
     private final BusinessRepository businessRepository;
-    private final MfaService mfaService;
+    private final PreAuthenticationService preAuthenticationService;
     private final SessionRevocationService sessionRevocationService;
     private final SecurityAuditService auditService;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
@@ -71,7 +73,7 @@ public class AuthenticationService {
             BusinessRepository businessRepository
     ) {
         this(userRepository, passwordEncoder, authenticationManager, sessionAuthenticationStrategy,
-                membershipRepository, businessRepository, null, null, null);
+                membershipRepository, businessRepository, new PreAuthenticationService(userRepository, null), null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -82,7 +84,7 @@ public class AuthenticationService {
             SessionAuthenticationStrategy sessionAuthenticationStrategy,
             BusinessMembershipRepository membershipRepository,
             BusinessRepository businessRepository,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) MfaService mfaService,
+            PreAuthenticationService preAuthenticationService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) SessionRevocationService sessionRevocationService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) SecurityAuditService auditService
     ) {
@@ -92,7 +94,7 @@ public class AuthenticationService {
         this.sessionAuthenticationStrategy = sessionAuthenticationStrategy;
         this.membershipRepository = membershipRepository;
         this.businessRepository = businessRepository;
-        this.mfaService = mfaService;
+        this.preAuthenticationService = preAuthenticationService;
         this.sessionRevocationService = sessionRevocationService;
         this.auditService = auditService;
     }
@@ -182,19 +184,18 @@ public class AuthenticationService {
             throw new DisabledException("Account is disabled");
         }
 
-        boolean mfaEnrolled = mfaService != null && mfaService.isMfaEnabled(user.getId());
-        boolean isPlatformAdmin = "PLATFORM_ADMIN".equals(user.getPlatformRole());
-
-        // Authoritative Authentication State Machine
-        if (user.isMustChangePassword()) {
-            return enterPreAuthStage(user, "PASSWORD_CHANGE_REQUIRED", httpRequest, httpResponse);
-        } else if (isPlatformAdmin && !mfaEnrolled) {
-            return enterPreAuthStage(user, "MFA_ENROLLMENT_REQUIRED", httpRequest, httpResponse);
-        } else if (mfaEnrolled) {
-            return enterPreAuthStage(user, "MFA_CHALLENGE_REQUIRED", httpRequest, httpResponse);
-        } else {
-            return establishFullAuthentication(user, httpRequest, httpResponse);
+        // Bind to the credential version that actually passed the password check, never a
+        // newer version fetched after a concurrent reset.
+        if (authentication != null && authentication.getPrincipal() instanceof AppUserDetails accepted
+                && accepted.getAuthVersion() != user.getAuthVersion()) {
+            SecurityContextHolder.clearContext();
+            HttpSession existing = httpRequest != null ? httpRequest.getSession(false) : null;
+            if (existing != null) existing.invalidate();
+            throw new PreAuthenticationInvalidException();
         }
+        String stage = preAuthenticationService.requiredStage(user);
+        return stage != null ? enterPreAuthStage(user, stage, httpRequest, httpResponse)
+                : establishFullAuthentication(user, httpRequest, httpResponse);
     }
 
     private UserResponse enterPreAuthStage(
@@ -209,6 +210,11 @@ public class AuthenticationService {
 
             session.setAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID, user.getId());
             session.setAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_STAGE, authStage);
+            session.setAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_VERSION, user.getAuthVersion());
+            session.setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, user.getEmail());
+            session.removeAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+            session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_VERSION);
+            session.removeAttribute(SessionMaxLifetimeFilter.SESSION_AUTH_TIME_ATTR);
             session.setAttribute(
                     AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_EXPIRES_AT,
                     System.currentTimeMillis() + PRE_AUTH_TTL_MILLIS
@@ -228,7 +234,16 @@ public class AuthenticationService {
         return UserResponse.fromEntity(user, authStage);
     }
 
-    public UserResponse establishFullAuthentication(
+    public AppUser validatePreAuthentication(HttpServletRequest request, String expectedStage) {
+        return preAuthenticationService.validate(request.getSession(false), expectedStage);
+    }
+
+    public UserResponse completeMfaAuthentication(HttpServletRequest request, HttpServletResponse response) {
+        AppUser currentUser = validatePreAuthentication(request, "MFA_CHALLENGE_REQUIRED");
+        return establishFullAuthentication(currentUser, request, response);
+    }
+
+    private UserResponse establishFullAuthentication(
             AppUser user,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
@@ -254,9 +269,11 @@ public class AuthenticationService {
             HttpSession session = httpRequest.getSession(true);
             session.setAttribute(SessionMaxLifetimeFilter.SESSION_AUTH_TIME_ATTR, System.currentTimeMillis());
             session.setAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_VERSION, user.getAuthVersion());
+            session.setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, user.getEmail());
 
             // Clear pre-auth temporary markers
             session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID);
+            session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_VERSION);
             session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_STAGE);
             session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_EXPIRES_AT);
             session.removeAttribute(AuthenticationStageValidationFilter.FINSIGHT_FAILED_CHALLENGES);
@@ -361,9 +378,8 @@ public class AuthenticationService {
         HttpSession session = httpRequest != null ? httpRequest.getSession(false) : null;
         if (session != null) {
             Object preAuthId = session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID);
-            if (preAuthId instanceof UUID u) {
-                return userRepository.findById(u)
-                        .orElseThrow(() -> new ResourceNotFoundException("User not found: " + u));
+            if (preAuthId != null) {
+                return preAuthenticationService.validate(session, "PASSWORD_CHANGE_REQUIRED");
             }
         }
 
@@ -451,9 +467,9 @@ public class AuthenticationService {
             if (session != null) {
                 Object stageObj = session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_STAGE);
                 Object preAuthId = session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID);
-                if (stageObj != null && preAuthId instanceof UUID u) {
-                    AppUser user = userRepository.findById(u)
-                            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + u));
+                if (stageObj != null || preAuthId != null) {
+                    AppUser user = preAuthenticationService.validate(session,
+                            stageObj instanceof String stage ? stage : null);
                     return UserResponse.fromEntity(user, stageObj.toString());
                 }
             }

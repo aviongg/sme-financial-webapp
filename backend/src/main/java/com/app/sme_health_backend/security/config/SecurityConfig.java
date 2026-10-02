@@ -35,6 +35,7 @@ import java.util.List;
 import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.security.filter.AccountStatusValidationFilter;
 import com.app.sme_health_backend.security.filter.AuthenticationStageValidationFilter;
+import com.app.sme_health_backend.security.service.PreAuthenticationService;
 import com.app.sme_health_backend.security.filter.TrustedProxyValidationFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
@@ -83,6 +84,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
+            PreAuthenticationService preAuthenticationService,
             @Value("${app.security.csrf.cookie-secure:false}") boolean csrfCookieSecure
     ) throws Exception {
         CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -122,7 +124,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(trustedProxyValidationFilter, CsrfFilter.class)
-                .addFilterBefore(new AuthenticationStageValidationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new AuthenticationStageValidationFilter(preAuthenticationService), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new AccountStatusValidationFilter(userRepository), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new SessionMaxLifetimeFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);

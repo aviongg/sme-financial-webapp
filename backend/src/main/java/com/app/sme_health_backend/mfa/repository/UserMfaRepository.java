@@ -15,6 +15,10 @@ public interface UserMfaRepository extends JpaRepository<UserMfa, UUID> {
 
     Optional<UserMfa> findByUserId(UUID userId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM UserMfa m WHERE m.userId = :userId")
+    Optional<UserMfa> findByUserIdForUpdate(@Param("userId") UUID userId);
+
     @Modifying
     @Query("UPDATE UserMfa m SET m.lastUsedTimeStep = :candidate " +
            "WHERE m.userId = :userId AND m.status = 'ENABLED' " +

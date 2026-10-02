@@ -88,18 +88,38 @@ public class MfaService {
 
     @Transactional
     public MfaInitiateResponse initiateEnrollment(UUID userId, String email) {
+        return initiateEnrollment(userId, email, null);
+    }
+
+    @Transactional
+    public MfaInitiateResponse initiateEnrollment(UUID userId, String email, HttpServletRequest request) {
         Objects.requireNonNull(userId, "userId is required");
         Objects.requireNonNull(email, "email is required");
 
-        String secret = totpEngine.generateSecret();
-        String encryptedSecret = cipher.encrypt(secret, getAad(userId));
-
-        UserMfa userMfa = userMfaRepository.findByUserId(userId).orElseGet(() -> {
+        // Lock the parent too: a missing user_mfa row cannot be locked, and a concurrent
+        // first enrollment/confirmation must not be overwritten by repository merge.
+        AppUser user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        if (user.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw new DisabledException("Account is disabled");
+        }
+        UserMfa userMfa = userMfaRepository.findByUserIdForUpdate(userId).orElseGet(() -> {
             UserMfa m = new UserMfa();
             m.setUserId(userId);
             return m;
         });
 
+        if ("ENABLED".equals(userMfa.getStatus())) {
+            auditService.recordSecurityEvent(AuditEventType.MFA_ENROLLMENT_REJECTED,
+                    userId, null, null, "MFA", userId.toString(), AuditOutcome.FAILURE,
+                    request, Map.of("reason", "mfa_already_enabled"));
+            throw new MfaAlreadyEnabledException();
+        }
+
+        String secret = totpEngine.generateSecret();
+        String encryptedSecret = cipher.encrypt(secret, getAad(userId));
+
+        // Restarting a pending setup replaces its secret and starts a new 15-minute TTL.
         userMfa.setTotpSecret(encryptedSecret);
         userMfa.setStatus("PENDING");
         userMfa.setCreatedAt(OffsetDateTime.now());
@@ -129,22 +149,22 @@ public class MfaService {
 
     @Transactional
     public void disableMfa(UUID userId) {
+        AppUser user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         userMfaRepository.deleteByUserId(userId);
         recoveryCodeRepository.deleteByUserId(userId);
-        userRepository.findById(userId).ifPresent(u -> {
-            u.setAuthVersion(u.getAuthVersion() + 1);
-            userRepository.save(u);
-            if (sessionRevocationService != null) {
-                sessionRevocationService.revokeAllSessions(u.getEmail(), userId, "MFA_DISABLED");
-            }
-        });
+        user.setAuthVersion(user.getAuthVersion() + 1);
+        userRepository.save(user);
+        if (sessionRevocationService != null) {
+            sessionRevocationService.revokeAllSessions(user.getEmail(), userId, "MFA_DISABLED");
+        }
     }
 
     @Transactional
     public List<String> confirmEnrollment(UUID userId, String code, String password, HttpServletRequest request) {
         Objects.requireNonNull(userId, "userId is required");
 
-        AppUser user = userRepository.findById(userId)
+        AppUser user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
@@ -155,7 +175,7 @@ public class MfaService {
             throw new BadCredentialsException("Current password verification failed");
         }
 
-        UserMfa userMfa = userMfaRepository.findByUserId(userId)
+        UserMfa userMfa = userMfaRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new BadCredentialsException("No pending MFA enrollment found"));
 
         if (!"PENDING".equals(userMfa.getStatus())) {
@@ -360,7 +380,7 @@ public class MfaService {
     public void disableMfa(UUID userId, String password, String verificationCode, HttpServletRequest request) {
         Objects.requireNonNull(userId, "userId is required");
 
-        AppUser user = userRepository.findById(userId)
+        AppUser user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {

@@ -18,7 +18,8 @@ public class UserMfa {
     @Column(nullable = false, length = 20)
     private String status; // PENDING, ENABLED
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    // Pending enrollment restarts replace the setup and renew its confirmation deadline.
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
     @Column(name = "verified_at")

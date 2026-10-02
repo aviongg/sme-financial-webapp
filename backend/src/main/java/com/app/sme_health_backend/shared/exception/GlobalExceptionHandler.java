@@ -13,6 +13,20 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException.class)
+    public ResponseEntity<Map<String, Object>> handleMfaAlreadyEnabled(
+            com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(createBaseResponse(
+                HttpStatus.CONFLICT, "mfa_already_enabled", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.security.service.PreAuthenticationInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidPreAuthentication(
+            com.app.sme_health_backend.security.service.PreAuthenticationInvalidException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createBaseResponse(
+                HttpStatus.UNAUTHORIZED, "pre_auth_invalid", exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(
             MethodArgumentNotValidException exception) {

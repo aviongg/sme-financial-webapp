@@ -144,7 +144,7 @@ public class AuthController {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
-        MfaInitiateResponse response = mfaService.initiateEnrollment(userId, user.getEmail());
+        MfaInitiateResponse response = mfaService.initiateEnrollment(userId, user.getEmail(), httpRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -155,6 +155,11 @@ public class AuthController {
     ) {
         UUID userId = resolvePreAuthOrAuthenticatedUserId(httpRequest);
         List<String> recoveryCodes = mfaService.confirmEnrollment(userId, request.code(), request.password(), httpRequest);
+        // Mandatory enrollment changes the required stage; require a fresh password login.
+        HttpSession session = httpRequest.getSession(false);
+        if (session != null && session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_STAGE) != null) {
+            session.invalidate();
+        }
         return ResponseEntity.ok(Map.of(
                 "message", "MFA successfully enabled",
                 "recoveryCodes", recoveryCodes
@@ -175,10 +180,7 @@ public class AuthController {
             throw new BadCredentialsException("Invalid MFA verification code");
         }
 
-        AppUser user = userRepository.findById(preAuthUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + preAuthUserId));
-
-        UserResponse userResponse = authenticationService.establishFullAuthentication(user, httpRequest, httpResponse);
+        UserResponse userResponse = authenticationService.completeMfaAuthentication(httpRequest, httpResponse);
         return ResponseEntity.ok(userResponse);
     }
 
@@ -196,10 +198,7 @@ public class AuthController {
             throw new BadCredentialsException("Invalid recovery code");
         }
 
-        AppUser user = userRepository.findById(preAuthUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + preAuthUserId));
-
-        UserResponse userResponse = authenticationService.establishFullAuthentication(user, httpRequest, httpResponse);
+        UserResponse userResponse = authenticationService.completeMfaAuthentication(httpRequest, httpResponse);
         return ResponseEntity.ok(userResponse);
     }
 
@@ -214,22 +213,15 @@ public class AuthController {
     }
 
     private UUID resolvePreAuthUserId(HttpServletRequest httpRequest) {
-        HttpSession session = httpRequest.getSession(false);
-        if (session != null) {
-            Object preAuthId = session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID);
-            if (preAuthId instanceof UUID u) {
-                return u;
-            }
-        }
-        throw new BadCredentialsException("No active pre-authentication challenge found");
+        return authenticationService.validatePreAuthentication(httpRequest, "MFA_CHALLENGE_REQUIRED").getId();
     }
 
     private UUID resolvePreAuthOrAuthenticatedUserId(HttpServletRequest httpRequest) {
         HttpSession session = httpRequest.getSession(false);
         if (session != null) {
             Object preAuthId = session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_PRE_AUTH_USER_ID);
-            if (preAuthId instanceof UUID u) {
-                return u;
+            if (preAuthId != null || session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_STAGE) != null) {
+                return authenticationService.validatePreAuthentication(httpRequest, "MFA_ENROLLMENT_REQUIRED").getId();
             }
         }
         return resolveAuthenticatedUserId();

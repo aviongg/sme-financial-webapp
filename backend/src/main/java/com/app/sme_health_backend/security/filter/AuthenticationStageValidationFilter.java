@@ -1,5 +1,8 @@
 package com.app.sme_health_backend.security.filter;
 
+import com.app.sme_health_backend.security.service.PreAuthenticationService;
+import com.app.sme_health_backend.security.service.PreAuthenticationInvalidException;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,10 +17,17 @@ import java.util.Set;
 public class AuthenticationStageValidationFilter extends OncePerRequestFilter {
 
     public static final String FINSIGHT_PRE_AUTH_USER_ID = "FINSIGHT_PRE_AUTH_USER_ID";
+    public static final String FINSIGHT_PRE_AUTH_VERSION = "FINSIGHT_PRE_AUTH_VERSION";
     public static final String FINSIGHT_AUTH_STAGE = "FINSIGHT_AUTH_STAGE";
     public static final String FINSIGHT_PRE_AUTH_EXPIRES_AT = "FINSIGHT_PRE_AUTH_EXPIRES_AT";
     public static final String FINSIGHT_FAILED_CHALLENGES = "FINSIGHT_FAILED_CHALLENGES";
     public static final String FINSIGHT_AUTH_VERSION = "FINSIGHT_AUTH_VERSION";
+
+    private final PreAuthenticationService preAuthenticationService;
+
+    public AuthenticationStageValidationFilter(PreAuthenticationService preAuthenticationService) {
+        this.preAuthenticationService = preAuthenticationService;
+    }
 
     private static final Set<String> PASSWORD_CHANGE_PERMITTED = Set.of(
             "/api/auth/csrf",
@@ -52,20 +62,16 @@ public class AuthenticationStageValidationFilter extends OncePerRequestFilter {
 
         if (session != null) {
             Object stageObj = session.getAttribute(FINSIGHT_AUTH_STAGE);
-            if (stageObj != null) {
-                String stage = stageObj.toString();
-
-                Object expiresAtObj = session.getAttribute(FINSIGHT_PRE_AUTH_EXPIRES_AT);
-                if (expiresAtObj instanceof Long expiresAt) {
-                    if (System.currentTimeMillis() > expiresAt) {
-                        session.invalidate();
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                        response.getWriter().write(
-                                "{\"error\":\"pre_auth_expired\",\"message\":\"Authentication challenge has expired. Please log in again.\"}"
-                        );
-                        return;
-                    }
+            if (stageObj != null || session.getAttribute(FINSIGHT_PRE_AUTH_USER_ID) != null) {
+                String stage = stageObj instanceof String storedStage ? storedStage : null;
+                try {
+                    preAuthenticationService.validate(session, stage);
+                } catch (PreAuthenticationInvalidException invalid) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write(
+                            "{\"error\":\"pre_auth_invalid\",\"message\":\"Authentication challenge is no longer valid. Please log in again.\"}");
+                    return;
                 }
 
                 String uri = request.getRequestURI();
