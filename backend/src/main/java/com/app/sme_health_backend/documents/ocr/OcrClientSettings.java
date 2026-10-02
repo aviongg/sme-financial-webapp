@@ -1,8 +1,12 @@
 package com.app.sme_health_backend.documents.ocr;
 
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 public record OcrClientSettings(
@@ -46,16 +50,38 @@ public record OcrClientSettings(
         String secret = environment.getProperty("OCR_SERVICE_SECRET",
                 environment.getProperty("INTERNAL_SERVICE_SECRET",
                         environment.getProperty("app.security.internal-service-secret", "")));
-        if (secret == null || secret.isBlank()) {
-            java.nio.file.Path secretPath = java.nio.file.Paths.get("/run/secrets/ocr_service_key");
-            if (java.nio.file.Files.exists(secretPath)) {
-                try {
-                    secret = java.nio.file.Files.readString(secretPath, java.nio.charset.StandardCharsets.UTF_8).trim();
-                } catch (java.io.IOException ignored) {
-                }
+        String configuredFile = environment.getProperty("OCR_SERVICE_KEY_FILE");
+        // Explicit secret-file configuration is authoritative. A broken mount must
+        // not silently fall back to an unrelated legacy environment secret.
+        if (configuredFile != null) {
+            if (configuredFile.isBlank()) {
+                throw new IllegalStateException("OCR_SERVICE_KEY_FILE must name a readable, non-empty secret file");
             }
+            secret = readSecret(Path.of(configuredFile));
+        } else if (secret == null || secret.isBlank()) {
+            Path defaultFile = Path.of("/run/secrets/ocr_service_key");
+            if (Files.exists(defaultFile)) {
+                secret = readSecret(defaultFile);
+            }
+        }
+        if (environment.acceptsProfiles(Profiles.of("prod", "production"))
+                && (secret == null || secret.isBlank())) {
+            throw new IllegalStateException("A production OCR service key is required");
         }
         new OcrClientSettings(service, connect, request, limit, secret);
         return new OcrClientSettings(URI.create(base.replaceAll("/+$", "") + "/extract"), connect, request, limit, secret);
+    }
+
+    private static String readSecret(Path path) {
+        try {
+            String value = Files.readString(path, StandardCharsets.UTF_8).strip();
+            if (value.isEmpty()) {
+                throw new IllegalStateException("OCR service key file must not be empty");
+            }
+            return value;
+        } catch (java.io.IOException exception) {
+            // Avoid exposing path details or secret content through configuration logs.
+            throw new IllegalStateException("OCR service key file cannot be read");
+        }
     }
 }

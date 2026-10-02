@@ -1,6 +1,7 @@
 package com.app.sme_health_backend.documents.ocr;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -14,6 +15,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class OcrIntegrationConfigurationTests {
+    @TempDir
+    Path temporary;
     private final ApplicationContextRunner context = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(OcrIntegrationConfiguration.class));
 
@@ -105,5 +110,37 @@ class OcrIntegrationConfigurationTests {
                 .withProperty("OCR_REQUEST_TIMEOUT_SECONDS", "0")));
         assertThrows(IllegalArgumentException.class, () -> OcrClientSettings.from(new MockEnvironment()
                 .withProperty("OCR_MAX_RESPONSE_BYTES", "0")));
+    }
+
+    @Test
+    void readsConfiguredSecretFileInsteadOfLegacyEnvironmentSecret() throws Exception {
+        Path key = temporary.resolve("ocr_service_key");
+        Files.writeString(key, "disposable-fixture-service-key\n");
+        OcrClientSettings settings = OcrClientSettings.from(new MockEnvironment()
+                .withProperty("OCR_SERVICE_KEY_FILE", key.toString())
+                .withProperty("OCR_SERVICE_SECRET", "stale-fixture-secret"));
+        assertEquals("disposable-fixture-service-key", settings.serviceSecret());
+    }
+
+    @Test
+    void configuredMissingBlankAndUnreadableSecretFilesFailClosed() throws Exception {
+        assertThrows(IllegalStateException.class, () -> OcrClientSettings.from(new MockEnvironment()
+                .withProperty("OCR_SERVICE_KEY_FILE", temporary.resolve("missing").toString())
+                .withProperty("OCR_SERVICE_SECRET", "must-not-fallback")));
+        Path empty = temporary.resolve("empty");
+        Files.writeString(empty, " \n");
+        assertThrows(IllegalStateException.class, () -> OcrClientSettings.from(new MockEnvironment()
+                .withProperty("OCR_SERVICE_KEY_FILE", empty.toString())));
+        assertThrows(IllegalStateException.class, () -> OcrClientSettings.from(new MockEnvironment()
+                .withProperty("OCR_SERVICE_KEY_FILE", temporary.toString())));
+        assertThrows(IllegalStateException.class, () -> OcrClientSettings.from(new MockEnvironment()
+                .withProperty("OCR_SERVICE_KEY_FILE", "")));
+    }
+
+    @Test
+    void productionWithoutServiceKeyFailsAtConfiguration() {
+        MockEnvironment environment = new MockEnvironment().withProperty("OCR_SERVICE_URL", "https://ai.finsight.internal:8000");
+        environment.setActiveProfiles("prod");
+        assertThrows(IllegalStateException.class, () -> OcrClientSettings.from(environment));
     }
 }
