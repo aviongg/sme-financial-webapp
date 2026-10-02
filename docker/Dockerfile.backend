@@ -7,7 +7,7 @@ COPY backend/mvnw backend/pom.xml backend/
 WORKDIR /workspace/app/backend
 RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
 
-COPY backend/src backend/src
+COPY backend/src ./src
 RUN ./mvnw clean package -DskipTests -B
 
 # Stage 2: Hardened Runtime

@@ -1,0 +1,8 @@
+FROM alpine:3.22
+RUN apk add --no-cache squid \
+    && mkdir -p /var/cache/squid /var/log/squid \
+    && chown -R squid:squid /var/cache/squid /var/log/squid
+COPY docker/ocr-egress/squid.conf /etc/squid/squid.conf
+USER squid
+EXPOSE 3128
+CMD ["squid", "-N", "-f", "/etc/squid/squid.conf"]

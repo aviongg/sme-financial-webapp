@@ -21,7 +21,7 @@ server {
 # S8-4 HTTP port 8080: Permanent redirect to HTTPS
 server {
     listen 8080;
-    server_name localhost ${APP_DOMAIN:-localhost};
+    server_name ${APP_DOMAIN};
 
     # S8-25 Public Edge Health Check
     location /healthz {
@@ -38,11 +38,11 @@ server {
 # S8-4 Public HTTPS Server (Edge Termination)
 server {
     listen 8443 ssl;
-    server_name localhost ${APP_DOMAIN:-localhost};
+    server_name ${APP_DOMAIN};
 
     # TLS Certificates (External secrets mounted in container)
     ssl_certificate /etc/nginx/certs/edge.crt;
-    ssl_certificate_key /etc/nginx/certs/edge.key;
+    ssl_certificate_key /run/secrets/edge_server_key;
 
     # S8-4 Protocols: TLS 1.2 and 1.3 only (TLS 1.0 and 1.1 disabled)
     ssl_protocols TLSv1.2 TLSv1.3;
