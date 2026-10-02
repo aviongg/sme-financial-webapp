@@ -1,225 +1,223 @@
 #!/usr/bin/env python3
-"""FinSight S9 Automated Backup, Recovery & Disaster Drill Suite
+"""Real PostgreSQL recovery acceptance against a quiescent disposable source DB.
 
-Verifies:
-1. Generation of ephemeral owner age keypair (never stored in Git).
-2. Streaming encrypted database backup via finsight_backup.
-3. Authenticated backup manifest & SHA-256 integrity verification.
-4. S5 crypto keyring recovery bundle creation.
-5. Wrong private key test (fails closed, zero plaintext).
-6. Corrupted backup test (bit flipping in ciphertext fails closed).
-7. Full restore drill into disposable database (sme_health_restore_drill).
-8. S9-13 Ephemeral auth data purge verification (sessions, tokens, pending MFA cleared).
-9. S9-14 Domain and schema integrity verification (Flyway V1-V14, triggers, records).
-10. S5 Keyring recovery and ciphertext decryption verification.
-11. Backup database role privilege verification (SELECT succeeds, mutations denied).
+Requires current migrations, representative encrypted rows and their real keyring.
+Source data is fingerprinted after every failure/success. Only fresh, random
+staging databases created by this run are cleaned up. No credentials are printed.
+Run the fixture suite separately with unittest; this drill never falls back to mocks.
 """
 
-import datetime
+import argparse
+import hashlib
 import json
 import os
-import shutil
-import subprocess
 import sys
 import tempfile
-import time
+import uuid
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from backup.crypto_age import generate_keypair, DecryptionError, CorruptedBackupError, AgeCryptoError
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backup.crypto_age import generate_keypair, decrypt_bytes, encrypt_bytes, AgeCryptoError
 from backup.backup_database import run_backup
 from backup.backup_keyring import run_keyring_backup
-from backup.restore_database import run_restore, execute_sql, execute_sql_query
+from backup.restore_database import run_restore, execute_sql, execute_sql_query, require_password, validate_identifier, RestoreError
 
 
-def run_drill():
-    print("=" * 70)
-    print("STARTING FINSIGHT S9 DISASTER RECOVERY DRILL & ADVERSARIAL AUDIT")
-    print("=" * 70)
+def source_fingerprint(query):
+    """Fingerprint every public table's data and relevant catalog state; never log rows."""
+    tables = json.loads(query("SELECT COALESCE(json_agg(tablename ORDER BY tablename), '[]'::json) FROM pg_tables WHERE schemaname='public';"))
+    hashes = {}
+    for table in tables:
+        validate_identifier(table)
+        hashes[table] = query(f'''SELECT md5(COALESCE(string_agg(row_to_json(t)::text,
+            E'\\n' ORDER BY row_to_json(t)::text), '')) FROM public."{table}" t;''')
+    hashes["catalog"] = query("""SELECT md5(COALESCE(string_agg(row_to_json(c)::text, '' ORDER BY row_to_json(c)::text), ''))
+        FROM (SELECT table_name, column_name, data_type, is_nullable, column_default
+              FROM information_schema.columns WHERE table_schema='public') c;""")
+    hashes["triggers"] = query("""SELECT md5(COALESCE(string_agg(pg_get_triggerdef(t.oid) || t.tgenabled,
+        '' ORDER BY t.tgname, c.relname), '')) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public';""")
+    return hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
 
-    # 1. Ephemeral Owner Keypair (Simulating offline owner storage)
+
+def run_drill(args):
+    source = validate_identifier(args.source_db)
+    container = None if args.no_container else args.container
+    admin = validate_identifier(args.admin_user)
+    backup_user = validate_identifier(args.backup_user)
+    dba_password = require_password(None, args.admin_password_file or os.environ.get("DBA_DB_PASSWORD_FILE"))
+    backup_password = require_password(None, args.backup_password_file or os.environ.get("BACKUP_DB_PASSWORD_FILE"), "BACKUP_DB_PASSWORD")
+    connection = (container, args.host, args.port)
+
+    def query(database, sql):
+        return execute_sql_query(*connection, database, admin, dba_password, sql)
+
+    def original_unchanged():
+        if source_fingerprint(lambda sql: query(source, sql)) != original:
+            raise RuntimeError("Source database fingerprint changed during the drill")
+
+    def assert_absent(name):
+        if query("postgres", f"SELECT 1 FROM pg_database WHERE datname='{name}';"):
+            raise RuntimeError("Failed recovery left its staging database behind")
+
+    original = source_fingerprint(lambda sql: query(source, sql))
     recipient, identity = generate_keypair()
-    print(f"\n[1] Generated ephemeral owner age keypair:")
-    print(f"    Recipient: {recipient}")
-    print(f"    Identity:  {identity[:20]}... [OFFLINE/EPHEMERAL]")
-
-    # Create temporary directory for drill artifacts
-    temp_dir = Path(tempfile.mkdtemp(prefix="finsight_s9_drill_"))
-    db_backup_dir = temp_dir / "db_backups"
-    keyring_backup_dir = temp_dir / "keyring_backups"
-    disposable_db = "sme_health_restore_drill"
-
     results = {}
+    owned = set()
+    with tempfile.TemporaryDirectory(prefix="finsight_dr_") as temporary:
+        folder = Path(temporary)
+        backup = run_backup(recipient, folder / "database", container=container, host=args.host,
+                            port=args.port, dbname=source, user=backup_user, password=backup_password)
+        backup_path = Path(backup["artifact_path"])
+        keyring = run_keyring_backup(recipient, folder / "keyring", secrets_dir=Path(args.secrets_dir))
+        keyring_path = Path(keyring["artifact_path"])
+        # Only this deliberately small drill decrypts the dump in memory to generate
+        # adversarial SQL fixtures. The production restore streams without buffering.
+        plaintext = decrypt_bytes(backup_path.read_bytes(), identity)
 
+        def attempt(path=backup_path, owner_identity=identity, bundle=keyring_path, name=None):
+            name = name or "finsight_dr_" + uuid.uuid4().hex
+            result = run_restore(path, owner_identity, name, container=container, host=args.host,
+                                 port=args.port, admin_user=admin, admin_password=dba_password,
+                                 keyring_file=bundle)
+            owned.add(name)
+            return result
+
+        def expect_failure(label, path=backup_path, owner_identity=identity,
+                           bundle=keyring_path, error_type=RestoreError, message=None):
+            name = "finsight_dr_" + uuid.uuid4().hex
+            try:
+                attempt(path, owner_identity, bundle, name)
+            except error_type as error:
+                if message and message not in str(error):
+                    raise RuntimeError(f"{label}: failed at a different gate than expected") from error
+            else:
+                raise RuntimeError(f"{label}: invalid restore unexpectedly succeeded")
+            assert_absent(name)
+            original_unchanged()
+            results[label] = "PASS"
+
+        def sql_fixture(label, suffix):
+            path = folder / (label + ".age")
+            path.write_bytes(encrypt_bytes(plaintext + b"\n" + suffix.encode(), recipient))
+            return path
+
+        try:
+            _, wrong_identity = generate_keypair()
+            expect_failure("wrong_private_key", owner_identity=wrong_identity, error_type=AgeCryptoError)
+            corrupted = bytearray(backup_path.read_bytes())
+            corrupted[-1] ^= 1
+            corrupt_path = folder / "corrupted.age"
+            corrupt_path.write_bytes(corrupted)
+            expect_failure("corrupted_backup", path=corrupt_path, error_type=AgeCryptoError)
+            expect_failure("partial_sql_error", sql_fixture("partial_sql_error", "CREATE TABLE public.dr_partial (id int); INSERT INTO public.dr_partial VALUES (1); SELECT 1 / 0;"),
+                           message="Decrypted SQL could not be completely restored")
+            expect_failure("missing_security_trigger", sql_fixture("missing_trigger", "DROP TRIGGER trg_protect_platform_role ON public.app_users;"),
+                           message="Required security triggers")
+            expect_failure("unexpected_flyway_history", sql_fixture("bad_history", "UPDATE public.flyway_schema_history SET checksum=0 WHERE version='1';"),
+                           message="Flyway history")
+            blocked_purge = """
+                INSERT INTO public.spring_session(primary_id, session_id, creation_time, last_access_time,
+                    max_inactive_interval, expiry_time) VALUES (gen_random_uuid()::text, gen_random_uuid()::text, 0, 0, 300, 300);
+                CREATE FUNCTION public.dr_block_purge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$;
+                CREATE TRIGGER dr_block_purge BEFORE DELETE ON public.spring_session FOR EACH ROW EXECUTE FUNCTION public.dr_block_purge();
+            """
+            expect_failure("nonzero_ephemeral_state", sql_fixture("blocked_purge", blocked_purge),
+                           message="Ephemeral authentication state")
+            bad_keyring = folder / "bad_keyring.age"
+            bad_keyring.write_bytes(b"corrupt keyring")
+            expect_failure("corrupted_keyring", bundle=bad_keyring, message="Requested keyring")
+            other_recipient, _ = generate_keypair()
+            wrong_keyring = folder / "wrong_keyring.age"
+            wrong_keyring.write_bytes(encrypt_bytes(b"{}", other_recipient))
+            expect_failure("wrong_keyring_recipient", bundle=wrong_keyring, message="Requested keyring")
+            try:
+                attempt(name=source)
+            except RestoreError as error:
+                if "Staging database already exists" not in str(error):
+                    raise
+            else:
+                # run_restore refusing an existing source is a mandatory safety gate.
+                raise RuntimeError("Existing source database was not refused")
+            original_unchanged()
+            results["existing_database_refused"] = "PASS"
+
+            verified = attempt()
+            if verified["status"] != "VERIFIED_STAGING_RESTORE" or verified["keyring_recovery"]["status"] != "VERIFIED":
+                raise RuntimeError("Valid backup was not fully verified")
+            if verified["keyring_recovery"]["ciphertext_samples_verified"] < 1:
+                raise RuntimeError("Seed representative encrypted source data before running the acceptance drill")
+            original_unchanged()
+            results["valid_restore_and_keyring"] = "PASS"
+            results["verification"] = verified
+
+            # Read succeeds; DML uses zero rows. Unexpected DDL is rolled back, and
+            # only insufficient_privilege counts as successful denial evidence.
+            probe = "dr_role_probe_" + uuid.uuid4().hex
+            role_checks = f"""BEGIN;
+                SELECT count(*) FROM public.app_users;
+                DO $$ BEGIN
+                    BEGIN
+                        DELETE FROM public.app_users WHERE false;
+                        RAISE EXCEPTION 'Backup role unexpectedly has DELETE privilege';
+                    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+                    BEGIN
+                        UPDATE public.app_users SET updated_at=updated_at WHERE false;
+                        RAISE EXCEPTION 'Backup role unexpectedly has UPDATE privilege';
+                    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+                    BEGIN
+                        INSERT INTO public.app_users SELECT * FROM public.app_users WHERE false;
+                        RAISE EXCEPTION 'Backup role unexpectedly has INSERT privilege';
+                    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+                    BEGIN
+                        CREATE TABLE public.{probe}(id int);
+                        RAISE EXCEPTION 'Backup role unexpectedly has CREATE privilege';
+                    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+                END $$;
+                ROLLBACK;"""
+            rc, _, _ = execute_sql(*connection, source, backup_user, backup_password, role_checks)
+            if rc:
+                raise RuntimeError("Backup role SELECT/DML/DDL privilege acceptance failed")
+            original_unchanged()
+            results["backup_role_least_privilege"] = "PASS"
+        finally:
+            cleanup_errors = []
+            for name in owned:
+                # Names enter owned only when our new staging restore succeeds.
+                if name == source:
+                    cleanup_errors.append("Source DB was incorrectly reported as new staging")
+                    continue
+                rc, _, _ = execute_sql(*connection, "postgres", admin, dba_password,
+                                       f'DROP DATABASE "{validate_identifier(name)}" WITH (FORCE);')
+                if rc:
+                    cleanup_errors.append(name)
+            if cleanup_errors:
+                raise RuntimeError("Drill staging cleanup failed; manual operator cleanup is required")
+    return {"status": "REAL_POSTGRES_DRILL_PASSED", "source_unchanged": True,
+            "staging_cleaned": True, "checks": results}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-db", required=True, help="Quiescent disposable DB with current migrations and encrypted fixture records")
+    parser.add_argument("--secrets-dir", required=True, help="Matching application ConfigTree key directory")
+    parser.add_argument("--container", default="finsight-postgres-prod")
+    parser.add_argument("--no-container", action="store_true")
+    parser.add_argument("--host", default="postgres.finsight.internal")
+    parser.add_argument("--port", type=int, default=5432)
+    parser.add_argument("--admin-user", default="finsight_dba")
+    parser.add_argument("--backup-user", default="finsight_backup")
+    parser.add_argument("--admin-password-file")
+    parser.add_argument("--backup-password-file")
+    args = parser.parse_args()
     try:
-        # 2. Execute encrypted logical database backup
-        print("\n[2] Executing streaming encrypted pg_dump...")
-        backup_start = time.time()
-        backup_res = run_backup(
-            recipient=recipient,
-            output_dir=db_backup_dir,
-            container="sme-health-postgres",
-            host="127.0.0.1",
-            dbname="sme_health",
-            user="finsight_backup",
-            password="FinSight_Backup_Reader_2026_!#5bK"
-        )
-        backup_duration = time.time() - backup_start
-        print(f"    Artifact: {backup_res['artifact_path']}")
-        print(f"    Size:     {backup_res['size_bytes']} bytes")
-        print(f"    SHA-256:  {backup_res['sha256']}")
-        print(f"    Duration: {backup_duration:.2f}s")
-        print(f"    Flyway:   {backup_res['flyway_version']}")
-
-        results["backup_size_bytes"] = backup_res["size_bytes"]
-        results["backup_duration_seconds"] = round(backup_duration, 2)
-        results["backup_sha256"] = backup_res["sha256"]
-        results["flyway_version"] = backup_res["flyway_version"]
-
-        # 3. Execute S5 Crypto Keyring Recovery Bundle
-        print("\n[3] Executing S5 crypto keyring recovery bundle...")
-        keyring_res = run_keyring_backup(
-            recipient=recipient,
-            output_dir=keyring_backup_dir,
-            explicit_keys={"k1": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
-            explicit_active_id="k1"
-        )
-        print(f"    Keyring Artifact: {keyring_res['artifact_path']}")
-        print(f"    Active Key ID:    {keyring_res['active_key_id']}")
-        print(f"    Retained Keys:    {keyring_res['retained_key_ids']}")
-
-        # 4. S9-16 Adversarial Test: Wrong Private Key
-        print("\n[4] S9-16 Adversarial Test: Wrong Private Key...")
-        _, wrong_identity = generate_keypair()
-        try:
-            run_restore(
-                backup_file=Path(backup_res["artifact_path"]),
-                identity=wrong_identity,
-                target_dbname="should_not_exist",
-                container="sme-health-postgres"
-            )
-            print("    FAILED: Restore with wrong private key did not fail!")
-            results["wrong_key_test"] = "FAILED"
-        except (DecryptionError, RuntimeError) as e:
-            print(f"    PASSED: Failed closed with wrong key as expected: {str(e)[:60]}...")
-            results["wrong_key_test"] = "PASS"
-
-        # 5. S9-15 Adversarial Test: Corrupted Backup
-        print("\n[5] S9-15 Adversarial Test: Corrupted Backup Artifact...")
-        corrupted_file = db_backup_dir / "corrupted_backup.sql.age"
-        with open(backup_res["artifact_path"], "rb") as f_orig:
-            ct = bytearray(f_orig.read())
-        # Flip bits in middle of ciphertext payload
-        ct[len(ct) // 2] ^= 0xFF
-        with open(corrupted_file, "wb") as f_bad:
-            f_bad.write(ct)
-
-        try:
-            run_restore(
-                backup_file=corrupted_file,
-                identity=identity,
-                target_dbname="should_not_exist",
-                container="sme-health-postgres"
-            )
-            print("    FAILED: Corrupted backup restore did not fail!")
-            results["corrupted_backup_test"] = "FAILED"
-        except (CorruptedBackupError, RuntimeError) as e:
-            print(f"    PASSED: Failed closed on corrupted backup as expected: {str(e)[:60]}...")
-            results["corrupted_backup_test"] = "PASS"
-
-        # 6. S9-12 Full Restore Drill into Disposable Database
-        print(f"\n[6] S9-12 Executing full restore drill into disposable database '{disposable_db}'...")
-        # Drop disposable DB if it exists from previous run
-        execute_sql("sme-health-postgres", "127.0.0.1", 5432, "sme_health",
-                    "finsight_dba", "FinSight_Dba_Admin_Sec_2026_!#9xK",
-                    f"DROP DATABASE IF EXISTS {disposable_db};")
-
-        restore_start = time.time()
-        restore_res = run_restore(
-            backup_file=Path(backup_res["artifact_path"]),
-            identity=identity,
-            target_dbname=disposable_db,
-            container="sme-health-postgres",
-            keyring_file=Path(keyring_res["artifact_path"])
-        )
-        restore_duration = time.time() - restore_start
-        print(f"    Restore Status:    {restore_res['status']}")
-        print(f"    Decrypted Plaintext: {restore_res['bytes_decrypted']} bytes")
-        print(f"    Restore Duration:  {restore_duration:.2f}s")
-        print(f"    Flyway Migrations: {restore_res['flyway_migrations_applied']} (Latest: {restore_res['latest_flyway_version']})")
-        print(f"    Domain Records:    {restore_res['domain_records']}")
-        print(f"    Purged Records:    {restore_res['purged_records']}")
-        print(f"    Verified Triggers: {restore_res['verified_triggers']}")
-        print(f"    Keyring Recovery:  {restore_res['keyring_recovery']}")
-
-        results["restore_duration_seconds"] = round(restore_duration, 2)
-        results["restored_flyway_version"] = restore_res["latest_flyway_version"]
-        results["restored_flyway_count"] = restore_res["flyway_migrations_applied"]
-        results["restored_records"] = restore_res["domain_records"]
-        results["purged_records"] = restore_res["purged_records"]
-        results["verified_triggers"] = restore_res["verified_triggers"]
-        results["keyring_recovery"] = restore_res["keyring_recovery"]
-
-        # Validate S9-13: Sessions and reset tokens must be 0
-        assert restore_res["purged_records"]["spring_sessions"] == 0, "Spring sessions must be 0 after restore"
-        assert restore_res["purged_records"]["password_reset_tokens"] == 0, "Reset tokens must be 0 after restore"
-        assert restore_res["purged_records"]["pending_mfa"] == 0, "Pending MFA enrollments must be 0 after restore"
-        assert restore_res["flyway_migrations_applied"] >= 14, "Flyway migrations must be at least 14"
-        assert "trg_protect_platform_role" in restore_res["verified_triggers"], "Platform role protection trigger missing"
-        assert "trg_audit_no_truncate" in restore_res["verified_triggers"], "Audit no-truncate trigger missing"
-        assert "trg_audit_no_update_delete" in restore_res["verified_triggers"], "Audit no-update/delete trigger missing"
-
-        results["restore_drill_status"] = "PASS"
-
-        # 7. S9-18 Backup Database Role Invariants Verification
-        print("\n[7] S9-18 Verifying finsight_backup least-privilege invariants...")
-        check_mutations_sql = """
-        DO $$
-        BEGIN
-            -- Attempting insert as finsight_backup must fail
-            BEGIN
-                EXECUTE 'INSERT INTO app_users (id, email, password_hash) VALUES (gen_random_uuid(), ''h@t.com'', ''x'')';
-                RAISE EXCEPTION 'finsight_backup INSERT succeeded unexpectedly';
-            EXCEPTION WHEN insufficient_privilege THEN
-                -- Expected
-            END;
-
-            -- Attempting DDL as finsight_backup must fail
-            BEGIN
-                EXECUTE 'CREATE TABLE public.hack (id int)';
-                RAISE EXCEPTION 'finsight_backup CREATE TABLE succeeded unexpectedly';
-            EXCEPTION WHEN insufficient_privilege THEN
-                -- Expected
-            END;
-        END $$;
-        """
-        # Execute check in container as finsight_backup
-        rc, out, err = execute_sql("sme-health-postgres", "127.0.0.1", 5432, "sme_health",
-                                   "finsight_backup", "FinSight_Backup_Reader_2026_!#5bK", check_mutations_sql)
-        if rc == 0:
-            print("    PASSED: finsight_backup mutation attempts strictly denied (insufficient_privilege)")
-            results["backup_role_privileges"] = "PASS"
-        else:
-            print(f"    FAILED: Backup role privilege check failed: {err}")
-            results["backup_role_privileges"] = "FAILED"
-
-        # 8. Clean up disposable drill database
-        print(f"\n[8] Cleaning up disposable database '{disposable_db}'...")
-        execute_sql("sme-health-postgres", "127.0.0.1", 5432, "sme_health",
-                    "finsight_dba", "FinSight_Dba_Admin_Sec_2026_!#9xK",
-                    f"DROP DATABASE IF EXISTS {disposable_db};")
-        print("    Cleaned up successfully.")
-
-    finally:
-        # Clean up temporary files
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-    print("\n" + "=" * 70)
-    print("S9 DRILL COMPLETED SUCCESSFULLY")
-    print(json.dumps(results, indent=2))
-    print("=" * 70)
-    return results
+        print(json.dumps(run_drill(args), indent=2))
+        return 0
+    except Exception as error:
+        print(json.dumps({"status": "FAILED", "error_type": type(error).__name__,
+                          "message": "Real recovery drill did not pass; inspect configuration and mandatory acceptance gates"}), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    run_drill()
+    sys.exit(main())

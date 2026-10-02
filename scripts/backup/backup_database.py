@@ -5,7 +5,7 @@ Pipes PostgreSQL pg_dump directly into an encrypted .age artifact using
 owner-controlled X25519 public recipient encryption.
 - Zero plaintext logical dump touches disk.
 - Backup role is restricted to read-only SELECT.
-- Generates authenticated metadata manifest with SHA-256 integrity checksum.
+- Generates a metadata manifest with an unkeyed SHA-256 integrity checksum.
 - Implements bounded retention pruning (daily/weekly/monthly).
 """
 
@@ -23,6 +23,7 @@ from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from backup.crypto_age import encrypt_stream, parse_recipient, CorruptedBackupError, AgeCryptoError
+from backup.restore_database import require_password, psql_command, verified_tls_env
 
 
 def get_git_sha() -> str:
@@ -36,19 +37,12 @@ def get_git_sha() -> str:
 def get_flyway_version(container: Optional[str], host: str, port: int, dbname: str, user: str, password: str) -> str:
     try:
         sql = "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;"
-        if container:
-            cmd = ["docker", "exec", "-e", f"PGPASSWORD={password}", container,
-                   "psql", "-h", host, "-U", user, "-d", dbname, "-t", "-A", "-c", sql]
-        else:
-            env = os.environ.copy()
-            env["PGPASSWORD"] = password
-            cmd = ["psql", "-h", host, "-p", str(port), "-U", user, "-d", dbname, "-t", "-A", "-c", sql]
-            
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        cmd, env = psql_command(container, host, port, dbname, user, password)
+        res = subprocess.run(cmd + ["-t", "-A", "-c", sql], capture_output=True, text=True, check=True, env=env)
         val = res.stdout.strip()
         return val if val else "unknown"
     except Exception:
-        return "V14"
+        return "unknown"
 
 
 def get_pg_version(container: Optional[str]) -> str:
@@ -60,7 +54,7 @@ def get_pg_version(container: Optional[str]) -> str:
             res = subprocess.run(["pg_dump", "--version"], capture_output=True, text=True, check=True)
         return res.stdout.strip()
     except Exception:
-        return "PostgreSQL 17"
+        return "unknown"
 
 
 def compute_sha256(filepath: Path) -> str:
@@ -158,13 +152,14 @@ def run_backup(
     port: int = 5432,
     dbname: str = "sme_health",
     user: str = "finsight_backup",
-    password: str = "FinSight_Backup_Reader_2026_!#5bK",
+    password: Optional[str] = None,
     daily_retention: int = 7,
     weekly_retention: int = 4,
     monthly_retention: int = 6
 ) -> Dict[str, any]:
     # Validate recipient key upfront
     parse_recipient(recipient)
+    password = require_password(password, env_name="BACKUP_DB_PASSWORD")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -178,17 +173,19 @@ def run_backup(
     manifest_path = output_dir / f"{base_name}_manifest.json"
 
     # Assemble pg_dump command
-    # Use -h to connect via TCP and enforce SSL authentication
+    # TCP always uses verify-full; a trusted CA and matching server hostname are required.
     if container:
         cmd = [
             "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={password}",
+            "-e", "PGPASSWORD",
             container,
             "pg_dump",
             "-h", host,
+            "-p", str(port),
             "-U", user,
             "-d", dbname,
             "--schema=public",
+            "--no-password",
             "--no-owner" # Safe ownership mapping for restore
         ]
     else:
@@ -199,20 +196,24 @@ def run_backup(
             "-U", user,
             "-d", dbname,
             "--schema=public",
+            "--no-password",
             "--no-owner"
         ]
 
     start_time = datetime.datetime.now(datetime.timezone.utc)
 
-    env = os.environ.copy()
-    if not container:
-        env["PGPASSWORD"] = password
+    env = verified_tls_env(os.environ.copy())
+    env["PGPASSWORD"] = password
+    if container:
+        for setting in ("PGSSLMODE", "PGSSLROOTCERT", "PGSSLCERT", "PGSSLKEY"):
+            if setting in env:
+                cmd[3:3] = ["-e", setting]
 
     # Execute pg_dump and stream stdout directly into age encryption
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         env=env
     )
 
@@ -220,21 +221,23 @@ def run_backup(
         with open(partial_artifact, "wb") as f_out:
             bytes_written = encrypt_stream(proc.stdout, f_out, recipient)
 
-        _, stderr = proc.communicate()
+        proc.communicate()
         if proc.returncode != 0:
-            err_msg = stderr.decode("utf-8", errors="ignore")
-            raise RuntimeError(f"pg_dump failed with exit code {proc.returncode}: {err_msg}")
+            raise RuntimeError(f"pg_dump failed with exit code {proc.returncode}")
 
         # Atomic rename
         partial_artifact.rename(final_artifact)
 
     except Exception as e:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
         # Fail closed: delete partial artifact on any failure
         if partial_artifact.exists():
             partial_artifact.unlink(missing_ok=True)
         if final_artifact.exists():
             final_artifact.unlink(missing_ok=True)
-        raise RuntimeError(f"Backup failed: {str(e)}") from e
+        raise RuntimeError("Encrypted database backup failed; partial artifact removed") from e
 
     end_time = datetime.datetime.now(datetime.timezone.utc)
     elapsed_seconds = (end_time - start_time).total_seconds()
@@ -305,16 +308,12 @@ def main():
         print("ERROR: Public age recipient key is required (--recipient or --recipient-file or FINSIGHT_BACKUP_RECIPIENT)", file=sys.stderr)
         sys.exit(1)
 
-    password = args.password
-    if not password and args.password_file:
-        with open(args.password_file, "r", encoding="utf-8") as f:
-            password = f.read().strip()
-    if not password:
-        password = os.environ.get("BACKUP_DB_PASSWORD", "FinSight_Backup_Reader_2026_!#5bK")
-
     container = None if args.no_container else args.container
 
     try:
+        password = require_password(args.password,
+                                    args.password_file or os.environ.get("BACKUP_DB_PASSWORD_FILE"),
+                                    "BACKUP_DB_PASSWORD")
         result = run_backup(
             recipient=recipient,
             output_dir=Path(args.output_dir),

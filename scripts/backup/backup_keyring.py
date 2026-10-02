@@ -20,6 +20,7 @@ from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from backup.crypto_age import encrypt_bytes, parse_recipient, AgeCryptoError
+from backup.keyring_validation import validate_keyring
 
 
 def compute_sha256(filepath: Path) -> str:
@@ -37,47 +38,34 @@ def collect_keyring(secrets_dir: Optional[Path] = None) -> Dict[str, any]:
     active_key_id = os.environ.get("FINSIGHT_CRYPTO_ACTIVE_KEY_ID", "k1").strip()
     keys: Dict[str, str] = {}
 
-    # 1. Check environment variables
-    for env_var, val in os.environ.items():
-        if env_var.startswith("FINSIGHT_CRYPTO_KEY_") and val.strip():
-            kid = env_var.replace("FINSIGHT_CRYPTO_KEY_", "").lower()
-            keys[kid] = val.strip()
-
-    # 2. Check secrets directory (/run/secrets or ./secrets)
-    search_dirs = []
-    if secrets_dir and secrets_dir.exists():
-        search_dirs.append(secrets_dir)
-    search_dirs.extend([Path("/run/secrets"), Path("./secrets")])
-
-    for s_dir in search_dirs:
-        if s_dir.is_dir():
-            for p in s_dir.glob("crypto_key_*"):
-                if p.is_file():
-                    kid = p.name.replace("crypto_key_", "")
-                    try:
-                        key_val = p.read_text(encoding="utf-8").strip()
-                        if key_val and kid not in keys:
-                            keys[kid] = key_val
-                    except Exception:
-                        pass
-
-    if not keys:
-        # Fallback for dev/test harness if default key k1 exists
-        dev_k1 = os.environ.get("CRYPTO_KEY_K1")
-        if dev_k1:
-            keys["k1"] = dev_k1.strip()
+    # Prod binds crypto_key_k1/k2 via ConfigTree, NOT legacy FINSIGHT_CRYPTO_KEY_*.
+    # Select one secrets directory, never silently merge stale files/environment keys.
+    explicit_dir = secrets_dir or os.environ.get("FINSIGHT_SECRETS_DIR")
+    if explicit_dir:
+        source_dir = Path(explicit_dir)
+        if not source_dir.is_dir():
+            raise ValueError("Configured keyring secrets directory does not exist")
+    else:
+        source_dir = next((p for p in (Path("/run/secrets"), Path("./secrets")) if p.is_dir()), None)
+    if source_dir is not None:
+        for path in source_dir.glob("crypto_key_*"):
+            if path.is_file():
+                keys[path.name.removeprefix("crypto_key_")] = path.read_text(encoding="utf-8").strip()
+    else:
+        # Explicit non-prod environment-only workflow; no development literal fallback.
+        for name, value in os.environ.items():
+            if name.startswith("FINSIGHT_CRYPTO_KEY_"):
+                keys[name.removeprefix("FINSIGHT_CRYPTO_KEY_").lower()] = value.strip()
 
     if not keys:
         raise RuntimeError("No application encryption keys found in environment or secrets directory")
 
-    if active_key_id not in keys:
-        # If active_key_id not in keys, select first available key
-        active_key_id = next(iter(keys.keys()))
-
-    return {
+    bundle = {
         "active_key_id": active_key_id,
         "keys": keys
     }
+    validate_keyring(bundle)
+    return bundle
 
 
 def run_keyring_backup(
@@ -90,13 +78,15 @@ def run_keyring_backup(
     parse_recipient(recipient)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if explicit_keys:
+    if explicit_keys is not None:
         bundle_data = {
             "active_key_id": explicit_active_id or "k1",
             "keys": explicit_keys
         }
     else:
         bundle_data = collect_keyring(secrets_dir)
+
+    validate_keyring(bundle_data)
 
     backup_uuid = str(uuid.uuid4())
     now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -154,7 +144,7 @@ def main():
     parser.add_argument("--recipient", help="Public age recipient key (age1...)")
     parser.add_argument("--recipient-file", help="Path to file containing public age recipient key")
     parser.add_argument("--output-dir", default="./backups/keyring", help="Target output directory")
-    parser.add_argument("--secrets-dir", default="./secrets", help="Directory containing crypto_key_* secrets")
+    parser.add_argument("--secrets-dir", help="ConfigTree directory containing crypto_key_* secrets (takes precedence over legacy key environment variables)")
 
     args = parser.parse_args()
 
