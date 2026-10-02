@@ -30,7 +30,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class Feature12PostgreSqlIntegrationTests {
+class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private UploadedDocumentRepository documentRepository;

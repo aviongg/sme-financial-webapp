@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 @Transactional
-class CashFlowIntegrationTests {
+class CashFlowIntegrationTests extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;

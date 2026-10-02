@@ -15,7 +15,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class SpringSessionLifecyclePostgreSqlIT {
+public class SpringSessionLifecyclePostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private FindByIndexNameSessionRepository<? extends Session> sessionRepository;

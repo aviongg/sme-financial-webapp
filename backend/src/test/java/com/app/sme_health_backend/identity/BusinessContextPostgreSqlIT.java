@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {"app.security.internal-service-secret=internal_ocr_dev_secret_2026"})
 @AutoConfigureMockMvc
-public class BusinessContextPostgreSqlIT {
+public class BusinessContextPostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;
@@ -547,8 +547,8 @@ public class BusinessContextPostgreSqlIT {
     }
 
     private int getFlywayVersionCount(String version) {
-        String url = "jdbc:postgresql://localhost:5432/sme_health";
-        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, "finsight_migrator", "FinSight_Migrator_Ddl_2026_!$4mP");
+        String url = com.app.sme_health_backend.testsupport.DisposablePostgres.URL;
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, "finsight_migrator", com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD);
              java.sql.PreparedStatement ps = conn.prepareStatement("SELECT count(*) FROM flyway_schema_history WHERE version = ? AND success = true")) {
             ps.setString(1, version);
             try (java.sql.ResultSet rs = ps.executeQuery()) {

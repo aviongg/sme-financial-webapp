@@ -27,18 +27,18 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class SecurityAuditImmutabilityPostgreSqlIT {
+public class SecurityAuditImmutabilityPostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     private static final String APP_USER = "finsight_app";
-    private static final String APP_PASSWORD = "FinSight_App_Runtime_2026_!*7vQ";
+    private static final String APP_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
 
     private static final String MIGRATOR_USER = "finsight_migrator";
-    private static final String MIGRATOR_PASSWORD = "FinSight_Migrator_Ddl_2026_!$4mP";
+    private static final String MIGRATOR_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
 
     private static final String DBA_USER = "finsight_dba";
-    private static final String DBA_PASSWORD = "FinSight_Dba_Admin_Sec_2026_!#9xK";
+    private static final String DBA_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
 
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5432/sme_health";
+    private static final String JDBC_URL = com.app.sme_health_backend.testsupport.DisposablePostgres.URL;
 
     @Autowired
     private SecurityAuditRepository auditRepository;

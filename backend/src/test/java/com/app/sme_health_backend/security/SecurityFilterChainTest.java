@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc // Runs WITH full security filter chain
-class SecurityFilterChainTest {
+class SecurityFilterChainTest extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;

@@ -10,6 +10,7 @@ import com.app.sme_health_backend.mfa.entity.UserMfaRecoveryCode;
 import com.app.sme_health_backend.mfa.repository.UserMfaRecoveryCodeRepository;
 import com.app.sme_health_backend.mfa.repository.UserMfaRepository;
 import com.app.sme_health_backend.mfa.service.MfaService;
+import com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException;
 import com.app.sme_health_backend.mfa.service.TotpEngine;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,11 +35,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class MfaAndRecoverySecurityIT {
+public class MfaAndRecoverySecurityIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     private static final String APP_USER = "finsight_app";
-    private static final String APP_PASSWORD = "FinSight_App_Runtime_2026_!*7vQ";
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5432/sme_health";
+    private static final String APP_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
+    private static final String JDBC_URL = com.app.sme_health_backend.testsupport.DisposablePostgres.URL;
 
     @Autowired
     private MfaService mfaService;
@@ -60,6 +61,62 @@ public class MfaAndRecoverySecurityIT {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    @Test
+    @DisplayName("A first-time enrollment serializes on the existing user even while no MFA row exists")
+    void concurrentFirstEnrollmentCannotOverwriteNewlyEnabledFactor() throws Exception {
+        AppUser user = createTestUser("first-enrollment-race");
+        CountDownLatch parentLocked = new CountDownLatch(1);
+        CountDownLatch finishEnrollment = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        try {
+            var enrollment = executor.submit(() -> transaction.execute(status -> {
+                userRepository.findByIdForUpdate(user.getId()).orElseThrow();
+                parentLocked.countDown();
+                try {
+                    assertTrue(finishEnrollment.await(10, java.util.concurrent.TimeUnit.SECONDS));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+                String secret = mfaService.initiateEnrollment(user.getId()).secret();
+                mfaService.confirmEnrollment(user.getId(), "user-password-123", totpEngine.generateCode(secret));
+                return mfaRepository.findByUserId(user.getId()).orElseThrow().getTotpSecret();
+            }));
+            assertTrue(parentLocked.await(10, java.util.concurrent.TimeUnit.SECONDS));
+            var competingRestart = executor.submit(() -> mfaService.initiateEnrollment(user.getId()));
+            assertThrows(java.util.concurrent.TimeoutException.class,
+                    () -> competingRestart.get(300, java.util.concurrent.TimeUnit.MILLISECONDS),
+                    "Enrollment must wait for the parent lock even before a factor row exists");
+            finishEnrollment.countDown();
+            String enabledCiphertext = enrollment.get(20, java.util.concurrent.TimeUnit.SECONDS);
+            var failure = assertThrows(java.util.concurrent.ExecutionException.class,
+                    () -> competingRestart.get(20, java.util.concurrent.TimeUnit.SECONDS));
+            assertInstanceOf(MfaAlreadyEnabledException.class, failure.getCause());
+            UserMfa factor = mfaRepository.findByUserId(user.getId()).orElseThrow();
+            assertEquals("ENABLED", factor.getStatus());
+            assertEquals(enabledCiphertext, factor.getTotpSecret());
+            assertEquals(10, recoveryCodeRepository.findByUserId(user.getId()).size());
+        } finally {
+            finishEnrollment.countDown();
+            executor.shutdownNow();
+            executor.awaitTermination(20, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void jdbcSecurityAssertionsUseTheUnprivilegedRuntimeRole() throws Exception {
+        try (Connection connection = createConnection();
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("SELECT current_user")) {
+            assertTrue(result.next());
+            assertEquals("finsight_app", result.getString(1));
+        }
+    }
 
     private AppUser createTestUser(String emailPrefix) {
         AppUser user = new AppUser();

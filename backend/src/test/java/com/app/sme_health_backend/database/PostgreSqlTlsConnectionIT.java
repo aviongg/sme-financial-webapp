@@ -15,10 +15,10 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PostgreSqlTlsConnectionIT {
+public class PostgreSqlTlsConnectionIT extends com.app.sme_health_backend.testsupport.ProductionPostgresTarget {
 
     private static final String APP_USER = "finsight_app";
-    private static final String APP_PASSWORD = "FinSight_App_Runtime_2026_!*7vQ";
+    private static final String APP_PASSWORD = setting("FINSIGHT_TEST_APP_PASSWORD");
 
     private static String resolveCertPath(String relativePath) {
         URL res = PostgreSqlTlsConnectionIT.class.getClassLoader().getResource(relativePath);
@@ -46,9 +46,9 @@ public class PostgreSqlTlsConnectionIT {
         props.setProperty("password", APP_PASSWORD);
         props.setProperty("ssl", "true");
         props.setProperty("sslmode", "verify-full");
-        props.setProperty("sslrootcert", resolveCertPath("certs/postgres-ca.crt"));
+        props.setProperty("sslrootcert", setting("FINSIGHT_TEST_DB_CA"));
 
-        String url = "jdbc:postgresql://localhost:5432/sme_health";
+        String url = setting("FINSIGHT_TEST_DB_URL");
         try (Connection conn = DriverManager.getConnection(url, props);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(
@@ -78,7 +78,7 @@ public class PostgreSqlTlsConnectionIT {
         props.setProperty("sslmode", "verify-full");
         props.setProperty("sslrootcert", resolveCertPath("certs/test-fixtures/rogue-ca.crt"));
 
-        String url = "jdbc:postgresql://localhost:5432/sme_health";
+        String url = setting("FINSIGHT_TEST_DB_URL");
         SQLException ex = assertThrows(SQLException.class, () -> DriverManager.getConnection(url, props));
 
         String message = ex.getMessage().toLowerCase();
@@ -94,10 +94,10 @@ public class PostgreSqlTlsConnectionIT {
         props.setProperty("password", APP_PASSWORD);
         props.setProperty("ssl", "true");
         props.setProperty("sslmode", "verify-full");
-        props.setProperty("sslrootcert", resolveCertPath("certs/postgres-ca.crt"));
+        props.setProperty("sslrootcert", setting("FINSIGHT_TEST_DB_CA"));
 
         // 127.0.0.2 is not in the SAN DNS/IP list
-        String url = "jdbc:postgresql://127.0.0.2:5432/sme_health";
+        String url = setting("FINSIGHT_TEST_DB_WRONG_HOST_URL");
         SQLException ex = assertThrows(SQLException.class, () -> DriverManager.getConnection(url, props));
 
         String message = ex.getMessage().toLowerCase();
@@ -113,7 +113,7 @@ public class PostgreSqlTlsConnectionIT {
         props.setProperty("password", APP_PASSWORD);
         props.setProperty("sslmode", "disable");
 
-        String url = "jdbc:postgresql://localhost:5432/sme_health";
+        String url = setting("FINSIGHT_TEST_DB_URL");
         SQLException ex = assertThrows(SQLException.class, () -> DriverManager.getConnection(url, props));
 
         String message = ex.getMessage().toLowerCase();

@@ -42,15 +42,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class PlatformSecurityIT {
+public class PlatformSecurityIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     private static final String APP_USER = "finsight_app";
-    private static final String APP_PASSWORD = "FinSight_App_Runtime_2026_!*7vQ";
+    private static final String APP_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
 
     private static final String MIGRATOR_USER = "finsight_migrator";
-    private static final String MIGRATOR_PASSWORD = "FinSight_Migrator_Ddl_2026_!$4mP";
+    private static final String MIGRATOR_PASSWORD = com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD;
 
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5432/sme_health";
+    private static final String JDBC_URL = com.app.sme_health_backend.testsupport.DisposablePostgres.URL;
 
     @Autowired
     private MockMvc mockMvc;

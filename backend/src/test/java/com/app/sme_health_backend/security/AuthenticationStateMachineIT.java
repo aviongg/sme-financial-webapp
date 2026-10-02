@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class AuthenticationStateMachineIT {
+public class AuthenticationStateMachineIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;

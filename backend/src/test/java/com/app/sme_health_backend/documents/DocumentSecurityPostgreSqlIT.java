@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "INTERNAL_SERVICE_SECRET=internal_ocr_dev_secret_2026"
 })
 @AutoConfigureMockMvc
-public class DocumentSecurityPostgreSqlIT {
+public class DocumentSecurityPostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;

@@ -30,7 +30,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class Feature8PostgreSqlIT {
+public class Feature8PostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private WhatsAppDeliveryRepository deliveryRepository;

@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SmeHealthBackendApplicationTests {
+class SmeHealthBackendApplicationTests extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
 	@Test
 	void contextLoads() {

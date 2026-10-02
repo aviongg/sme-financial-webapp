@@ -29,8 +29,6 @@ public class FlywayMigrationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(FlywayMigrationRunner.class);
 
-    private static final String DEFAULT_DEV_MIGRATOR_PASSWORD = "FinSight_Migrator_Ddl_2026_!$4mP";
-
     public static void main(String[] args) {
         int exitCode = runMigration(args);
         System.exit(exitCode);
@@ -217,8 +215,8 @@ public class FlywayMigrationRunner {
             return null;
         }
 
-        // 5. Development convenience fallback
-        return DEFAULT_DEV_MIGRATOR_PASSWORD;
+        // Development also requires an explicit secret; no credential in source.
+        return null;
     }
 
     private static String maskUrl(String url) {

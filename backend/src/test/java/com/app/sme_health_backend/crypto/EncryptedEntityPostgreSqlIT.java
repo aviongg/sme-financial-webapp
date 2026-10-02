@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
         "app.security.internal-service-secret=internal_ocr_dev_secret_2026",
         "finsight.crypto.allow-legacy-plaintext=true"
 })
-public class EncryptedEntityPostgreSqlIT {
+public class EncryptedEntityPostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private AppUserRepository appUserRepository;

@@ -14,8 +14,19 @@ public class OneShotMigrationExecutionTest {
     @Test
     @DisplayName("One-shot Flyway runner successfully validates/applies migrations and terminates with 0")
     void testOneShotMigrationSucceedsAndStartsNoWebServer() {
-        int exitCode = FlywayMigrationRunner.runMigration(new String[]{});
-        assertEquals(0, exitCode, "One-shot migration must return 0 on success");
+        String originalUrl = System.getProperty("spring.flyway.url");
+        String originalPassword = System.getProperty("migrator_db_password");
+        try {
+            System.setProperty("spring.flyway.url", com.app.sme_health_backend.testsupport.DisposablePostgres.URL);
+            System.setProperty("migrator_db_password", com.app.sme_health_backend.testsupport.DisposablePostgres.PASSWORD);
+            int exitCode = FlywayMigrationRunner.runMigration(new String[]{});
+            assertEquals(0, exitCode, "One-shot migration must return 0 on success");
+        } finally {
+            if (originalUrl == null) System.clearProperty("spring.flyway.url");
+            else System.setProperty("spring.flyway.url", originalUrl);
+            if (originalPassword == null) System.clearProperty("migrator_db_password");
+            else System.setProperty("migrator_db_password", originalPassword);
+        }
 
         // Assert no HTTP port 8080 was opened / bound
         assertFalse(isPortBound(8080), "No web server or HTTP port must bind during migration process");

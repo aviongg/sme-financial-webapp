@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {"app.security.internal-service-secret=internal_ocr_dev_secret_2026"})
 @AutoConfigureMockMvc
-public class TenantIsolationPostgreSqlIT {
+public class TenantIsolationPostgreSqlIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;

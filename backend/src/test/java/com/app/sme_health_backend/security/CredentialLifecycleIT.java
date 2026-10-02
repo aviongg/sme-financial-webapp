@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class CredentialLifecycleIT {
+public class CredentialLifecycleIT extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private MockMvc mockMvc;
@@ -61,7 +61,55 @@ public class CredentialLifecycleIT {
     @Autowired
     private InMemoryPasswordResetNotifier resetNotifier;
 
+    @Autowired
+    private com.app.sme_health_backend.mfa.service.MfaService mfaService;
+
+    @Autowired
+    private com.app.sme_health_backend.mfa.service.TotpEngine totp;
+
+    @Autowired
+    private org.springframework.session.FindByIndexNameSessionRepository<?> sessions;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void passwordResetRevokesPendingMfaAndFreshPasswordLoginStillRequiresTheFactor() throws Exception {
+        String email = "pending-reset-" + UUID.randomUUID() + "@example.test";
+        String oldPassword = "old-password-123";
+        String newPassword = "reset-new-password-456";
+        AppUser user = new AppUser();
+        user.setEmail(email);
+        user.setFullName("Pending Reset");
+        user.setPasswordHash(passwordEncoder.encode(oldPassword));
+        user = userRepository.saveAndFlush(user);
+        String secret = mfaService.initiateEnrollment(user.getId()).secret();
+        mfaService.confirmEnrollment(user.getId(), oldPassword, totp.generateCode(secret));
+
+        var pending = mockMvc.perform(post("/api/auth/login")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, oldPassword))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.authStage").value("MFA_CHALLENGE_REQUIRED"))
+                .andReturn().getResponse().getCookie("FINSIGHT_SESSION");
+        assertNotNull(pending);
+        assertFalse(sessions.findByPrincipalName(email).isEmpty());
+
+        resetService.requestPasswordReset(email, null);
+        resetService.confirmPasswordReset(new PasswordResetConfirmRequest(
+                resetNotifier.getLastDeliveredRawToken(email), newPassword), null);
+        assertEquals(1L, userRepository.findById(user.getId()).orElseThrow().getAuthVersion());
+        assertTrue(sessions.findByPrincipalName(email).isEmpty(), "Password reset must physically revoke indexed pre-auth sessions");
+        String nextCode = totp.generateCode(secret, java.time.Instant.now().getEpochSecond() / 30 + 1);
+        mockMvc.perform(post("/api/auth/mfa/challenge").cookie(pending)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(java.util.Map.of("code", nextCode))))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/login")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, newPassword))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.authStage").value("MFA_CHALLENGE_REQUIRED"));
+    }
 
     private String obtainCsrfToken(MockHttpSession session) throws Exception {
         MvcResult csrfResult = mockMvc.perform(get("/api/auth/csrf").session(session))

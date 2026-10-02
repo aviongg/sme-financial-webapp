@@ -11,7 +11,7 @@ import org.springframework.core.env.Environment;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class ProductionSecretConfigurationTest {
+public class ProductionSecretConfigurationTest extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 
     @Autowired
     private Environment environment;

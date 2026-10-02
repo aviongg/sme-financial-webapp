@@ -52,8 +52,6 @@ public class PlatformAdminOperatorService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    private static final String DEFAULT_DEV_MIGRATOR_PASSWORD = "FinSight_Migrator_Ddl_2026_!$4mP";
-
     @Transactional
     public void promotePlatformAdmin(String email) {
         try (java.sql.Connection conn = openOperatorConnection()) {
@@ -190,8 +188,13 @@ public class PlatformAdminOperatorService {
     }
 
     private static String resolveOperatorPassword() {
+        return resolveOperatorPassword(java.nio.file.Paths.get("/run/secrets/migrator_db_password"),
+                System.getProperties(), System.getenv());
+    }
+
+    static String resolveOperatorPassword(java.nio.file.Path secretPath, java.util.Properties properties,
+                                          Map<String, String> environment) {
         // 1. Check configtree secret /run/secrets/migrator_db_password
-        java.nio.file.Path secretPath = java.nio.file.Paths.get("/run/secrets/migrator_db_password");
         if (java.nio.file.Files.exists(secretPath)) {
             try {
                 String content = java.nio.file.Files.readString(secretPath, java.nio.charset.StandardCharsets.UTF_8).trim();
@@ -203,7 +206,7 @@ public class PlatformAdminOperatorService {
         }
 
         // 2. Check custom secrets dir
-        String secretsDir = System.getProperty("finsight.secrets.dir");
+        String secretsDir = properties.getProperty("finsight.secrets.dir");
         if (secretsDir != null) {
             java.nio.file.Path customSecret = java.nio.file.Paths.get(secretsDir, "migrator_db_password");
             if (java.nio.file.Files.exists(customSecret)) {
@@ -218,31 +221,32 @@ public class PlatformAdminOperatorService {
         }
 
         // 3. Check system properties
-        String sysProp = System.getProperty("migrator_db_password");
+        String sysProp = properties.getProperty("migrator_db_password");
         if (sysProp != null && !sysProp.trim().isEmpty()) {
             return sysProp;
         }
-        sysProp = System.getProperty("spring.flyway.password");
+        sysProp = properties.getProperty("spring.flyway.password");
         if (sysProp != null && !sysProp.trim().isEmpty()) {
             return sysProp;
         }
 
         // 4. Check environment variables
-        String envPass = System.getenv("MIGRATOR_DB_PASSWORD");
+        String envPass = environment.get("MIGRATOR_DB_PASSWORD");
         if (envPass != null && !envPass.trim().isEmpty()) {
             return envPass;
         }
-        envPass = System.getenv("POSTGRES_MIGRATOR_PASSWORD");
+        envPass = environment.get("POSTGRES_MIGRATOR_PASSWORD");
         if (envPass != null && !envPass.trim().isEmpty()) {
             return envPass;
         }
-        envPass = System.getenv("migrator_db_password");
+        envPass = environment.get("migrator_db_password");
         if (envPass != null && !envPass.trim().isEmpty()) {
             return envPass;
         }
 
-        // 5. Development default fallback
-        return DEFAULT_DEV_MIGRATOR_PASSWORD;
+        throw new IllegalStateException("Operator database password is required. Mount the migrator_db_password "
+                + "secret in /run/secrets (or set finsight.secrets.dir), or supply MIGRATOR_DB_PASSWORD. "
+                + "No default operator credentials are provided.");
     }
 
     @Transactional

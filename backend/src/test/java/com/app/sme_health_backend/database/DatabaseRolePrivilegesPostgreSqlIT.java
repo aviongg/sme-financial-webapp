@@ -21,18 +21,18 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-public class DatabaseRolePrivilegesPostgreSqlIT {
+public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backend.testsupport.ProductionPostgresTarget {
 
     private static final String APP_USER = "finsight_app";
-    private static final String APP_PASSWORD = "FinSight_App_Runtime_2026_!*7vQ";
+    private static final String APP_PASSWORD = setting("FINSIGHT_TEST_APP_PASSWORD");
 
     private static final String MIGRATOR_USER = "finsight_migrator";
-    private static final String MIGRATOR_PASSWORD = "FinSight_Migrator_Ddl_2026_!$4mP";
+    private static final String MIGRATOR_PASSWORD = setting("FINSIGHT_TEST_MIGRATOR_PASSWORD");
 
     private static final String DBA_USER = "finsight_dba";
-    private static final String DBA_PASSWORD = "FinSight_Dba_Admin_Sec_2026_!#9xK";
+    private static final String DBA_PASSWORD = setting("FINSIGHT_TEST_DBA_PASSWORD");
 
-    private static final String JDBC_URL_BASE = "jdbc:postgresql://localhost:5432/sme_health";
+    private static final String JDBC_URL_BASE = setting("FINSIGHT_TEST_DB_URL");
 
     @Autowired
     private Environment environment;
@@ -61,7 +61,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT {
         props.setProperty("password", password);
         props.setProperty("ssl", "true");
         props.setProperty("sslmode", "verify-full");
-        props.setProperty("sslrootcert", resolveCertPath("certs/postgres-ca.crt"));
+        props.setProperty("sslrootcert", setting("FINSIGHT_TEST_DB_CA"));
         return DriverManager.getConnection(JDBC_URL_BASE, props);
     }
 
@@ -83,11 +83,12 @@ public class DatabaseRolePrivilegesPostgreSqlIT {
     void testFinsightDbaRecoveryLoginAndSuperuser() throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
                 "docker", "exec",
-                "-e", "PGPASSWORD=" + DBA_PASSWORD,
-                "sme-health-postgres",
-                "psql", "-U", DBA_USER, "-d", "sme_health", "-t", "-A", "-c",
+                "-e", "PGPASSWORD",
+                setting("FINSIGHT_TEST_DB_CONTAINER"),
+                "psql", "-U", DBA_USER, "-d", setting("FINSIGHT_TEST_DB_NAME"), "-t", "-A", "-c",
                 "SELECT current_user, rolsuper, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname = current_user;"
         );
+        pb.environment().put("PGPASSWORD", DBA_PASSWORD);
         Process process = pb.start();
         int exitCode = process.waitFor();
         assertEquals(0, exitCode, "DBA local recovery login must exit 0");
@@ -273,11 +274,12 @@ public class DatabaseRolePrivilegesPostgreSqlIT {
     void testScramSha256Credentials() throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
                 "docker", "exec",
-                "-e", "PGPASSWORD=" + DBA_PASSWORD,
-                "sme-health-postgres",
-                "psql", "-U", DBA_USER, "-d", "sme_health", "-t", "-A", "-c",
+                "-e", "PGPASSWORD",
+                setting("FINSIGHT_TEST_DB_CONTAINER"),
+                "psql", "-U", DBA_USER, "-d", setting("FINSIGHT_TEST_DB_NAME"), "-t", "-A", "-c",
                 "SELECT rolname, rolpassword LIKE 'SCRAM-SHA-256$%' AS is_scram FROM pg_authid WHERE rolname IN ('finsight_dba', 'finsight_migrator', 'finsight_app') ORDER BY rolname;"
         );
+        pb.environment().put("PGPASSWORD", DBA_PASSWORD);
         Process process = pb.start();
         int exitCode = process.waitFor();
         assertEquals(0, exitCode);
