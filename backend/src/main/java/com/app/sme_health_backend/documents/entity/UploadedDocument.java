@@ -52,6 +52,13 @@ public class UploadedDocument implements Persistable<UUID> {
     private String extractedData;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "reviewed_data", columnDefinition = "jsonb")
+    private String reviewedData;
+
+    @Column(name = "extraction_provenance", nullable = false, length = 20)
+    private String extractionProvenance = "ORIGINAL_OCR";
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "confirmed_data", columnDefinition = "jsonb")
     private String confirmedData;
 
@@ -144,6 +151,10 @@ public class UploadedDocument implements Persistable<UUID> {
     public String getConfirmedData() {
         return confirmedData;
     }
+
+    public String getReviewedData() { return reviewedData; }
+    public void setReviewedData(String reviewedData) { this.reviewedData = reviewedData; }
+    public String getExtractionProvenance() { return extractionProvenance; }
 
     public void setConfirmedData(String confirmedData) {
         this.confirmedData = confirmedData;

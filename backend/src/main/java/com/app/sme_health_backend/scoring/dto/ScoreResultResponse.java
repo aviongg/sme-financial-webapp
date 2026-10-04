@@ -40,6 +40,12 @@ public class ScoreResultResponse {
     @JsonAlias("computed_at")
     private LocalDateTime computedAt;
 
+    private String methodologyVersion;
+    private ScoreExplanation explanation;
+
+    public String getMethodologyVersion() { return methodologyVersion; }
+    public ScoreExplanation getExplanation() { return explanation; }
+
     public static ScoreResultResponse fromEntity(ScoreResult entity) {
         if (entity == null) {
             return null;
@@ -55,6 +61,8 @@ public class ScoreResultResponse {
         response.weakestComponent = entity.getWeakestComponent();
         response.dataCompleteness = entity.getDataCompleteness();
         response.computedAt = entity.getComputedAt();
+        response.methodologyVersion = entity.getMethodologyVersion();
+        response.explanation = entity.getExplanation();
 
         return response;
     }

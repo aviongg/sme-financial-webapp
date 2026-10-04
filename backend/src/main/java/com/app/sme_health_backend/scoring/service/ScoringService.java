@@ -155,8 +155,19 @@ public class ScoringService {
         result.setWeakestComponent(weakestComponent);
         result.setDataCompleteness(dataCompleteness);
         result.setComputedAt(LocalDateTime.now());
+        result.setMethodologyVersion(ScoringMethodology.VERSION);
+        ScoreResult previous = scoreResultRepository.findByUserIdAndMonth(userId,
+                YearMonth.parse(month).minusMonths(1).toString()).orElse(null);
+        result.setExplanation(ScoreExplanationBuilder.build(result, profile, history, weightMap,
+                cashFlowStabilityCalculator, profitabilityEfficiencyCalculator, previous));
 
-        return scoreResultRepository.save(result);
+        ScoreResult saved = scoreResultRepository.save(result);
+        // A changed prior month also changes the next month's comparison, even beyond the
+        // existing six-record numeric rescore window. Never recalculate its financial evidence here.
+        scoreResultRepository.findByUserIdAndMonth(userId, YearMonth.parse(month).plusMonths(1).toString())
+                .filter(next -> next.getExplanation() != null).ifPresent(next ->
+                        next.setExplanation(ScoreExplanationBuilder.withPrevious(next.getExplanation(), next, result)));
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -171,6 +182,12 @@ public class ScoringService {
             throw new IllegalArgumentException("User ID is required");
         }
         return scoreResultRepository.findFirstByUserIdOrderByMonthDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScoreResult> getRecentHistory(UUID businessId) {
+        if (businessId == null) throw new IllegalArgumentException("Business ID is required");
+        return scoreResultRepository.findTop12ByUserIdOrderByMonthDesc(businessId);
     }
 
     private void validateInputs(UUID userId, String month) {

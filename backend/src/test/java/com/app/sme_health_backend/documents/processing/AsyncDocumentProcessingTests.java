@@ -24,7 +24,7 @@ class AsyncDocumentProcessingTests {
 
     @BeforeEach
     void setUp() {
-        service = new AsyncDocumentProcessingService(processor);
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), Runnable::run);
     }
 
     @Test
@@ -57,5 +57,44 @@ class AsyncDocumentProcessingTests {
         service.processAfterCommit(documentId);
 
         verify(processor).process(documentId);
+    }
+
+    @Test
+    void committedCallbackSubmitsToExecutorInsteadOfInvokingProcessorInline() {
+        java.util.List<Runnable> queued = new java.util.ArrayList<>();
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), queued::add);
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            service.processAfterCommit(documentId);
+            assertTrue(queued.isEmpty());
+            verifyNoInteractions(processor);
+            org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations().get(0).afterCommit();
+            assertEquals(1, queued.size());
+            verifyNoInteractions(processor);
+            when(processor.process(documentId)).thenReturn(Optional.of(DocumentStatus.needs_review));
+            queued.get(0).run();
+            verify(processor).process(documentId);
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+            org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
+    }
+
+    @Test
+    void rolledBackTransactionNeverSubmitsProcessing() {
+        java.util.List<Runnable> queued = new java.util.ArrayList<>();
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), queued::add);
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            service.processAfterCommit(documentId);
+            org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations().get(0)
+                    .afterCompletion(org.springframework.transaction.support.TransactionSynchronization.STATUS_ROLLED_BACK);
+            assertTrue(queued.isEmpty()); verifyNoInteractions(processor);
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+            org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
     }
 }

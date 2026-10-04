@@ -26,7 +26,7 @@ import java.util.UUID;
 public class AdviceContextService {
 
     // Bump whenever advice rules or translation wording changes to regenerate existing output.
-    private static final String RULES_VERSION = "phase1-advice-v1";
+    private static final String RULES_VERSION = "mvp-evidence-advice-v2";
     private static final List<String> COMPONENT_KEYS = List.of(
             "cashflow", "profitability", "repayment", "trend", "compliance"
     );
@@ -117,6 +117,19 @@ public class AdviceContextService {
         for (String key : COMPONENT_KEYS) {
             append(source, key);
             append(source, decimal(components.get(key)));
+        }
+        append(source, score.getMethodologyVersion());
+        if (score.getExplanation() == null) {
+            append(source, null);
+        } else {
+            var evidence = score.getExplanation();
+            append(source, Integer.toString(evidence.historyMonthsAvailable()));
+            append(source, evidence.previousMonth());
+            append(source, decimal(evidence.previousScore()));
+            append(source, decimal(evidence.overallDelta()));
+            // PostgreSQL jsonb may reorder object keys; canonicalize components explicitly.
+            for (String key : COMPONENT_KEYS) append(source, String.valueOf(evidence.components().get(key)));
+            append(source, evidence.majorChanges().toString());
         }
         append(source, score.getWeakestComponent());
         append(source, decimal(score.getDataCompleteness()));

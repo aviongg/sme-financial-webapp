@@ -48,6 +48,18 @@ public class Recommendation {
     @Column(name = "source_computed_at")
     private LocalDateTime sourceComputedAt;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 12)
+    private RecommendationStatus status = RecommendationStatus.NEW;
+
+    @Column(name = "status_updated_at")
+    private LocalDateTime statusUpdatedAt;
+
+    public RecommendationStatus getStatus() { return status; }
+    public void setStatus(RecommendationStatus status) { this.status = status; }
+    public LocalDateTime getStatusUpdatedAt() { return statusUpdatedAt; }
+    public void setStatusUpdatedAt(LocalDateTime time) { statusUpdatedAt = time; }
+
     public UUID getId() {
         return id;
     }

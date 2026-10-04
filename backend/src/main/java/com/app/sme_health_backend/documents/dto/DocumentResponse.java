@@ -16,6 +16,8 @@ public record DocumentResponse(
         DocumentStatus processingStatus,
         String documentTypeHint,
         String extractedData,
+        String reviewedData,
+        String extractionProvenance,
         String confirmedData,
         String linkedMonth,
         String failureReason,

@@ -1,89 +1,38 @@
 package com.app.sme_health_backend.documents.processing;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
 public class AsyncDocumentProcessingService {
+    private final DocumentProcessingWorker worker;
+    private final Executor executor;
 
-    private static final Logger log = LoggerFactory.getLogger(AsyncDocumentProcessingService.class);
-
-    private final DocumentDraftProcessor processor;
-    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
-
-    public AsyncDocumentProcessingService(DocumentDraftProcessor processor) {
-        this(processor, null);
+    public AsyncDocumentProcessingService(DocumentProcessingWorker worker,
+            @Qualifier("documentProcessingExecutor") Executor executor) {
+        this.worker = Objects.requireNonNull(worker);
+        this.executor = Objects.requireNonNull(executor);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public AsyncDocumentProcessingService(
-            DocumentDraftProcessor processor,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
-    ) {
-        this.processor = Objects.requireNonNull(processor, "processor is required");
-        this.auditService = auditService;
-    }
-
-    /**
-     * Ensures document processing is dispatched strictly AFTER the current database transaction commits.
-     * If no transaction is active, dispatches immediately.
-     */
+    /** Dispatch only after commit; rollback never enqueues an OCR operation. */
     public void processAfterCommit(UUID documentId) {
         Objects.requireNonNull(documentId, "documentId is required");
-
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    log.debug("Transaction committed; dispatching OCR processing for document {}", documentId);
-                    dispatchAsync(documentId);
-                }
+                @Override public void afterCommit() { dispatchAsync(documentId); }
             });
-        } else {
-            log.debug("No active transaction; dispatching OCR processing directly for document {}", documentId);
-            dispatchAsync(documentId);
-        }
+        } else dispatchAsync(documentId);
     }
 
-    @Async("documentProcessingExecutor")
     public CompletableFuture<Optional<DocumentStatus>> dispatchAsync(UUID documentId) {
-        try {
-            log.info("Starting background OCR extraction for document {}", documentId);
-            Optional<DocumentStatus> result = processor.process(documentId);
-            log.info("Completed background OCR extraction for document {}: result={}", documentId, result.orElse(null));
-            if (result.isPresent() && result.get() == DocumentStatus.failed && auditService != null) {
-                auditService.logSystemFailure(
-                        com.app.sme_health_backend.audit.model.AuditEventType.OCR_PROCESSING_FAILED,
-                        null,
-                        "document",
-                        documentId.toString(),
-                        "OCR processing failed",
-                        java.util.Map.of("documentId", documentId.toString())
-                );
-            }
-            return CompletableFuture.completedFuture(result);
-        } catch (Exception e) {
-            log.error("Unexpected error during background OCR extraction for document {}: {}", documentId, e.getMessage(), e);
-            if (auditService != null) {
-                auditService.logSystemFailure(
-                        com.app.sme_health_backend.audit.model.AuditEventType.OCR_PROCESSING_FAILED,
-                        null,
-                        "document",
-                        documentId.toString(),
-                        e.getMessage() != null ? e.getMessage() : "Unexpected error during OCR",
-                        java.util.Map.of("documentId", documentId.toString())
-                );
-            }
-            return CompletableFuture.completedFuture(Optional.of(DocumentStatus.failed));
-        }
+        // Explicit executor submission avoids self-invocation bypassing an @Async proxy.
+        return CompletableFuture.supplyAsync(() -> worker.process(documentId), executor);
     }
 }

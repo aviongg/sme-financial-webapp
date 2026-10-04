@@ -40,6 +40,16 @@ public class RecommendationController {
         return ResponseEntity.ok(responses);
     }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<RecommendationResponse> updateStatus(
+            @PathVariable java.util.UUID id,
+            @Valid @RequestBody com.app.sme_health_backend.recommendation.dto.RecommendationStatusRequest body,
+            HttpServletRequest request) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.RECORD_CREATE_UPDATE);
+        return ResponseEntity.ok(RecommendationResponse.fromEntity(
+                recommendationService.updateStatus(context.businessId(), id, body.status(), context.userId())));
+    }
+
     @PostMapping("/query")
     public ResponseEntity<List<RecommendationResponse>> queryRecommendations(
             @Valid @RequestBody MonthQueryRequest queryRequest,

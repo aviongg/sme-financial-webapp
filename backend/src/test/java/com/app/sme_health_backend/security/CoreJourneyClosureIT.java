@@ -70,7 +70,7 @@ class CoreJourneyClosureIT extends DisposablePostgres {
         HttpClient owner = browser();
         String email = register(owner);
         login(owner, email);
-        String first = result(post(owner, "/api/businesses", Map.of("businessType", "retail", "languagePreference", "en", "whatsappOptIn", false)), 201).get("businessId").asText();
+        String first = result(post(owner, "/api/businesses", Map.of("businessName", "Closure Retail", "businessType", "retail", "languagePreference", "en", "whatsappOptIn", false)), 201).get("businessId").asText();
         String recordId = result(post(owner, "/api/records/monthly", RECORD), 201).get("id").asText();
         JsonNode dashboard = result(get(owner, "/api/dashboard"), 200);
         assertEquals(first, dashboard.get("businessId").asText());
@@ -87,7 +87,7 @@ class CoreJourneyClosureIT extends DisposablePostgres {
         assertEquals(recordId, result(get(owner, "/api/records/monthly"), 200).get(0).get("id").asText());
         assertEquals(dashboard.get("score"), result(get(owner, "/api/dashboard"), 200).get("score"));
 
-        String second = result(post(owner, "/api/businesses", Map.of("businessType", "services", "whatsappOptIn", false)), 201).get("businessId").asText();
+        String second = result(post(owner, "/api/businesses", Map.of("businessName", "Closure Services", "businessType", "services", "whatsappOptIn", false)), 201).get("businessId").asText();
         assertNotEquals(first, second);
         assertEquals(0, result(get(owner, "/api/records/monthly"), 200).size());
         assertEquals(404, get(owner, "/api/records/monthly/id/" + recordId).statusCode());

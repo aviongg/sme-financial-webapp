@@ -135,9 +135,8 @@ public class InsightService {
         List<Insight> insights = new ArrayList<>();
 
         insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
-                translationService.translate(selectedLanguage, "insight.focus_weakest_component",
-                        Map.of("component", translationService.translate(selectedLanguage,
-                                "component." + scoreResult.getWeakestComponent()))),
+                new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService)
+                        .weakestInsight(scoreResult, previousScore, selectedLanguage),
                 scoreResult.getWeakestComponent(), "high"));
 
         String overallKey = switch (scoreResult.getBand()) {
@@ -156,8 +155,10 @@ public class InsightService {
                 "overall_health", overallPriority));
 
         boolean complete = scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) >= 0;
+        String dataEvidence = new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService)
+                .dataQuality(scoreResult, selectedLanguage, false);
         insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
-                translationService.translate(selectedLanguage, complete
+                dataEvidence != null ? dataEvidence : translationService.translate(selectedLanguage, complete
                         ? "insight.data_quality.complete" : "insight.data_quality.incomplete"),
                 "data_quality", complete ? "low" : "high"));
 

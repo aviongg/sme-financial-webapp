@@ -184,6 +184,14 @@ class RestoreTests(unittest.TestCase):
         self.server.triggers.pop()
         self.fails_closed(restore.RestoreError)
 
+    def test_missing_document_provenance_table_fails_verification(self):
+        self.server.tables.remove("document_corrections")
+        self.fails_closed(restore.RestoreError)
+
+    def test_missing_document_provenance_guard_fails_verification(self):
+        self.server.triggers.remove(("uploaded_documents", "trg_document_extraction_immutable"))
+        self.fails_closed(restore.RestoreError)
+
     def test_trigger_on_wrong_table_does_not_satisfy_gate(self):
         self.server.triggers = [("wrong_table", name) for _, name in self.server.triggers]
         self.fails_closed(restore.RestoreError)

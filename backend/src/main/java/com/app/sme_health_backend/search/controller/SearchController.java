@@ -34,11 +34,16 @@ public class SearchController {
             HttpServletRequest request
     ) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
+        boolean includeDocuments = authService.hasRolePermission(context.role(), BusinessPermission.DOCUMENT_READ);
+        if ("document".equalsIgnoreCase(searchRequest.type())) {
+            authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+        }
 
         List<SearchResultResponse> results = searchService.search(
                 context.businessId(),
                 searchRequest.query(),
-                searchRequest.type()
+                searchRequest.type(),
+                includeDocuments
         );
         return ResponseEntity.ok(results);
     }

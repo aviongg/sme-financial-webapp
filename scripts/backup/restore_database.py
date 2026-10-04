@@ -29,12 +29,15 @@ REQUIRED_TABLES = frozenset({
     "business_profiles", "monthly_records", "uploaded_documents", "score_results",
     "insights", "recommendations", "whatsapp_deliveries", "security_audit_events",
     "password_reset_tokens", "spring_session", "spring_session_attributes",
-    "user_mfa", "user_mfa_recovery_codes",
+    "user_mfa", "user_mfa_recovery_codes", "document_corrections",
 })
 REQUIRED_TRIGGERS = frozenset({
     ("app_users", "trg_protect_platform_role"),
     ("security_audit_events", "trg_audit_no_truncate"),
     ("security_audit_events", "trg_audit_no_update_delete"),
+    ("document_corrections", "trg_document_corrections_no_update_delete"),
+    ("document_corrections", "trg_document_corrections_no_truncate"),
+    ("uploaded_documents", "trg_document_extraction_immutable"),
 })
 ENVELOPE = re.compile(r"enc:v1:([A-Za-z0-9_-]{1,32}):([A-Za-z0-9+/=]+)\Z")
 ENCRYPTED_FIELDS = """

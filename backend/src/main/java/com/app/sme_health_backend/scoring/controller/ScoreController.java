@@ -54,6 +54,13 @@ public class ScoreController {
                 ));
     }
 
+    @GetMapping("/history")
+    public ResponseEntity<java.util.List<ScoreResultResponse>> history(HttpServletRequest request) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
+        return ResponseEntity.ok(scoringService.getRecentHistory(context.businessId()).stream()
+                .map(ScoreResultResponse::fromEntity).toList());
+    }
+
     @GetMapping("/latest")
     public ResponseEntity<ScoreResultResponse> getLatestScore(HttpServletRequest request) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);

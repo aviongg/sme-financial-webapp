@@ -242,6 +242,7 @@ public class BusinessContextPostgreSqlIT extends com.app.sme_health_backend.test
 
         String payload = """
                 {
+                    "businessName": "Fixture business",
                     "businessType": "retail",
                     "languagePreference": "en",
                     "whatsappOptIn": false
@@ -298,6 +299,7 @@ public class BusinessContextPostgreSqlIT extends com.app.sme_health_backend.test
         long membershipCountBefore = membershipRepository.count();
 
         CreateBusinessRequest validRequest = new CreateBusinessRequest(
+                "Fixture business",
                 "retail",
                 "en",
                 null,

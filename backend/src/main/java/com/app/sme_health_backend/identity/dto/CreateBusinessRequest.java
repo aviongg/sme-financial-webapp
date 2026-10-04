@@ -5,6 +5,10 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record CreateBusinessRequest(
+        @NotBlank(message = "Business name is required")
+        @Size(max = 120, message = "Business name must not exceed 120 characters")
+        String businessName,
+
         @NotBlank(message = "Business type is required")
         @Size(max = 20, message = "Business type must not exceed 20 characters")
         @Pattern(
@@ -40,6 +44,7 @@ public record CreateBusinessRequest(
         Boolean businessRegistered
 ) {
     public CreateBusinessRequest {
+        if (businessName != null) businessName = businessName.trim();
         if (languagePreference == null || languagePreference.isBlank()) {
             languagePreference = "en";
         }

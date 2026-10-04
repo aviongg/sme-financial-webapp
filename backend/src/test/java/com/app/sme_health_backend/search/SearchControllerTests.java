@@ -51,6 +51,7 @@ class SearchControllerTests {
     void setUp() {
         BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
         when(authService.requirePermission(any(), any(BusinessPermission.class))).thenReturn(context);
+        when(authService.hasRolePermission(MembershipRole.OWNER, BusinessPermission.DOCUMENT_READ)).thenReturn(true);
     }
 
     @Test
@@ -68,7 +69,7 @@ class SearchControllerTests {
                 "Official"
         );
 
-        when(searchService.search(eq(businessId), eq("August"), eq("all")))
+        when(searchService.search(eq(businessId), eq("August"), eq("all"), eq(true)))
                 .thenReturn(List.of(item));
 
         mockMvc.perform(post("/api/search")
@@ -87,7 +88,7 @@ class SearchControllerTests {
     @Test
     @DisplayName("Blank query returns 200 with empty array []")
     void shouldReturn200WithEmptyListWhenQueryIsBlank() throws Exception {
-        when(searchService.search(eq(businessId), eq(""), eq("all")))
+        when(searchService.search(eq(businessId), eq(""), eq("all"), eq(true)))
                 .thenReturn(Collections.emptyList());
 
         mockMvc.perform(post("/api/search")
@@ -100,7 +101,7 @@ class SearchControllerTests {
     @Test
     @DisplayName("No matches returns 200 with empty array []")
     void shouldReturn200WithEmptyListWhenNoMatchesFound() throws Exception {
-        when(searchService.search(eq(businessId), eq("nonexistentterm123"), eq("all")))
+        when(searchService.search(eq(businessId), eq("nonexistentterm123"), eq("all"), eq(true)))
                 .thenReturn(Collections.emptyList());
 
         mockMvc.perform(post("/api/search")

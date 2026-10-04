@@ -18,6 +18,12 @@ public class RecommendationResponse {
     private String language;
     private LocalDateTime sourceComputedAt;
 
+    private com.app.sme_health_backend.recommendation.entity.RecommendationStatus status;
+    private LocalDateTime statusUpdatedAt;
+
+    public com.app.sme_health_backend.recommendation.entity.RecommendationStatus getStatus() { return status; }
+    public LocalDateTime getStatusUpdatedAt() { return statusUpdatedAt; }
+
     public static RecommendationResponse fromEntity(
             Recommendation recommendation
     ) {
@@ -33,6 +39,8 @@ public class RecommendationResponse {
         response.sourceVersion = recommendation.getSourceVersion();
         response.language = recommendation.getLanguage();
         response.sourceComputedAt = recommendation.getSourceComputedAt();
+        response.status = recommendation.getStatus();
+        response.statusUpdatedAt = recommendation.getStatusUpdatedAt();
 
         return response;
     }

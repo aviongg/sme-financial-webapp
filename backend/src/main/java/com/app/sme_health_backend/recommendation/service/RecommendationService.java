@@ -27,12 +27,21 @@ public class RecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final AdviceContextService adviceContextService;
     private final TranslationService translationService;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public RecommendationService(
             RecommendationRepository recommendationRepository,
             AdviceContextService adviceContextService,
             TranslationService translationService
     ) {
+        this(recommendationRepository, adviceContextService, translationService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecommendationService(RecommendationRepository recommendationRepository,
+            AdviceContextService adviceContextService, TranslationService translationService,
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService) {
+        this.auditService = auditService;
         this.recommendationRepository = recommendationRepository;
         this.adviceContextService = adviceContextService;
         this.translationService = translationService;
@@ -77,11 +86,56 @@ public class RecommendationService {
             return matching;
         }
 
-        // Shared context holds a per-profile lock through this transaction.
-        // Flush deletions before inserting the replacement unique category set.
-        recommendationRepository.deleteByUserIdAndMonth(score.getUserId(), score.getMonth());
-        recommendationRepository.flush();
-        return recommendationRepository.saveAll(expected);
+        // The profile lock serializes regeneration with status edits. Update surviving
+        // categories in place so translation/rules changes preserve IDs and user action state.
+        Map<String, Recommendation> byCategory = new HashMap<>();
+        existing.forEach(item -> byCategory.put(item.getCategory(), item));
+        List<Recommendation> result = new ArrayList<>();
+        for (Recommendation wanted : expected) {
+            Recommendation stored = byCategory.remove(wanted.getCategory());
+            if (stored == null) {
+                result.add(wanted);
+                continue;
+            }
+            if (!Objects.equals(stored.getSourceComputedAt(), wanted.getSourceComputedAt())) {
+                stored.setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.NEW);
+                stored.setStatusUpdatedAt(null);
+            }
+            stored.setText(wanted.getText());
+            stored.setPriority(wanted.getPriority());
+            stored.setLanguage(wanted.getLanguage());
+            stored.setSourceVersion(wanted.getSourceVersion());
+            stored.setSourceComputedAt(wanted.getSourceComputedAt());
+            result.add(stored);
+        }
+        if (!byCategory.isEmpty()) recommendationRepository.deleteAll(byCategory.values());
+        return recommendationRepository.saveAll(result);
+    }
+
+    @Transactional
+    public Recommendation updateStatus(UUID businessId, UUID recommendationId,
+            com.app.sme_health_backend.recommendation.entity.RecommendationStatus status, UUID actorId) {
+        if (status == null) throw new IllegalArgumentException("Recommendation status is required");
+        // Read only a scalar before the lock: loading the entity here would retain stale
+        // managed fields if another status edit commits while this request waits for the profile.
+        String month = recommendationRepository.findMonthByIdAndUserId(recommendationId, businessId)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        // Acquire the same lock/order used by regeneration before locking the individual row.
+        AdviceContext context = adviceContextService.forMonth(businessId, month)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        refreshRecommendations(context);
+        Recommendation stored = recommendationRepository.findScopedForUpdate(recommendationId, businessId)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        var previous = stored.getStatus();
+        if (previous == status) return stored;
+        stored.setStatus(status);
+        stored.setStatusUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+        Recommendation saved = recommendationRepository.save(stored);
+        if (auditService != null) auditService.logSuccess(
+                com.app.sme_health_backend.audit.model.AuditEventType.RECOMMENDATION_STATUS_CHANGED,
+                actorId, null, businessId, "recommendation", recommendationId.toString(),
+                Map.of("previousStatus", previous.name(), "status", status.name()));
+        return saved;
     }
 
     private List<Recommendation> matchingRecommendations(
@@ -130,9 +184,11 @@ public class RecommendationService {
                 : Map.of();
         BigDecimal weakestScore = componentScores.get(weakestComponent);
 
+        var evidenceAdvice = new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService);
+        String evidenceAction = evidenceAdvice.action(scoreResult, selectedLanguage);
         recommendations.add(createRecommendation(
                 scoreResult,
-                weakestComponentText(selectedLanguage, weakestComponent, weakestScore),
+                evidenceAction != null ? evidenceAction : weakestComponentText(selectedLanguage, weakestComponent, weakestScore),
                 weakestComponent,
                 componentPriority(weakestScore, scoreResult.getBand())
         ));
@@ -144,17 +200,18 @@ public class RecommendationService {
                 bandPriority(scoreResult.getBand())
         ));
 
+        String missingEvidence = evidenceAdvice.dataQuality(scoreResult, selectedLanguage, true);
         if (scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    translationService.translate(selectedLanguage, "recommendation.data_quality.incomplete"),
+                    missingEvidence != null ? missingEvidence : translationService.translate(selectedLanguage, "recommendation.data_quality.incomplete"),
                     "data_quality",
                     "high"
             ));
         } else {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    translationService.translate(selectedLanguage, "recommendation.data_quality.complete"),
+                    missingEvidence != null ? missingEvidence : translationService.translate(selectedLanguage, "recommendation.data_quality.complete"),
                     "data_quality",
                     "low"
             ));

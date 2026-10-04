@@ -107,8 +107,8 @@ class RecommendationServiceTests {
         List<Recommendation> recommendations = recommendationService.getRecommendations(userId);
 
         assertEquals(3, recommendations.size());
-        verify(recommendationRepository).deleteByUserIdAndMonth(userId, "2026-09");
-        verify(recommendationRepository).flush();
+        verify(recommendationRepository, never()).deleteByUserIdAndMonth(any(), any());
+        verify(recommendationRepository, never()).flush();
         verify(recommendationRepository).saveAll(anyList());
     }
 
@@ -129,6 +129,79 @@ class RecommendationServiceTests {
         assertEquals(3, recommendations.size());
         verify(recommendationRepository, never()).deleteByUserIdAndMonth(any(), any());
         verify(recommendationRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void languageOnlyRegenerationPreservesIdentityDoneStateAndTimestamp() {
+        ScoreResult score = scoreResult("Stable", "cashflow", "0.90");
+        List<Recommendation> original = recommendationService.generateRecommendations(score, "en");
+        var status = com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DONE;
+        original.getFirst().setStatus(status);
+        original.getFirst().setStatusUpdatedAt(COMPUTED_AT.plusDays(1));
+        when(adviceContextService.latest(userId)).thenReturn(Optional.of(new AdviceContext(score, null, "ur", "new-language")));
+        when(recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-09")).thenReturn(original);
+        when(recommendationRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+        List<Recommendation> refreshed = recommendationService.getRecommendations(userId);
+        assertSame(original.getFirst(), refreshed.getFirst());
+        assertEquals(status, refreshed.getFirst().getStatus());
+        assertEquals(COMPUTED_AT.plusDays(1), refreshed.getFirst().getStatusUpdatedAt());
+        assertEquals("ur", refreshed.getFirst().getLanguage());
+        verify(recommendationRepository, never()).deleteByUserIdAndMonth(any(), any());
+    }
+
+    @Test
+    void genuinelyNewFinancialCalculationResetsActionToNew() {
+        ScoreResult old = scoreResult("Stable", "cashflow", "0.90");
+        List<Recommendation> original = recommendationService.generateRecommendations(old, "en");
+        original.getFirst().setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DISMISSED);
+        original.getFirst().setStatusUpdatedAt(COMPUTED_AT.plusMinutes(1));
+        ScoreResult current = scoreResult("Stable", "cashflow", "0.90");
+        current.setComputedAt(COMPUTED_AT.plusDays(1));
+        when(adviceContextService.latest(userId)).thenReturn(Optional.of(new AdviceContext(current, null, "en", "new-calculation")));
+        when(recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-09")).thenReturn(original);
+        when(recommendationRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+        Recommendation refreshed = recommendationService.getRecommendations(userId).getFirst();
+        assertSame(original.getFirst(), refreshed);
+        assertEquals(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.NEW, refreshed.getStatus());
+        assertNull(refreshed.getStatusUpdatedAt());
+    }
+
+    @Test
+    void statusMutationCannotReadAnotherBusinessRecommendation() {
+        UUID id = UUID.randomUUID();
+        when(recommendationRepository.findMonthByIdAndUserId(id, userId)).thenReturn(Optional.empty());
+        assertThrows(com.app.sme_health_backend.shared.exception.ResourceNotFoundException.class,
+                () -> recommendationService.updateStatus(userId, id,
+                        com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DONE, UUID.randomUUID()));
+        verifyNoInteractions(adviceContextService);
+        verify(recommendationRepository, never()).save(any());
+    }
+
+    @Test
+    void statusChangeUsesSameSnapshotLockAndWritesAuditEvent() {
+        var audit = mock(com.app.sme_health_backend.audit.service.SecurityAuditService.class);
+        var service = new RecommendationService(recommendationRepository, adviceContextService,
+                new TranslationService(new ObjectMapper()), audit);
+        ScoreResult score = scoreResult("Stable", "cashflow", "0.90");
+        List<Recommendation> original = service.generateRecommendations(score, "en");
+        original.forEach(item -> item.setSourceVersion("version"));
+        Recommendation target = original.getFirst();
+        UUID id = UUID.randomUUID(), actor = UUID.randomUUID();
+        when(recommendationRepository.findMonthByIdAndUserId(id, userId)).thenReturn(Optional.of("2026-09"));
+        when(adviceContextService.forMonth(userId, "2026-09")).thenReturn(Optional.of(new AdviceContext(score, null, "en", "version")));
+        when(recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(userId, "2026-09")).thenReturn(original);
+        when(recommendationRepository.findScopedForUpdate(id, userId)).thenReturn(Optional.of(target));
+        when(recommendationRepository.save(target)).thenReturn(target);
+        Recommendation changed = service.updateStatus(userId, id,
+                com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DONE, actor);
+        assertEquals(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DONE, changed.getStatus());
+        assertNotNull(changed.getStatusUpdatedAt());
+        verify(audit).logSuccess(eq(com.app.sme_health_backend.audit.model.AuditEventType.RECOMMENDATION_STATUS_CHANGED),
+                eq(actor), isNull(), eq(userId), eq("recommendation"), eq(id.toString()),
+                eq(java.util.Map.of("previousStatus", "NEW", "status", "DONE")));
+        var order = inOrder(adviceContextService, recommendationRepository);
+        order.verify(adviceContextService).forMonth(userId, "2026-09");
+        order.verify(recommendationRepository).findScopedForUpdate(id, userId);
     }
 
     private ScoreResult scoreResult(String band, String weakest, String completeness) {

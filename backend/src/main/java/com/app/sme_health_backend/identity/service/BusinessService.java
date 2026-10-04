@@ -56,6 +56,8 @@ public class BusinessService {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(userId, "userId must not be null");
 
+        validateName(request.businessName());
+
         // Validate WhatsApp opt-in rules
         if (request.whatsappOptIn() && (request.whatsappNumber() == null || request.whatsappNumber().isBlank())) {
             throw new IllegalArgumentException("WhatsApp number is required when opting in to WhatsApp notifications");
@@ -69,6 +71,7 @@ public class BusinessService {
         // 1. Generate Business UUID & create Business entity
         UUID businessId = UUID.randomUUID();
         Business business = new Business(businessId, "ACTIVE");
+        business.setBusinessName(request.businessName().trim());
         businessRepository.save(business);
 
         // 2. Create BusinessProfile entity (using compatibility bridge: BusinessProfile.userId == Business.id)
@@ -123,6 +126,7 @@ public class BusinessService {
 
         return new BusinessResponse(
                 businessId,
+                business.getBusinessName(),
                 profile.getBusinessType(),
                 profile.getLanguagePreference(),
                 MembershipRole.OWNER,
@@ -153,6 +157,7 @@ public class BusinessService {
 
             responses.add(new BusinessResponse(
                     business.getId(),
+                    business.getBusinessName(),
                     profile != null ? profile.getBusinessType() : "trade",
                     profile != null ? profile.getLanguagePreference() : "en",
                     membership.getRole(),
@@ -186,6 +191,7 @@ public class BusinessService {
 
         return new BusinessResponse(
                 business.getId(),
+                business.getBusinessName(),
                 profile != null ? profile.getBusinessType() : "trade",
                 profile != null ? profile.getLanguagePreference() : "en",
                 membership.getRole(),
@@ -200,5 +206,27 @@ public class BusinessService {
             return null;
         }
         return validateAndGetBusinessForActivation(userId, activeBusinessId);
+    }
+
+    @Transactional
+    public BusinessResponse renameBusiness(UUID userId, UUID businessId, String businessName) {
+        validateName(businessName);
+        Business business = businessRepository.findByIdForUpdate(businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found or access denied"));
+        BusinessMembership membership = membershipRepository.findByUserIdAndBusinessId(userId, businessId)
+                .filter(m -> m.getStatus() == MembershipStatus.ACTIVE && m.getRole() == MembershipRole.OWNER)
+                .orElseThrow(() -> new AccessDeniedException("Business settings access denied"));
+        business.setBusinessName(businessName.trim());
+        businessRepository.save(business);
+        if (auditService != null) auditService.logSuccess(
+                com.app.sme_health_backend.audit.model.AuditEventType.BUSINESS_NAME_CHANGED,
+                userId, null, businessId, "business", businessId.toString(), java.util.Map.of());
+        return validateAndGetBusinessForActivation(membership.getUserId(), businessId);
+    }
+
+    private void validateName(String name) {
+        if (name == null || name.isBlank() || name.trim().length() > 120 || name.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("Business name must contain 1 to 120 characters without control characters");
+        }
     }
 }

@@ -12,6 +12,9 @@ public class Business {
     @Id
     private UUID id;
 
+    @Column(name = "business_name", nullable = false, length = 120)
+    private String businessName = "My business";
+
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
@@ -36,6 +39,10 @@ public class Business {
     public UUID getId() {
         return id;
     }
+
+    public String getBusinessName() { return businessName; }
+
+    public void setBusinessName(String businessName) { this.businessName = businessName; }
 
     public void setId(UUID id) {
         this.id = id;

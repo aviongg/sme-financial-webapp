@@ -62,7 +62,7 @@ class BusinessControllerTest {
         UUID userId = UUID.fromString(TEST_USER_ID);
 
         BusinessResponse response = new BusinessResponse(
-                newBusinessId,
+                newBusinessId, "Fixture business",
                 "retail",
                 "en",
                 MembershipRole.OWNER,
@@ -75,6 +75,7 @@ class BusinessControllerTest {
 
         String payload = """
                 {
+                    "businessName": "Fixture business",
                     "businessType": "retail",
                     "languagePreference": "en",
                     "whatsappOptIn": false
@@ -106,7 +107,7 @@ class BusinessControllerTest {
         UUID authenticatedUserId = UUID.fromString(TEST_USER_ID);
 
         BusinessResponse response = new BusinessResponse(
-                newBusinessId,
+                newBusinessId, "Fixture business",
                 "services",
                 "ur",
                 MembershipRole.OWNER,
@@ -122,6 +123,7 @@ class BusinessControllerTest {
                 {
                     "userId": "99999999-9999-9999-9999-999999999999",
                     "role": "VIEWER",
+                    "businessName": "Fixture business",
                     "businessType": "services",
                     "languagePreference": "ur",
                     "whatsappOptIn": false
@@ -147,6 +149,7 @@ class BusinessControllerTest {
     void shouldRejectInvalidBusinessType() throws Exception {
         String invalidPayload = """
                 {
+                    "businessName": "Fixture business",
                     "businessType": "crypto_trading",
                     "languagePreference": "en",
                     "whatsappOptIn": false
@@ -172,8 +175,8 @@ class BusinessControllerTest {
         when(activeBusinessContext.getSessionActiveBusinessId(any(HttpServletRequest.class))).thenReturn(b1);
 
         List<BusinessResponse> list = List.of(
-                new BusinessResponse(b1, "retail", "en", MembershipRole.OWNER, MembershipStatus.ACTIVE, true),
-                new BusinessResponse(b2, "trade", "ur", MembershipRole.ACCOUNTANT, MembershipStatus.ACTIVE, false)
+                new BusinessResponse(b1, "Fixture business", "retail", "en", MembershipRole.OWNER, MembershipStatus.ACTIVE, true),
+                new BusinessResponse(b2, "Fixture business", "trade", "ur", MembershipRole.ACCOUNTANT, MembershipStatus.ACTIVE, false)
         );
 
         when(businessService.listUserBusinesses(userId, b1)).thenReturn(list);
@@ -198,7 +201,7 @@ class BusinessControllerTest {
         UUID targetBusinessId = UUID.randomUUID();
 
         BusinessResponse response = new BusinessResponse(
-                targetBusinessId,
+                targetBusinessId, "Fixture business",
                 "manufacturing",
                 "en",
                 MembershipRole.MANAGER,
@@ -260,7 +263,7 @@ class BusinessControllerTest {
         when(activeBusinessContext.getSessionActiveBusinessId(any(HttpServletRequest.class))).thenReturn(activeId);
 
         BusinessResponse response = new BusinessResponse(
-                activeId,
+                activeId, "Fixture business",
                 "retail",
                 "en",
                 MembershipRole.OWNER,

@@ -19,6 +19,8 @@ public interface ScoreResultRepository extends JpaRepository<ScoreResult, UUID> 
 
     List<ScoreResult> findByUserIdOrderByMonthDesc(UUID userId);
 
+    List<ScoreResult> findTop12ByUserIdOrderByMonthDesc(UUID userId);
+
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT s FROM ScoreResult s WHERE s.userId = :userId AND s.month = :month")
     Optional<ScoreResult> findByUserIdAndMonthLocked(@Param("userId") UUID userId, @Param("month") String month);

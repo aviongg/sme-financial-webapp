@@ -42,6 +42,9 @@ class DocumentControllerTests {
     private DocumentConfirmationService confirmationService;
 
     @MockitoBean
+    private com.app.sme_health_backend.documents.service.DocumentReviewService reviewService;
+
+    @MockitoBean
     private BusinessAuthorizationService authService;
 
     private final UUID userId = UUID.randomUUID();
@@ -193,7 +196,7 @@ class DocumentControllerTests {
         doc.setProcessingStatus(DocumentStatus.extracted);
         doc.setExtractedData("{\"date\":\"2026-03-15\",\"amount\":12000.00}");
 
-        when(uploadService.updateDraft(eq(businessId), eq(docId), any())).thenReturn(doc);
+        when(reviewService.updateDraft(eq(businessId), eq(docId), eq(userId), any())).thenReturn(doc);
 
         mockMvc.perform(patch("/api/documents/{id}", docId)
                         .contentType(MediaType.APPLICATION_JSON)

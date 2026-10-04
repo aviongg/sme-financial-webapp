@@ -203,6 +203,10 @@ public class DocumentUploadService {
             throw new IllegalStateException("Cannot retry a confirmed document");
         }
 
+        if (doc.getExtractedData() != null || doc.getReviewedData() != null) {
+            throw new IllegalStateException("An extraction already exists. Review this draft or upload a new document for another extraction.");
+        }
+
         if (doc.getProcessingStatus() == DocumentStatus.processing) {
             if (doc.getProcessingStartedAt() != null &&
                     doc.getProcessingStartedAt().isAfter(java.time.LocalDateTime.now().minus(STALE_PROCESSING_TIMEOUT))) {
@@ -232,37 +236,6 @@ public class DocumentUploadService {
         repository.delete(doc);
     }
 
-    @Transactional
-    public UploadedDocument updateDraft(
-            UUID userId,
-            UUID documentId,
-            com.app.sme_health_backend.documents.dto.DocumentDraftCorrectionRequest request
-    ) {
-        UploadedDocument doc = getDocumentForUpdate(userId, documentId);
-
-        if (doc.getProcessingStatus() == DocumentStatus.confirmed) {
-            throw new IllegalStateException("Cannot edit a confirmed document");
-        }
-
-        if (request != null) {
-            String updatedJson = String.format(
-                    "{\"date\":%s,\"amount\":%s,\"vendor_or_party\":%s,\"category\":\"%s\",\"confidence\":\"high\",\"document_type_detected\":\"%s\"}",
-                    request.date() != null ? "\"" + request.date() + "\"" : "null",
-                    request.amount() != null ? request.amount().toPlainString() : "null",
-                    request.vendorOrParty() != null ? "\"" + escapeJson(request.vendorOrParty()) + "\"" : "null",
-                    request.category() != null ? request.category() : "unknown",
-                    request.documentType() != null ? request.documentType() : "unknown"
-            );
-            doc.setExtractedData(updatedJson);
-
-            if (request.date() != null && request.amount() != null && request.amount().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                doc.setProcessingStatus(DocumentStatus.extracted);
-            }
-        }
-
-        return repository.save(doc);
-    }
-
     @Transactional(readOnly = true)
     public byte[] getDocumentBytes(UUID userId, UUID documentId) {
         UploadedDocument doc = getDocument(userId, documentId);
@@ -276,15 +249,6 @@ public class DocumentUploadService {
         return repository.findByIdAndUserIdForUpdate(documentId, userId)
                 .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));
     }
-
-    private String escapeJson(String raw) {
-        return raw.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
-    }
-
 
     private String sanitizeHint(String hint) {
         if (hint == null || hint.isBlank()) {

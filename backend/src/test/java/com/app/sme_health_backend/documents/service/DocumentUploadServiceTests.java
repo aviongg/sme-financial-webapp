@@ -124,6 +124,16 @@ class DocumentUploadServiceTests {
     }
 
     @Test
+    void retryCannotDiscardAnExistingExtractionOrHumanReview() {
+        UploadedDocument doc = new UploadedDocument();
+        doc.setId(docId); doc.setUserId(userId); doc.setProcessingStatus(DocumentStatus.needs_review);
+        doc.setExtractedData("{\"confidence\":\"low\"}");
+        when(repository.findByIdAndUserIdForUpdate(docId, userId)).thenReturn(Optional.of(doc));
+        assertThrows(IllegalStateException.class, () -> service.retryProcessing(userId, docId));
+        verify(asyncProcessingService, never()).processAfterCommit(any());
+    }
+
+    @Test
     void retryProcessingRejectsConfirmedDocument() {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);

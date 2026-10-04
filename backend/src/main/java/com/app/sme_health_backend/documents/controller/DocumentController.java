@@ -41,15 +41,18 @@ public class DocumentController {
     private final DocumentUploadService uploadService;
     private final DocumentConfirmationService confirmationService;
     private final BusinessAuthorizationService authService;
+    private final com.app.sme_health_backend.documents.service.DocumentReviewService reviewService;
 
     public DocumentController(
             DocumentUploadService uploadService,
             DocumentConfirmationService confirmationService,
-            BusinessAuthorizationService authService
+            BusinessAuthorizationService authService,
+            com.app.sme_health_backend.documents.service.DocumentReviewService reviewService
     ) {
         this.uploadService = Objects.requireNonNull(uploadService, "uploadService is required");
         this.confirmationService = Objects.requireNonNull(confirmationService, "confirmationService is required");
         this.authService = Objects.requireNonNull(authService, "authService is required");
+        this.reviewService = Objects.requireNonNull(reviewService, "reviewService is required");
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -169,8 +172,15 @@ public class DocumentController {
     ) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_EDIT);
 
-        UploadedDocument doc = uploadService.updateDraft(context.businessId(), id, correctionRequest);
+        UploadedDocument doc = reviewService.updateDraft(context.businessId(), id, context.userId(), correctionRequest);
         return ResponseEntity.ok(DocumentMapper.toResponse(doc));
+    }
+
+    @GetMapping("/{id}/corrections")
+    public List<com.app.sme_health_backend.documents.dto.DocumentCorrectionResponse> corrections(
+            @PathVariable UUID id, HttpServletRequest request) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_READ);
+        return reviewService.history(context.businessId(), id, context.userId());
     }
 
     @PostMapping("/{id}/confirm")

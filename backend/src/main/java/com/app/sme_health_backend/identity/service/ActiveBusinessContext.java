@@ -155,4 +155,12 @@ public class ActiveBusinessContext {
         }
         return null;
     }
+
+    public UUID requireAuthenticatedUserId() {
+        UUID id = resolveAuthenticatedUserId();
+        if (id == null || userRepository.findById(id).filter(u -> u.getAccountStatus() == AccountStatus.ACTIVE).isEmpty()) {
+            throw new AccessDeniedException("User is not authenticated");
+        }
+        return id;
+    }
 }

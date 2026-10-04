@@ -225,6 +225,25 @@ class DashboardServiceTests {
         assertEquals("high", response.getTopRecommendation().getPriority());
     }
 
+    @Test
+    void nextStepPrioritizesMissingInputsAndExcludesClosedActions() {
+        ScoreResult score = createScoreResult(userId, "2026-08", new BigDecimal("50.00"), "Needs Attention", "cashflow");
+        score.setDataCompleteness(new BigDecimal("0.55"));
+        Recommendation financial = createRecommendation(userId, "2026-08", "cashflow", "high", "Review cash.");
+        Recommendation missing = createRecommendation(userId, "2026-08", "data_quality", "high", "Complete missing inputs.");
+        when(businessProfileService.getProfile(userId)).thenReturn(createProfile(userId));
+        when(adviceContextService.latest(userId)).thenReturn(Optional.of(new AdviceContext(score, null, "en", "state")));
+        when(recommendationService.getRecommendations(userId, "2026-08")).thenReturn(List.of(financial, missing));
+
+        assertEquals("data_quality", dashboardService.getDashboard(userId).getTopRecommendation().getCategory());
+        missing.setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DONE);
+        assertEquals("cashflow", dashboardService.getDashboard(userId).getTopRecommendation().getCategory());
+        financial.setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.DISMISSED);
+        assertNull(dashboardService.getDashboard(userId).getTopRecommendation());
+        financial.setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.VIEWED);
+        assertEquals("cashflow", dashboardService.getDashboard(userId).getTopRecommendation().getCategory());
+    }
+
     private BusinessProfile createProfile(UUID userId) {
         BusinessProfile profile = new BusinessProfile();
         profile.setUserId(userId);

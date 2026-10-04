@@ -117,6 +117,18 @@ public class BusinessController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/active/name")
+    public BusinessResponse renameBusiness(
+            @Valid @RequestBody com.app.sme_health_backend.identity.dto.RenameBusinessRequest body,
+            HttpServletRequest request) {
+        var context = activeBusinessContext.getRequiredContext(request);
+        // BUSINESS_SETTINGS_MANAGE is intentionally OWNER-only in the existing permission model.
+        if (context.role() != com.app.sme_health_backend.identity.model.MembershipRole.OWNER) {
+            throw new AccessDeniedException("Business settings access denied");
+        }
+        return businessService.renameBusiness(context.userId(), context.businessId(), body.businessName());
+    }
+
     private UUID resolveCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {

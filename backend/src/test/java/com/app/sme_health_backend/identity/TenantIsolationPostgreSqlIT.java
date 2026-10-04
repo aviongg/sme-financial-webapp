@@ -201,6 +201,7 @@ public class TenantIsolationPostgreSqlIT extends com.app.sme_health_backend.test
     private UUID createBusinessForSession(LoginSession session, String businessType) throws Exception {
         String createBusinessPayload = """
                 {
+                    "businessName": "Fixture business",
                     "businessType": "%s",
                     "languagePreference": "en",
                     "whatsappOptIn": false

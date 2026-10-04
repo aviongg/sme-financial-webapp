@@ -46,6 +46,18 @@ public class ScoreResult {
     @Column(name = "computed_at", nullable = false)
     private LocalDateTime computedAt;
 
+    @Column(name = "methodology_version", length = 40)
+    private String methodologyVersion;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "explanation", columnDefinition = "jsonb")
+    private com.app.sme_health_backend.scoring.dto.ScoreExplanation explanation;
+
+    public String getMethodologyVersion() { return methodologyVersion; }
+    public void setMethodologyVersion(String value) { methodologyVersion = value; }
+    public com.app.sme_health_backend.scoring.dto.ScoreExplanation getExplanation() { return explanation; }
+    public void setExplanation(com.app.sme_health_backend.scoring.dto.ScoreExplanation value) { explanation = value; }
+
     public UUID getId() {
         return id;
     }

@@ -98,11 +98,19 @@ public class DashboardService {
             // Recommendations corresponding to the exact latest ScoreResult month
             List<Recommendation> recommendations = recommendationService.getRecommendations(userId, scoreResult.getMonth());
             if (recommendations != null && !recommendations.isEmpty()) {
-                Recommendation top = recommendations.stream()
-                        .filter(r -> "high".equalsIgnoreCase(r.getPriority()))
-                        .findFirst()
-                        .orElse(recommendations.get(0));
-                topRecommendation = RecommendationResponse.fromEntity(top);
+                // Completed/dismissed actions remain visible in Health history, but are
+                // no longer a next step. Low completeness makes missing evidence the first action.
+                List<Recommendation> actionable = recommendations.stream()
+                        .filter(r -> r.getStatus() == com.app.sme_health_backend.recommendation.entity.RecommendationStatus.NEW
+                                || r.getStatus() == com.app.sme_health_backend.recommendation.entity.RecommendationStatus.VIEWED)
+                        .toList();
+                boolean incomplete = scoreResult.getDataCompleteness().compareTo(new java.math.BigDecimal("0.80")) < 0;
+                Optional<Recommendation> next = incomplete ? actionable.stream()
+                        .filter(r -> "data_quality".equals(r.getCategory())).findFirst() : Optional.empty();
+                if (next.isEmpty()) next = actionable.stream()
+                        .filter(r -> "high".equalsIgnoreCase(r.getPriority())).findFirst();
+                if (next.isEmpty()) next = actionable.stream().findFirst();
+                topRecommendation = next.map(RecommendationResponse::fromEntity).orElse(null);
             }
         }
 

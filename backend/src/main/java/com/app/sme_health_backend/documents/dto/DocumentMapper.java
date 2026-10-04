@@ -21,6 +21,8 @@ public final class DocumentMapper {
                 doc.getProcessingStatus(),
                 doc.getDocumentTypeHint(),
                 doc.getExtractedData(),
+                doc.getReviewedData(),
+                doc.getExtractionProvenance(),
                 doc.getConfirmedData(),
                 doc.getLinkedMonth(),
                 doc.getFailureReason(),

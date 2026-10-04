@@ -1,5 +1,13 @@
 package com.app.sme_health_backend.search;
 
+import com.app.sme_health_backend.documents.entity.UploadedDocument;
+import com.app.sme_health_backend.documents.processing.DocumentStatus;
+import com.app.sme_health_backend.documents.repository.UploadedDocumentRepository;
+import com.app.sme_health_backend.scoring.entity.ScoreResult;
+import com.app.sme_health_backend.scoring.repository.ScoreResultRepository;
+import com.app.sme_health_backend.profile.entity.BusinessProfile;
+import com.app.sme_health_backend.i18n.TranslationService;
+import tools.jackson.databind.ObjectMapper;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
@@ -21,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,6 +50,9 @@ class SearchServiceTests {
     @Mock
     private RecommendationRepository recommendationRepository;
 
+    @Mock private UploadedDocumentRepository documentRepository;
+    @Mock private ScoreResultRepository scoreRepository;
+    private BusinessProfile profile;
     private SearchResultRanker ranker;
     private SearchService searchService;
 
@@ -54,9 +66,12 @@ class SearchServiceTests {
                 recordRepository,
                 insightRepository,
                 recommendationRepository,
-                ranker
+                ranker, documentRepository, scoreRepository, new TranslationService(new ObjectMapper())
         );
         userId = UUID.randomUUID();
+        profile = new BusinessProfile();
+        profile.setUserId(userId);
+        profile.setLanguagePreference("en");
     }
 
     private MonthlyRecord createMonthlyRecord(UUID id, UUID uId, String month, BigDecimal revenue, String financing) {
@@ -101,9 +116,9 @@ class SearchServiceTests {
     @Test
     @DisplayName("Blank or whitespace query returns empty list immediately without querying repositories")
     void shouldReturnEmptyListImmediatelyForBlankQuery() {
-        List<SearchResultResponse> resultsNull = searchService.search(userId, null, "all");
-        List<SearchResultResponse> resultsEmpty = searchService.search(userId, "", "all");
-        List<SearchResultResponse> resultsWhitespace = searchService.search(userId, "   ", "all");
+        List<SearchResultResponse> resultsNull = searchService.search(userId, null, "all", true);
+        List<SearchResultResponse> resultsEmpty = searchService.search(userId, "", "all", true);
+        List<SearchResultResponse> resultsWhitespace = searchService.search(userId, "   ", "all", true);
 
         assertTrue(resultsNull.isEmpty());
         assertTrue(resultsEmpty.isEmpty());
@@ -118,26 +133,26 @@ class SearchServiceTests {
     @Test
     @DisplayName("Missing business profile throws 404 ResourceNotFoundException")
     void shouldThrowResourceNotFoundWhenProfileMissing() {
-        when(profileRepository.existsById(userId)).thenReturn(false);
+        when(profileRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () ->
-                searchService.search(userId, "August", "all")
+                searchService.search(userId, "August", "all", true)
         );
 
-        verify(profileRepository).existsById(userId);
+        verify(profileRepository).findById(userId);
         verifyNoInteractions(recordRepository);
     }
 
     @Test
     @DisplayName("Finds monthly records by English month name (e.g., 'August')")
     void shouldFindMonthlyRecordsByEnglishMonth() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         MonthlyRecord augRecord = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("2100000"), "none");
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(augRecord));
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> results = searchService.search(userId, "August", "all");
+        List<SearchResultResponse> results = searchService.search(userId, "August", "all", true);
 
         assertFalse(results.isEmpty());
         assertEquals("transaction", results.get(0).getType());
@@ -148,13 +163,13 @@ class SearchServiceTests {
     @Test
     @DisplayName("Finds monthly records by month code (e.g., '2026-08')")
     void shouldFindMonthlyRecordsByMonthCode() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         MonthlyRecord augRecord = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("2100000"), "none");
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(augRecord));
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> results = searchService.search(userId, "2026-08", "all");
+        List<SearchResultResponse> results = searchService.search(userId, "2026-08", "all", true);
 
         assertFalse(results.isEmpty());
         assertEquals("2026-08", results.get(0).getDate());
@@ -163,13 +178,13 @@ class SearchServiceTests {
     @Test
     @DisplayName("Finds monthly records by Urdu month name (e.g., 'اگست')")
     void shouldFindMonthlyRecordsByUrduMonth() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         MonthlyRecord augRecord = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("2100000"), "none");
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(augRecord));
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> results = searchService.search(userId, "اگست", "all");
+        List<SearchResultResponse> results = searchService.search(userId, "اگست", "all", true);
 
         assertFalse(results.isEmpty());
         assertEquals("2026-08", results.get(0).getDate());
@@ -178,15 +193,15 @@ class SearchServiceTests {
     @Test
     @DisplayName("Finds monthly records by financial terms (e.g., 'Revenue', 'Inflow', 'Cash Balance')")
     void shouldFindMonthlyRecordsByFinancialTerms() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         MonthlyRecord record = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("2100000"), "islamic");
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(record));
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> resultsRev = searchService.search(userId, "Revenue", "all");
-        List<SearchResultResponse> resultsCash = searchService.search(userId, "Cash Balance", "all");
-        List<SearchResultResponse> resultsFin = searchService.search(userId, "islamic", "all");
+        List<SearchResultResponse> resultsRev = searchService.search(userId, "Revenue", "all", true);
+        List<SearchResultResponse> resultsCash = searchService.search(userId, "Cash Balance", "all", true);
+        List<SearchResultResponse> resultsFin = searchService.search(userId, "islamic", "all", true);
 
         assertFalse(resultsRev.isEmpty());
         assertFalse(resultsCash.isEmpty());
@@ -196,7 +211,7 @@ class SearchServiceTests {
     @Test
     @DisplayName("Finds diagnostic insights by keyword and category")
     void shouldFindInsightsByKeywordAndCategory() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of());
         Insight insight = createInsight(
                 UUID.randomUUID(),
@@ -209,8 +224,8 @@ class SearchServiceTests {
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(insight));
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> resultsKeyword = searchService.search(userId, "reserve", "all");
-        List<SearchResultResponse> resultsCategory = searchService.search(userId, "Liquidity", "all");
+        List<SearchResultResponse> resultsKeyword = searchService.search(userId, "reserve", "all", true);
+        List<SearchResultResponse> resultsCategory = searchService.search(userId, "Liquidity", "all", true);
 
         assertFalse(resultsKeyword.isEmpty());
         assertEquals("insight", resultsKeyword.get(0).getType());
@@ -223,7 +238,7 @@ class SearchServiceTests {
     @Test
     @DisplayName("Finds recommendations by action keyword and category")
     void shouldFindRecommendationsByActionKeyword() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of());
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         Recommendation rec = createRecommendation(
@@ -236,7 +251,7 @@ class SearchServiceTests {
         );
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(rec));
 
-        List<SearchResultResponse> results = searchService.search(userId, "discount", "all");
+        List<SearchResultResponse> results = searchService.search(userId, "discount", "all", true);
 
         assertFalse(results.isEmpty());
         assertEquals("recommendation", results.get(0).getType());
@@ -246,7 +261,7 @@ class SearchServiceTests {
     @Test
     @DisplayName("Filters strictly by type (transaction, insight, recommendation, document)")
     void shouldFilterStrictlyByType() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
 
         MonthlyRecord record = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("1000000"), "none");
         Insight insight = createInsight(UUID.randomUUID(), userId, "2026-08", "Shared matching query text in insight", "General", "Medium");
@@ -254,7 +269,7 @@ class SearchServiceTests {
 
         // When type = transaction
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(record));
-        List<SearchResultResponse> transResults = searchService.search(userId, "2026-08", "transaction");
+        List<SearchResultResponse> transResults = searchService.search(userId, "2026-08", "transaction", true);
         assertFalse(transResults.isEmpty());
         assertTrue(transResults.stream().allMatch(r -> "transaction".equals(r.getType())));
         verifyNoInteractions(insightRepository);
@@ -262,25 +277,25 @@ class SearchServiceTests {
 
         // When type = insight
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(insight));
-        List<SearchResultResponse> insightResults = searchService.search(userId, "Shared", "insight");
+        List<SearchResultResponse> insightResults = searchService.search(userId, "Shared", "insight", true);
         assertFalse(insightResults.isEmpty());
         assertTrue(insightResults.stream().allMatch(r -> "insight".equals(r.getType())));
 
         // When type = recommendation
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(rec));
-        List<SearchResultResponse> recResults = searchService.search(userId, "Shared", "recommendation");
+        List<SearchResultResponse> recResults = searchService.search(userId, "Shared", "recommendation", true);
         assertFalse(recResults.isEmpty());
         assertTrue(recResults.stream().allMatch(r -> "recommendation".equals(r.getType())));
 
-        // When type = document -> returns empty list gracefully
-        List<SearchResultResponse> docResults = searchService.search(userId, "Invoice", "document");
+        // No document rows in this fixture: document filter does not return other resources
+        List<SearchResultResponse> docResults = searchService.search(userId, "Invoice", "document", true);
         assertTrue(docResults.isEmpty());
     }
 
     @Test
     @DisplayName("Enforces strict user isolation — never returns records of another user")
     void shouldEnforceStrictUserIsolation() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
 
         // Only records belonging to userId are queried and returned by repository
         UUID otherUserId = UUID.randomUUID();
@@ -289,7 +304,7 @@ class SearchServiceTests {
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<SearchResultResponse> results = searchService.search(userId, "2026-08", "all");
+        List<SearchResultResponse> results = searchService.search(userId, "2026-08", "all", true);
 
         assertEquals(1, results.size());
         assertEquals(userRecord.getId().toString(), results.get(0).getId());
@@ -302,13 +317,13 @@ class SearchServiceTests {
     @Test
     @DisplayName("Search is strictly read-only — zero saves, deletes, or mutations occur")
     void shouldBeStrictlyReadOnly() {
-        when(profileRepository.existsById(userId)).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
         MonthlyRecord record = createMonthlyRecord(UUID.randomUUID(), userId, "2026-08", new BigDecimal("1000000"), "none");
         when(recordRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(record));
         when(insightRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
         when(recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        searchService.search(userId, "August", "all");
+        searchService.search(userId, "August", "all", true);
 
         verify(recordRepository, never()).save(any());
         verify(recordRepository, never()).delete(any());
@@ -316,5 +331,75 @@ class SearchServiceTests {
         verify(insightRepository, never()).delete(any());
         verify(recommendationRepository, never()).save(any());
         verify(recommendationRepository, never()).delete(any());
+    }
+
+    private UploadedDocument document(String name, String month) {
+        var document = new UploadedDocument();
+        document.setId(UUID.randomUUID());
+        document.setUserId(userId);
+        document.setOriginalFilename(name);
+        document.setDocumentTypeHint("invoice");
+        document.setProcessingStatus(DocumentStatus.needs_review);
+        document.setLinkedMonth(month);
+        document.setExtractedData("{\"private_ocr_text\":\"never-search-this-secret\"}");
+        return document;
+    }
+
+    @Test
+    void documentsSearchMetadataAndNavigateToReviewWithoutSearchingRawExtraction() {
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        var document = document("wholesale-receipt.png", "2026-08");
+        when(documentRepository.findByUserIdOrderByUploadTimestampDesc(userId)).thenReturn(List.of(document));
+        for (String query : List.of("wholesale", "invoice", "needs_review", "2026-08")) {
+            var results = searchService.search(userId, query, "document", true);
+            assertEquals(1, results.size());
+            assertEquals("document", results.getFirst().getType());
+            assertEquals("/upload/" + document.getId(), results.getFirst().getHref());
+            assertFalse(results.getFirst().getDescription().contains("private_ocr_text"));
+        }
+        assertTrue(searchService.search(userId, "never-search-this-secret", "document", true).isEmpty());
+        verifyNoInteractions(recordRepository, scoreRepository, insightRepository, recommendationRepository);
+    }
+
+    @Test
+    void exactDocumentFilenameRanksBeforePrefixAndScoreResultsUseMonthDestination() {
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        var exact = document("2026-08", "2026-07");
+        var prefix = document("2026-08-invoice.png", "2026-07");
+        when(documentRepository.findByUserIdOrderByUploadTimestampDesc(userId)).thenReturn(List.of(prefix, exact));
+        assertEquals(exact.getId().toString(), searchService.search(userId, "2026-08", "document", true).getFirst().getId());
+
+        var score = new ScoreResult();
+        org.springframework.test.util.ReflectionTestUtils.setField(score, "id", UUID.randomUUID());
+        score.setUserId(userId);
+        score.setMonth("2026-09");
+        score.setCompositeScore(new BigDecimal("61.25"));
+        score.setBand("stable");
+        when(scoreRepository.findByUserIdOrderByMonthDesc(userId)).thenReturn(List.of(score));
+        var result = searchService.search(userId, "2026-09", "score", true).getFirst();
+        assertEquals("score", result.getType());
+        assertEquals("/health/components?month=2026-09", result.getHref());
+        assertTrue(result.getDescription().contains("61.25"));
+    }
+
+    @Test
+    void financialReadAloneDoesNotExposeDocumentMetadata() {
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        assertTrue(searchService.search(userId, "invoice", "all", false).isEmpty());
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> searchService.search(userId, "invoice", "document", false));
+        verifyNoInteractions(documentRepository);
+    }
+
+    @Test
+    void urduSearchLabelsUseCentralTranslationsAndWesternNumbers() {
+        profile.setLanguagePreference("ur");
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(documentRepository.findByUserIdOrderByUploadTimestampDesc(userId))
+                .thenReturn(List.of(document(null, "2026-08")));
+        var result = searchService.search(userId, "2026-08", "document", true).getFirst();
+        assertEquals("2026-08", result.getDate());
+        assertFalse(result.getTitle().contains("Uploaded document"));
+        assertFalse(result.getDescription().contains("needs_review"));
     }
 }

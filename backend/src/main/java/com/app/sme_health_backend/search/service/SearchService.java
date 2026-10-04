@@ -1,5 +1,8 @@
 package com.app.sme_health_backend.search.service;
 
+import com.app.sme_health_backend.documents.entity.UploadedDocument;
+import com.app.sme_health_backend.documents.repository.UploadedDocumentRepository;
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
@@ -8,6 +11,8 @@ import com.app.sme_health_backend.recommendation.repository.RecommendationReposi
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
 import com.app.sme_health_backend.search.dto.SearchResultResponse;
+import com.app.sme_health_backend.scoring.entity.ScoreResult;
+import com.app.sme_health_backend.scoring.repository.ScoreResultRepository;
 import com.app.sme_health_backend.search.ranker.SearchResultRanker;
 import com.app.sme_health_backend.search.ranker.SearchResultRanker.Candidate;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
@@ -22,6 +27,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -40,40 +47,50 @@ public class SearchService {
     private final InsightRepository insightRepository;
     private final RecommendationRepository recommendationRepository;
     private final SearchResultRanker ranker;
+    private final UploadedDocumentRepository documentRepository;
+    private final ScoreResultRepository scoreRepository;
+    private final TranslationService translations;
 
     public SearchService(
             BusinessProfileRepository profileRepository,
             MonthlyRecordRepository recordRepository,
             InsightRepository insightRepository,
             RecommendationRepository recommendationRepository,
-            SearchResultRanker ranker
+            SearchResultRanker ranker,
+            UploadedDocumentRepository documentRepository,
+            ScoreResultRepository scoreRepository,
+            TranslationService translations
     ) {
         this.profileRepository = profileRepository;
         this.recordRepository = recordRepository;
         this.insightRepository = insightRepository;
         this.recommendationRepository = recommendationRepository;
         this.ranker = ranker;
+        this.documentRepository = documentRepository;
+        this.scoreRepository = scoreRepository;
+        this.translations = translations;
     }
 
     /**
-     * Executes read-only global search across user-scoped records, insights, and recommendations.
+     * Read-only search across the active business's persisted resources. Original
+     * filenames are decrypted through their existing converter; OCR text is never searched.
      * Blank or whitespace queries return [] immediately without querying any repository.
      */
-    public List<SearchResultResponse> search(UUID userId, String query, String type) {
+    public List<SearchResultResponse> search(UUID userId, String query, String type, boolean includeDocuments) {
         if (query == null || query.trim().isEmpty()) {
             return Collections.emptyList();
         }
 
-        if (!profileRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("Business profile not found for user: " + userId);
+        String filter = (type == null || type.isBlank()) ? "all" : type.trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("all", "transaction", "insight", "recommendation", "document", "score").contains(filter)) {
+            throw new IllegalArgumentException("Unsupported search type");
         }
-
-        String filter = (type == null || type.isBlank()) ? "all" : type.trim().toLowerCase();
-
-        // If filter is explicitly "document", return empty list as document module/table does not exist yet
-        if ("document".equals(filter)) {
-            return Collections.emptyList();
+        if ("document".equals(filter) && !includeDocuments) {
+            throw new org.springframework.security.access.AccessDeniedException("Document access is not permitted");
         }
+        var profile = profileRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business profile not found"));
+        String language = translations.resolveLanguage(profile.getLanguagePreference());
 
         List<Candidate> candidates = new ArrayList<>();
 
@@ -81,7 +98,7 @@ public class SearchService {
         if ("all".equals(filter) || "transaction".equals(filter)) {
             List<MonthlyRecord> records = recordRepository.findByUserIdOrderByMonthDesc(userId);
             for (MonthlyRecord record : records) {
-                candidates.add(buildRecordCandidate(record));
+                candidates.add(buildRecordCandidate(record, language));
             }
         }
 
@@ -89,7 +106,7 @@ public class SearchService {
         if ("all".equals(filter) || "insight".equals(filter)) {
             List<Insight> insights = insightRepository.findByUserIdOrderByCreatedAtDesc(userId);
             for (Insight insight : insights) {
-                candidates.add(buildInsightCandidate(insight));
+                candidates.add(buildInsightCandidate(insight, language));
             }
         }
 
@@ -97,15 +114,26 @@ public class SearchService {
         if ("all".equals(filter) || "recommendation".equals(filter)) {
             List<Recommendation> recommendations = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
             for (Recommendation recommendation : recommendations) {
-                candidates.add(buildRecommendationCandidate(recommendation));
+                candidates.add(buildRecommendationCandidate(recommendation, language));
             }
         }
 
-        // 4. Rank candidates and apply the 20-result cap AFTER ranking
+        if (includeDocuments && ("all".equals(filter) || "document".equals(filter))) {
+            for (UploadedDocument document : documentRepository.findByUserIdOrderByUploadTimestampDesc(userId)) {
+                candidates.add(buildDocumentCandidate(document, language));
+            }
+        }
+        if ("all".equals(filter) || "score".equals(filter)) {
+            for (ScoreResult score : scoreRepository.findByUserIdOrderByMonthDesc(userId)) {
+                candidates.add(buildScoreCandidate(score, language));
+            }
+        }
+
+        // Rank all permitted resource types together before applying the result cap.
         return ranker.rankAndCap(candidates, query, MAX_RESULTS_CAP);
     }
 
-    private Candidate buildRecordCandidate(MonthlyRecord record) {
+    private Candidate buildRecordCandidate(MonthlyRecord record, String language) {
         String monthStr = record.getMonth();
         String enMonthName = "";
         String enMonthShort = "";
@@ -124,9 +152,9 @@ public class SearchService {
         } catch (Exception ignored) {
         }
 
-        String title = enMonthName.isEmpty()
-                ? monthStr + " Monthly Record"
-                : enMonthName + " " + yearStr + " Monthly Record";
+        String monthLabel = "ur".equals(language) && !urduMonthName.isEmpty()
+                ? urduMonthName + " " + yearStr : enMonthName.isEmpty() ? monthStr : enMonthName + " " + yearStr;
+        String title = translations.translate(language, "search.record.title", Map.of("month", monthLabel));
 
         String formattedRevenue = formatPkr(record.getRevenue());
         String formattedInflow = formatPkr(record.getCashInflow());
@@ -134,9 +162,8 @@ public class SearchService {
         String formattedExpenses = formatPkr(record.getOperatingExpenses());
         String formattedCashBalance = formatPkr(record.getCashBalanceEom());
 
-        String description = "Revenue: PKR " + formattedRevenue
-                + " • Inflow: PKR " + formattedInflow
-                + " • Outflow: PKR " + formattedOutflow;
+        String description = translations.translate(language, "search.record.description", Map.of(
+                "revenue", formattedRevenue, "inflow", formattedInflow, "outflow", formattedOutflow));
 
         SearchResultResponse response = new SearchResultResponse(
                 record.getId() != null ? record.getId().toString() : "",
@@ -145,9 +172,9 @@ public class SearchService {
                 "transaction",
                 monthStr,
                 record.getRevenue(),
-                "Monthly Financial Record",
-                "/records/" + (record.getId() != null ? record.getId() : monthStr),
-                "Official"
+                translations.translate(language, "search.record.category"),
+                "/records/" + monthStr,
+                translations.translate(language, "search.record.badge")
         );
 
         List<String> primaryTerms = new ArrayList<>();
@@ -193,9 +220,9 @@ public class SearchService {
         return new Candidate(response, primaryTerms, searchableText);
     }
 
-    private Candidate buildInsightCandidate(Insight insight) {
+    private Candidate buildInsightCandidate(Insight insight, String language) {
         String category = insight.getCategory() != null ? insight.getCategory() : "Financial";
-        String title = category + " Insight";
+        String title = translations.translate(language, "search.insight.title", Map.of("category", category));
 
         SearchResultResponse response = new SearchResultResponse(
                 insight.getId() != null ? insight.getId().toString() : "",
@@ -205,7 +232,7 @@ public class SearchService {
                 insight.getMonth(),
                 null,
                 category,
-                "/health/components",
+                "/health/components?month=" + insight.getMonth(),
                 insight.getPriority()
         );
 
@@ -229,9 +256,9 @@ public class SearchService {
         return new Candidate(response, primaryTerms, searchableText);
     }
 
-    private Candidate buildRecommendationCandidate(Recommendation recommendation) {
+    private Candidate buildRecommendationCandidate(Recommendation recommendation, String language) {
         String category = recommendation.getCategory() != null ? recommendation.getCategory() : "Financial";
-        String title = category + " Action Item";
+        String title = translations.translate(language, "search.recommendation.title", Map.of("category", category));
 
         SearchResultResponse response = new SearchResultResponse(
                 recommendation.getId() != null ? recommendation.getId().toString() : "",
@@ -241,7 +268,7 @@ public class SearchService {
                 recommendation.getMonth(),
                 null,
                 category,
-                "/",
+                "/health/components?month=" + recommendation.getMonth(),
                 recommendation.getPriority()
         );
 
@@ -264,6 +291,39 @@ public class SearchService {
         );
 
         return new Candidate(response, primaryTerms, searchableText);
+    }
+
+    private Candidate buildDocumentCandidate(UploadedDocument document, String language) {
+        String type = document.getDocumentTypeHint() == null ? "unknown" : document.getDocumentTypeHint();
+        String status = document.getProcessingStatus().name();
+        String typeLabel = translatedOrRaw(language, "document.type.", type);
+        String statusLabel = translatedOrRaw(language, "document.status.", status);
+        String title = document.getOriginalFilename() == null || document.getOriginalFilename().isBlank()
+                ? translations.translate(language, "search.document.title") : document.getOriginalFilename();
+        String date = document.getLinkedMonth() != null ? document.getLinkedMonth()
+                : document.getUploadTimestamp() == null ? null : document.getUploadTimestamp().toLocalDate().toString();
+        var response = new SearchResultResponse(document.getId().toString(), title,
+                translations.translate(language, "search.document.description", Map.of("type", typeLabel, "status", statusLabel)),
+                "document", date, null, typeLabel, "/upload/" + document.getId(), statusLabel);
+        return new Candidate(response, Arrays.asList(title, type, status, typeLabel, statusLabel, document.getLinkedMonth(),
+                "document", "دستاویز"), List.of(response.getDescription()));
+    }
+
+    private Candidate buildScoreCandidate(ScoreResult score, String language) {
+        String band = translatedOrRaw(language, "band.", score.getBand());
+        String title = translations.translate(language, "search.score.title", Map.of("month", score.getMonth()));
+        String description = translations.translate(language, "search.score.description", Map.of(
+                "score", score.getCompositeScore().toPlainString(), "band", band));
+        var response = new SearchResultResponse(score.getId().toString(), title, description, "score", score.getMonth(),
+                null, translations.translate(language, "search.score.category"),
+                "/health/components?month=" + score.getMonth(), band);
+        return new Candidate(response, Arrays.asList(score.getMonth(), score.getBand(), band, "score", "health",
+                "financial health", "اسکور", "مالی صحت"), List.of(description));
+    }
+
+    private String translatedOrRaw(String language, String prefix, String value) {
+        String key = prefix + value;
+        return translations.hasKey(key) ? translations.translate(language, key) : value;
     }
 
     private String formatPkr(BigDecimal amount) {

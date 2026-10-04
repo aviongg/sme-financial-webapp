@@ -58,7 +58,7 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
     );
 
     @Modifying
-    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.extractedData = :extractedData WHERE d.id = :id AND d.processingStatus = :expectedStatus")
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.extractedData = COALESCE(d.extractedData, :extractedData) WHERE d.id = :id AND d.processingStatus = :expectedStatus")
     int saveDraftIfStatus(
             @Param("id") UUID id,
             @Param("expectedStatus") DocumentStatus expectedStatus,
