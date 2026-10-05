@@ -7,11 +7,11 @@ import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import ts from 'typescript';
 const dir=mkdtempSync(path.join(tmpdir(),'finsight-secure-contracts-'));
-const modules=['client','session','contracts','phase-one','finance','documents','zakat','navigation'];
+const modules=['client','session','contracts','phase-one','finance','documents','zakat','navigation','team','score-presentation'];
 for(const name of modules){const source=readFileSync(fileURLToPath(new URL(`../src/lib/api/${name}.ts`,import.meta.url)),'utf8');writeFileSync(path.join(dir,`${name}.js`),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);}
 const require=createRequire(import.meta.url);
 const client=require(path.join(dir,'client.js'));
-const {phaseOneApi,recordPayload}=require(path.join(dir,'phase-one.js'));
+const {phaseOneApi}=require(path.join(dir,'phase-one.js'));
 const {hasPermission}=require(path.join(dir,'session.js'));
 const {financeApi,searchDestination,completenessPercent}=require(path.join(dir,'finance.js'));
 const {documentsApi,documentFilePath}=require(path.join(dir,'documents.js'));
@@ -51,3 +51,44 @@ test('Zakat blank is unknown and zero remains zero',()=>{assert.equal(optionalNu
 test('Zakat monthly preview sends declarations and preserves incomplete result',async()=>{const input={assessment:{haulStatus:'UNKNOWN'},inventory:null,receivables:null,currentPayables:null,principalDueWithin12LunarMonths:null,principalExcludedFromPayables:null,unsupportedCategories:null};backend((url,options)=>{assert.equal(url,'/api/zakat/monthly/preview');assert.deepEqual(JSON.parse(options.body),{month:'2026-09',...input});return Response.json({calculationStatus:'INCOMPLETE',zakatDue:null});});const result=await zakatApi.monthly('2026-09',input);assert.equal(result.zakatDue,null);assert.equal(result.calculationStatus,'INCOMPLETE');});
 
 test('an old 401 response cannot invalidate the newly selected business',async()=>{let finish;backend(()=>new Promise(resolve=>{finish=resolve;}));const request=phaseOneApi.getMonthlyRecords();client.invalidatePrivateRequests();client.allowPrivateRequests();finish(Response.json({message:'old session'},{status:401}));await assert.rejects(()=>request,e=>e.name==='AbortError');mock.restoreAll();backend(()=>Response.json([]));assert.deepEqual(await phaseOneApi.getMonthlyRecords(),[]);});
+
+const {teamApi}=require(path.join(dir,'team.js'));
+const {scorePresentation,scoreBand,adviceMatchesScore}=require(path.join(dir,'score-presentation.js'));
+const {currentDocumentDraft,parseDocumentData}=require(path.join(dir,'documents.js'));
+test('all backend score bands including weak and zero scores are rendered without recalculation',()=>{
+ const componentScores={cashflow:12,profitability:34,repayment:null,trend:null,compliance:0};
+ for(const [wire,view] of [['Strong','strong'],['Stable','stable'],['Needs Attention','attention'],['At Risk','risk']]) {
+  const score={compositeScore:0,band:wire,componentScores,dataCompleteness:.65,weakestComponent:'compliance',explanation:{historyMonthsAvailable:1}};
+  const shown=scorePresentation(score);assert.equal(shown.composite_score,0);assert.equal(shown.score_band,view);assert.equal(shown.component_scores,componentScores);assert.equal(shown.component_scores.repayment,null);assert.equal(shown.is_provisional,true);assert.equal(shown.data_completeness,65);
+ }
+ assert.equal(scoreBand('unexpected'),null);assert.equal(scorePresentation({compositeScore:null,band:'Strong'}),null);assert.equal(scorePresentation({compositeScore:99,band:'unexpected'}),null);
+});
+test('history uses a tenant-free read and preserves missing months and historical methodology',async()=>{
+ const saved=[{month:'2026-09',methodologyVersion:'health-score-v1',explanation:{overallDelta:null}},{month:'2026-07',methodologyVersion:null,explanation:null}];backend((url,options)=>{assert.equal(url,'/api/scores/history');assert.equal(options.method,'GET');assert.equal(options.body,undefined);return Response.json(saved);});assert.deepEqual(await financeApi.scoreHistory(),saved);
+});
+test('advice is rejected when its tenant, month or source computation does not match score',()=>{
+ const score={businessId,month:'2026-09',computedAt:'2026-09-30T00:00:00Z'},advice={businessId,month:score.month,sourceComputedAt:score.computedAt};assert.equal(adviceMatchesScore(advice,score),true);
+ for(const delta of [{businessId:'other'},{month:'2026-08'},{sourceComputedAt:'old'}])assert.equal(adviceMatchesScore({...advice,...delta},score),false);
+});
+test('recommendation status sends only the requested lifecycle state with CSRF',async()=>{
+ backend((url,options)=>{assert.equal(url,`/api/recommendations/${businessId}/status`);assert.equal(options.method,'PATCH');assert.deepEqual(JSON.parse(options.body),{status:'DONE'});assert.equal(options.headers.get('X-XSRF-TOKEN'),'csrf-test');return Response.json({id:businessId,status:'DONE'});});assert.equal((await financeApi.updateRecommendationStatus(businessId,'DONE')).status,'DONE');
+});
+test('team invitations resolve email server-side and updates omit supplied identity',async()=>{
+ backend();await teamApi.invite(' person@example.test ','ACCOUNTANT');assert.deepEqual(JSON.parse(calls.at(-1).options.body),{email:'person@example.test',role:'ACCOUNTANT'});
+ await teamApi.update(businessId,{role:'MANAGER',status:'SUSPENDED',businessId:'injected',userId:'injected'});assert.deepEqual(JSON.parse(calls.at(-1).options.body),{role:'MANAGER',status:'SUSPENDED'});
+ await teamApi.rename(' Shop name ');assert.deepEqual(JSON.parse(calls.at(-1).options.body),{businessName:'Shop name'});assert.equal(calls.at(-1).url,'/api/businesses/active/name');
+});
+test('invitation acceptance and decline use invitation reference without arbitrary user IDs',async()=>{
+ backend(()=>new Response(null,{status:204}));await teamApi.respond(businessId,true);assert.equal(calls.at(-1).url,`/api/invitations/${businessId}/accept`);assert.equal(calls.at(-1).options.body,undefined);await teamApi.respond(businessId,false);assert.equal(calls.at(-1).url,`/api/invitations/${businessId}/decline`);assert.throws(()=>teamApi.remove('../auth/logout'));
+});
+test('membership and recommendation controls preserve existing role permissions',()=>{
+ for(const role of ['OWNER','ACCOUNTANT','MANAGER','VIEWER']) {const business={role,membershipStatus:'ACTIVE'};assert.equal(hasPermission(business,'MEMBERSHIP_MANAGE'),role==='OWNER');assert.equal(hasPermission(business,'BUSINESS_SETTINGS_MANAGE'),role==='OWNER');assert.equal(hasPermission(business,'RECORD_CREATE_UPDATE'),['OWNER','ACCOUNTANT'].includes(role));}
+ assert.equal(hasPermission({role:'OWNER',membershipStatus:'INVITED'},'MEMBERSHIP_MANAGE'),false);
+});
+test('search destinations include saved score months and protected document IDs but ignore arbitrary href',()=>{
+ assert.equal(searchDestination({type:'document',id:businessId,href:'https://evil.test'}),`/upload/${businessId}`);assert.equal(searchDestination({type:'document',id:'../../secret'}),null);assert.equal(searchDestination({type:'score',date:'2026-07',href:'javascript:alert(1)'}),'/health/components?month=2026-07');assert.equal(searchDestination({type:'recommendation',date:'2026-09'}),'/health/components?month=2026-09');
+});
+test('reviewed draft takes precedence while original extraction and machine confidence remain unchanged',()=>{
+ const original=JSON.stringify({amount:100,confidence:'low'}),reviewed=JSON.stringify({amount:125,confidence:'low'}),doc={extractedData:original,reviewedData:reviewed};assert.deepEqual(currentDocumentDraft(doc),{amount:125,confidence:'low'});assert.equal(doc.extractedData,original);assert.deepEqual(currentDocumentDraft({...doc,reviewedData:null}),{amount:100,confidence:'low'});assert.deepEqual(parseDocumentData('[]'),{});assert.deepEqual(parseDocumentData('invalid'),{});
+});
+test('correction history is a protected document-scoped read',async()=>{backend((url,options)=>{assert.equal(url,`/api/documents/${businessId}/corrections`);assert.equal(options.method,'GET');return Response.json([{id:'audit',actorIsCurrentUser:true,changedFields:['amount']}]);});assert.equal((await documentsApi.corrections(businessId))[0].actorIsCurrentUser,true);});

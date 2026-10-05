@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { errorMessage } from '@/lib/api/client';
+import { localizedError } from '@/lib/i18n/errors';
+import { useLanguage } from '@/lib/i18n/context';
 export function useLiveResource<T>(load: (signal: AbortSignal) => Promise<T>) {
+    const { t } = useLanguage();
     const [state, setState] = useState<{
         data: T | null;
         error: string;
@@ -16,8 +18,8 @@ export function useLiveResource<T>(load: (signal: AbortSignal) => Promise<T>) {
             .then(data => { if (!cancelled)
             setState({ data, error: '', loading: false }); })
             .catch(error => { if (!cancelled && error?.name !== 'AbortError')
-            setState({ data: null, error: errorMessage(error), loading: false }); });
+            setState({ data: null, error: localizedError(error, t), loading: false }); });
         return () => { cancelled = true; controller.abort(); };
-    }, [load, attempt]);
+    }, [load, attempt, t]);
     return { ...state, retry: () => setAttempt(n => n + 1) };
 }

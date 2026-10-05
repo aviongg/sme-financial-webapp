@@ -11,7 +11,21 @@ export interface Score {
     weakestComponent: string | null;
     dataCompleteness: number;
     computedAt: string;
+    methodologyVersion: string | null;
+    explanation: ScoreExplanation | null;
 }
+export type ComponentKey = keyof Score['componentScores'];
+export interface ComponentEvidence {
+    status: 'AVAILABLE' | 'UNAVAILABLE'; score: number | null; baseWeight: number; effectiveWeight: number;
+    historyMonthsUsed: number; evidenceType: 'CALCULATED' | 'SELF_DECLARED'; basis: string;
+    drivers: { key: string; value: string | null; unit: string }[]; previousScore: number | null; delta: number | null;
+}
+export interface ScoreExplanation {
+    historyMonthsAvailable: number; previousMonth: string | null; previousScore: number | null; overallDelta: number | null;
+    components: Record<ComponentKey, ComponentEvidence>;
+    majorChanges: { component: string; previousScore: number | null; currentScore: number | null; delta: number | null }[];
+}
+export type RecommendationStatus = 'NEW' | 'VIEWED' | 'DONE' | 'DISMISSED';
 export interface Advice {
     id: string;
     businessId: string;
@@ -21,6 +35,8 @@ export interface Advice {
     priority: string;
     language: string;
     sourceComputedAt: string;
+    status?: RecommendationStatus;
+    statusUpdatedAt?: string;
 }
 export interface Projection {
     projectedMonth: string | null;
@@ -59,6 +75,11 @@ export interface SearchResult {
 }
 const query = (month: string, signal?: AbortSignal) => ({ method: 'POST', body: JSON.stringify({ month: validMonth(month) }), signal });
 export const financeApi = {
+    scoreHistory: (signal?: AbortSignal) => apiClient<Score[]>('/scores/history', { signal }),
+    updateRecommendationStatus: (id: string, status: RecommendationStatus) => {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Invalid recommendation reference.');
+        return apiClient<Advice>(`/recommendations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    },
     dashboard: (signal?: AbortSignal) => apiClient<Dashboard>('/dashboard', { signal }),
     score: async (month: string, signal?: AbortSignal) => { try {
         return await apiClient<Score>('/scores/query', query(month, signal));
@@ -79,7 +100,11 @@ export function searchDestination(result: SearchResult): string | null {
         const month = result.date?.slice(0, 7);
         return /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? `/records/${month}` : null;
     }
-    if (result.type === 'insight' || result.type === 'recommendation')
-        return '/health/components';
+    if (result.type === 'document')
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.id || '') ? `/upload/${result.id}` : null;
+    if (result.type === 'score' || result.type === 'insight' || result.type === 'recommendation') {
+        const month = result.date?.slice(0, 7);
+        return /^\d{4}-(0[1-9]|1[0-2])$/.test(month || '') ? `/health/components?month=${month}` : '/health/components';
+    }
     return null;
 }

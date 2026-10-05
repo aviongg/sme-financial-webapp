@@ -50,7 +50,7 @@ export function NextStep({
             </h3>
           </div>
           <Badge variant="brand" size="sm">
-            {recommendation.priority === "high" ? "High Priority" : "Suggested"}
+            {recommendation.priority === "high" ? t.live.highPriority : t.live.suggested}
           </Badge>
         </div>
 

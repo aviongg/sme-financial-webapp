@@ -3,6 +3,7 @@ export type LanguagePreference = 'en' | 'ur';
 export type BusinessType = 'trade' | 'manufacturing' | 'services' | 'retail';
 export type FinancingType = 'none' | 'conventional' | 'islamic';
 export interface BusinessProfileRequest {
+    businessName: string;
     businessType: BusinessType;
     languagePreference?: LanguagePreference;
     whatsappNumber?: string | null;
@@ -11,7 +12,7 @@ export interface BusinessProfileRequest {
     ntnRegistered?: boolean | null;
     businessRegistered?: boolean | null;
 }
-export interface BusinessProfileResponse extends BusinessProfileRequest {
+export interface BusinessProfileResponse extends Omit<BusinessProfileRequest, 'businessName'> {
     businessId: string;
     languagePreference: LanguagePreference;
     whatsappNumber: string | null;

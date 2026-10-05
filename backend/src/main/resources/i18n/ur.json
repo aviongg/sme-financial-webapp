@@ -72,6 +72,7 @@
   "search.unavailable": "غیر دستیاب",
   "document.type.invoice": "انوائس",
   "document.type.receipt": "رسید",
+  "document.type.bank_statement": "بینک اسٹیٹمنٹ",
   "document.type.unknown": "نامعلوم دستاویز کی قسم",
   "document.status.pending": "زیر التوا",
   "document.status.processing": "کارروائی جاری",

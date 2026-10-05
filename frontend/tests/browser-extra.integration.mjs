@@ -19,12 +19,13 @@ const events = [];
 let user = null;
 let csrfToken = 'fixture-csrf-0';
 let sequence = 0;
+const corrections=[];
 let doc = {
   id: documentId, businessId, fileUrl: 'https://invalid.example/unsafe-file-location',
   originalFilename: 'Synthetic receipt.pdf', contentType: 'application/pdf', fileSizeBytes: 512,
   uploadTimestamp: '2026-09-27T00:00:00', processingStatus: 'needs_review',
-  documentTypeHint: 'unknown', extractedData: JSON.stringify({date: '2026-09-15', amount: 1250,
-    vendor_or_party: 'Fixture supplier', category: 'sales', document_type_detected: 'invoice'}), confirmedData: null,
+  documentTypeHint: 'unknown', reviewedData:null, extractionProvenance:'ORIGINAL_OCR', extractedData: JSON.stringify({date: '2026-09-15', amount: 1250,
+    vendor_or_party: 'Fixture supplier', category: 'sales', document_type_detected: 'invoice', confidence:'low'}), confirmedData: null,
   linkedMonth: null, failureReason: null, confirmedAt: null,
 };
 const records = [{id: '33333333-3333-4333-8333-333333333333', businessId,
@@ -32,7 +33,7 @@ const records = [{id: '33333333-3333-4333-8333-333333333333', businessId,
   cashBalanceEom: 600, cogs: null, receivablesOutstanding: 0, payablesOutstanding: 0,
   inventoryValue: null, loanOutstanding: null, interestExpense: null, financingType: 'none',
   updatedAt: '2026-09-27T00:00:00'}];
-const business = {businessId, businessType: 'trade', languagePreference: 'en', role: 'OWNER',
+const business = {businessId, businessName: 'Receipt fixture shop', businessType: 'trade', languagePreference: 'en', role: 'OWNER',
   membershipStatus: 'ACTIVE', active: true};
 const profile = {businessId, businessType: 'trade', languagePreference: 'en',
   whatsappNumber: null, whatsappOptIn: false, createdAt: '2026-09-27'};
@@ -78,7 +79,7 @@ const handler = async (req, res) => {
     return res.end();
   }
   if (url === '/api/auth/mfa/challenge') {
-    if (body.code !== '123456') return json(res, {message: 'Invalid MFA verification code', error: 'Unauthorized'}, 401);
+    if (body.code !== '123456') return json(res, {message: 'Invalid verification code', error: 'Unauthorized'}, 401);
     user.authStage = 'FULLY_AUTHENTICATED';
     csrfToken = `fixture-csrf-${++sequence}`;
     return json(res, user);
@@ -89,12 +90,16 @@ const handler = async (req, res) => {
   if (url === '/api/businesses') return json(res, [business]);
   if (url === '/api/businesses/active') return json(res, business);
   if (url === '/api/profile') return json(res, profile);
+  if (url === '/api/memberships' || url === '/api/invitations') return json(res, []);
+  if (url === `/api/documents/${documentId}/corrections`) return json(res,corrections);
   if (url === '/api/whatsapp/deliveries') return json(res, []);
   if (url === '/api/documents') return json(res, [doc]);
   if (url === `/api/documents/${documentId}`) {
     if (method === 'PATCH') {
-      doc = {...doc, extractedData: JSON.stringify({date: body.date, amount: body.amount,
-        vendor_or_party: body.vendorOrParty, category: body.category, document_type_detected: body.documentType})};
+      const previousData=doc.reviewedData||doc.extractedData;
+      const newData=JSON.stringify({...JSON.parse(previousData),date:body.date,amount:body.amount,vendor_or_party:body.vendorOrParty,category:body.category,document_type_detected:body.documentType});
+      corrections.push({id:crypto.randomUUID(),previousData,newData,changedFields:['vendor_or_party'],correctedAt:'2026-10-04T00:00:00Z',actorIsCurrentUser:true});
+      doc={...doc,reviewedData:newData};
     }
     return json(res, doc);
   }
@@ -138,7 +143,7 @@ try {
 
   await page.goto(origin);
   await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
-  await page.getByRole('button', {name: 'Create account', exact: true}).click();
+  await page.getByRole('button', {name: 'Create your account', exact: true}).click();
   await page.getByLabel(/^Full name/).fill('New Test Owner');
   await page.getByLabel(/^Email/).fill('new@example.test');
   await page.getByLabel(/^Password/).fill(password);
@@ -153,7 +158,7 @@ try {
   await page.getByRole('button', {name: 'Forgot password?', exact: true}).click();
   await page.getByLabel(/^Email/).fill('new@example.test');
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
-  await page.getByText('If an account exists, reset instructions will be sent.', {exact: true}).waitFor();
+  await page.getByText('If an eligible account exists, password reset instructions will be sent.', {exact: true}).waitFor();
   assert.deepEqual(matching('/api/auth/password-reset/request')[0].body, {email: 'new@example.test'});
   mark('reset request shows the account-neutral server response');
 
@@ -163,7 +168,7 @@ try {
   assert.ok(events.every(event => !event.url.includes(resetToken)));
   await page.getByLabel(/^New password/).fill('new-secure-password-456');
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
-  await page.getByText('Password reset. Sign in with your new password.', {exact: true}).waitFor();
+  await page.getByText('Password updated. Sign in with your new password.', {exact: true}).waitFor();
   assert.deepEqual(matching('/api/auth/password-reset/confirm').map(event => event.body),
     [{token: resetToken, newPassword: 'new-secure-password-456'}]);
   mark('password reset removes the fragment and sends the token once in the confirm body');
@@ -174,8 +179,8 @@ try {
   await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
   await page.getByRole('heading', {name: 'Review document', exact: true}).waitFor();
-  await page.getByLabel(/^Confirmed amount/).waitFor();
-  assert.equal(await page.getByLabel(/^Confirmed amount/).inputValue(), '1250');
+  await page.getByLabel(/^Amount \(PKR\)/).waitFor();
+  assert.equal(await page.getByLabel(/^Amount \(PKR\)/).inputValue(), '1250');
   assert.equal(await page.getByLabel('Document date', {exact: true}).inputValue(), '2026-09-15');
   assert.equal(await page.getByLabel('Vendor or party', {exact: true}).inputValue(), 'Fixture supplier');
   assert.equal(await page.getByRole('link', {name: 'Open original document'}).getAttribute('href'), `/api/documents/${documentId}/file`);
@@ -189,13 +194,14 @@ try {
   assert.deepEqual(matching(`/api/documents/${documentId}`, 'PATCH').map(event => event.body),
     [{date: '2026-09-15', amount: 1250, vendorOrParty: 'Corrected supplier', category: 'sales', documentType: 'invoice'}]);
   assert.equal(matching(`/api/documents/${documentId}/confirm`).length, 0);
+  assert.equal(JSON.parse(doc.extractedData).vendor_or_party,'Fixture supplier');assert.equal(JSON.parse(doc.reviewedData).vendor_or_party,'Corrected supplier');assert.equal(JSON.parse(doc.reviewedData).confidence,'low');await page.getByRole('heading',{name:'Current reviewed draft',exact:true}).waitFor();await page.getByRole('heading',{name:'Original machine extraction',exact:true}).waitFor();assert.equal(corrections.length,1);
   mark('vendor-only draft correction preserves OCR category and document type and does not confirm financial data');
 
   await page.getByLabel(/^Target month/).fill('2026-09');
   await page.getByLabel(/^Financial classification/).selectOption('revenue');
   await page.getByLabel(/^Cash-flow impact/).selectOption('cash_inflow');
   await page.getByRole('button', {name: 'Review contribution', exact: true}).click();
-  await page.getByRole('group', {name: 'Confirm contribution', exact: true}).waitFor();
+  await page.getByRole('group', {name: 'Confirm financial contribution', exact: true}).waitFor();
   assert.equal(matching(`/api/documents/${documentId}/confirm`).length, 0);
   await page.getByRole('button', {name: 'Confirm and add once', exact: true}).click();
   await page.getByText('Confirmed in 2026-09. This document cannot be added again.', {exact: true}).waitFor();
@@ -210,15 +216,15 @@ try {
   await page.screenshot({path: `${out}/confirmed-document.png`, fullPage: true});
 
   await page.goto(`${origin}/sharia-zakat`);
-  await page.getByLabel(/^Saved month/).selectOption('2026-09');
+  await page.getByLabel(/^Month/).selectOption('2026-09');
   await page.getByLabel(/^Assessment date/).fill('2026-09-27');
   await page.getByLabel(/^Silver price per gram/).fill('100');
   await page.getByLabel(/^Price source/).fill('Synthetic quote, not market data');
   await page.getByLabel(/^Price date and time/).fill('2026-09-27T13:00');
   await page.getByRole('button', {name: 'Calculate preview', exact: true}).click();
-  await page.getByRole('heading', {name: 'INCOMPLETE HAUL CONFIRMATION REQUIRED', exact: true}).waitFor();
+  await page.getByRole('heading', {name: 'Incomplete: confirm the lunar holding period', exact: true}).waitFor();
   assert.equal(await page.getByText('Not determined', {exact: true}).count(), 2);
-  await page.getByText('assessment.haul Status', {exact: true}).waitFor();
+  await page.getByText('Lunar holding period', {exact: true}).waitFor();
   const monthly = matching('/api/zakat/monthly/preview')[0].body;
   assert.equal(monthly.month, '2026-09');
   assert.equal(monthly.assessment.haulStatus, 'UNKNOWN');
@@ -230,9 +236,9 @@ try {
   await page.screenshot({path: `${out}/incomplete-zakat.png`, fullPage: true});
 
   await page.getByLabel(/^Balances source/).selectOption('manual');
-  assert.equal(await page.getByRole('heading', {name: 'INCOMPLETE HAUL CONFIRMATION REQUIRED', exact: true}).count(), 0);
+  assert.equal(await page.getByRole('heading', {name: 'Incomplete: confirm the lunar holding period', exact: true}).count(), 0);
   await page.getByRole('button', {name: 'Calculate preview', exact: true}).click();
-  await page.getByRole('heading', {name: 'INCOMPLETE HAUL CONFIRMATION REQUIRED', exact: true}).waitFor();
+  await page.getByRole('heading', {name: 'Incomplete: confirm the lunar holding period', exact: true}).waitFor();
   const manual = matching('/api/zakat/preview')[0].body;
   assert.equal(manual.assets.cashAndBankBalances, null);
   assert.equal(manual.liabilities.accountsPayable, null);
@@ -249,7 +255,7 @@ try {
   await page.getByRole('heading', {name: 'Verify your sign-in'}).waitFor();
   await page.getByLabel('Authenticator code', {exact: false}).fill('000000');
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
-  await page.getByRole('alert').filter({hasText: 'Invalid MFA verification code'}).waitFor();
+  await page.getByRole('alert').filter({hasText: 'Invalid verification code'}).waitFor();
   await page.getByRole('heading', {name: 'Verify your sign-in'}).waitFor();
   assert.equal(await page.getByRole('link', {name: 'Dashboard', exact: true}).count(), 0);
   await page.getByLabel('Authenticator code', {exact: false}).fill('123456');

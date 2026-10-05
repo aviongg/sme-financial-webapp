@@ -10,6 +10,7 @@ export interface AuthUser {
 }
 export type Role = 'OWNER' | 'ACCOUNTANT' | 'MANAGER' | 'VIEWER';
 export interface BusinessSummary {
+    businessName: string;
     businessId: string;
     businessType: string;
     languagePreference: 'en' | 'ur';

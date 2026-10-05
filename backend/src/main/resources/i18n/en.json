@@ -72,6 +72,7 @@
   "search.unavailable": "Unavailable",
   "document.type.invoice": "Invoice",
   "document.type.receipt": "Receipt",
+  "document.type.bank_statement": "Bank statement",
   "document.type.unknown": "Unknown document type",
   "document.status.pending": "Pending",
   "document.status.processing": "Processing",

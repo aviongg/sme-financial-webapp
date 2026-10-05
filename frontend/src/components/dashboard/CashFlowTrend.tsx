@@ -27,7 +27,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
   const [expanded, setExpanded] = useState(false);
   const [period, setPeriod] = useState("6");
   const detailId = useId();
-  const ur = locale === "ur";
+
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Chronological order (oldest to newest)
@@ -42,7 +42,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
 
   // If no records, fallback
   if (sortedRecords.length === 0) {
-    return null;
+    return <Card padding="lg"><h3 className="font-semibold">{t.dashboard.cashFlowTrendTitle}</h3><p className="mt-2">{t.live.emptyCashflow}</p></Card>;
   }
 
   // Latest month record for summary cards
@@ -112,12 +112,12 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
       <div className="flex flex-wrap items-center justify-between gap-3 py-4">
         <p className="text-xs text-[var(--color-text-muted)]" dir="ltr">{sortedRecords[0].month} – {latest.month}</p>
         <label className="flex items-center gap-2 text-sm">
-          {ur ? "مدت" : "Period"}
+          {t.live.period}
           <select value={period} onChange={(event) => { setPeriod(event.target.value); setHoveredIndex(null); }} className="rounded-md border border-[var(--color-border-default)] p-2 bg-[var(--color-surface-card)]">
-            <option value="3">{ur ? "آخری 3 ماہ" : "Last 3 months"}</option>
-            <option value="6">{ur ? "آخری 6 ماہ" : "Last 6 months"}</option>
-            <option value="12">{ur ? "آخری 12 ماہ" : "Last 12 months"}</option>
-            <option value="all">{ur ? "تمام ریکارڈ" : "All records"}</option>
+            <option value="3">{t.live.last3}</option>
+            <option value="6">{t.live.last6}</option>
+            <option value="12">{t.live.last12}</option>
+            <option value="all">{t.live.allRecords}</option>
           </select>
         </label>
       </div>
@@ -163,11 +163,11 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
         </div>
       </div>
       <button type="button" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)} className="mt-4 w-full flex items-center justify-center gap-2 rounded-md border border-[var(--color-border-default)] px-4 py-2 text-sm font-semibold text-[var(--color-brand-primary)] hover:bg-[var(--color-surface-hover)]">
-        {expanded ? (ur ? "تفصیل بند کریں" : "Hide cash-flow details") : (ur ? "نقد بہاؤ کی تفصیل" : "View cash-flow details")}
+        {expanded ? t.live.hideCashDetails : t.live.viewCashDetails}
         <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
       </button>
       <div id={detailId} hidden={!expanded}>
-        <p className="mt-4 text-xs text-[var(--color-text-muted)]">{ur ? "منتخب مدت کے محفوظ مہینے۔ جن مہینوں کا ریکارڈ نہیں، انہیں صفر نہیں سمجھا گیا۔" : "Recorded months in the selected period. Missing months are not treated as zero."}</p>
+        <p className="mt-4 text-xs text-[var(--color-text-muted)]">{t.live.cashHistoryHelp}</p>
       {/* SVG Bar Chart (Strictly LTR chronology) */}
       <div className="py-4 overflow-x-auto" dir="ltr">
         <div style={{ minWidth: chartWidth }}>
@@ -175,7 +175,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             className="w-full h-auto overflow-visible select-none"
             role="region"
-            aria-label="Cash flow trend chart comparing monthly inflows and outflows"
+            aria-label={t.live.cashChart}
           >
             {/* Horizontal Gridlines & Y-Axis Labels */}
             {[0, 0.5, 1].map((ratio) => {
@@ -226,7 +226,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
                   className="cursor-pointer transition-opacity"
                   tabIndex={0}
                   role="button"
-                  aria-label={`${r.month}: Inflow ${formatPKR(r.cashInflow)}, Outflow ${formatPKR(r.cashOutflow)}`}
+                  aria-label={`${r.month}: ${t.dashboard.inflowCol} ${formatPKR(r.cashInflow)}, ${t.dashboard.outflowCol} ${formatPKR(r.cashOutflow)}`}
                 >
                   {/* Subtle hover background highlight */}
                   {isHovered && (
@@ -323,7 +323,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-start text-sm">
-            <caption className="sr-only">{ur ? "ماہانہ نقد بہاؤ" : "Monthly cash-flow details"}</caption>
+            <caption className="sr-only">{t.live.cashDetails}</caption>
             <thead><tr className="border-b border-[var(--color-border-default)]">
               {[t.dashboard.monthCol, t.dashboard.inflowCol, t.dashboard.outflowCol, t.dashboard.netCol, t.dashboard.endingCol].map((label) => <th key={label} scope="col" className="p-2 text-start">{label}</th>)}
             </tr></thead>

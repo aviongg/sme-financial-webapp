@@ -6,7 +6,7 @@ import { phaseOneApi } from '@/lib/api/phase-one';
 import { isDemoMode } from '@/lib/api/config';
 import { useToast } from '@/components/ui/Toast';
 export function LanguageControl() {
-    const { locale, setLocale } = useLanguage();
+    const { locale, setLocale, t } = useLanguage();
     const session = useSession();
     const { toast } = useToast();
     const [busy, setBusy] = useState(false);
@@ -18,7 +18,7 @@ export function LanguageControl() {
             await session.refresh();
     }
     catch {
-        toast('Could not save your language. Please try again.', 'error');
+        toast(t.live.languageError, 'error');
     }
     finally {
         setBusy(false);
