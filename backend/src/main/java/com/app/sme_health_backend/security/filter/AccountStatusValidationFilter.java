@@ -1,0 +1,85 @@
+package com.app.sme_health_backend.security.filter;
+
+import com.app.sme_health_backend.identity.entity.AppUser;
+import com.app.sme_health_backend.identity.model.AccountStatus;
+import com.app.sme_health_backend.identity.repository.AppUserRepository;
+import com.app.sme_health_backend.security.service.AppUserDetails;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
+
+public class AccountStatusValidationFilter extends OncePerRequestFilter {
+
+    private final AppUserRepository userRepository;
+
+    public AccountStatusValidationFilter(AppUserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
+            UUID userId = null;
+            if (auth.getPrincipal() instanceof AppUserDetails userDetails) {
+                userId = userDetails.getId();
+            } else if (auth.getName() != null) {
+                userId = userRepository.findByEmail(auth.getName())
+                        .map(AppUser::getId)
+                        .orElse(null);
+            }
+
+            if (userId != null) {
+                AppUser user = userRepository.findById(userId).orElse(null);
+                if (user == null || user.getAccountStatus() == AccountStatus.DISABLED) {
+                    SecurityContextHolder.clearContext();
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.invalidate();
+                    }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"unauthorized\",\"message\":\"Account is disabled\"}");
+                    return;
+                }
+
+                // Verify session auth_version matches current database auth_version
+                HttpSession session = request.getSession(false);
+                Long sessionAuthVersion = null;
+                if (session != null && session.getAttribute(AuthenticationStageValidationFilter.FINSIGHT_AUTH_VERSION) instanceof Long v) {
+                    sessionAuthVersion = v;
+                } else if (auth.getPrincipal() instanceof AppUserDetails userDetails) {
+                    sessionAuthVersion = userDetails.getAuthVersion();
+                }
+
+                if (sessionAuthVersion != null && sessionAuthVersion != user.getAuthVersion()) {
+                    SecurityContextHolder.clearContext();
+                    if (session != null) {
+                        session.invalidate();
+                    }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"error\":\"session_invalidated\",\"message\":\"Session has been invalidated due to security state modification.\"}");
+                    return;
+                }
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}

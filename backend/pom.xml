@@ -21,6 +21,12 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<!-- Boot 4.1.1 is the newest 4.1 patch on Maven Central (2026-09-30).
+		     Remove this coordinated override when its BOM supplies 11.0.26 or later. -->
+		<tomcat.version>11.0.26</tomcat.version>
+		<!-- Security fixes including the Jackson advisories published through 2026-10-02.
+		     Keep the Jackson modules aligned until the Boot BOM supplies this patch. -->
+		<jackson-bom.version>3.1.7</jackson-bom.version>
 	</properties>
 
 	<dependencies>
@@ -39,6 +45,43 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-json</artifactId>
+		</dependency>
+
+		<!-- Security & Sessions (Phase S1) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-web</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-jdbc</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.86</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
 		<!-- PostgreSQL -->
@@ -66,6 +109,16 @@
 
 		<!-- Test Dependencies -->
 		<dependency>
+			<groupId>io.zonky.test</groupId>
+			<artifactId>embedded-postgres</artifactId>
+			<version>2.2.2</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion><groupId>io.zonky.test.postgres</groupId><artifactId>embedded-postgres-binaries-darwin-amd64</artifactId></exclusion>
+				<exclusion><groupId>io.zonky.test.postgres</groupId><artifactId>embedded-postgres-binaries-linux-amd64-alpine</artifactId></exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
@@ -77,6 +130,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -85,7 +144,35 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<FINSIGHT_CRYPTO_KEY_K1>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=</FINSIGHT_CRYPTO_KEY_K1>
+						<FINSIGHT_CRYPTO_KEY_K2>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwOTk=</FINSIGHT_CRYPTO_KEY_K2>
+						<FINSIGHT_CRYPTO_ACTIVE_KEY_ID>k1</FINSIGHT_CRYPTO_ACTIVE_KEY_ID>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<id>postgres-it</id>
+			<build><plugins><plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<FINSIGHT_CRYPTO_KEY_K1>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=</FINSIGHT_CRYPTO_KEY_K1>
+						<FINSIGHT_CRYPTO_KEY_K2>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwOTk=</FINSIGHT_CRYPTO_KEY_K2>
+						<FINSIGHT_CRYPTO_ACTIVE_KEY_ID>k1</FINSIGHT_CRYPTO_ACTIVE_KEY_ID>
+					</systemPropertyVariables>
+				</configuration>
+				<executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
+			</plugin></plugins></build>
+		</profile>
+	</profiles>
 </project>

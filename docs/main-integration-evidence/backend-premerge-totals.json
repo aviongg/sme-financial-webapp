@@ -1,0 +1,778 @@
+[
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.BusinessProfileControllerTests",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.BusinessProfileServiceTests",
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.cashflow.CashFlowControllerTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.cashflow.CashFlowIntegrationTests",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.cashflow.CashFlowServiceTests",
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.cashflow.TrendProjectionCalculatorTests",
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.crypto.AesGcmSensitiveDataCipherTest",
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.crypto.CryptoConverterTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.crypto.CryptoPropertiesAndStartupTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.crypto.LocalKeyringProviderTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.crypto.ProductionConfigTreeCryptoTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.dashboard.DashboardControllerTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.dashboard.DashboardServiceTests",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.database.OneShotMigrationExecutionTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.controller.DocumentControllerTests",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.Feature12PostgreSqlIntegrationTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.ocr.HttpOcrClientTests",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.ocr.JdkOcrHttpTransportTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.ocr.OcrIntegrationConfigurationTests",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.ocr.OcrJsonCodecTests",
+    "tests": 27,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.processing.AsyncDocumentProcessingTests",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.processing.DocumentDraftProcessorTests",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.processing.DocumentStartupRecoveryTests",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.processing.JpaDocumentDraftStoreTests",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.service.DocumentConfirmationServiceTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.service.DocumentReviewServiceTests",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.service.DocumentUploadServiceTests",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.storage.DocumentFileValidatorTests",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.documents.storage.LocalFileSystemStorageServiceTests",
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.i18n.TranslationServiceTests",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.controller.AuthControllerTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.controller.BusinessControllerTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.credential.notification.PasswordResetNotifierConfigurationTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.service.AuthenticationServiceTest",
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.service.BusinessAuthorizationServiceTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.identity.service.MembershipServiceTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.InsightControllerTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.InsightServiceTests",
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.MonthlyRecordControllerTests",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.MonthlyRecordServiceTests",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.platform.cli.PlatformAdminOperatorServiceTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.RecommendationControllerTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.RecommendationServiceTests",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.records.MonthlyRecordContributionTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.records.MonthlyRecordIntegrationTests",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.CashFlowStabilityCalculatorTests",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.ComplianceCalculatorTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.ProfitabilityEfficiencyCalculatorTests",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.RepaymentCalculatorTests",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.ScoreControllerTests",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.ScoringMethodologyRegressionTests",
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.ScoringServiceTests",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.scoring.TrendCalculatorTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.search.SearchControllerTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.search.SearchResultRankerTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.search.SearchServiceTests",
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.Argon2PasswordEncoderTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.filter.TrustedProxyValidationFilterTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.MfaEnrollmentProtectionTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.PreAuthenticationSecurityTest",
+    "tests": 28,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.ProductionSecretConfigurationTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingServiceTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.security.SecurityFilterChainTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.shared.advice.AdviceContextServiceTests",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.shared.advice.EvidenceAdviceTests",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.SmeHealthBackendApplicationTests",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.client.MetaWhatsAppCloudApiClientTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.client.MockWhatsAppClientTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryControllerTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecoveryTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.scheduler.WhatsAppSummarySchedulerTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryServiceTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.service.WhatsAppSummaryComposerTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.whatsapp.validation.PhoneNumberValidatorTest",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.zakat.ZakatCalculationServiceTests",
+    "tests": 81,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.zakat.ZakatControllerTests",
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "surefire",
+    "name": "com.app.sme_health_backend.zakat.ZakatServiceTests",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.audit.SecurityAuditEventCoverageIT",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.audit.SecurityAuditImmutabilityPostgreSqlIT",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.crypto.EncryptedEntityPostgreSqlIT",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.database.DisposableDatabaseRolesIT",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.documents.DocumentProvenancePostgreSqlIT",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.documents.DocumentSecurityPostgreSqlIT",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.identity.BusinessContextPostgreSqlIT",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.identity.MvpLegacyMigrationPostgreSqlIT",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.identity.TenantIsolationPostgreSqlIT",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.AuthenticationStateMachineIT",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.AuthSecurityClosureIT",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.CoreJourneyClosureIT",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.CredentialLifecycleIT",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.MfaAndRecoverySecurityIT",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.MvpCoreJourneyIT",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.PlatformSecurityIT",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.ProductionIngressSecurityIT",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.SecurityIdentityPostgreSqlIT",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.security.SpringSessionLifecyclePostgreSqlIT",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "group": "failsafe",
+    "name": "com.app.sme_health_backend.whatsapp.Feature8PostgreSqlIT",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+]

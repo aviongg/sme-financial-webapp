@@ -1,0 +1,30 @@
+package com.app.sme_health_backend.recommendation.repository;
+
+import com.app.sme_health_backend.recommendation.entity.Recommendation;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface RecommendationRepository
+        extends JpaRepository<Recommendation, UUID> {
+
+    List<Recommendation> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    List<Recommendation> findByUserIdAndMonthOrderByCreatedAtDesc(UUID userId, String month);
+
+    java.util.Optional<Recommendation> findByIdAndUserId(UUID id, UUID userId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT r.month FROM Recommendation r WHERE r.id = :id AND r.userId = :userId")
+    java.util.Optional<String> findMonthByIdAndUserId(
+            @org.springframework.data.repository.query.Param("id") UUID id,
+            @org.springframework.data.repository.query.Param("userId") UUID userId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT r FROM Recommendation r WHERE r.id = :id AND r.userId = :userId")
+    java.util.Optional<Recommendation> findScopedForUpdate(
+            @org.springframework.data.repository.query.Param("id") UUID id,
+            @org.springframework.data.repository.query.Param("userId") UUID userId);
+
+    void deleteByUserIdAndMonth(UUID userId, String month);
+}

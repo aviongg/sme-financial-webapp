@@ -1,0 +1,5 @@
+# Optional local credential directory; keep actual credential files outside this repository.
+.credentials/
+credentials*.json
+*service-account*.json
+application_default_credentials.json

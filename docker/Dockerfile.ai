@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+RUN groupadd -g 10001 appuser && useradd -u 10001 -g appuser -s /bin/sh appuser
+
+WORKDIR /app
+
+COPY ai-service/requirements-tested.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY ai-service/app app
+COPY docker/entrypoint-ai.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && chown -R appuser:appuser /app
+
+USER appuser:appuser
+EXPOSE 8000
+
+ENTRYPOINT ["/entrypoint.sh"]

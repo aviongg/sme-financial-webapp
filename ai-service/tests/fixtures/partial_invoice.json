@@ -1,0 +1,13 @@
+{
+  "description": "Synthetic invoice without a readable vendor/contact; no real customer information.",
+  "text": "INVOICE\nInvoice No: TEST-0001\nInvoice Date: 2026-09-18\nBill To: Example Buyer\nDescription: Workshop supplies\nSubtotal: PKR 1200.00\nTax: PKR 180.00\nGrand Total: PKR 1380.00",
+  "confidence": 0.97,
+  "expected": {
+    "date": "2026-09-18",
+    "amount": "1380.00",
+    "vendor_or_party": null,
+    "category": "unknown",
+    "confidence": "medium",
+    "document_type_detected": "invoice"
+  }
+}

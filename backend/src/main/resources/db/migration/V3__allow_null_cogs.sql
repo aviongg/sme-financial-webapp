@@ -1,0 +1,2 @@
+ALTER TABLE monthly_records ALTER COLUMN cogs DROP NOT NULL;
+ALTER TABLE monthly_records ALTER COLUMN cogs DROP DEFAULT;

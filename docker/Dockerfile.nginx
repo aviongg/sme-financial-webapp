@@ -1,0 +1,21 @@
+FROM nginx:1.30.5-alpine
+
+# Hardened non-root runtime permissions
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+    && touch /tmp/nginx.pid \
+    && chown -R nginx:nginx /tmp/nginx.pid
+
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/templates/finsight.conf.template /etc/nginx/templates/finsight.conf.template
+COPY docker/nginx/19-validate-domain.sh /docker-entrypoint.d/19-validate-domain.sh
+COPY docker/nginx/99-validate-config.sh /docker-entrypoint.d/99-validate-config.sh
+RUN chmod 0755 /docker-entrypoint.d/19-validate-domain.sh /docker-entrypoint.d/99-validate-config.sh
+ENV NGINX_ENVSUBST_FILTER=^APP_DOMAIN$
+
+USER nginx
+EXPOSE 8080 8443
+
+STOPSIGNAL SIGQUIT
+
+CMD ["nginx", "-g", "daemon off;"]

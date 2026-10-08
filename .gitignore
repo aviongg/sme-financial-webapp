@@ -217,3 +217,21 @@ docker-data/
 .env
 .env.*
 !.env.example
+
+# Runtime document storage
+/storage/
+/backend/storage/
+
+# Security, Certificates & Secrets (Phase S6 - S9)
+*.key
+*.pem
+*.age
+*.partial
+/secrets/
+/docker/secrets/
+/docker/certs/
+/certs/edge.*
+/backups/
+/scripts/tools/
+*.exe
+

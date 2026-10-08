@@ -13,6 +13,20 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException.class)
+    public ResponseEntity<Map<String, Object>> handleMfaAlreadyEnabled(
+            com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(createBaseResponse(
+                HttpStatus.CONFLICT, "mfa_already_enabled", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.security.service.PreAuthenticationInvalidException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidPreAuthentication(
+            com.app.sme_health_backend.security.service.PreAuthenticationInvalidException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createBaseResponse(
+                HttpStatus.UNAUTHORIZED, "pre_auth_invalid", exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(
             MethodArgumentNotValidException exception) {
@@ -84,6 +98,96 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
+    }
+
+    @ExceptionHandler(ActiveBusinessRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleActiveBusinessRequired(
+            ActiveBusinessRequiredException exception) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("error", "active_business_required");
+        response.put("message", exception.getMessage() != null
+                ? exception.getMessage()
+                : "Select or create a business before using this feature.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(
+            org.springframework.security.authentication.BadCredentialsException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                exception.getMessage() != null ? exception.getMessage() : "Invalid credentials"
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                exception.getMessage() != null ? exception.getMessage() : "Authentication required"
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabled(
+            org.springframework.security.authentication.DisabledException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.FORBIDDEN,
+                "Forbidden",
+                exception.getMessage() != null ? exception.getMessage() : "Account is disabled"
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.FORBIDDEN,
+                "Forbidden",
+                exception.getMessage() != null ? exception.getMessage() : "Access is denied"
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFound(
+            org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.NOT_FOUND,
+                "Not Found",
+                exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.security.ratelimit.RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimitExceeded(
+            com.app.sme_health_backend.security.ratelimit.RateLimitExceededException exception) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.TOO_MANY_REQUESTS.value());
+        response.put("error", "too_many_requests");
+        response.put("message", "Too many requests. Please try again later.");
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(exception.getRetryAfterSeconds()))
+                .body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotAllowed(
+            org.springframework.web.HttpRequestMethodNotSupportedException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Method Not Allowed",
+                exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
 
     @ExceptionHandler(Exception.class)

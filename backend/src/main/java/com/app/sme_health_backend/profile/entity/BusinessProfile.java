@@ -1,8 +1,11 @@
 package com.app.sme_health_backend.profile.entity;
 
+import com.app.sme_health_backend.crypto.converter.EncryptedWhatsAppNumberConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -22,11 +25,24 @@ public class BusinessProfile {
     @Column(name = "language_preference", nullable = false, length = 5)
     private String languagePreference = "en";
 
-    @Column(name = "whatsapp_number", length = 20)
+    @Column(name = "whatsapp_number", length = 255)
+    @Convert(converter = EncryptedWhatsAppNumberConverter.class)
     private String whatsappNumber;
 
     @Column(name = "whatsapp_opt_in", nullable = false)
     private boolean whatsappOptIn = false;
+
+    @Column(name = "whatsapp_opted_in_at")
+    private LocalDateTime whatsappOptedInAt;
+
+    @Column(name = "payment_behavior", length = 20)
+    private String paymentBehavior;
+
+    @Column(name = "ntn_registered")
+    private Boolean ntnRegistered;
+
+    @Column(name = "business_registered")
+    private Boolean businessRegistered;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -71,11 +87,50 @@ public class BusinessProfile {
         this.whatsappOptIn = whatsappOptIn;
     }
 
+    public String getPaymentBehavior() {
+        return paymentBehavior;
+    }
+
+    public void setPaymentBehavior(String paymentBehavior) {
+        this.paymentBehavior = paymentBehavior;
+    }
+
+    public Boolean getNtnRegistered() {
+        return ntnRegistered;
+    }
+
+    public void setNtnRegistered(Boolean ntnRegistered) {
+        this.ntnRegistered = ntnRegistered;
+    }
+
+    public Boolean getBusinessRegistered() {
+        return businessRegistered;
+    }
+
+    public void setBusinessRegistered(Boolean businessRegistered) {
+        this.businessRegistered = businessRegistered;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getWhatsappOptedInAt() {
+        return whatsappOptedInAt;
+    }
+
+    public void setWhatsappOptedInAt(LocalDateTime whatsappOptedInAt) {
+        this.whatsappOptedInAt = whatsappOptedInAt;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }

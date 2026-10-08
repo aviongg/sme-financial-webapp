@@ -1,0 +1,232 @@
+package com.app.sme_health_backend.identity.service;
+
+import com.app.sme_health_backend.identity.dto.BusinessResponse;
+import com.app.sme_health_backend.identity.dto.CreateBusinessRequest;
+import com.app.sme_health_backend.identity.entity.Business;
+import com.app.sme_health_backend.identity.entity.BusinessMembership;
+import com.app.sme_health_backend.identity.model.MembershipRole;
+import com.app.sme_health_backend.identity.model.MembershipStatus;
+import com.app.sme_health_backend.identity.repository.BusinessMembershipRepository;
+import com.app.sme_health_backend.identity.repository.BusinessRepository;
+import com.app.sme_health_backend.profile.entity.BusinessProfile;
+import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
+import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import com.app.sme_health_backend.whatsapp.validation.PhoneNumberValidator;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+
+@Service
+public class BusinessService {
+
+    private final BusinessRepository businessRepository;
+    private final BusinessProfileRepository businessProfileRepository;
+    private final BusinessMembershipRepository membershipRepository;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
+
+    public BusinessService(
+            BusinessRepository businessRepository,
+            BusinessProfileRepository businessProfileRepository,
+            BusinessMembershipRepository membershipRepository
+    ) {
+        this(businessRepository, businessProfileRepository, membershipRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public BusinessService(
+            BusinessRepository businessRepository,
+            BusinessProfileRepository businessProfileRepository,
+            BusinessMembershipRepository membershipRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+    ) {
+        this.businessRepository = businessRepository;
+        this.businessProfileRepository = businessProfileRepository;
+        this.membershipRepository = membershipRepository;
+        this.auditService = auditService;
+    }
+
+    @Transactional
+    public BusinessResponse createBusiness(CreateBusinessRequest request, UUID userId) {
+        Objects.requireNonNull(request, "request must not be null");
+        Objects.requireNonNull(userId, "userId must not be null");
+
+        validateName(request.businessName());
+
+        // Validate WhatsApp opt-in rules
+        if (request.whatsappOptIn() && (request.whatsappNumber() == null || request.whatsappNumber().isBlank())) {
+            throw new IllegalArgumentException("WhatsApp number is required when opting in to WhatsApp notifications");
+        }
+
+        String normalizedPhone = null;
+        if (request.whatsappNumber() != null && !request.whatsappNumber().isBlank()) {
+            normalizedPhone = PhoneNumberValidator.normalizeAndValidate(request.whatsappNumber());
+        }
+
+        // 1. Generate Business UUID & create Business entity
+        UUID businessId = UUID.randomUUID();
+        Business business = new Business(businessId, "ACTIVE");
+        business.setBusinessName(request.businessName().trim());
+        businessRepository.save(business);
+
+        // 2. Create BusinessProfile entity (using compatibility bridge: BusinessProfile.userId == Business.id)
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(businessId);
+        profile.setBusinessType(request.businessType());
+        profile.setLanguagePreference(request.languagePreference() != null ? request.languagePreference() : "en");
+        profile.setWhatsappNumber(normalizedPhone);
+        profile.setWhatsappOptIn(request.whatsappOptIn());
+        if (request.whatsappOptIn()) {
+            profile.setWhatsappOptedInAt(LocalDateTime.now());
+        }
+        profile.setPaymentBehavior(request.paymentBehavior());
+        profile.setNtnRegistered(request.ntnRegistered());
+        profile.setBusinessRegistered(request.businessRegistered());
+        profile.setCreatedAt(LocalDateTime.now());
+        businessProfileRepository.save(profile);
+
+        // 3. Create BusinessMembership (role = OWNER, status = ACTIVE)
+        BusinessMembership membership = new BusinessMembership(
+                userId,
+                businessId,
+                MembershipRole.OWNER,
+                MembershipStatus.ACTIVE
+        );
+        BusinessMembership savedMembership = membershipRepository.save(membership);
+
+        if (auditService != null) {
+            auditService.recordEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.BUSINESS_CREATED,
+                    userId,
+                    null,
+                    businessId,
+                    "BUSINESS",
+                    businessId.toString(),
+                    com.app.sme_health_backend.audit.model.AuditOutcome.SUCCESS,
+                    null,
+                    java.util.Map.of("business_type", request.businessType())
+            );
+            auditService.recordEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.MEMBERSHIP_CREATED,
+                    userId,
+                    null,
+                    businessId,
+                    "BUSINESS_MEMBERSHIP",
+                    savedMembership.getId() != null ? savedMembership.getId().toString() : businessId.toString(),
+                    com.app.sme_health_backend.audit.model.AuditOutcome.SUCCESS,
+                    null,
+                    java.util.Map.of("role", "OWNER")
+            );
+        }
+
+        return new BusinessResponse(
+                businessId,
+                business.getBusinessName(),
+                profile.getBusinessType(),
+                profile.getLanguagePreference(),
+                MembershipRole.OWNER,
+                MembershipStatus.ACTIVE,
+                true
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<BusinessResponse> listUserBusinesses(UUID userId, UUID activeBusinessId) {
+        Objects.requireNonNull(userId, "userId must not be null");
+
+        List<BusinessMembership> memberships = membershipRepository.findByUserId(userId);
+        List<BusinessResponse> responses = new ArrayList<>();
+
+        for (BusinessMembership membership : memberships) {
+            if (membership.getStatus() != MembershipStatus.ACTIVE) {
+                continue;
+            }
+
+            Business business = businessRepository.findById(membership.getBusinessId()).orElse(null);
+            if (business == null || !"ACTIVE".equalsIgnoreCase(business.getStatus())) {
+                continue;
+            }
+
+            BusinessProfile profile = businessProfileRepository.findById(business.getId()).orElse(null);
+            boolean isActive = activeBusinessId != null && activeBusinessId.equals(business.getId());
+
+            responses.add(new BusinessResponse(
+                    business.getId(),
+                    business.getBusinessName(),
+                    profile != null ? profile.getBusinessType() : "trade",
+                    profile != null ? profile.getLanguagePreference() : "en",
+                    membership.getRole(),
+                    membership.getStatus(),
+                    isActive
+            ));
+        }
+
+        return responses;
+    }
+
+    @Transactional(readOnly = true)
+    public BusinessResponse validateAndGetBusinessForActivation(UUID userId, UUID businessId) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(businessId, "businessId must not be null");
+
+        Business business = businessRepository.findById(businessId).orElse(null);
+        if (business == null || !"ACTIVE".equalsIgnoreCase(business.getStatus())) {
+            throw new ResourceNotFoundException("Business not found or access denied");
+        }
+
+        BusinessMembership membership = membershipRepository
+                .findByUserIdAndBusinessId(userId, businessId)
+                .orElse(null);
+
+        if (membership == null || membership.getStatus() != MembershipStatus.ACTIVE) {
+            throw new AccessDeniedException("User does not have active membership in this business");
+        }
+
+        BusinessProfile profile = businessProfileRepository.findById(businessId).orElse(null);
+
+        return new BusinessResponse(
+                business.getId(),
+                business.getBusinessName(),
+                profile != null ? profile.getBusinessType() : "trade",
+                profile != null ? profile.getLanguagePreference() : "en",
+                membership.getRole(),
+                membership.getStatus(),
+                true
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public BusinessResponse getActiveBusiness(UUID userId, UUID activeBusinessId) {
+        if (activeBusinessId == null) {
+            return null;
+        }
+        return validateAndGetBusinessForActivation(userId, activeBusinessId);
+    }
+
+    @Transactional
+    public BusinessResponse renameBusiness(UUID userId, UUID businessId, String businessName) {
+        validateName(businessName);
+        Business business = businessRepository.findByIdForUpdate(businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found or access denied"));
+        BusinessMembership membership = membershipRepository.findByUserIdAndBusinessId(userId, businessId)
+                .filter(m -> m.getStatus() == MembershipStatus.ACTIVE && m.getRole() == MembershipRole.OWNER)
+                .orElseThrow(() -> new AccessDeniedException("Business settings access denied"));
+        business.setBusinessName(businessName.trim());
+        businessRepository.save(business);
+        if (auditService != null) auditService.logSuccess(
+                com.app.sme_health_backend.audit.model.AuditEventType.BUSINESS_NAME_CHANGED,
+                userId, null, businessId, "business", businessId.toString(), java.util.Map.of());
+        return validateAndGetBusinessForActivation(membership.getUserId(), businessId);
+    }
+
+    private void validateName(String name) {
+        if (name == null || name.isBlank() || name.trim().length() > 120 || name.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("Business name must contain 1 to 120 characters without control characters");
+        }
+    }
+}

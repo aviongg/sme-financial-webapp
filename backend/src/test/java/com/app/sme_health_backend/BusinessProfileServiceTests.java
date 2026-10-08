@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +37,31 @@ class BusinessProfileServiceTests {
     }
 
     @Test
+    void shouldUpdateLanguagePreference() {
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(userId);
+        profile.setLanguagePreference("en");
+
+        when(businessProfileRepository.findByUserIdForUpdate(userId))
+                .thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(profile)).thenReturn(profile);
+
+        BusinessProfile updated = businessProfileService.updateLanguagePreference(userId, "ur");
+
+        assertEquals("ur", updated.getLanguagePreference());
+        verify(businessProfileRepository).findByUserIdForUpdate(userId);
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldRejectInvalidLanguagePreference() {
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateLanguagePreference(userId, "fr"));
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateLanguagePreference(null, "en"));
+    }
+
+    @Test
     void shouldCreateBusinessProfile() {
         BusinessProfileRequest request = validRequest();
 
@@ -46,7 +72,7 @@ class BusinessProfileServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         BusinessProfile result =
-                businessProfileService.createProfile(request);
+                businessProfileService.createProfile(userId, request);
 
         assertNotNull(result);
         assertEquals(userId, result.getUserId());
@@ -68,7 +94,7 @@ class BusinessProfileServiceTests {
         DuplicateResourceException exception =
                 assertThrows(
                         DuplicateResourceException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -126,7 +152,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -148,7 +174,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(userId, request)
                 );
 
         assertEquals(
@@ -174,7 +200,7 @@ class BusinessProfileServiceTests {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         BusinessProfile result =
-                businessProfileService.createProfile(request);
+                businessProfileService.createProfile(userId, request);
 
         assertNotNull(result);
         assertTrue(result.isWhatsappOptIn());
@@ -187,16 +213,15 @@ class BusinessProfileServiceTests {
     @Test
     void shouldRejectNullUserId() {
         BusinessProfileRequest request = validRequest();
-        request.setUserId(null);
 
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(request)
+                        () -> businessProfileService.createProfile(null, request)
                 );
 
         assertEquals(
-                "User ID is required",
+                "Business ID is required",
                 exception.getMessage()
         );
 
@@ -208,7 +233,7 @@ class BusinessProfileServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> businessProfileService.createProfile(null)
+                        () -> businessProfileService.createProfile(userId, null)
                 );
 
         assertEquals(
@@ -235,11 +260,78 @@ class BusinessProfileServiceTests {
         verifyNoInteractions(businessProfileRepository);
     }
 
+    @Test
+    void shouldCreateBusinessProfileWithComplianceAndPaymentBehavior() {
+        BusinessProfileRequest request = validRequest();
+        request.setPaymentBehavior("immediate");
+        request.setNtnRegistered(true);
+        request.setBusinessRegistered(false);
+
+        when(businessProfileRepository.existsById(userId)).thenReturn(false);
+        when(businessProfileRepository.save(any(BusinessProfile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        BusinessProfile result = businessProfileService.createProfile(userId, request);
+
+        assertNotNull(result);
+        assertEquals("immediate", result.getPaymentBehavior());
+        assertTrue(result.getNtnRegistered());
+        assertFalse(result.getBusinessRegistered());
+    }
+
+    @Test
+    void shouldUpdateWhatsAppPreferenceOptIn() {
+        BusinessProfile profile = validProfile();
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any(BusinessProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        BusinessProfile updated = businessProfileService.updateWhatsAppPreference(userId, "03001234567", true);
+
+        assertTrue(updated.isWhatsappOptIn());
+        assertEquals("+923001234567", updated.getWhatsappNumber());
+        assertNotNull(updated.getWhatsappOptedInAt());
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldUpdateWhatsAppPreferenceOptOut() {
+        BusinessProfile profile = validProfile();
+        profile.setWhatsappOptIn(true);
+        profile.setWhatsappNumber("+923001234567");
+
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+        when(businessProfileRepository.save(any(BusinessProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        BusinessProfile updated = businessProfileService.updateWhatsAppPreference(userId, null, false);
+
+        assertFalse(updated.isWhatsappOptIn());
+        verify(businessProfileRepository).save(profile);
+    }
+
+    @Test
+    void shouldRejectOptInWithoutPhoneNumber() {
+        BusinessProfile profile = validProfile();
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, "", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, null, true));
+    }
+
+    @Test
+    void shouldThrowWhenUpdatingWhatsAppForNonExistentUser() {
+        when(businessProfileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> businessProfileService.updateWhatsAppPreference(userId, "03001234567", true));
+    }
+
+
     private BusinessProfileRequest validRequest() {
         BusinessProfileRequest request =
                 new BusinessProfileRequest();
 
-        request.setUserId(userId);
         request.setBusinessType("retail");
         request.setLanguagePreference("en");
         request.setWhatsappNumber(null);

@@ -1,0 +1,77 @@
+package com.app.sme_health_backend.insight.dto;
+
+import com.app.sme_health_backend.insight.entity.Insight;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class InsightResponse {
+
+    private UUID id;
+    private UUID businessId;
+    private String month;
+    private String text;
+    private String category;
+    private String priority;
+    private LocalDateTime createdAt;
+    private String sourceVersion;
+    private String language;
+    private LocalDateTime sourceComputedAt;
+
+    public static InsightResponse fromEntity(Insight insight) {
+        InsightResponse response = new InsightResponse();
+
+        response.id = insight.getId();
+        response.businessId = insight.getUserId();
+        response.month = insight.getMonth();
+        response.text = insight.getText();
+        response.category = insight.getCategory();
+        response.priority = insight.getPriority();
+        response.createdAt = insight.getCreatedAt();
+        response.sourceVersion = insight.getSourceVersion();
+        response.language = insight.getLanguage();
+        response.sourceComputedAt = insight.getSourceComputedAt();
+
+        return response;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getBusinessId() {
+        return businessId;
+    }
+
+    public String getMonth() {
+        return month;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
+    }
+}
