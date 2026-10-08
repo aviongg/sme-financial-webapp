@@ -1,0 +1,16 @@
+{
+  "scope": "Production Next build against synthetic backend contract fixture; not deployed Spring/PostgreSQL or email/OCR provider E2E",
+  "checks": [
+    "registration creates an account without treating its response as a login",
+    "reset request shows the account-neutral server response",
+    "password reset removes the fragment and sends the token once in the confirm body",
+    "document review initializes extracted draft values and uses the protected original URL",
+    "vendor-only draft correction preserves OCR category and document type and does not confirm financial data",
+    "document contribution requires explicit review, confirms once, and stays confirmed after reload",
+    "saved-month Zakat sends unknown declarations as null and renders incomplete results without inventing zero",
+    "changing Zakat inputs clears stale results and manual blank balances remain unknown",
+    "invalid MFA code preserves the challenge, shows feedback, and allows a subsequent valid code",
+    "additional flows have no browser exceptions, CSP violations or hydration errors"
+  ],
+  "errors": []
+}

@@ -1,5 +1,15 @@
 # Feature 11 OCR integration
 
+> Historical implementation report (September 2026). The isolated-stage scope
+> and deferred-work statements below describe that release, not the current
+> application on `main`. Document upload/bulk upload, asynchronous database-backed
+> processing, tenant-scoped review, immutable original extraction, append-only
+> corrections and explicit confirm-once posting are now integrated. The active
+> Python API uses authenticated multipart file upload, not URL/JSON input. See
+> [the current OCR guide](../../ai-service/README.md),
+> [the MVP handoff](../../docs/MVP_CORE_REFINEMENT_HANDOFF.md), and
+> [the HTTPS contract probe](../../ai-service/tests/HTTPS_CONTRACT.md).
+
 Feature 11 provides a standalone Python extraction service and an opt-in Java
 client under `com.app.sme_health_backend.documents`. Phase 1 was published
 separately in commit `3691b2b`; this OCR change publishes the isolated extraction
