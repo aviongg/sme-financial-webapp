@@ -81,6 +81,8 @@ Maven 3.9.16 and JDK 26.0.1 compiled Java release 21. Integration tests used rea
 
 Local setup attempts initially encountered sandbox access to Maven/cache/network and a stale Python environment missing the declared multipart dependency. Installing repository-constrained dependencies in an ignored integration-local environment and running authorized commands with normal cache access resolved those setup failures. No test assertion was disabled to make a run pass.
 
+The broader `git diff --check origin/main...HEAD` also reports inherited trailing whitespace/EOF blank lines in eight pre-existing files from the consolidated source, including historical documentation and security/recovery code. These are not introduced by the integration commits and are retained to avoid unrelated source cleanup. The integration-only `git diff --check da62a4164f3ed90a9d1a75f6a3e75da5c881c4a1...HEAD` and working/staged checks pass.
+
 ## Skipped and blocked validation
 
 - One existing `LocalFileSystemStorageServiceTests.symlinkEscapeOutsideStorageRootIsPrevented` case skips because this Windows account cannot create its symlink. It must run on a capable host.
