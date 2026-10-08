@@ -11,14 +11,14 @@ This integration makes **main the canonical branch containing the complete curre
 | Previous main SHA | `9becac35dd75539218470a6a4d1b6720f212a6f0` |
 | Refinement source SHA | `da62a4164f3ed90a9d1a75f6a3e75da5c881c4a1` |
 | Integration branch | `codex/main-final-integration` |
-| Integration PR | Pending creation after final source scan |
+| Integration PR | [#3 — Integrate complete FinSight application into main](https://github.com/aviongg/sme-financial-webapp/pull/3) |
 | Integration branch final SHA | Resolve the PR's `head.sha` after the final documentation commit; exact value is recorded in the final PR report |
 | Merge method | Merge commit; no squash, rebase, force-push or protection bypass |
 | Merge commit SHA | Assigned by GitHub upon successful merge; recorded in the final PR report as `merge_commit_sha` |
 | Final main SHA | Verified after merge and recorded in the final PR report |
 | Database | Flyway **V17**, all V1–V17 scripts retained unchanged |
 
-A commit cannot embed its own hash or the hash of a future merge without changing those hashes. Consequently, this committed document contains reproducible pre-merge evidence; the linked PR's final report records the exact final head/merge/main hashes and results measured from the actual merged main. Until that report records success, merge and post-merge validation must not be inferred from this document.
+A commit cannot embed its own hash or the hash of a future merge without changing those hashes. Consequently, this committed document contains reproducible pre-merge evidence; [PR #3's final report](https://github.com/aviongg/sme-financial-webapp/pull/3) records the exact final head/merge/main hashes and results measured from the actual merged main. Until that report records success, merge and post-merge validation must not be inferred from this document.
 
 The initial fetch and a second fetch after resuming work both found main unchanged. `git merge-base --is-ancestor origin/main origin/codex/mvp-core-refinement` returned 0; `git rev-list --left-right --count origin/main...origin/codex/mvp-core-refinement` returned **0 73**. The integration branch was created directly from the refinement source in an isolated worktree, preserving the original dev/fatima checkout and its untracked files.
 
