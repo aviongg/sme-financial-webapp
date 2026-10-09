@@ -1,9 +1,9 @@
 package com.app.sme_health_backend.insight.service;
 
-import com.app.i18n.TranslationService;
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.insight.entity.Insight;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
-import com.app.sme_health_backend.score.dto.ScoreResult;
+import com.app.sme_health_backend.scoring.entity.ScoreResult;
 import com.app.sme_health_backend.shared.advice.AdviceContext;
 import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.springframework.stereotype.Service;
@@ -13,17 +13,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class InsightService {
 
-    private static final BigDecimal COMPLETE_DATA_THRESHOLD = new BigDecimal("0.80");
+    private static final BigDecimal COMPLETE_DATA_THRESHOLD =
+            new BigDecimal("0.80");
 
     private final InsightRepository insightRepository;
     private final AdviceContextService adviceContextService;
@@ -78,7 +74,7 @@ public class InsightService {
             return matching;
         }
 
-        // The shared context holds a per-profile lock through this transaction.
+        // Shared context holds a per-profile lock through this transaction.
         // Flush deletions before inserting the replacement unique category set.
         insightRepository.deleteByUserIdAndMonth(score.getUserId(), score.getMonth());
         insightRepository.flush();
@@ -135,14 +131,12 @@ public class InsightService {
             }
         }
         String selectedLanguage = translationService.resolveLanguage(language);
-        // PostgreSQL TIMESTAMP has microsecond precision; keep first and cached responses identical.
         LocalDateTime createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         List<Insight> insights = new ArrayList<>();
 
         insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
-                translationService.translate(selectedLanguage, "insight.focus_weakest_component",
-                        Map.of("component", translationService.translate(selectedLanguage,
-                                "component." + scoreResult.getWeakestComponent()))),
+                new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService)
+                        .weakestInsight(scoreResult, previousScore, selectedLanguage),
                 scoreResult.getWeakestComponent(), "high"));
 
         String overallKey = switch (scoreResult.getBand()) {
@@ -161,8 +155,10 @@ public class InsightService {
                 "overall_health", overallPriority));
 
         boolean complete = scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) >= 0;
+        String dataEvidence = new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService)
+                .dataQuality(scoreResult, selectedLanguage, false);
         insights.add(createInsight(scoreResult, selectedLanguage, createdAt,
-                translationService.translate(selectedLanguage, complete
+                dataEvidence != null ? dataEvidence : translationService.translate(selectedLanguage, complete
                         ? "insight.data_quality.complete" : "insight.data_quality.incomplete"),
                 "data_quality", complete ? "low" : "high"));
 
@@ -198,7 +194,12 @@ public class InsightService {
         if (scoreResult == null) {
             throw new IllegalArgumentException("Score result is required");
         }
-        scoreResult.validate();
+        if (scoreResult.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (scoreResult.getMonth() == null) {
+            throw new IllegalArgumentException("Month is required");
+        }
     }
 
     private void validateUserId(UUID userId) {

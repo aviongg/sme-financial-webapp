@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter, Noto_Nastaliq_Urdu } from "next/font/google";
+import { headers } from "next/headers";
+import { SessionProvider } from "@/components/auth/SessionProvider";
+import { IntegrationBoundary } from "@/components/layout/IntegrationBoundary";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { ToastProvider } from "@/components/ui/Toast";
-import { IntegrationBoundary } from "@/components/layout/IntegrationBoundary";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -27,17 +29,21 @@ const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
 });
 
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "FinSight — SME Financial Health Platform",
   description:
     "Comprehensive financial health scoring, liquidity forecasting, and AI document extraction for growing businesses.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headersList = await headers();
+  void headersList.get("x-nonce");
   return (
     <html
       lang="en"
@@ -49,7 +55,7 @@ export default function RootLayout({
       <body className="antialiased bg-[var(--color-surface-canvas)] text-[var(--color-text-primary)]">
         <LanguageProvider>
           <ToastProvider>
-            <IntegrationBoundary>{children}</IntegrationBoundary>
+            <SessionProvider><IntegrationBoundary>{children}</IntegrationBoundary></SessionProvider>
           </ToastProvider>
         </LanguageProvider>
       </body>

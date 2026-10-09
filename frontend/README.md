@@ -1,14 +1,12 @@
 # FinSight frontend
 
-The existing Next.js interface has been brought from `origin/dev/suleman` (`4202dc1`) into `dev/fatima`. Live API integration currently covers profile creation/reopening, profile language, and monthly record create/list/read/edit. The remaining screens are preserved in explicit demo mode.
+This is the live Next.js frontend for the complete FinSight MVP on `main`, integrated with the Spring backend, authenticated business context and current MVP refinements. Future work should branch from `main`; no historical branch combining is required. Live mode uses authenticated sessions, never a browser-supplied profile UUID.
 
-**Backend compatibility:** this slice uses the standalone Fatima development API at `e3ccd65` (unchanged in frontend commit `f4b738a`). Suleman's latest `0273286` adds cookie-session authentication, CSRF and active-business APIs, replacing the UUID routes below. The current live frontend cannot be used with that backend until its auth, business selection and API adapters are migrated. Keep the frontend PR in draft pending that integration; main is unchanged.
-
-See [the review and integration workflow](../docs/frontend-phase-1-workflow.md) for backend ownership, unresolved integration issues and the next slices.
+The earlier UI and security integration history remains documented in the [consolidation record](../docs/CONSOLIDATED_APP_BRANCH.md). Historical development branches remain available and were left untouched by final integration. See the [main integration handoff](../docs/MAIN_INTEGRATION_HANDOFF.md) for exact source revisions, merge status and current validation evidence.
 
 ## Run locally
 
-Use Node 20.9+ and npm or pnpm. Run the Spring backend with its documented PostgreSQL configuration first. Do not change an existing database's Flyway history without following the backend handoff.
+Use Node 20.9+ and the backend's documented PostgreSQL setup. Do not reuse production data for acceptance tests.
 
 ```powershell
 cd frontend
@@ -17,54 +15,49 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Alternatively, `pnpm install --frozen-lockfile` and `pnpm dev` use the imported pnpm lockfile. Dependency versions are preserved from the original npm lockfile. The pnpm configuration skips the optional resolver install script; its platform package is installed normally.
+Alternatively use `pnpm install --frozen-lockfile` and `pnpm dev`. The pnpm workspace explicitly disables the optional `unrs-resolver` install script; the locked platform package supplies the resolver. Dependency versions are unchanged by final integration.
 
-Open http://localhost:3000/onboarding. Create a profile or reopen a saved UUID, then enter monthly figures. Settings shows the development profile reference; browser storage remembers the selected profile. This is a development selector, not authentication or authorization. Do not expose the application publicly as a multi-user authenticated product.
+Open http://localhost:3000. Register, then sign in. Complete any required password change or MFA step, and create/select a business. Existing users sign in with their account; a profile UUID cannot open a session.
 
-`BACKEND_API_URL` is the Spring origin, default `http://localhost:8080`, without an `/api` suffix. The Next server proxies same-origin `/api/*` requests to it. Restart the development server after changing the environment. For production, set the target before building because rewrites are included in the build.
+`BACKEND_API_URL` is the server-only Spring origin (default `http://localhost:8080`, without `/api`). Browser calls remain same-origin at `/api/*`. Set the target before building because Next rewrites are baked into the build. Production Nginx routes `/api/` directly to Spring.
 
-`NEXT_PUBLIC_DATA_MODE=live` is the default. Set it to `demo` and restart/rebuild to view the original full dashboard, onboarding wizard, uploads, search and health screens. A banner identifies sample data. Live mode never falls back to demo data when a request fails. Unconnected live routes show an unavailable state.
+`NEXT_PUBLIC_DATA_MODE=live` is the default. `demo` is an explicit build-time preview with a visible sample-data banner; live failures never fall back to sample data. Do not distribute a demo build as the live product. Google Fonts access is needed for the existing `next/font/google` build.
 
-The existing typography uses `next/font/google`, so production builds need access to Google Fonts. Local development may use fallback fonts without access.
+## Integrated behavior
 
-## Implemented API behavior (standalone Fatima backend)
+- Cookie sessions, CSRF bootstrap, registration/sign-in, forced password change, MFA challenge/recovery/mandatory enrollment, reset-link confirmation and sign-out.
+- Business creation/selection and role-aware navigation/actions. Business transitions discard private data and cancel old requests across tabs. Authorization is always enforced by the backend too.
+- Monthly record list/read/upsert; existing-month review and locked edit month; zero and unknown values remain distinct. No caller-supplied user/business identity in finance payloads.
+- Dashboard and historical health scores/advice use canonical backend fields and nullable values. Cash-flow disclosure preserves real calendar gaps and shows exact records; projection comes from the backend.
+- Score history, methodology version, structured component evidence and recommendation actions (`NEW`, `VIEWED`, `DONE`, `DISMISSED`) use persisted backend values. Score formulas, weights and bands remain server-owned and unchanged.
+- Search maps supported result types to fixed local destinations. Settings covers language, WhatsApp consent/phone, delivery history and password changes.
+- Documents support upload/list/status, protected original retrieval, draft correction, review, explicit one-time confirmation, retry and draft deletion. Extraction never automatically adds financial data.
+- Team settings supports existing-account invitations, acceptance/decline, role changes, suspension/reactivation and removal. Business names are authoritative and owner-editable; membership and financial permissions remain server-enforced.
+- Zakat uses backend manual/monthly previews and explicit assessment inputs, including price provenance, haul, inventory, receivables and identified liabilities. Missing information stays unknown; no fixed market price or invented assessment is supplied.
 
-- Profile: `POST /api/profile`, `GET /api/profile/{userId}`.
-- Language: `PATCH /api/profile/{userId}/language` with `languagePreference`.
-- Records: `GET /api/records/monthly/{userId}` and `GET /api/records/monthly/{userId}/{month}`.
-- Both create and edit use `POST /api/records/monthly`: the backend upserts by user and month. Live edit links use the month; edit mode locks it. New-entry mode checks for an existing month and directs the user to review it before replacement. This browser check is not a database concurrency guarantee.
-- Required zero values remain zero; unknown optional amounts remain null. The standalone Fatima validator still requires COGS, so its message-only error is displayed at that field. Suleman's hardened records service allows null COGS; no frontend zero substitution is made.
-- No sample score is shown after a record save. Scoring, aggregated dashboard, advice, cash-flow API, Zakat and document workflow connection are subsequent slices.
+The English/Urdu interface and RTL layout include typed shared copy for authentication, onboarding, score evidence, search, documents, team, settings and Zakat. Financial numerals remain Western digits. Desktop/mobile and Urdu browser checks are included below.
 
-Wire contracts are in `src/lib/api/contracts.ts`. Existing `src/types/financial.ts` describes presentation/demo models, not the complete HTTP contract. Do not cast the canonical scoring/dashboard responses into those legacy models without mapping field names, nullable values and completeness units.
+## Security and production configuration
 
-## Teammate UI changes
+API calls use same-origin cookies, no-store requests and CSRF headers. No authentication token or profile identity is stored in localStorage. Unsafe operations are not automatically retried. Expired sessions and unresolved business context close private views; responses from an old context are discarded.
 
-- The entire WhatsApp opt-in label/card toggles the phone entry field, with native keyboard support.
-- Business selection no longer displays a tick.
-- Cash-flow summary has a chevron disclosure, time-period selector, chart and exact monthly table. Summary inflow/outflow/net are totals for the selected period; ending cash is the latest recorded balance. Gaps are not converted to zero.
-- Add Monthly Record sits above the table at the right; Return to Dashboard sits in the page header.
-- Health component weight appears below the score/status.
+Production CSP uses a nonce and omits `unsafe-eval`. By default Next generates its own nonce and ignores caller `x-nonce`. Only the private production Compose service enables `TRUST_INGRESS_NONCE=true`, because Nginx overwrites the header and supplies the matching edge CSP. Do not enable this on a directly accessible Next server.
 
-The records changes apply in both modes. The other screens remain in demo mode until their backend slices are connected.
+The frontend container uses Next standalone output, runs `node server.js` as UID 10001, and includes static/public assets. Run the matched backend with Flyway V1–V17. Container configuration is source-reviewed; a complete production Docker/TLS deployment and provider acceptance remain separate gates in the [production runbook](../docs/PRODUCTION_RUNBOOK.md) and [security closure report](../docs/SECURITY_PRODUCTION_CLOSURE_2026-10-03.md).
 
 ## Verification
 
 ```powershell
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
+pnpm test
+pnpm exec tsc --noEmit
+pnpm run lint
+pnpm run build
 ```
 
-Verification on 24 September 2026:
+`tests/phase-one.test.mjs` tests the actual API modules: cookie/CSRF requests, explicit payloads, errors, cancellation/races, roles, document confirmation and Zakat contracts.
 
-- 15 API/session contract tests passed, covering zero/null payloads, POST upsert, errors, invalid inputs, explicit demo selection and profile retry identity.
-- TypeScript, ESLint and production build passed. Google Fonts required network access for the build.
-- 11 direct HTTP checks passed against current Fatima code with temporary embedded PostgreSQL: profile create/read, Urdu/English PATCH, zero/null record persistence, same-month replacement with stable ID, read/list, expected null-COGS 400, and absent-score advice returning empty arrays.
-- Browser checks exercised profile creation, real save, inline COGS rejection and correction, reload persistence, edit and Urdu switching through the Next proxy. The current application database was not used.
-- Desktop/mobile visual checks covered record controls and Urdu layout. Demo checks confirmed cash-flow expand/filter/table behavior, weight placement, business selection without a tick, and WhatsApp checkbox disclosure with keyboard Space.
+`tests/browser.integration.mjs` and `tests/browser-extra.integration.mjs` provide separate browser checks against a synthetic HTTP contract fixture, not Spring/PostgreSQL. They require a provisioned Playwright module and installed Microsoft Edge. Start the built Next server on port 3100 with its API rewrite pointing at `http://127.0.0.1:8080`, then run each script sequentially from `frontend`. Each binds its fixture to port 8080; both ports must be free of other application services. Set `PLAYWRIGHT_MODULE` to an absolute module path if Playwright is not installed locally. `BROWSER_ARTIFACT_DIR` can override the ignored `test-artifacts/browser` output directory. Test accounts use reserved `.test` addresses and synthetic data.
 
-The temporary backend and smoke evidence live in ignored `backend/target/frontend-smoke/`. They are local QA infrastructure, not a committed service or production database. The separate backend integration handoff documents the reproducible combined scoring/advice checks.
+Final integration checks on 8 October 2026: **36 API contract tests**, **22 primary browser assertions** and **10 additional browser assertions** passed. TypeScript, ESLint and the production build passed. ESLint retains one existing SessionProvider effect-cleanup ref warning; Next reports its existing middleware-convention deprecation warning. No browser exceptions, CSP violations or hydration errors were reported. The live-component import traversal covered 57 local modules with no `mockApi` references; shared record routes select demo behavior only through the explicit build-time mode.
 
-A later fetch on 24 September found Suleman's new authenticated contract at `0273286`. Its scoring/projection fixes passed 31 targeted upstream unit tests, but the old combined integration harness stopped at its dashboard hash guard before running any suites. These results do not validate the current frontend against that new backend. See the workflow's current-status section for the endpoint migration and acceptance gates.
+See the [main integration handoff](../docs/MAIN_INTEGRATION_HANDOFF.md) for actual Spring/PostgreSQL journey results and post-merge verification. Browser fixture checks alone do not establish deployed-stack or external-provider acceptance. The [earlier frontend handoff](../docs/frontend-security-integration-2026-09-27.md) is retained as historical evidence. No AI/LLM financial API or Phase 2 transaction/accounting module is included.

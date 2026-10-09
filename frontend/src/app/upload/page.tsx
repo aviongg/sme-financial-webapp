@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveDocuments } from "@/components/integration/LiveDocuments";
+export default function UploadQueuePage(){return isDemoMode ? <DemoPage/> : <LiveDocuments/>;}
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -31,7 +34,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { DocumentUploadItem, UploadStatus } from "@/types/financial";
 
-export default function UploadQueuePage() {
+function DemoPage() {
   const router = useRouter();
   const { t, direction } = useLanguage();
   const { toast } = useToast();

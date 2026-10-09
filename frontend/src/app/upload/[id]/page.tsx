@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveDocumentReview } from "@/components/integration/LiveDocumentReview";
+export default function ExtractionConfirmationPage(props: PageProps){return isDemoMode ? <DemoPage {...props}/> : <LiveDocumentReview/>;}
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
@@ -35,7 +38,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function ExtractionConfirmationPage({ params }: PageProps) {
+function DemoPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const docId = resolvedParams.id;
   const router = useRouter();

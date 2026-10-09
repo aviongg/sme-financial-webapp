@@ -6,9 +6,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,12 +22,19 @@ class OcrJsonCodecTests {
     private final OcrJsonCodec codec = new OcrJsonCodec();
 
     @Test
-    void requestUsesOnlyTheTwoSharedFieldNames() {
-        byte[] body = codec.encode(new OcrRequest("https://example.com/invoice.pdf", OcrExtraction.DocumentType.invoice));
-        JsonNode json = new JsonMapper().readTree(body);
-        assertEquals(2, json.size());
-        assertEquals("https://example.com/invoice.pdf", json.get("image_url").stringValue());
-        assertEquals("invoice", json.get("document_type_hint").stringValue());
+    void multipartBuilderBuildsValidMultipartPayload() throws IOException {
+        UUID docId = UUID.randomUUID();
+        OcrRequest request = new OcrRequest(docId, new byte[]{1, 2, 3, 4}, "invoice.pdf", "application/pdf", OcrExtraction.DocumentType.invoice);
+        byte[] body = OcrMultipartBuilder.build("test-boundary", request);
+        String text = new String(body, StandardCharsets.UTF_8);
+
+        assertTrue(text.contains("--test-boundary"));
+        assertTrue(text.contains("Content-Disposition: form-data; name=\"file\"; filename=\"invoice.pdf\""));
+        assertTrue(text.contains("Content-Type: application/pdf"));
+        assertTrue(text.contains("name=\"document_type_hint\""));
+        assertTrue(text.contains("invoice"));
+        assertTrue(text.contains("name=\"document_id\""));
+        assertTrue(text.contains(docId.toString()));
     }
 
     @Test
@@ -66,8 +75,8 @@ class OcrJsonCodecTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"\"1234.56\"", "true", "{}", "[]", "NaN", "Infinity"})
-    void rejectsWrongAmountTypesAndNonfiniteNumbers(String amount) {
+    @ValueSource(strings = {"\"1234.56\"", "true", "{}", "[]", "NaN", "Infinity", "-10.00", "1000000000001"})
+    void rejectsWrongAmountTypesAndNonfiniteOrOutOfRangeNumbers(String amount) {
         assertInvalid(PARTIAL.replace("1234.56", amount));
     }
 
@@ -89,10 +98,18 @@ class OcrJsonCodecTests {
         assertInvalid(PARTIAL + "{}");
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"", "relative.png", "file:///tmp/a.png", "https://", "https://user:secret@example.com/a", "https://example.com/a#fragment"})
-    void rejectsInvalidRequestBeforeCallingService(String url) {
-        assertThrows(IllegalArgumentException.class, () -> new OcrRequest(url, OcrExtraction.DocumentType.unknown));
+    @Test
+    void rejectsExcessivelyLongVendorString() {
+        String longVendor = "\"vendor_or_party\":\"" + "a".repeat(256) + "\"";
+        assertInvalid(PARTIAL.replace("\"vendor_or_party\":null", longVendor));
+    }
+
+    @Test
+    void rejectsInvalidRequestBeforeCallingService() {
+        assertThrows(IllegalArgumentException.class, () -> new OcrRequest(null, "image/png", OcrExtraction.DocumentType.unknown));
+        assertThrows(IllegalArgumentException.class, () -> new OcrRequest(new byte[0], "image/png", OcrExtraction.DocumentType.unknown));
+        assertThrows(NullPointerException.class, () -> new OcrRequest(new byte[]{1}, "image/png", null));
+        assertEquals("application/octet-stream", new OcrRequest(new byte[]{1}, null, OcrExtraction.DocumentType.unknown).contentType());
     }
 
     private OcrExtraction decode(String json) {

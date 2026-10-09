@@ -1,0 +1,28 @@
+{
+  "scope": "Production Next build against synthetic backend contract fixture, not deployed Spring/PostgreSQL",
+  "checks": [
+    "signed-out user sees login, not financial data",
+    "login rejection shown without sample fallback",
+    "cookie session loads canonical score and null-safe dashboard",
+    "no legacy UUID identity in localStorage",
+    "cash-flow chevron expands recorded data",
+    "health history shows evidence and recommendation lifecycle persists across reload",
+    "owner can rename business and manage an existing-account invitation without creating owner access",
+    "record edit locks original month",
+    "unchanged session focus revalidation preserves unsaved form inputs",
+    "record edit saves once through tenant-free POST upsert",
+    "saved record survives frontend reload",
+    "switching businesses removes previous financial rows",
+    "logout removes all private screens",
+    "viewer cannot create or edit records even by direct URL",
+    "search converts results into safe supported local links",
+    "expired session cannot retain financial data",
+    "MFA challenge gates finances until completion",
+    "mobile dashboard fits viewport",
+    "Urdu direction and mobile layout render",
+    "invited account has no business access before acceptance and gains named business after accepting",
+    "production CSP ignores untrusted caller nonce and omits unsafe-eval",
+    "no browser exceptions, CSP violations or hydration errors"
+  ],
+  "errors": []
+}

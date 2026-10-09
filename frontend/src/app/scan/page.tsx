@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveDocuments } from "@/components/integration/LiveDocuments";
+export default function ScanPage(){return isDemoMode ? <DemoPage/> : <LiveDocuments/>;}
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
@@ -31,7 +34,7 @@ interface StagedFile {
   previewUrl?: string;
 }
 
-export default function ScanPage() {
+function DemoPage() {
   const router = useRouter();
   const { t, direction } = useLanguage();
   const { toast } = useToast();

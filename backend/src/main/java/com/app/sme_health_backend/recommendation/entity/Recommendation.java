@@ -4,17 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "recommendations", uniqueConstraints = @UniqueConstraint(
-        name = "uq_recommendations_user_month_category",
-        columnNames = {"user_id", "month", "category"}
-))
+@Table(name = "recommendations")
 public class Recommendation {
 
     @Id
@@ -52,29 +48,17 @@ public class Recommendation {
     @Column(name = "source_computed_at")
     private LocalDateTime sourceComputedAt;
 
-    public String getSourceVersion() {
-        return sourceVersion;
-    }
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 12)
+    private RecommendationStatus status = RecommendationStatus.NEW;
 
-    public void setSourceVersion(String sourceVersion) {
-        this.sourceVersion = sourceVersion;
-    }
+    @Column(name = "status_updated_at")
+    private LocalDateTime statusUpdatedAt;
 
-    public String getLanguage() {
-        return language;
-    }
-
-    public void setLanguage(String language) {
-        this.language = language;
-    }
-
-    public LocalDateTime getSourceComputedAt() {
-        return sourceComputedAt;
-    }
-
-    public void setSourceComputedAt(LocalDateTime sourceComputedAt) {
-        this.sourceComputedAt = sourceComputedAt;
-    }
+    public RecommendationStatus getStatus() { return status; }
+    public void setStatus(RecommendationStatus status) { this.status = status; }
+    public LocalDateTime getStatusUpdatedAt() { return statusUpdatedAt; }
+    public void setStatusUpdatedAt(LocalDateTime time) { statusUpdatedAt = time; }
 
     public UUID getId() {
         return id;
@@ -126,5 +110,29 @@ public class Recommendation {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getSourceVersion() {
+        return sourceVersion;
+    }
+
+    public void setSourceVersion(String sourceVersion) {
+        this.sourceVersion = sourceVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public LocalDateTime getSourceComputedAt() {
+        return sourceComputedAt;
+    }
+
+    public void setSourceComputedAt(LocalDateTime sourceComputedAt) {
+        this.sourceComputedAt = sourceComputedAt;
     }
 }

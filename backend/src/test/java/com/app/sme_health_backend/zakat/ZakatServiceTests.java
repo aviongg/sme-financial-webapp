@@ -65,7 +65,7 @@ class ZakatServiceTests {
         assertEquals(manual.liabilityBreakdown(), saved.liabilityBreakdown());
         assertEquals(manual.warnings(), saved.warnings());
         assertEquals(money("2825.00"), saved.zakatDue());
-        assertEquals(userId, saved.source().userId());
+        assertEquals(userId, saved.source().businessId());
         assertEquals("2026-09", saved.source().month());
         assertEquals(new Fixture().date, saved.source().balancesDate());
         assertEquals(money("30000"), record.getLoanOutstanding());

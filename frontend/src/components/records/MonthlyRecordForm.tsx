@@ -15,7 +15,7 @@ import { mockApi } from "@/lib/api/adapter";
 import { ApiError } from "@/lib/api/client";
 import { isDemoMode } from "@/lib/api/config";
 import { phaseOneApi } from "@/lib/api/phase-one";
-import { getUserId } from "@/lib/api/session";
+import { useSession } from "@/components/auth/SessionProvider";
 import type { MonthlyRecordRequest as BackendMonthlyRecordRequest } from "@/lib/api/contracts";
 import { MonthSelector } from "./MonthSelector";
 import {
@@ -51,6 +51,8 @@ export function MonthlyRecordForm({
   className,
 }: MonthlyRecordFormProps) {
   const router = useRouter();
+  const session = useSession();
+  const canWrite = isDemoMode || session.can("RECORD_CREATE_UPDATE");
   const { t, direction, locale } = useLanguage();
   const isRTL = direction === "rtl";
   const { toast } = useToast();
@@ -208,8 +210,7 @@ export function MonthlyRecordForm({
   // Save implementation
   const executeSave = async () => {
     if (submissionLock.current) return;
-    const userId = isDemoMode ? (initialData?.userId || "bp-1001") : getUserId();
-    if (!userId) {
+    if (!canWrite) {
       setSubmitError(locale === "ur" ? "پہلے اپنا پروفائل بنائیں یا کھولیں۔" : "Set up or open your profile before saving a record.");
       return;
     }
@@ -219,7 +220,6 @@ export function MonthlyRecordForm({
     setExistingMonth(null);
 
     const payload: BackendMonthlyRecordRequest = {
-      userId,
       month,
       cashInflow: Number(coreValues.cashInflow),
       cashOutflow: Number(coreValues.cashOutflow),
@@ -254,13 +254,13 @@ export function MonthlyRecordForm({
 
     try {
       if (isDemoMode) {
-        await mockApi.saveMonthlyRecord(payload);
+        await mockApi.saveMonthlyRecord({ ...payload, userId: initialData?.userId || "bp-1001" });
       } else if (isEditMode) {
-        await phaseOneApi.updateMonthlyRecord(userId, month, payload);
+        await phaseOneApi.updateMonthlyRecord(month, payload);
       } else {
         // POST is an upsert on this backend. Direct the user to the edit screen
         // before replacing a month they may have saved in another session.
-        const records = await phaseOneApi.getMonthlyRecords(userId);
+        const records = await phaseOneApi.getMonthlyRecords();
         if (records.some((record) => record.month === month)) {
           setExistingMonth(month);
           setSubmitError(locale === "ur" ? "اس مہینے کا ریکارڈ پہلے سے موجود ہے۔ اسے کھول کر ترمیم کریں۔" : "A record already exists for this month. Open it to review and edit the saved values.");
@@ -282,7 +282,7 @@ export function MonthlyRecordForm({
           ? (locale === "ur" ? "اس وقت ریکارڈ محفوظ کرنے کے لیے فروخت شدہ مال کی لاگت درج کرنا ضروری ہے۔ نیچے متعلقہ خانہ مکمل کریں۔" : "Saving currently requires cost of goods sold. Enter that amount in the optional details below, then try again.")
           : cause.status === 404
             ? (locale === "ur" ? "پروفائل یا ریکارڈ نہیں ملا۔ اپنا پروفائل دوبارہ کھولیں۔" : "The profile or record was not found. Open your profile again.")
-            : t.records.saveError);
+            : cause.message);
       } else {
         setSubmitError(t.records.saveError);
       }
@@ -318,6 +318,8 @@ export function MonthlyRecordForm({
   return (
     <div className={className}>
       <form onSubmit={handleSubmit} noValidate className="space-y-8">
+        {!canWrite && <p role="status">Your role has read-only access to monthly records.</p>}
+        <fieldset disabled={!canWrite || isSubmitting} className="space-y-8 min-w-0">
         {/* Navigation & Header */}
         <div className="space-y-4 text-start">
           <Link
@@ -413,6 +415,7 @@ export function MonthlyRecordForm({
             {isSubmitting ? t.records.savingButton : t.records.saveButton}
           </Button>
         </div>
+        </fieldset>
       </form>
 
       {/* Non-Blocking Outflow Warning Confirmation Dialog */}

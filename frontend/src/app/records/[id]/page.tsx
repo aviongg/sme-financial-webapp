@@ -12,7 +12,7 @@ import { mockApi } from "@/lib/api/adapter";
 import { ApiError } from "@/lib/api/client";
 import { isDemoMode } from "@/lib/api/config";
 import { phaseOneApi } from "@/lib/api/phase-one";
-import { getUserId } from "@/lib/api/session";
+
 import type { MonthlyRecordResponse } from "@/types/financial";
 
 export default function EditMonthlyRecordPage() {
@@ -38,12 +38,7 @@ function RecordEditor({ recordId }: { recordId: string }) {
     if (!recordId || invalidMonth) return;
 
     let isCancelled = false;
-    const userId = getUserId();
-    if (!isDemoMode && !userId) {
-      router.replace("/onboarding");
-      return;
-    }
-    const request = isDemoMode ? mockApi.getMonthlyRecord(recordId) : phaseOneApi.getMonthlyRecord(userId!, recordId);
+    const request = isDemoMode ? mockApi.getMonthlyRecord(recordId) : phaseOneApi.getMonthlyRecord(recordId);
     request
       .then((res) => {
         if (isCancelled) return;
@@ -107,7 +102,7 @@ function RecordEditor({ recordId }: { recordId: string }) {
           {/* Successfully loaded record */}
           {!isLoading && !notFound && !error && record && (
             <MonthlyRecordForm
-              key={`${record.userId}:${record.month}`}
+              key={`${record.businessId ?? record.userId}:${record.month}`}
               initialData={record}
               isEditMode
             />

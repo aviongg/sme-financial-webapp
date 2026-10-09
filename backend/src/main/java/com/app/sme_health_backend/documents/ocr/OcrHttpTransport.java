@@ -7,8 +7,14 @@ import java.time.Duration;
 /** Injectable transport keeps unit tests offline. Implementations must enforce timeout/body limits. */
 @FunctionalInterface
 public interface OcrHttpTransport {
-    Response post(URI endpoint, byte[] requestBody, Duration timeout, int maxResponseBytes)
-            throws IOException, InterruptedException;
+    Response postMultipart(
+            URI endpoint,
+            String boundary,
+            byte[] multipartBody,
+            String serviceSecret,
+            Duration timeout,
+            int maxResponseBytes
+    ) throws IOException, InterruptedException;
 
     record Response(int statusCode, String contentType, byte[] body) { }
 }

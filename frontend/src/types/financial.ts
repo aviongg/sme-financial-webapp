@@ -39,7 +39,8 @@ export interface MonthlyRecordRequest {
 
 export interface MonthlyRecordResponse extends MonthlyRecordRequest {
   id: string;
-  userId: string;
+  userId?: string;
+  businessId?: string;
   updatedAt: string;
 }
 

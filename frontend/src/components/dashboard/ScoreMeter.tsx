@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLanguage } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils/cn";
 import type { HealthBand } from "@/types/financial";
 
@@ -29,6 +30,7 @@ export function ScoreMeter({
   className,
   size = "md",
 }: ScoreMeterProps) {
+  const { t } = useLanguage();
   const clampedScore = Math.max(0, Math.min(100, score));
 
   // Determine active band if not provided
@@ -138,7 +140,7 @@ export function ScoreMeter({
     <div
       className={cn("relative inline-flex flex-col items-center select-none", className)}
       role="img"
-      aria-label={`Score meter gauge: ${clampedScore} out of 100, health band: ${activeBand}`}
+      aria-label={`${t.dashboard.compositeScoreLabel}: ${clampedScore} ${t.dashboard.outOfHundred}, ${t.healthStates[activeBand]}`}
     >
       <svg
         viewBox="0 0 200 115"

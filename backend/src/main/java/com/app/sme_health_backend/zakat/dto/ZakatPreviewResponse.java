@@ -49,7 +49,7 @@ public record ZakatPreviewResponse(
     }
 
     public record MonthlyRecordSource(
-            UUID userId,
+            UUID businessId,
             String month,
             LocalDate balancesDate,
             BigDecimal cashBalanceEom,

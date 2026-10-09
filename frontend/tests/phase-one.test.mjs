@@ -1,225 +1,94 @@
-import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, mock, test } from "node:test";
-import { mkdtempSync, readFileSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
+import assert from 'node:assert/strict';
+import {after,afterEach,beforeEach,mock,test} from 'node:test';
+import {mkdtempSync,readFileSync,writeFileSync,unlinkSync,rmdirSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import ts from 'typescript';
+const dir=mkdtempSync(path.join(tmpdir(),'finsight-secure-contracts-'));
+const modules=['client','session','contracts','phase-one','finance','documents','zakat','navigation','team','score-presentation'];
+for(const name of modules){const source=readFileSync(fileURLToPath(new URL(`../src/lib/api/${name}.ts`,import.meta.url)),'utf8');writeFileSync(path.join(dir,`${name}.js`),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);}
+const require=createRequire(import.meta.url);
+const client=require(path.join(dir,'client.js'));
+const {phaseOneApi}=require(path.join(dir,'phase-one.js'));
+const {hasPermission}=require(path.join(dir,'session.js'));
+const {financeApi,searchDestination,completenessPercent}=require(path.join(dir,'finance.js'));
+const {documentsApi,documentFilePath}=require(path.join(dir,'documents.js'));
+const {zakatApi,optionalNumber}=require(path.join(dir,'zakat.js'));
+const {routePermission}=require(path.join(dir,'navigation.js'));
+const businessId='11111111-1111-4111-8111-111111111111';
+const record={month:'2026-09',cashInflow:0,cashOutflow:0,revenue:0,operatingExpenses:0,cashBalanceEom:0,cogs:null,receivablesOutstanding:null,payablesOutstanding:null,inventoryValue:null,loanOutstanding:null,interestExpense:null,financingType:'none'};
+let calls=[];
+function backend(handler=()=>Response.json({ok:true})) {mock.method(globalThis,'fetch',async(url,options)=>{calls.push({url,options});if(url==='/api/auth/csrf')return Response.json({token:'csrf-test',headerName:'X-XSRF-TOKEN',parameterName:'_csrf'});return handler(url,options);});}
+beforeEach(()=>{calls=[];client.invalidatePrivateRequests();client.allowPrivateRequests();});
+afterEach(()=>{mock.restoreAll();client.invalidatePrivateRequests();});
+after(()=>{for(const name of modules)unlinkSync(path.join(dir,`${name}.js`));rmdirSync(dir);});
+test('reads use same-origin credentials and no-store even if caller requests otherwise',async()=>{backend();await client.apiClient('/profile',{credentials:'omit',cache:'force-cache'});assert.equal(calls[0].url,'/api/profile');assert.equal(calls[0].options.credentials,'same-origin');assert.equal(calls[0].options.cache,'no-store');});
+test('unsafe calls bootstrap CSRF, preserve zero/null and strip tenant identifiers',async()=>{backend((url,options)=>{assert.equal(options.headers.get('X-XSRF-TOKEN'),'csrf-test');assert.equal(url,'/api/records/monthly');assert.deepEqual(JSON.parse(options.body),record);return Response.json({...record,id:'saved',businessId});});const saved=await phaseOneApi.createMonthlyRecord({...record,userId:'old',businessId:'injected',extra:'omit'});assert.equal(saved.businessId,businessId);assert.equal(saved.cogs,null);assert.equal(saved.cashBalanceEom,0);assert.equal(calls[0].url,'/api/auth/csrf');});
+test('query routes use POST month body without tenant paths',async()=>{backend(()=>Response.json(record));await phaseOneApi.getMonthlyRecords();await phaseOneApi.getMonthlyRecord('2026-09');await financeApi.insights('2026-09');assert.deepEqual(calls.filter(c=>!c.url.endsWith('/csrf')).map(c=>c.url),['/api/records/monthly','/api/records/monthly/query','/api/insights/query']);assert.deepEqual(JSON.parse(calls.at(-1).options.body),{month:'2026-09'});});
+test('record updates preserve the original requested month',async()=>{backend((url,options)=>{assert.equal(JSON.parse(options.body).month,'2026-09');return Response.json(record);});await phaseOneApi.updateMonthlyRecord('2026-09',{...record,month:'2026-08'});});
+test('invalid month fails before an HTTP call',async()=>{backend();assert.throws(()=>phaseOneApi.getMonthlyRecord('2026-13'));assert.equal(calls.length,0);});
+test('multipart upload keeps browser boundary and includes CSRF',async()=>{backend((url,options)=>{assert.equal(url,'/api/documents/upload');assert.ok(options.body instanceof FormData);assert.equal(options.body.get('file').name,'invoice.pdf');assert.equal(options.headers.has('Content-Type'),false);assert.equal(options.headers.get('X-XSRF-TOKEN'),'csrf-test');return Response.json({id:businessId});});await documentsApi.upload(new File(['test'],'invoice.pdf',{type:'application/pdf'}));});
+test('403 mutations are not replayed and CSRF refreshes only on next action',async()=>{backend(()=>Response.json({error:'access_denied',message:'Forbidden'},{status:403}));await assert.rejects(()=>phaseOneApi.createMonthlyRecord(record),e=>e.status===403);assert.equal(calls.filter(c=>c.url==='/api/records/monthly').length,1);await assert.rejects(()=>phaseOneApi.createMonthlyRecord(record));assert.equal(calls.filter(c=>c.url==='/api/auth/csrf').length,2);});
+test('parallel mutations share a single CSRF bootstrap',async()=>{backend();await Promise.all([client.apiClient('/profile/language',{method:'PATCH',body:'{}'}),client.apiClient('/records/monthly/query',{method:'POST',body:'{}'})]);assert.equal(calls.filter(c=>c.url==='/api/auth/csrf').length,1);});
+test('session transition blocks business API before the request is issued',async()=>{backend();client.invalidatePrivateRequests();await assert.rejects(()=>phaseOneApi.getMonthlyRecords(),e=>e.name==='AbortError');assert.equal(calls.length,0);});
+test('late response from old business is rejected even when fetch ignores abort',async()=>{let finish;backend(()=>new Promise(resolve=>{finish=resolve;}));const request=phaseOneApi.getMonthlyRecords();client.invalidatePrivateRequests();finish(Response.json([record]));await assert.rejects(()=>request,e=>e.name==='AbortError');});
+test('expired private request locks out subsequent business requests',async()=>{backend(()=>Response.json({error:'session_invalidated',message:'Sign in again'},{status:401}));await assert.rejects(()=>phaseOneApi.getMonthlyRecords(),e=>e.status===401);await assert.rejects(()=>phaseOneApi.getMonthlyRecords(),e=>e.name==='AbortError');assert.equal(calls.length,1);});
+test('error fields and rate limit metadata survive parsing',async()=>{backend(()=>Response.json({message:'Invalid amount',errors:{cashInflow:'Must be positive',ignored:12}},{status:429,headers:{'Retry-After':'30'}}));await assert.rejects(()=>phaseOneApi.getMonthlyRecords(),e=>e.status===429&&e.retryAfter==='30'&&e.fieldErrors.cashInflow==='Must be positive'&&!('ignored' in e.fieldErrors));});
+test('network failure never substitutes financial data',async()=>{mock.method(globalThis,'fetch',async()=>{throw new TypeError('offline');});await assert.rejects(()=>financeApi.dashboard(),e=>e.status===0);});
+test('unsafe API destinations are rejected before fetch',async()=>{backend();for(const path of ['https://evil.test','//evil.test','/\\evil.test','/profile#secret'])await assert.rejects(()=>client.apiClient(path));assert.equal(calls.length,0);});
+test('password reset uses the exempt endpoint and does not persist its token',async()=>{backend();await client.apiClient('/auth/password-reset/confirm',{method:'POST',body:JSON.stringify({token:'one-use',newPassword:'long-password'})});assert.equal(calls.length,1);assert.equal(calls[0].options.headers.has('X-XSRF-TOKEN'),false);});
+test('viewer and manager cannot write records, owner and accountant can',()=>{for(const role of ['OWNER','ACCOUNTANT','MANAGER','VIEWER'])assert.equal(hasPermission({role,membershipStatus:'ACTIVE'},'RECORD_CREATE_UPDATE'),['OWNER','ACCOUNTANT'].includes(role));assert.equal(hasPermission({role:'OWNER',membershipStatus:'SUSPENDED'},'RECORD_CREATE_UPDATE'),false);assert.equal(hasPermission(null,'FINANCIAL_DATA_READ'),false);});
+test('manager upload and viewer finance access mirror backend role matrix',()=>{assert.equal(hasPermission({role:'MANAGER',membershipStatus:'ACTIVE'},'DOCUMENT_UPLOAD'),true);assert.equal(hasPermission({role:'MANAGER',membershipStatus:'ACTIVE'},'DOCUMENT_CONFIRM'),false);assert.equal(hasPermission({role:'VIEWER',membershipStatus:'ACTIVE'},'DOCUMENT_READ'),false);assert.equal(hasPermission({role:'ACCOUNTANT',membershipStatus:'ACTIVE'},'WHATSAPP_CONFIG_MANAGE'),false);});
+test('route permissions keep restricted screens out of navigation',()=>{assert.equal(routePermission('/upload/123'),'DOCUMENT_READ');assert.equal(routePermission('/records/new'),'RECORD_CREATE_UPDATE');assert.equal(routePermission('/sharia-zakat'),'ZAKAT_READ_CALCULATE');});
+test('score not found is empty, forbidden and unavailable are errors',async()=>{backend(()=>Response.json({message:'not found'},{status:404}));assert.equal(await financeApi.score('2026-09'),null);});
+test('canonical completeness fraction maps to percent without changing score',()=>{assert.equal(completenessPercent(.85),85);assert.equal(completenessPercent(0),0);});
+test('search destination ignores server-supplied external links',()=>{assert.equal(searchDestination({type:'transaction',date:'2026-09',href:'javascript:alert(1)'}),'/records/2026-09');assert.equal(searchDestination({type:'transaction',date:'invalid',href:'https://evil.test'}),null);assert.equal(searchDestination({type:'document',href:'//evil.test'}),null);});
+test('protected file URLs accept only document UUIDs',()=>{assert.equal(documentFilePath(businessId),`/api/documents/${businessId}/file`);assert.throws(()=>documentFilePath('../auth/logout'));});
+test('confirmation transmits exact reviewed fields and never supplies identity',async()=>{const input={targetMonth:'2026-09',confirmedAmount:123,confirmedDate:null,confirmedParty:null,targetClassification:'revenue',cashFlowImpact:'cash_inflow',initialCashBalanceEom:0};backend((url,options)=>{assert.equal(url,`/api/documents/${businessId}/confirm`);assert.deepEqual(JSON.parse(options.body),input);return Response.json({id:businessId});});await documentsApi.confirm(businessId,input);});
+test('Zakat blank is unknown and zero remains zero',()=>{assert.equal(optionalNumber(''),null);assert.equal(optionalNumber('0'),0);assert.throws(()=>optionalNumber('not a number'));assert.throws(()=>optionalNumber('-1'));});
+test('Zakat monthly preview sends declarations and preserves incomplete result',async()=>{const input={assessment:{haulStatus:'UNKNOWN'},inventory:null,receivables:null,currentPayables:null,principalDueWithin12LunarMonths:null,principalExcludedFromPayables:null,unsupportedCategories:null};backend((url,options)=>{assert.equal(url,'/api/zakat/monthly/preview');assert.deepEqual(JSON.parse(options.body),{month:'2026-09',...input});return Response.json({calculationStatus:'INCOMPLETE',zakatDue:null});});const result=await zakatApi.monthly('2026-09',input);assert.equal(result.zakatDue,null);assert.equal(result.calculationStatus,'INCOMPLETE');});
 
-// Exercise the actual TypeScript API modules using Node's test runner, without a test framework.
-const sourceDirectory = fileURLToPath(new URL("../src/lib/api/", import.meta.url));
-const compiledDirectory = mkdtempSync(path.join(tmpdir(), "finsight-api-tests-"));
-const modules = ["client", "session", "contracts", "phase-one", "config"];
-for (const name of modules) {
-  const source = readFileSync(path.join(sourceDirectory, `${name}.ts`), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
-  writeFileSync(path.join(compiledDirectory, `${name}.js`), outputText);
-}
-const require = createRequire(import.meta.url);
-const { apiClient, ApiError } = require(path.join(compiledDirectory, "client.js"));
-const { phaseOneApi } = require(path.join(compiledDirectory, "phase-one.js"));
-const session = require(path.join(compiledDirectory, "session.js"));
-const userId = "389b6bc4-efc4-4d06-9267-a41a2fae9a27";
-const otherId = "4ceafcb6-703c-4e79-ab4b-9f69c0fbb581";
-const record = {
-  userId, month: "2026-09", cashInflow: 0, cashOutflow: 0, revenue: 0,
-  operatingExpenses: 0, cashBalanceEom: 0, cogs: null,
-  receivablesOutstanding: null, payablesOutstanding: null, inventoryValue: null,
-  loanOutstanding: null, interestExpense: null, financingType: "none",
-};
-const originalWindow = globalThis.window;
-let storedValues;
+test('an old 401 response cannot invalidate the newly selected business',async()=>{let finish;backend(()=>new Promise(resolve=>{finish=resolve;}));const request=phaseOneApi.getMonthlyRecords();client.invalidatePrivateRequests();client.allowPrivateRequests();finish(Response.json({message:'old session'},{status:401}));await assert.rejects(()=>request,e=>e.name==='AbortError');mock.restoreAll();backend(()=>Response.json([]));assert.deepEqual(await phaseOneApi.getMonthlyRecords(),[]);});
 
-beforeEach(() => {
-  storedValues = new Map();
-  globalThis.window = { dispatchEvent: () => true, localStorage: {
-    getItem: (key) => storedValues.get(key) ?? null,
-    setItem: (key, value) => storedValues.set(key, value),
-    removeItem: (key) => storedValues.delete(key),
-  } };
+const {teamApi}=require(path.join(dir,'team.js'));
+const {scorePresentation,scoreBand,adviceMatchesScore}=require(path.join(dir,'score-presentation.js'));
+const {currentDocumentDraft,parseDocumentData}=require(path.join(dir,'documents.js'));
+test('all backend score bands including weak and zero scores are rendered without recalculation',()=>{
+ const componentScores={cashflow:12,profitability:34,repayment:null,trend:null,compliance:0};
+ for(const [wire,view] of [['Strong','strong'],['Stable','stable'],['Needs Attention','attention'],['At Risk','risk']]) {
+  const score={compositeScore:0,band:wire,componentScores,dataCompleteness:.65,weakestComponent:'compliance',explanation:{historyMonthsAvailable:1}};
+  const shown=scorePresentation(score);assert.equal(shown.composite_score,0);assert.equal(shown.score_band,view);assert.equal(shown.component_scores,componentScores);assert.equal(shown.component_scores.repayment,null);assert.equal(shown.is_provisional,true);assert.equal(shown.data_completeness,65);
+ }
+ assert.equal(scoreBand('unexpected'),null);assert.equal(scorePresentation({compositeScore:null,band:'Strong'}),null);assert.equal(scorePresentation({compositeScore:99,band:'unexpected'}),null);
 });
-
-afterEach(() => {
-  mock.restoreAll();
-  if (originalWindow === undefined) delete globalThis.window;
-  else globalThis.window = originalWindow;
+test('history uses a tenant-free read and preserves missing months and historical methodology',async()=>{
+ const saved=[{month:'2026-09',methodologyVersion:'health-score-v1',explanation:{overallDelta:null}},{month:'2026-07',methodologyVersion:null,explanation:null}];backend((url,options)=>{assert.equal(url,'/api/scores/history');assert.equal(options.method,'GET');assert.equal(options.body,undefined);return Response.json(saved);});assert.deepEqual(await financeApi.scoreHistory(),saved);
 });
-
-after(() => {
-  // Remove only the known generated files, then the now-empty temporary directory.
-  for (const name of modules) unlinkSync(path.join(compiledDirectory, `${name}.js`));
-  rmdirSync(compiledDirectory);
+test('advice is rejected when its tenant, month or source computation does not match score',()=>{
+ const score={businessId,month:'2026-09',computedAt:'2026-09-30T00:00:00Z'},advice={businessId,month:score.month,sourceComputedAt:score.computedAt};assert.equal(adviceMatchesScore(advice,score),true);
+ for(const delta of [{businessId:'other'},{month:'2026-08'},{sourceComputedAt:'old'}])assert.equal(adviceMatchesScore({...advice,...delta},score),false);
 });
-
-test("reads use the same-origin API and the backend's user/month routes", async () => {
-  const calls = [];
-  mock.method(globalThis, "fetch", async (url, options) => {
-    calls.push({ url, options });
-    return Response.json({ userId });
-  });
-  await phaseOneApi.getProfile(userId);
-  await phaseOneApi.getMonthlyRecords(userId);
-  await phaseOneApi.getMonthlyRecord(userId, "2026-09");
-  assert.deepEqual(calls.map(({ url }) => url), [
-    `/api/profile/${userId}`, `/api/records/monthly/${userId}`,
-    `/api/records/monthly/${userId}/2026-09`,
-  ]);
-  assert.ok(calls.every(({ options }) => options.cache === "no-store"));
+test('recommendation status sends only the requested lifecycle state with CSRF',async()=>{
+ backend((url,options)=>{assert.equal(url,`/api/recommendations/${businessId}/status`);assert.equal(options.method,'PATCH');assert.deepEqual(JSON.parse(options.body),{status:'DONE'});assert.equal(options.headers.get('X-XSRF-TOKEN'),'csrf-test');return Response.json({id:businessId,status:'DONE'});});assert.equal((await financeApi.updateRecommendationStatus(businessId,'DONE')).status,'DONE');
 });
-
-test("record creation preserves zero values and explicit missing optional fields", async () => {
-  mock.method(globalThis, "fetch", async (url, options) => {
-    assert.equal(url, "/api/records/monthly");
-    assert.equal(options.method, "POST");
-    assert.equal(options.headers.get("Content-Type"), "application/json");
-    assert.deepEqual(JSON.parse(options.body), record);
-    return Response.json({ ...record, id: "saved", updatedAt: "2026-09-23T12:00:00" }, { status: 201 });
-  });
-  const saved = await phaseOneApi.createMonthlyRecord(record);
-  assert.equal(saved.cogs, null);
-  assert.equal(saved.cashInflow, 0);
-  assert.equal(saved.userId, userId);
+test('team invitations resolve email server-side and updates omit supplied identity',async()=>{
+ backend();await teamApi.invite(' person@example.test ','ACCOUNTANT');assert.deepEqual(JSON.parse(calls.at(-1).options.body),{email:'person@example.test',role:'ACCOUNTANT'});
+ await teamApi.update(businessId,{role:'MANAGER',status:'SUSPENDED',businessId:'injected',userId:'injected'});assert.deepEqual(JSON.parse(calls.at(-1).options.body),{role:'MANAGER',status:'SUSPENDED'});
+ await teamApi.rename(' Shop name ');assert.deepEqual(JSON.parse(calls.at(-1).options.body),{businessName:'Shop name'});assert.equal(calls.at(-1).url,'/api/businesses/active/name');
 });
-
-test("record updates POST an upsert for the selected identity and original month", async () => {
-  mock.method(globalThis, "fetch", async (url, options) => {
-    assert.equal(url, "/api/records/monthly");
-    assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), record);
-    return Response.json(record, { status: 201 });
-  });
-  await phaseOneApi.updateMonthlyRecord(userId, "2026-09", { ...record, userId: otherId, month: "2026-08" });
+test('invitation acceptance and decline use invitation reference without arbitrary user IDs',async()=>{
+ backend(()=>new Response(null,{status:204}));await teamApi.respond(businessId,true);assert.equal(calls.at(-1).url,`/api/invitations/${businessId}/accept`);assert.equal(calls.at(-1).options.body,undefined);await teamApi.respond(businessId,false);assert.equal(calls.at(-1).url,`/api/invitations/${businessId}/decline`);assert.throws(()=>teamApi.remove('../auth/logout'));
 });
-
-test("profile creation and language update send only their backend request contracts", async () => {
-  const calls = [];
-  mock.method(globalThis, "fetch", async (url, options) => {
-    calls.push({ url, method: options.method, body: JSON.parse(options.body) });
-    return Response.json({ userId, businessType: "services", languagePreference: "ur" });
-  });
-  const profile = { userId, businessType: "services", languagePreference: "en", whatsappNumber: null, whatsappOptIn: false };
-  await phaseOneApi.createProfile(profile);
-  await phaseOneApi.updateLanguage(userId, "ur");
-  assert.deepEqual(calls, [
-    { url: "/api/profile", method: "POST", body: profile },
-    { url: `/api/profile/${userId}/language`, method: "PATCH", body: { languagePreference: "ur" } },
-  ]);
+test('membership and recommendation controls preserve existing role permissions',()=>{
+ for(const role of ['OWNER','ACCOUNTANT','MANAGER','VIEWER']) {const business={role,membershipStatus:'ACTIVE'};assert.equal(hasPermission(business,'MEMBERSHIP_MANAGE'),role==='OWNER');assert.equal(hasPermission(business,'BUSINESS_SETTINGS_MANAGE'),role==='OWNER');assert.equal(hasPermission(business,'RECORD_CREATE_UPDATE'),['OWNER','ACCOUNTANT'].includes(role));}
+ assert.equal(hasPermission({role:'OWNER',membershipStatus:'INVITED'},'MEMBERSHIP_MANAGE'),false);
 });
-
-test("server validation remains an error, including the current COGS restriction", async () => {
-  mock.method(globalThis, "fetch", async (_url, options) => {
-    assert.equal(JSON.parse(options.body).cogs, null);
-    return Response.json({ message: "COGS is required", errors: { cogs: "COGS is required" } }, { status: 400 });
-  });
-  await assert.rejects(phaseOneApi.createMonthlyRecord(record), (error) => {
-    assert.ok(error instanceof ApiError);
-    assert.equal(error.status, 400);
-    assert.equal(error.message, "COGS is required");
-    assert.deepEqual(error.fieldErrors, { cogs: "COGS is required" });
-    return true;
-  });
+test('search destinations include saved score months and protected document IDs but ignore arbitrary href',()=>{
+ assert.equal(searchDestination({type:'document',id:businessId,href:'https://evil.test'}),`/upload/${businessId}`);assert.equal(searchDestination({type:'document',id:'../../secret'}),null);assert.equal(searchDestination({type:'score',date:'2026-07',href:'javascript:alert(1)'}),'/health/components?month=2026-07');assert.equal(searchDestination({type:'recommendation',date:'2026-09'}),'/health/components?month=2026-09');
 });
-
-test("empty-body not-found responses retain the HTTP status", async () => {
-  mock.method(globalThis, "fetch", async () => new Response(null, { status: 404, statusText: "Not Found" }));
-  await assert.rejects(phaseOneApi.getMonthlyRecord(userId, "2026-09"), { name: "ApiError", status: 404 });
+test('reviewed draft takes precedence while original extraction and machine confidence remain unchanged',()=>{
+ const original=JSON.stringify({amount:100,confidence:'low'}),reviewed=JSON.stringify({amount:125,confidence:'low'}),doc={extractedData:original,reviewedData:reviewed};assert.deepEqual(currentDocumentDraft(doc),{amount:125,confidence:'low'});assert.equal(doc.extractedData,original);assert.deepEqual(currentDocumentDraft({...doc,reviewedData:null}),{amount:100,confidence:'low'});assert.deepEqual(parseDocumentData('[]'),{});assert.deepEqual(parseDocumentData('invalid'),{});
 });
-
-test("network failures do not return sample data and cancellation is preserved", async () => {
-  mock.method(globalThis, "fetch", async () => { throw new TypeError("fetch failed"); });
-  await assert.rejects(phaseOneApi.getMonthlyRecords(userId), { name: "ApiError", status: 0 });
-  mock.restoreAll();
-  const aborted = new DOMException("Cancelled", "AbortError");
-  mock.method(globalThis, "fetch", async () => { throw aborted; });
-  await assert.rejects(apiClient("/profile", { signal: AbortSignal.abort() }), (error) => error === aborted);
-});
-
-test("invalid successful JSON is reported as a backend response error", async () => {
-  mock.method(globalThis, "fetch", async () => new Response("<html>proxy error</html>", { status: 200 }));
-  await assert.rejects(phaseOneApi.getProfile(userId), { name: "ApiError", status: 200, message: "The backend returned an invalid response." });
-});
-
-test("Headers objects supplied by callers are retained", async () => {
-  mock.method(globalThis, "fetch", async (_url, options) => {
-    assert.equal(options.headers.get("X-Request-ID"), "request-1");
-    assert.equal(options.headers.get("Accept"), "application/json");
-    return new Response(null, { status: 204 });
-  });
-  assert.equal(await apiClient("/profile", { headers: new Headers({ "X-Request-ID": "request-1" }) }), undefined);
-});
-
-test("invalid identities and months are rejected before sending a request", () => {
-  const fetchMock = mock.method(globalThis, "fetch", async () => Response.json({}));
-  assert.throws(() => phaseOneApi.getProfile("user-001"), /UUID/);
-  assert.throws(() => phaseOneApi.getMonthlyRecord(userId, "2026-13"), /YYYY-MM/);
-  assert.throws(() => phaseOneApi.getMonthlyRecord(userId, "2026-9"), /YYYY-MM/);
-  assert.equal(fetchMock.mock.callCount(), 0);
-});
-
-test("browser profile UUIDs survive retries, while cached mock identities are rejected", () => {
-  storedValues.set("finsight_user_id", "user-001");
-  assert.equal(session.getUserId(), null);
-  const generated = session.getOrCreateUserId();
-  assert.ok(session.isValidUserId(generated));
-  assert.equal(session.getOrCreateUserId(), generated);
-  assert.equal(session.getUserId(), null);
-  session.setUserId(userId.toUpperCase());
-  assert.equal(session.getUserId(), userId);
-  assert.throws(() => session.setUserId("user-001"), /UUID/);
-  session.clearUserId();
-  assert.equal(session.getUserId(), null);
-});
-
-test("creating a new profile never reuses or replaces the active profile before success", () => {
-  const notifications = [];
-  globalThis.window.dispatchEvent = (event) => { notifications.push(event.type); return true; };
-  session.setUserId(userId);
-  const candidate = session.getOrCreateUserId();
-  assert.notEqual(candidate, userId);
-  assert.equal(session.getUserId(), userId);
-  assert.equal(session.getOrCreateUserId(), candidate);
-  assert.equal(storedValues.get("finsight_pending_user_id"), candidate);
-  session.setUserId(candidate);
-  assert.equal(session.getUserId(), candidate);
-  assert.equal(storedValues.has("finsight_pending_user_id"), false);
-  assert.deepEqual(notifications, ["storage", "storage"]);
-});
-
-test("failed profile creation keeps the candidate retryable without activating it", async () => {
-  const candidate = session.getOrCreateUserId();
-  mock.method(globalThis, "fetch", async () => Response.json({ message: "Validation failed" }, { status: 400 }));
-  await assert.rejects(phaseOneApi.createProfile({ userId: candidate, businessType: "services" }), { status: 400 });
-  assert.equal(session.getUserId(), null);
-  assert.equal(session.getOrCreateUserId(), candidate);
-});
-
-test("server rendering and unavailable storage never invent an ephemeral identity", () => {
-  delete globalThis.window;
-  assert.equal(session.getUserId(), null);
-  assert.throws(() => session.getOrCreateUserId(), /browser/);
-  globalThis.window = { localStorage: {
-    getItem() { throw new Error("denied"); },
-    setItem() { throw new Error("denied"); },
-  } };
-  assert.equal(session.getUserId(), null);
-  assert.throws(() => session.getOrCreateUserId(), /browser storage/);
-});
-
-test("live mode is the default; demo mode requires explicit configuration", () => {
-  const previous = process.env.NEXT_PUBLIC_DATA_MODE;
-  const configPath = path.join(compiledDirectory, "config.js");
-  try {
-    delete process.env.NEXT_PUBLIC_DATA_MODE;
-    delete require.cache[configPath];
-    assert.equal(require(configPath).isDemoMode, false);
-    process.env.NEXT_PUBLIC_DATA_MODE = "demo";
-    delete require.cache[configPath];
-    assert.equal(require(configPath).isDemoMode, true);
-  } finally {
-    if (previous === undefined) delete process.env.NEXT_PUBLIC_DATA_MODE;
-    else process.env.NEXT_PUBLIC_DATA_MODE = previous;
-  }
-});
+test('correction history is a protected document-scoped read',async()=>{backend((url,options)=>{assert.equal(url,`/api/documents/${businessId}/corrections`);assert.equal(options.method,'GET');return Response.json([{id:'audit',actorIsCurrentUser:true,changedFields:['amount']}]);});assert.equal((await documentsApi.corrections(businessId))[0].actorIsCurrentUser,true);});

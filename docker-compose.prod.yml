@@ -1,0 +1,307 @@
+services:
+  postgres:
+    image: finsight-postgres:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.postgres
+    container_name: finsight-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sme_health
+      POSTGRES_USER: finsight_dba
+      POSTGRES_PASSWORD_FILE: /run/secrets/dba_db_password
+      POSTGRES_INITDB_ARGS: --auth-local=scram-sha-256 --auth-host=scram-sha-256
+    secrets:
+      - dba_db_password
+      - migrator_db_password
+      - app_db_password
+      - backup_db_password
+      - postgres_server_key
+    # S8-3: NO public port mapping - isolated to internal database network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./certs/postgres-server.crt:/etc/finsight/certs/postgres-server.crt:ro
+      - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+    healthcheck:
+      # The bootstrap server listens only on its Unix socket. Check TCP so a
+      # migration cannot race the temporary server before role initialization.
+      test: ["CMD", "pg_isready", "-h", "postgres.finsight.internal", "-U", "finsight_app", "-d", "sme_health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      finsight-db-net:
+        aliases:
+          - postgres.finsight.internal
+          - postgres
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend-migration:
+    image: finsight-backend:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: finsight-migration-job
+    profiles: ["migration"]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod,migrate
+      DB_HOST: postgres.finsight.internal
+      DB_PORT: 5432
+      DB_NAME: sme_health
+      DB_SSL_ROOT_CERT: /etc/finsight/certs/postgres-ca.crt
+    secrets:
+      - migrator_db_password
+    volumes:
+      - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+    networks:
+      - finsight-db-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+  backend-runtime:
+    image: finsight-backend:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: finsight-backend-runtime
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres.finsight.internal
+      DB_PORT: 5432
+      DB_NAME: sme_health
+      DB_SSL_ROOT_CERT: /etc/finsight/certs/postgres-ca.crt
+      FINSIGHT_CRYPTO_ACTIVE_KEY_ID: k1
+      APP_SECURITY_PROXY_TRUSTED_IPS: 172.28.20.0/24,127.0.0.1
+      APP_PUBLIC_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN to the public HTTPS hostname}
+      DOCUMENTS_STORAGE_DIR: /storage/documents
+      OCR_INTEGRATION_ENABLED: "true"
+      OCR_SERVICE_URL: https://ai.finsight.internal:8000
+      OCR_SERVICE_KEY_FILE: /run/secrets/ocr_service_key
+      OCR_SSL_ROOT_CERT: /etc/finsight/certs/ai-ca.crt
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME}
+      SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM}
+    secrets:
+      - app_db_password
+      - crypto_key_k1
+      - ocr_service_key
+      - smtp_password
+    volumes:
+      - ./certs/postgres-ca.crt:/etc/finsight/certs/postgres-ca.crt:ro
+      - ./certs/ai-ca.crt:/etc/finsight/certs/ai-ca.crt:ro
+      - document_storage:/storage
+    networks:
+      finsight-db-net:
+      finsight-web-net:
+        aliases:
+          - backend-runtime
+          - backend
+      finsight-ai-net:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+      ai-service:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  storage-init:
+    image: alpine:3.22
+    user: "0:0"
+    restart: "no"
+    network_mode: none
+    command: ["sh", "-ec", "mkdir -p /storage/documents && chown -R 10001:10001 /storage/documents && chmod 0700 /storage/documents"]
+    volumes:
+      - document_storage:/storage
+    security_opt:
+      - no-new-privileges:true
+
+  ai-service:
+    image: finsight-ai:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ai
+    container_name: finsight-ai-service
+    restart: unless-stopped
+    environment:
+      AI_SSL_CERTFILE: /etc/finsight/certs/ai-server.crt
+      AI_SSL_KEYFILE: /run/secrets/ai_server_key
+      AI_REQUIRE_TLS: "true"
+      OCR_SERVICE_SECRET_FILE: /run/secrets/ocr_service_key
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google_vision_credentials
+      # gRPC and Google Auth HTTPS both use the allowlisted CONNECT proxy.
+      grpc_proxy: http://ocr-egress-proxy:3128
+      HTTPS_PROXY: http://ocr-egress-proxy:3128
+      NO_PROXY: localhost,127.0.0.1,ai.finsight.internal
+    secrets:
+      - ocr_service_key
+      - ai_server_key
+      - google_vision_credentials
+    volumes:
+      - ./certs/ai-server.crt:/etc/finsight/certs/ai-server.crt:ro
+    networks:
+      finsight-ai-net:
+        aliases:
+          - ai-service
+          - ai.finsight.internal
+      finsight-ai-egress-net:
+    depends_on:
+      - ocr-egress-proxy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend-runtime:
+    image: finsight-frontend:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: finsight-frontend-runtime
+    restart: unless-stopped
+    environment:
+      # Private service: Nginx overwrites x-nonce with its own request ID.
+      # Never enable this for a directly exposed Next server.
+      TRUST_INGRESS_NONCE: "true"
+    networks:
+      finsight-web-net:
+        aliases:
+          - frontend-runtime
+          - frontend
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: finsight-nginx:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nginx
+    container_name: finsight-nginx-edge
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the public HTTPS hostname}
+    secrets:
+      - edge_server_key
+    # S8-3: Only Nginx exposes host ports (80 -> HTTP redirect, 443 -> public HTTPS)
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./certs/edge.crt:/etc/nginx/certs/edge.crt:ro
+    networks:
+      - finsight-web-net
+    depends_on:
+      - backend-runtime
+      - frontend-runtime
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ocr-egress-proxy:
+    image: finsight-ocr-egress:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ocr-egress
+    restart: unless-stopped
+    networks:
+      - finsight-ai-egress-net
+      - finsight-provider-egress-net
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  dba_db_password:
+    file: ./secrets/dba_db_password
+  backup_db_password:
+    file: ./secrets/backup_db_password
+  migrator_db_password:
+    file: ./secrets/migrator_db_password
+  app_db_password:
+    file: ./secrets/app_db_password
+  crypto_key_k1:
+    file: ./secrets/crypto_key_k1
+  ocr_service_key:
+    file: ./secrets/ocr_service_key
+  smtp_password:
+    file: ./secrets/smtp_password
+  google_vision_credentials:
+    file: ./secrets/google_vision_credentials.json
+  postgres_server_key:
+    file: ./certs/postgres-server.key
+  ai_server_key:
+    file: ./certs/ai-server.key
+  edge_server_key:
+    file: ./certs/edge.key
+
+volumes:
+  postgres_data:
+  document_storage:
+
+networks:
+  # S8-3: Isolated Database Network (Internal only)
+  finsight-db-net:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.10.0/24
+
+  # S8-3: Isolated Web Routing Network
+  finsight-web-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.20.0/24
+
+  # S8-3: Isolated AI / OCR Network (Internal only)
+  finsight-ai-net:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.30.0/24
+
+  # Only AI can reach the CONNECT proxy; only the proxy has direct provider egress.
+  finsight-ai-egress-net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.40.0/24
+
+  finsight-provider-egress-net:
+    driver: bridge

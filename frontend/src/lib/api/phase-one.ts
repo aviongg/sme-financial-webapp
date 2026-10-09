@@ -1,65 +1,22 @@
-import { apiClient } from "./client";
-import { isValidUserId } from "./session";
-import type {
-  BusinessProfileRequest,
-  BusinessProfileResponse,
-  LanguagePreference,
-  MonthlyRecordRequest,
-  MonthlyRecordResponse,
-} from "./contracts";
-
-function userPath(userId: string): string {
-  if (!isValidUserId(userId)) throw new Error("A valid profile UUID is required.");
-  return encodeURIComponent(userId);
+import { apiClient } from './client';
+import type { BusinessProfileResponse, LanguagePreference, MonthlyRecordRequest, MonthlyRecordResponse } from './contracts';
+export function validMonth(month: string) { if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+    throw new Error('Use a valid month (YYYY-MM).'); return month; }
+/** Explicit allowlist prevents legacy userId/businessId or arbitrary form fields being sent. */
+export function recordPayload(request: MonthlyRecordRequest): MonthlyRecordRequest {
+    return { month: validMonth(request.month), cashInflow: request.cashInflow, cashOutflow: request.cashOutflow,
+        revenue: request.revenue, operatingExpenses: request.operatingExpenses, cashBalanceEom: request.cashBalanceEom,
+        cogs: request.cogs ?? null, receivablesOutstanding: request.receivablesOutstanding ?? null,
+        payablesOutstanding: request.payablesOutstanding ?? null, inventoryValue: request.inventoryValue ?? null,
+        loanOutstanding: request.loanOutstanding ?? null, interestExpense: request.interestExpense ?? null, financingType: request.financingType ?? 'none' };
 }
-
-function monthPath(month: string): string {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Month must use YYYY-MM format.");
-  return encodeURIComponent(month);
-}
-
-function saveMonthlyRecord(request: MonthlyRecordRequest): Promise<MonthlyRecordResponse> {
-  userPath(request.userId);
-  monthPath(request.month);
-  return apiClient<MonthlyRecordResponse>("/records/monthly", {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
-}
-
+const save = (request: MonthlyRecordRequest) => apiClient<MonthlyRecordResponse>('/records/monthly', { method: 'POST', body: JSON.stringify(recordPayload(request)) });
 export const phaseOneApi = {
-  getProfile(userId: string): Promise<BusinessProfileResponse> {
-    return apiClient(`/profile/${userPath(userId)}`);
-  },
-
-  createProfile(request: BusinessProfileRequest): Promise<BusinessProfileResponse> {
-    userPath(request.userId);
-    return apiClient("/profile", { method: "POST", body: JSON.stringify(request) });
-  },
-
-  updateLanguage(userId: string, language: LanguagePreference): Promise<BusinessProfileResponse> {
-    return apiClient(`/profile/${userPath(userId)}/language`, {
-      method: "PATCH",
-      body: JSON.stringify({ languagePreference: language }),
-    });
-  },
-
-  getMonthlyRecords(userId: string): Promise<MonthlyRecordResponse[]> {
-    return apiClient(`/records/monthly/${userPath(userId)}`);
-  },
-
-  getMonthlyRecord(userId: string, month: string): Promise<MonthlyRecordResponse> {
-    return apiClient(`/records/monthly/${userPath(userId)}/${monthPath(month)}`);
-  },
-
-  createMonthlyRecord: saveMonthlyRecord,
-
-  updateMonthlyRecord(
-    userId: string,
-    month: string,
-    request: Omit<MonthlyRecordRequest, "userId" | "month">
-  ): Promise<MonthlyRecordResponse> {
-    // The backend upserts by (userId, month), including full replacement of optional fields.
-    return saveMonthlyRecord({ ...request, userId, month });
-  },
+    getProfile: () => apiClient<BusinessProfileResponse>('/profile'),
+    updateLanguage: (languagePreference: LanguagePreference) => apiClient<BusinessProfileResponse>('/profile/language', { method: 'PATCH', body: JSON.stringify({ languagePreference }) }),
+    updateWhatsApp: (whatsappNumber: string | null, optIn: boolean) => apiClient<BusinessProfileResponse>('/profile/whatsapp', { method: 'PATCH', body: JSON.stringify({ whatsappNumber, optIn }) }),
+    getMonthlyRecords: (signal?: AbortSignal) => apiClient<MonthlyRecordResponse[]>('/records/monthly', { signal }),
+    getMonthlyRecord: (month: string, signal?: AbortSignal) => apiClient<MonthlyRecordResponse>('/records/monthly/query', { method: 'POST', body: JSON.stringify({ month: validMonth(month) }), signal }),
+    createMonthlyRecord: save,
+    updateMonthlyRecord: (month: string, request: MonthlyRecordRequest) => save({ ...request, month }),
 };

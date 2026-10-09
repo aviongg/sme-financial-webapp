@@ -1,0 +1,12 @@
+{
+  "source": "OSV API",
+  "checked_at": "2026-10-02T18:27:42.281014+00:00",
+  "scope": "npm lock including dev/optional; pinned Python; Maven resolved test classpath including runtime and test dependencies. Not reachability or container scanning.",
+  "queried_counts": {
+    "Maven": 136,
+    "PyPI": 42,
+    "npm": 441
+  },
+  "package_matches": [],
+  "errors": []
+}

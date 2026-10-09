@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   agentRules: false,
+  output: "standalone",
+  poweredByHeader: false,
   async rewrites() {
     // Server-only origin keeps browser requests same-origin without backend CORS changes.
     const backendOrigin = (process.env.BACKEND_API_URL || "http://localhost:8080").replace(/\/+$/, "");

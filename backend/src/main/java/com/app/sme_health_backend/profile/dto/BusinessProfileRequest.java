@@ -1,16 +1,10 @@
 package com.app.sme_health_backend.profile.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
 public class BusinessProfileRequest {
-
-    @NotNull(message = "User ID is required")
-    private UUID userId;
 
     @NotBlank(message = "Business type is required")
     @Size(max = 20, message = "Business type must not exceed 20 characters")
@@ -39,13 +33,15 @@ public class BusinessProfileRequest {
 
     private boolean whatsappOptIn = false;
 
-    public UUID getUserId() {
-        return userId;
-    }
+    @Pattern(
+            regexp = "immediate|2weeks|1month_plus|irregular",
+            message = "paymentBehavior must be one of: immediate, 2weeks, 1month_plus, irregular"
+    )
+    private String paymentBehavior;
 
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
+    private Boolean ntnRegistered;
+
+    private Boolean businessRegistered;
 
     public String getBusinessType() {
         return businessType;
@@ -77,5 +73,29 @@ public class BusinessProfileRequest {
 
     public void setWhatsappOptIn(boolean whatsappOptIn) {
         this.whatsappOptIn = whatsappOptIn;
+    }
+
+    public String getPaymentBehavior() {
+        return paymentBehavior;
+    }
+
+    public void setPaymentBehavior(String paymentBehavior) {
+        this.paymentBehavior = paymentBehavior;
+    }
+
+    public Boolean getNtnRegistered() {
+        return ntnRegistered;
+    }
+
+    public void setNtnRegistered(Boolean ntnRegistered) {
+        this.ntnRegistered = ntnRegistered;
+    }
+
+    public Boolean getBusinessRegistered() {
+        return businessRegistered;
+    }
+
+    public void setBusinessRegistered(Boolean businessRegistered) {
+        this.businessRegistered = businessRegistered;
     }
 }

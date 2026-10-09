@@ -1,9 +1,9 @@
 package com.app.sme_health_backend.recommendation.service;
 
-import com.app.i18n.TranslationService;
+import com.app.sme_health_backend.i18n.TranslationService;
 import com.app.sme_health_backend.recommendation.entity.Recommendation;
 import com.app.sme_health_backend.recommendation.repository.RecommendationRepository;
-import com.app.sme_health_backend.score.dto.ScoreResult;
+import com.app.sme_health_backend.scoring.entity.ScoreResult;
 import com.app.sme_health_backend.shared.advice.AdviceContext;
 import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import org.springframework.stereotype.Service;
@@ -12,59 +12,64 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class RecommendationService {
 
+    private static final BigDecimal COMPLETE_DATA_THRESHOLD =
+            new BigDecimal("0.80");
     private static final BigDecimal LOW_SCORE_THRESHOLD =
             new BigDecimal("60.00");
     private static final BigDecimal STRONG_SCORE_THRESHOLD =
             new BigDecimal("80.00");
-    private static final BigDecimal COMPLETE_DATA_THRESHOLD =
-            new BigDecimal("0.80");
 
     private final RecommendationRepository recommendationRepository;
     private final AdviceContextService adviceContextService;
     private final TranslationService translationService;
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
     public RecommendationService(
             RecommendationRepository recommendationRepository,
             AdviceContextService adviceContextService,
             TranslationService translationService
     ) {
+        this(recommendationRepository, adviceContextService, translationService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecommendationService(RecommendationRepository recommendationRepository,
+            AdviceContextService adviceContextService, TranslationService translationService,
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService) {
+        this.auditService = auditService;
         this.recommendationRepository = recommendationRepository;
         this.adviceContextService = adviceContextService;
         this.translationService = translationService;
     }
 
+    /** Returns advice for the latest persisted score; absent scores have no advice. */
     @Transactional
     public List<Recommendation> getRecommendations(UUID userId) {
-        return getRecommendations(userId, null);
+        validateUserId(userId);
+        return adviceContextService.latest(userId)
+                .map(this::refreshRecommendations)
+                .orElseGet(List::of);
     }
 
-    /** Returns advice for the requested month, or the latest persisted score. */
+    /** An explicit month never falls back to a different month's score. */
     @Transactional
     public List<Recommendation> getRecommendations(UUID userId, String month) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (month == null) {
+            return getRecommendations(userId);
         }
-        return (month == null
-                ? adviceContextService.latest(userId)
-                : adviceContextService.forMonth(userId, month))
+        validateUserId(userId);
+        return adviceContextService.forMonth(userId, month)
                 .map(this::refreshRecommendations)
                 .orElseGet(List::of);
     }
 
     @Transactional
-    public List<Recommendation> generateAndSaveRecommendations(
-            ScoreResult scoreResult
-    ) {
+    public List<Recommendation> generateAndSaveRecommendations(ScoreResult scoreResult) {
         validateScoreResult(scoreResult);
         return refreshRecommendations(adviceContextService.forScore(scoreResult));
     }
@@ -72,71 +77,118 @@ public class RecommendationService {
     private List<Recommendation> refreshRecommendations(AdviceContext context) {
         ScoreResult score = context.score();
         List<Recommendation> expected = generateRecommendations(score, context.language());
-        expected.forEach(recommendation -> {
-            recommendation.setSourceVersion(context.sourceVersion());
-            recommendation.setLanguage(context.language());
-            recommendation.setSourceComputedAt(score.getComputedAt());
-        });
-        List<Recommendation> stored = recommendationRepository
-                .findByUserIdAndMonthOrderByCreatedAtDesc(score.getUserId(), score.getMonth());
+        expected.forEach(recommendation -> recommendation.setSourceVersion(context.sourceVersion()));
+        List<Recommendation> existing = recommendationRepository.findByUserIdAndMonthOrderByCreatedAtDesc(
+                score.getUserId(), score.getMonth());
 
-        // Compare every category and its content, so legacy or partial rows cannot
-        // conceal missing advice. Return existing rows to retain stable IDs.
-        if (stored.size() == expected.size()
-                && expected.stream().allMatch(wanted -> stored.stream()
-                        .filter(actual -> sameRecommendation(actual, wanted)).count() == 1)) {
-            return expected.stream().map(wanted -> stored.stream()
-                    .filter(actual -> Objects.equals(actual.getCategory(), wanted.getCategory()))
-                    .findFirst().orElseThrow()).toList();
+        List<Recommendation> matching = matchingRecommendations(existing, expected);
+        if (matching != null) {
+            return matching;
         }
 
-        recommendationRepository.deleteByUserIdAndMonth(score.getUserId(), score.getMonth());
-        // Hibernate may otherwise insert new rows before executing deferred deletes.
-        recommendationRepository.flush();
-        return recommendationRepository.saveAll(expected);
+        // The profile lock serializes regeneration with status edits. Update surviving
+        // categories in place so translation/rules changes preserve IDs and user action state.
+        Map<String, Recommendation> byCategory = new HashMap<>();
+        existing.forEach(item -> byCategory.put(item.getCategory(), item));
+        List<Recommendation> result = new ArrayList<>();
+        for (Recommendation wanted : expected) {
+            Recommendation stored = byCategory.remove(wanted.getCategory());
+            if (stored == null) {
+                result.add(wanted);
+                continue;
+            }
+            if (!Objects.equals(stored.getSourceComputedAt(), wanted.getSourceComputedAt())) {
+                stored.setStatus(com.app.sme_health_backend.recommendation.entity.RecommendationStatus.NEW);
+                stored.setStatusUpdatedAt(null);
+            }
+            stored.setText(wanted.getText());
+            stored.setPriority(wanted.getPriority());
+            stored.setLanguage(wanted.getLanguage());
+            stored.setSourceVersion(wanted.getSourceVersion());
+            stored.setSourceComputedAt(wanted.getSourceComputedAt());
+            result.add(stored);
+        }
+        if (!byCategory.isEmpty()) recommendationRepository.deleteAll(byCategory.values());
+        return recommendationRepository.saveAll(result);
     }
 
-    private boolean sameRecommendation(Recommendation actual, Recommendation expected) {
-        return Objects.equals(actual.getUserId(), expected.getUserId())
-                && Objects.equals(actual.getMonth(), expected.getMonth())
-                && Objects.equals(actual.getCategory(), expected.getCategory())
-                && Objects.equals(actual.getText(), expected.getText())
-                && Objects.equals(actual.getPriority(), expected.getPriority())
-                && Objects.equals(actual.getLanguage(), expected.getLanguage())
-                && Objects.equals(actual.getSourceVersion(), expected.getSourceVersion())
-                && Objects.equals(actual.getSourceComputedAt(), expected.getSourceComputedAt());
+    @Transactional
+    public Recommendation updateStatus(UUID businessId, UUID recommendationId,
+            com.app.sme_health_backend.recommendation.entity.RecommendationStatus status, UUID actorId) {
+        if (status == null) throw new IllegalArgumentException("Recommendation status is required");
+        // Read only a scalar before the lock: loading the entity here would retain stale
+        // managed fields if another status edit commits while this request waits for the profile.
+        String month = recommendationRepository.findMonthByIdAndUserId(recommendationId, businessId)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        // Acquire the same lock/order used by regeneration before locking the individual row.
+        AdviceContext context = adviceContextService.forMonth(businessId, month)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        refreshRecommendations(context);
+        Recommendation stored = recommendationRepository.findScopedForUpdate(recommendationId, businessId)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Recommendation not found"));
+        var previous = stored.getStatus();
+        if (previous == status) return stored;
+        stored.setStatus(status);
+        stored.setStatusUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+        Recommendation saved = recommendationRepository.save(stored);
+        if (auditService != null) auditService.logSuccess(
+                com.app.sme_health_backend.audit.model.AuditEventType.RECOMMENDATION_STATUS_CHANGED,
+                actorId, null, businessId, "recommendation", recommendationId.toString(),
+                Map.of("previousStatus", previous.name(), "status", status.name()));
+        return saved;
     }
 
-    public List<Recommendation> generateRecommendations(
-            ScoreResult scoreResult
+    private List<Recommendation> matchingRecommendations(
+            List<Recommendation> existing,
+            List<Recommendation> expected
     ) {
-        return generateRecommendations(
-                scoreResult,
-                TranslationService.DEFAULT_LANGUAGE
-        );
+        if (existing.size() != expected.size()) {
+            return null;
+        }
+        Map<String, Recommendation> byCategory = new HashMap<>();
+        for (Recommendation recommendation : existing) {
+            if (byCategory.put(recommendation.getCategory(), recommendation) != null) {
+                return null;
+            }
+        }
+        List<Recommendation> ordered = new ArrayList<>();
+        for (Recommendation wanted : expected) {
+            Recommendation stored = byCategory.get(wanted.getCategory());
+            if (stored == null
+                    || !Objects.equals(stored.getUserId(), wanted.getUserId())
+                    || !Objects.equals(stored.getMonth(), wanted.getMonth())
+                    || !Objects.equals(stored.getText(), wanted.getText())
+                    || !Objects.equals(stored.getPriority(), wanted.getPriority())
+                    || !Objects.equals(stored.getLanguage(), wanted.getLanguage())
+                    || !Objects.equals(stored.getSourceVersion(), wanted.getSourceVersion())
+                    || !Objects.equals(stored.getSourceComputedAt(), wanted.getSourceComputedAt())) {
+                return null;
+            }
+            ordered.add(stored);
+        }
+        return ordered;
     }
 
-    public List<Recommendation> generateRecommendations(
-            ScoreResult scoreResult,
-            String language
-    ) {
+    public List<Recommendation> generateRecommendations(ScoreResult scoreResult) {
+        return generateRecommendations(scoreResult, TranslationService.DEFAULT_LANGUAGE);
+    }
+
+    public List<Recommendation> generateRecommendations(ScoreResult scoreResult, String language) {
         validateScoreResult(scoreResult);
 
         List<Recommendation> recommendations = new ArrayList<>();
         String selectedLanguage = translationService.resolveLanguage(language);
         String weakestComponent = scoreResult.getWeakestComponent();
-        BigDecimal weakestScore = componentScore(
-                scoreResult.getComponentScores(),
-                weakestComponent
-        );
+        Map<String, BigDecimal> componentScores = scoreResult.getComponentScores() != null
+                ? scoreResult.getComponentScores().toMap()
+                : Map.of();
+        BigDecimal weakestScore = componentScores.get(weakestComponent);
 
+        var evidenceAdvice = new com.app.sme_health_backend.shared.advice.EvidenceAdvice(translationService);
+        String evidenceAction = evidenceAdvice.action(scoreResult, selectedLanguage);
         recommendations.add(createRecommendation(
                 scoreResult,
-                weakestComponentText(
-                        selectedLanguage,
-                        weakestComponent,
-                        weakestScore
-                ),
+                evidenceAction != null ? evidenceAction : weakestComponentText(selectedLanguage, weakestComponent, weakestScore),
                 weakestComponent,
                 componentPriority(weakestScore, scoreResult.getBand())
         ));
@@ -148,24 +200,18 @@ public class RecommendationService {
                 bandPriority(scoreResult.getBand())
         ));
 
-        if (scoreResult.getDataCompleteness()
-                .compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
+        String missingEvidence = evidenceAdvice.dataQuality(scoreResult, selectedLanguage, true);
+        if (scoreResult.getDataCompleteness().compareTo(COMPLETE_DATA_THRESHOLD) < 0) {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    translationService.translate(
-                            selectedLanguage,
-                            "recommendation.data_quality.incomplete"
-                    ),
+                    missingEvidence != null ? missingEvidence : translationService.translate(selectedLanguage, "recommendation.data_quality.incomplete"),
                     "data_quality",
                     "high"
             ));
         } else {
             recommendations.add(createRecommendation(
                     scoreResult,
-                    translationService.translate(
-                            selectedLanguage,
-                            "recommendation.data_quality.complete"
-                    ),
+                    missingEvidence != null ? missingEvidence : translationService.translate(selectedLanguage, "recommendation.data_quality.complete"),
                     "data_quality",
                     "low"
             ));
@@ -185,14 +231,12 @@ public class RecommendationService {
             String priority
     ) {
         Recommendation recommendation = new Recommendation();
-
         recommendation.setUserId(scoreResult.getUserId());
         recommendation.setMonth(scoreResult.getMonth());
         recommendation.setText(text);
         recommendation.setCategory(category);
         recommendation.setPriority(priority);
         recommendation.setCreatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
-
         return recommendation;
     }
 
@@ -224,51 +268,25 @@ public class RecommendationService {
 
     private String overallBandText(String language, String band) {
         return switch (normalizedBand(band)) {
-            case "strong" ->
-                    translationService.translate(
-                            language,
-                            "recommendation.overall.strong"
-                    );
-            case "stable" ->
-                    translationService.translate(
-                            language,
-                            "recommendation.overall.stable"
-                    );
-            case "needs_attention" ->
-                    translationService.translate(
-                            language,
-                            "recommendation.overall.needs_attention"
-                    );
-            case "at_risk" ->
-                    translationService.translate(
-                            language,
-                            "recommendation.overall.at_risk"
-                    );
-            default ->
-                    translationService.translate(
-                            language,
-                            "recommendation.overall.unknown",
-                            Map.of("band", band)
-                    );
+            case "strong" -> translationService.translate(language, "recommendation.overall.strong");
+            case "stable" -> translationService.translate(language, "recommendation.overall.stable");
+            case "needs_attention" -> translationService.translate(language, "recommendation.overall.needs_attention");
+            case "at_risk" -> translationService.translate(language, "recommendation.overall.at_risk");
+            default -> translationService.translate(language, "recommendation.overall.unknown",
+                    Map.of("band", band == null ? "" : band));
         };
     }
 
-    private String componentPriority(
-            BigDecimal componentScore,
-            String band
-    ) {
+    private String componentPriority(BigDecimal componentScore, String band) {
         if (componentScore == null) {
             return bandPriority(band);
         }
-
         if (componentScore.compareTo(LOW_SCORE_THRESHOLD) < 0) {
             return "high";
         }
-
         if (componentScore.compareTo(STRONG_SCORE_THRESHOLD) >= 0) {
             return "low";
         }
-
         return "medium";
     }
 
@@ -280,75 +298,53 @@ public class RecommendationService {
         };
     }
 
-    private BigDecimal componentScore(
-            Map<String, BigDecimal> componentScores,
-            String component
-    ) {
-        BigDecimal exactScore = componentScores.get(component);
-        if (exactScore != null) {
-            return exactScore;
-        }
-
-        for (Map.Entry<String, BigDecimal> entry : componentScores.entrySet()) {
-            if (entry.getKey() != null
-                    && entry.getKey().equalsIgnoreCase(component)) {
-                return entry.getValue();
-            }
-        }
-
-        return null;
-    }
-
     private String normalizedBand(String band) {
-        return band.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
+        return band == null ? "" : band.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }
 
     private String componentAction(String language, String component) {
         String normalizedComponent = normalizedComponent(component);
         String key = switch (normalizedComponent) {
-            case "cashflow" ->
-                    "recommendation.cashflow.improve";
-            case "profitability" ->
-                    "recommendation.profitability.improve";
-            case "repayment" ->
-                    "recommendation.repayment.improve";
-            case "trend" ->
-                    "recommendation.trend.improve";
-            case "compliance" ->
-                    "recommendation.compliance.improve";
-            default ->
-                    "recommendation.default.improve";
+            case "cashflow" -> "recommendation.cashflow.improve";
+            case "profitability" -> "recommendation.profitability.improve";
+            case "repayment" -> "recommendation.repayment.improve";
+            case "trend" -> "recommendation.trend.improve";
+            case "compliance" -> "recommendation.compliance.improve";
+            default -> "recommendation.default.improve";
         };
-
         return translationService.translate(language, key);
     }
 
     private String displayName(String language, String component) {
         if (component == null || component.isBlank()) {
-            return translationService.translate(
-                    language,
-                    "component.weakest_component"
-            );
+            return translationService.translate(language, "component.weakest_component");
         }
-
         String key = "component." + normalizedComponent(component);
-
         if (translationService.hasKey(key)) {
             return translationService.translate(language, key);
         }
-
         return component.replace('_', ' ');
     }
 
     private String normalizedComponent(String component) {
-        return component.trim().toLowerCase(Locale.ROOT);
+        return component == null ? "" : component.trim().toLowerCase(Locale.ROOT);
     }
 
     private void validateScoreResult(ScoreResult scoreResult) {
         if (scoreResult == null) {
             throw new IllegalArgumentException("Score result is required");
         }
+        if (scoreResult.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (scoreResult.getMonth() == null) {
+            throw new IllegalArgumentException("Month is required");
+        }
+    }
 
-        scoreResult.validate();
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
     }
 }

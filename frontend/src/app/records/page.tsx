@@ -23,7 +23,7 @@ import { mockApi } from "@/lib/api/adapter";
 import { ApiError } from "@/lib/api/client";
 import { isDemoMode } from "@/lib/api/config";
 import { phaseOneApi } from "@/lib/api/phase-one";
-import { getUserId } from "@/lib/api/session";
+import { useSession } from "@/components/auth/SessionProvider";
 import { cn } from "@/lib/utils/cn";
 import { formatPKR } from "@/lib/utils/currency";
 import type { MonthlyRecordResponse } from "@/types/financial";
@@ -31,6 +31,8 @@ import type { MonthlyRecordResponse } from "@/types/financial";
 export default function RecordsListPage() {
   const { t, direction, locale } = useLanguage();
   const router = useRouter();
+  const { can } = useSession();
+  const canWrite = isDemoMode || can("RECORD_CREATE_UPDATE");
   const [records, setRecords] = useState<MonthlyRecordResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<"load" | "profile" | null>(null);
@@ -38,12 +40,7 @@ export default function RecordsListPage() {
 
   useEffect(() => {
     let isCancelled = false;
-    const userId = getUserId();
-    if (!isDemoMode && !userId) {
-      router.replace("/onboarding");
-      return;
-    }
-    const request = isDemoMode ? mockApi.getMonthlyRecords() : phaseOneApi.getMonthlyRecords(userId!);
+    const request = isDemoMode ? mockApi.getMonthlyRecords() : phaseOneApi.getMonthlyRecords();
     request
       .then((data) => {
         if (!isCancelled) {
@@ -87,13 +84,13 @@ export default function RecordsListPage() {
 
       <Container width="dashboard" className="py-6 sm:py-8 space-y-6">
         {/* Record action belongs with the table it adds to. */}
-        <div className="flex justify-end">
+        {canWrite && <div className="flex justify-end">
           <Link href="/records/new">
             <Button variant="primary" size="sm" leftIcon={<Plus />}>
               {t.dashboard.addMonthlyRecord}
             </Button>
           </Link>
-        </div>
+        </div>}
 
         {isLoading ? (
           <Card elevation={0} padding="lg" className="border-[var(--color-border-default)] space-y-4">
@@ -122,8 +119,8 @@ export default function RecordsListPage() {
             icon={<CalendarCheck className="w-8 h-8" />}
             title={t.dashboard.emptyTitle}
             description={isDemoMode ? t.dashboard.emptyDescription : (locale === "ur" ? "اپنی آمدن، اخراجات اور نقد بیلنس محفوظ کرنے کے لیے پہلا مہینہ شامل کریں۔" : "Add your first month to save your income, expenses and cash balance.")}
-            actionLabel={t.dashboard.emptyAction}
-            actionHref="/records/new"
+            actionLabel={canWrite ? t.dashboard.emptyAction : undefined}
+            actionHref={canWrite ? "/records/new" : undefined}
           />
         ) : (
           <Card elevation={0} padding="none" className="border-[var(--color-border-default)] overflow-hidden">
@@ -197,7 +194,7 @@ export default function RecordsListPage() {
                               className="text-[12px] text-[var(--color-brand-primary)]"
                               leftIcon={<Edit3 className="w-3.5 h-3.5" />}
                             >
-                              {t.common.edit}
+                              {canWrite ? t.common.edit : (locale === "ur" ? "دیکھیں" : "View")}
                             </Button>
                           </Link>
                         </td>

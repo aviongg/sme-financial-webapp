@@ -1,28 +1,25 @@
 package com.app.sme_health_backend.documents.ocr;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.net.URI;
 import java.util.Objects;
+import java.util.UUID;
 
 public record OcrRequest(
-        @JsonProperty("image_url") String imageUrl,
-        @JsonProperty("document_type_hint") OcrExtraction.DocumentType documentTypeHint
+        UUID documentId,
+        byte[] fileBytes,
+        String filename,
+        String contentType,
+        OcrExtraction.DocumentType documentTypeHint
 ) {
     public OcrRequest {
         Objects.requireNonNull(documentTypeHint, "document type hint is required");
-        if (imageUrl == null || imageUrl.isBlank()) {
-            throw new IllegalArgumentException("An HTTP(S) document URL is required");
+        if (fileBytes == null || fileBytes.length == 0) {
+            throw new IllegalArgumentException("Document file bytes are required");
         }
-        URI uri;
-        try {
-            uri = URI.create(imageUrl);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Invalid document URL");
-        }
-        if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
-                || uri.getHost() == null || uri.getUserInfo() != null || uri.getFragment() != null) {
-            throw new IllegalArgumentException("An HTTP(S) document URL without credentials or fragment is required");
-        }
+        filename = (filename == null || filename.isBlank()) ? "document.bin" : filename.strip();
+        contentType = (contentType == null || contentType.isBlank()) ? "application/octet-stream" : contentType.strip();
+    }
+
+    public OcrRequest(byte[] fileBytes, String contentType, OcrExtraction.DocumentType documentTypeHint) {
+        this(null, fileBytes, "document.bin", contentType, documentTypeHint);
     }
 }

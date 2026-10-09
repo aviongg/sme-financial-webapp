@@ -2,8 +2,8 @@ package com.app.sme_health_backend.shared.advice;
 
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
-import com.app.sme_health_backend.score.dto.ScoreResult;
-import com.app.sme_health_backend.score.repository.ScoreResultReader;
+import com.app.sme_health_backend.scoring.entity.ScoreResult;
+import com.app.sme_health_backend.scoring.repository.ScoreResultRepository;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,36 +12,43 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Shared locked snapshot for insight and recommendation generation. */
+/** Shared locked snapshot for insight and recommendation generation using canonical ScoreResult. */
 @Service
 @Transactional
 public class AdviceContextService {
 
     // Bump whenever advice rules or translation wording changes to regenerate existing output.
-    private static final String RULES_VERSION = "phase1-advice-v1";
+    private static final String RULES_VERSION = "mvp-evidence-advice-v2";
+    private static final List<String> COMPONENT_KEYS = List.of(
+            "cashflow", "profitability", "repayment", "trend", "compliance"
+    );
 
-    private final ScoreResultReader scoreResultReader;
+    private final ScoreResultRepository scoreResultRepository;
     private final BusinessProfileRepository businessProfileRepository;
 
-    public AdviceContextService(ScoreResultReader scoreResultReader,
+    public AdviceContextService(ScoreResultRepository scoreResultRepository,
                                 BusinessProfileRepository businessProfileRepository) {
-        this.scoreResultReader = scoreResultReader;
+        this.scoreResultRepository = scoreResultRepository;
         this.businessProfileRepository = businessProfileRepository;
     }
 
     public Optional<AdviceContext> latest(UUID userId) {
         BusinessProfile profile = lockProfile(userId);
-        return scoreResultReader.findLatest(userId).map(score -> context(score, profile));
+        return scoreResultRepository.findLatestLocked(userId).map(score -> context(score, profile));
     }
 
     public Optional<AdviceContext> forMonth(UUID userId, String month) {
-        ScoreResult.validateMonth(month);
+        validateMonth(month);
         BusinessProfile profile = lockProfile(userId);
-        return scoreResultReader.findByUserIdAndMonth(userId, month).map(score -> context(score, profile));
+        return scoreResultRepository.findByUserIdAndMonthLocked(userId, month).map(score -> context(score, profile));
     }
 
     /** Explicit generation is allowed only for the current persisted snapshot of that month. */
@@ -49,11 +56,14 @@ public class AdviceContextService {
         if (supplied == null) {
             throw new IllegalArgumentException("Score result is required");
         }
-        supplied.validate();
+        if (supplied.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        validateMonth(supplied.getMonth());
         BusinessProfile profile = lockProfile(supplied.getUserId());
-        ScoreResult persisted = scoreResultReader.findByUserIdAndMonth(supplied.getUserId(), supplied.getMonth())
+        ScoreResult persisted = scoreResultRepository.findByUserIdAndMonthLocked(supplied.getUserId(), supplied.getMonth())
                 .orElseThrow(() -> new IllegalArgumentException("Score must be persisted before generating advice"));
-        persisted.validate();
+
         if (!canonicalScore(supplied).equals(canonicalScore(persisted))) {
             throw new IllegalArgumentException("Score snapshot is stale; reload the persisted score before generating advice");
         }
@@ -69,12 +79,9 @@ public class AdviceContextService {
     }
 
     private AdviceContext context(ScoreResult score, BusinessProfile profile) {
-        score.validate();
-        String previousMonth = ScoreResult.validateMonth(score.getMonth()).minusMonths(1).toString();
-        ScoreResult previous = scoreResultReader.findByUserIdAndMonth(score.getUserId(), previousMonth).orElse(null);
-        if (previous != null) {
-            previous.validate();
-        }
+        String previousMonth = validateMonth(score.getMonth()).minusMonths(1).toString();
+        ScoreResult previous = scoreResultRepository.findByUserIdAndMonthLocked(score.getUserId(), previousMonth).orElse(null);
+
         String language = profile.getLanguagePreference();
         if (!"en".equals(language) && !"ur".equals(language)) {
             throw new IllegalStateException("Persisted language preference must be en or ur");
@@ -87,19 +94,46 @@ public class AdviceContextService {
         return new AdviceContext(score, previous, language, sha256(source.toString()));
     }
 
+    public static YearMonth validateMonth(String month) {
+        if (month == null || !month.matches("[0-9]{4}-(0[1-9]|1[0-2])")) {
+            throw new IllegalArgumentException("Month must be in YYYY-MM format");
+        }
+        try {
+            return YearMonth.parse(month);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("Month must be in YYYY-MM format", exception);
+        }
+    }
+
     private static String canonicalScore(ScoreResult score) {
         StringBuilder source = new StringBuilder();
         append(source, score.getUserId().toString());
         append(source, score.getMonth());
         append(source, decimal(score.getCompositeScore()));
         append(source, score.getBand());
-        for (String key : ScoreResult.COMPONENT_KEYS) {
+        Map<String, BigDecimal> components = score.getComponentScores() != null
+                ? score.getComponentScores().toMap()
+                : Map.of();
+        for (String key : COMPONENT_KEYS) {
             append(source, key);
-            append(source, decimal(score.getComponentScores().get(key)));
+            append(source, decimal(components.get(key)));
+        }
+        append(source, score.getMethodologyVersion());
+        if (score.getExplanation() == null) {
+            append(source, null);
+        } else {
+            var evidence = score.getExplanation();
+            append(source, Integer.toString(evidence.historyMonthsAvailable()));
+            append(source, evidence.previousMonth());
+            append(source, decimal(evidence.previousScore()));
+            append(source, decimal(evidence.overallDelta()));
+            // PostgreSQL jsonb may reorder object keys; canonicalize components explicitly.
+            for (String key : COMPONENT_KEYS) append(source, String.valueOf(evidence.components().get(key)));
+            append(source, evidence.majorChanges().toString());
         }
         append(source, score.getWeakestComponent());
         append(source, decimal(score.getDataCompleteness()));
-        append(source, score.getComputedAt().toString());
+        append(source, score.getComputedAt() != null ? score.getComputedAt().toString() : null);
         return source.toString();
     }
 
@@ -108,7 +142,6 @@ public class AdviceContextService {
     }
 
     private static void append(StringBuilder output, String value) {
-        // Length-prefixing avoids collisions between nulls, delimiters, and adjacent fields.
         output.append(value == null ? "-1:" : value.length() + ":" + value);
     }
 

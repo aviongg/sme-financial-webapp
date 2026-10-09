@@ -10,10 +10,7 @@ public interface InsightRepository extends JpaRepository<Insight, UUID> {
 
     List<Insight> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    List<Insight> findByUserIdAndMonthOrderByCreatedAtDesc(
-            UUID userId,
-            String month
-    );
+    List<Insight> findByUserIdAndMonthOrderByCreatedAtDesc(UUID userId, String month);
 
     void deleteByUserIdAndMonth(UUID userId, String month);
 }

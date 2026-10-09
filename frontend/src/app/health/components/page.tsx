@@ -1,4 +1,7 @@
 "use client";
+import { isDemoMode } from "@/lib/api/config";
+import { LiveHealth } from "@/components/integration/LiveHealth";
+export default function ComponentBreakdownPage(){ return isDemoMode ? <DemoPage/> : <LiveHealth/>; }
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -52,7 +55,7 @@ function PieChartIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function ComponentBreakdownPage() {
+function DemoPage() {
   const { t, direction } = useLanguage();
   const [components, setComponents] = useState<ComponentDetailItem[]>([]);
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);

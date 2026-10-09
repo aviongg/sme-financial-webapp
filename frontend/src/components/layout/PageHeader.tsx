@@ -57,9 +57,9 @@ export function PageHeader({
         {/* Global Controls & Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ms-auto">
           {/* Keyword Search Trigger (Section 5.4) */}
-          {isDemoMode && <button
+          {<button
             type="button"
-            onClick={() => setIsSearchOpen(true)}
+            onClick={() => isDemoMode ? setIsSearchOpen(true) : router.push("/search")}
             aria-label={t.search.title}
             className="flex items-center gap-2 h-9 px-3 rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] text-[13px] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
           >

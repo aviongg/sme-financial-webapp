@@ -90,7 +90,7 @@ export function ScoreCompleteness({
         {/* Explanatory Reassurance */}
         <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed">
           {isFull
-            ? "All 5 core pillars are active, delivering maximum score confidence."
+            ? t.live.allPillars
             : t.dashboard.scorePrecisionHelp}
         </p>
       </div>

@@ -3,39 +3,12 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Literal
-from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 DocumentType = Literal["receipt", "invoice", "bank_statement", "unknown"]
 Category = Literal["sales", "expense", "purchase", "unknown"]
 Confidence = Literal["high", "medium", "low"]
-
-
-def validate_url(value: str) -> str:
-    """Validate syntax only; trust/size checks belong to the document loader."""
-    try:
-        parsed = urlsplit(value)
-        valid = (
-            parsed.scheme in ("http", "https") and parsed.hostname
-            and not parsed.username and not parsed.password and not parsed.fragment
-            and not any(c.isspace() or ord(c) < 32 for c in value)
-            and "\\" not in value and parsed.port in (None, 80, 443)
-        )
-        if not valid:
-            raise ValueError()
-        parsed.hostname.encode("idna")
-    except (ValueError, UnicodeError):
-        raise ValueError("A valid HTTP(S) document URL is required") from None
-    return value
-
-
-class ExtractRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    image_url: str = Field(min_length=1)
-    document_type_hint: DocumentType
-
-    _url = field_validator("image_url")(validate_url)
 
 
 class ExtractResponse(BaseModel):

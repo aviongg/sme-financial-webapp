@@ -15,6 +15,7 @@ dependencies = [
   "google-cloud-vision>=3.10,<4",
   "Pillow>=11,<13",
   "pypdf>=6,<7",
+  "python-multipart>=0.0.18",
 ]
 
 [project.optional-dependencies]

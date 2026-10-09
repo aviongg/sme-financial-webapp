@@ -1,56 +1,31 @@
-/** A development profile selector, not authentication or proof of ownership. */
-const USER_ID_KEY = "finsight_user_id";
-const PENDING_USER_ID_KEY = "finsight_pending_user_id";
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function isValidUserId(value: string): boolean {
-  return UUID_PATTERN.test(value);
+export type AuthStage = 'FULLY_AUTHENTICATED' | 'PASSWORD_CHANGE_REQUIRED' | 'MFA_ENROLLMENT_REQUIRED' | 'MFA_CHALLENGE_REQUIRED';
+export interface AuthUser {
+    id: string;
+    email: string;
+    fullName: string;
+    authStage: AuthStage;
+    mustChangePassword: boolean;
+    accountStatus: string;
+    platformRole: string | null;
 }
-
-function readStoredId(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const value = window.localStorage.getItem(key);
-    return value && isValidUserId(value) ? value.toLowerCase() : null;
-  } catch {
-    return null;
-  }
+export type Role = 'OWNER' | 'ACCOUNTANT' | 'MANAGER' | 'VIEWER';
+export interface BusinessSummary {
+    businessName: string;
+    businessId: string;
+    businessType: string;
+    languagePreference: 'en' | 'ur';
+    role: Role;
+    membershipStatus: string;
+    active: boolean;
 }
-
-export function getUserId(): string | null {
-  return readStoredId(USER_ID_KEY);
-}
-
-export function setUserId(id: string): void {
-  if (!isValidUserId(id)) throw new Error("A valid profile UUID is required.");
-  if (typeof window === "undefined") throw new Error("Profile selection is available in the browser only.");
-  try {
-    window.localStorage.setItem(USER_ID_KEY, id.toLowerCase());
-    window.localStorage.removeItem(PENDING_USER_ID_KEY);
-  } catch {
-    throw new Error("Allow browser storage to keep your profile selection, then try again.");
-  }
-  window.dispatchEvent(new Event("storage"));
-}
-
-export function clearUserId(): void {
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(USER_ID_KEY);
-    window.localStorage.removeItem(PENDING_USER_ID_KEY);
-    window.dispatchEvent(new Event("storage"));
-  }
-}
-
-/** Stable candidate for profile creation; activate it only after the backend confirms it. */
-export function getOrCreateUserId(): string {
-  const pending = readStoredId(PENDING_USER_ID_KEY);
-  if (pending) return pending;
-  if (typeof window === "undefined") throw new Error("Profile selection is available in the browser only.");
-  const id = crypto.randomUUID();
-  try {
-    window.localStorage.setItem(PENDING_USER_ID_KEY, id);
-  } catch {
-    throw new Error("Allow browser storage to keep your profile selection, then try again.");
-  }
-  return id;
+export type Permission = 'FINANCIAL_DATA_READ' | 'RECORD_CREATE_UPDATE' | 'DOCUMENT_UPLOAD' | 'DOCUMENT_READ' | 'DOCUMENT_CONFIRM' | 'DOCUMENT_DELETE' | 'DOCUMENT_EDIT' | 'SCORE_CALCULATE' | 'ZAKAT_READ_CALCULATE' | 'BUSINESS_SETTINGS_MANAGE' | 'WHATSAPP_CONFIG_MANAGE' | 'MEMBERSHIP_MANAGE';
+const permissions: Record<Role, readonly Permission[]> = {
+    OWNER: ['FINANCIAL_DATA_READ', 'RECORD_CREATE_UPDATE', 'DOCUMENT_UPLOAD', 'DOCUMENT_READ', 'DOCUMENT_CONFIRM', 'DOCUMENT_DELETE', 'DOCUMENT_EDIT', 'SCORE_CALCULATE', 'ZAKAT_READ_CALCULATE', 'BUSINESS_SETTINGS_MANAGE', 'WHATSAPP_CONFIG_MANAGE', 'MEMBERSHIP_MANAGE'],
+    ACCOUNTANT: ['FINANCIAL_DATA_READ', 'RECORD_CREATE_UPDATE', 'DOCUMENT_UPLOAD', 'DOCUMENT_READ', 'DOCUMENT_CONFIRM', 'DOCUMENT_DELETE', 'DOCUMENT_EDIT', 'SCORE_CALCULATE', 'ZAKAT_READ_CALCULATE'],
+    MANAGER: ['FINANCIAL_DATA_READ', 'DOCUMENT_UPLOAD', 'DOCUMENT_READ', 'ZAKAT_READ_CALCULATE'],
+    VIEWER: ['FINANCIAL_DATA_READ'],
+};
+/** Presentation only; every endpoint independently enforces authorization. */
+export function hasPermission(business: BusinessSummary | null, permission: Permission) {
+    return business?.membershipStatus === 'ACTIVE' && !!permissions[business.role]?.includes(permission);
 }

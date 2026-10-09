@@ -3,6 +3,7 @@ package com.app.sme_health_backend.documents.ocr;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 
 /** One request only: provider retries belong exclusively to the Python extraction service. */
 public final class HttpOcrClient implements OcrClient {
@@ -19,10 +20,24 @@ public final class HttpOcrClient implements OcrClient {
     @Override
     public OcrExtraction extract(OcrRequest request) {
         Objects.requireNonNull(request);
+        String boundary = "----FinSightBoundary" + UUID.randomUUID().toString().replace("-", "");
+        byte[] body;
+        try {
+            body = OcrMultipartBuilder.build(boundary, request);
+        } catch (IOException e) {
+            throw new OcrClientException(OcrClientException.Reason.invalid_request);
+        }
+
         OcrHttpTransport.Response response;
         try {
-            response = transport.post(settings.extractEndpoint(), codec.encode(request), settings.requestTimeout(),
-                    settings.maxResponseBytes());
+            response = transport.postMultipart(
+                    settings.extractEndpoint(),
+                    boundary,
+                    body,
+                    settings.serviceSecret(),
+                    settings.requestTimeout(),
+                    settings.maxResponseBytes()
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new OcrClientException(OcrClientException.Reason.unavailable);
