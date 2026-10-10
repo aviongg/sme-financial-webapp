@@ -1,0 +1,435 @@
+{
+  "status": "ILLUSTRATIVE_DRAFT_NOT_APPROVED_OR_EXECUTED",
+  "purpose": "Parseable request examples and explicitly partial response DTO snippets. Not JSON schemas, producer tests, or implemented endpoints. Policy NOT_APPROVED and illustrative event/module keys must fail closed in production until frozen. Idempotency-Key and authenticated context supplied out-of-band.",
+  "contracts": {
+    "C01": {
+      "request": {
+        "occurredOn": "2026-10-10",
+        "eventType": "CASH_EXPENSE",
+        "source": {
+          "type": "manual",
+          "id": "11111111-1111-4111-8111-111111111111",
+          "lineId": null,
+          "revision": 1
+        },
+        "categoryId": "22222222-2222-4222-8222-222222222222",
+        "projectId": null,
+        "original": {
+          "amount": "100.00",
+          "currency": "PKR"
+        },
+        "fxLockId": null,
+        "movements": [
+          {
+            "accountId": "22222222-2222-4222-8222-222222222222",
+            "direction": "OUT",
+            "amount": {
+              "amount": "100.00",
+              "currency": "PKR"
+            }
+          }
+        ],
+        "recognitionCode": "ILLUSTRATIVE_EXPENSE",
+        "policyVersion": "NOT_APPROVED"
+      },
+      "responseSnippet": {
+        "eventId": "11111111-1111-4111-8111-111111111111",
+        "status": "POSTED",
+        "cashEffects": [
+          {
+            "accountId": "22222222-2222-4222-8222-222222222222",
+            "signedBaseAmount": "-100.00"
+          }
+        ],
+        "recognitionEffects": [
+          {
+            "metric": "OPERATING_EXPENSE",
+            "signedBaseAmount": "100.00"
+          }
+        ]
+      }
+    },
+    "C02": {
+      "request": {
+        "cutoverMonth": "2026-11",
+        "baseCurrency": "PKR",
+        "openingBalances": [
+          {
+            "accountId": "11111111-1111-4111-8111-111111111111",
+            "amount": {
+              "amount": "1000.00",
+              "currency": "PKR"
+            }
+          }
+        ],
+        "openingObligations": [],
+        "inventoryOpeningSnapshot": null,
+        "previewVersion": "preview-1",
+        "policyVersion": "NOT_APPROVED"
+      },
+      "responseSnippet": {
+        "conflicts": [
+          {
+            "month": "2026-11",
+            "reasonCode": "existing_snapshot"
+          }
+        ]
+      }
+    },
+    "C03": {
+      "request": {
+        "operatingProfile": "PROJECT_ORDER",
+        "operatingAnswers": {
+          "tracksProjects": true,
+          "holdsInventory": false
+        },
+        "requestedModules": [
+          "projects",
+          "invoices"
+        ],
+        "terminology": null,
+        "version": 1
+      },
+      "responseSnippet": {
+        "businessId": "11111111-1111-4111-8111-111111111111",
+        "resolvedModules": [
+          "core"
+        ],
+        "unavailableModules": [
+          {
+            "key": "projects",
+            "reasonCode": "producer_not_implemented"
+          },
+          {
+            "key": "invoices",
+            "reasonCode": "producer_not_implemented"
+          }
+        ],
+        "recommendedPresetKey": "project-order",
+        "registryVersion": "1.0-draft"
+      }
+    },
+    "C04": {
+      "request": {
+        "paidOn": "2026-10-10",
+        "accountId": "11111111-1111-4111-8111-111111111111",
+        "counterpartyId": "22222222-2222-4222-8222-222222222222",
+        "direction": "RECEIPT",
+        "original": {
+          "amount": "350.00",
+          "currency": "PKR"
+        },
+        "settlementQuoteId": null,
+        "allocations": [
+          {
+            "obligationId": "11111111-1111-4111-8111-111111111111",
+            "amount": {
+              "amount": "300.00",
+              "currency": "PKR"
+            }
+          }
+        ]
+      },
+      "responseSnippet": {
+        "paymentId": "22222222-2222-4222-8222-222222222222",
+        "postingEventId": "11111111-1111-4111-8111-111111111111",
+        "unallocatedAdvance": {
+          "amount": "50.00",
+          "currency": "PKR"
+        }
+      }
+    },
+    "C05": {
+      "request": {
+        "source": {
+          "type": "invoice",
+          "id": "11111111-1111-4111-8111-111111111111",
+          "lineId": null,
+          "revision": 1
+        },
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "categoryId": "11111111-1111-4111-8111-111111111111",
+        "allocatedBaseAmount": "800.00",
+        "allocationPolicyVersion": "NOT_APPROVED",
+        "version": 1
+      },
+      "responseSnippet": {
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "recognizedRevenue": {
+          "amount": "1200.00",
+          "currency": "PKR"
+        },
+        "recognizedCost": {
+          "amount": "800.00",
+          "currency": "PKR"
+        },
+        "profit": {
+          "amount": "400.00",
+          "currency": "PKR"
+        },
+        "budgetVariance": {
+          "amount": "200.00",
+          "currency": "PKR"
+        },
+        "marginPct": null,
+        "note": "Margin output scale pending policy; recognized input fixture only."
+      }
+    },
+    "C06": {
+      "request": {
+        "projectId": "11111111-1111-4111-8111-111111111111",
+        "budgetRevision": "22222222-2222-4222-8222-222222222222",
+        "openingAvailableCash": {
+          "amount": "0.00",
+          "currency": "PKR"
+        },
+        "lines": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "sourcePlanLineId": null,
+            "direction": "OUT",
+            "amount": {
+              "amount": "200.00",
+              "currency": "PKR"
+            },
+            "expectedOn": "2026-10-10",
+            "settledSourceRefs": []
+          },
+          {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "sourcePlanLineId": null,
+            "direction": "IN",
+            "amount": {
+              "amount": "300.00",
+              "currency": "PKR"
+            },
+            "expectedOn": "2026-10-12",
+            "settledSourceRefs": []
+          }
+        ],
+        "version": 1,
+        "policyVersion": "NOT_APPROVED"
+      },
+      "responseSnippet": {
+        "peakFunding": {
+          "amount": "200.00",
+          "currency": "PKR"
+        },
+        "peakDate": "2026-10-10",
+        "recoveryDate": "2026-10-12",
+        "assumptions": [
+          "Opening available cash is zero.",
+          "No actual settlement is also counted as an additional plan line."
+        ]
+      }
+    },
+    "C07": {
+      "request": {
+        "itemId": "11111111-1111-4111-8111-111111111111",
+        "kind": "ISSUE",
+        "quantity": "4",
+        "occurredOn": "2026-10-10",
+        "source": {
+          "type": "material_usage",
+          "id": "22222222-2222-4222-8222-222222222222",
+          "lineId": null,
+          "revision": 1
+        },
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "originalCost": null,
+        "fxLockId": null,
+        "reversesMovementId": null,
+        "version": 1,
+        "valuationPolicyVersion": "NOT_APPROVED"
+      },
+      "precondition": "20 units at aggregate value 300.00; approved issue classification required.",
+      "responseSnippet": {
+        "movementId": "11111111-1111-4111-8111-111111111111",
+        "onHand": "16",
+        "weightedAverageUnitCost": {
+          "amount": "15.00",
+          "currency": "PKR"
+        },
+        "inventoryValue": {
+          "amount": "240.00",
+          "currency": "PKR"
+        },
+        "recognizedCost": {
+          "source": {
+            "type": "invoice",
+            "id": "11111111-1111-4111-8111-111111111111",
+            "lineId": null,
+            "revision": 1
+          },
+          "projectId": "22222222-2222-4222-8222-222222222222",
+          "amount": {
+            "amount": "60.00",
+            "currency": "PKR"
+          },
+          "classification": "PENDING_P06_REVIEW"
+        }
+      }
+    },
+    "C08": {
+      "request": {
+        "salespersonMembershipId": "11111111-1111-4111-8111-111111111111",
+        "source": {
+          "type": "invoice",
+          "id": "11111111-1111-4111-8111-111111111111",
+          "lineId": null,
+          "revision": 1
+        },
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "ruleVersion": "22222222-2222-4222-8222-222222222222",
+        "eligibleAmount": {
+          "amount": "1000.00",
+          "currency": "PKR"
+        },
+        "basisDate": "2026-10-10",
+        "recognitionTrigger": "NOT_APPROVED"
+      },
+      "precondition": "Illustrative five percent rule; no earning trigger approved.",
+      "responseSnippet": {
+        "commissionId": "11111111-1111-4111-8111-111111111111",
+        "source": {
+          "type": "invoice",
+          "id": "11111111-1111-4111-8111-111111111111",
+          "lineId": null,
+          "revision": 1
+        },
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "recognizedAmount": {
+          "amount": "50.00",
+          "currency": "PKR"
+        },
+        "paidAmount": {
+          "amount": "0.00",
+          "currency": "PKR"
+        },
+        "status": "EARNED",
+        "postingEventId": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    "C09": {
+      "request": {
+        "obligationId": "11111111-1111-4111-8111-111111111111",
+        "originalSettled": {
+          "amount": "100.00",
+          "currency": "USD"
+        },
+        "grossReceivedBase": {
+          "amount": "28500.00",
+          "currency": "PKR"
+        },
+        "feeBase": {
+          "amount": "500.00",
+          "currency": "PKR"
+        },
+        "accountId": "22222222-2222-4222-8222-222222222222",
+        "settledOn": "2026-10-10",
+        "rateLockId": "11111111-1111-4111-8111-111111111111",
+        "version": 1
+      },
+      "precondition": "Receivable historical carrying value PKR 28000; base-per-USD rate direction; sign policy approval required.",
+      "responseSnippet": {
+        "carryingBaseReleased": {
+          "amount": "28000.00",
+          "currency": "PKR"
+        },
+        "grossBase": {
+          "amount": "28500.00",
+          "currency": "PKR"
+        },
+        "feeBase": {
+          "amount": "500.00",
+          "currency": "PKR"
+        },
+        "netCashBase": {
+          "amount": "28000.00",
+          "currency": "PKR"
+        },
+        "realizedFx": {
+          "amount": "500.00",
+          "currency": "PKR"
+        },
+        "paymentId": "11111111-1111-4111-8111-111111111111",
+        "eventId": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    "C10": {
+      "request": {
+        "presetKey": "services",
+        "widgets": [
+          {
+            "key": "health.score",
+            "order": 0,
+            "size": "LARGE",
+            "hidden": false
+          },
+          {
+            "key": "cash.position",
+            "order": 1,
+            "size": "SMALL",
+            "hidden": true
+          }
+        ],
+        "version": 1,
+        "registryVersion": "1.0-draft"
+      },
+      "responseSnippet": {
+        "preferencesVersion": 2,
+        "presetVersion": "1.0-draft",
+        "effectiveLayout": [
+          {
+            "key": "health.score",
+            "order": 0,
+            "size": "LARGE",
+            "hidden": false
+          }
+        ]
+      }
+    },
+    "C11": {
+      "toolName": "getProjectFinancials",
+      "request": {
+        "arguments": {
+          "projectId": "11111111-1111-4111-8111-111111111111"
+        },
+        "asOf": "2026-10-10",
+        "period": null,
+        "locale": "en"
+      },
+      "responseSnippet": {
+        "toolName": "getProjectFinancials",
+        "contractVersion": "1.0-draft",
+        "status": "UNAVAILABLE",
+        "data": null,
+        "reasonCode": "producer_not_implemented",
+        "evidence": {
+          "sourceRefs": [],
+          "asOf": "2026-10-10T09:00:00Z",
+          "period": {
+            "from": "2026-10-01",
+            "to": "2026-10-31"
+          },
+          "sourceMode": "LEDGER",
+          "methodologyVersion": "illustrative-policy",
+          "completeness": "UNAVAILABLE",
+          "missingFields": [
+            "projectFinancials"
+          ]
+        },
+        "queryId": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    "C12": {
+      "errorResponse": {
+        "timestamp": "2026-10-10T09:00:00Z",
+        "status": 409,
+        "error": "stale_version",
+        "message": "This record changed. Reload it before saving."
+      },
+      "clientBehavior": "Keep edits, localize the stable code, offer reload; never silently replay a financial mutation."
+    }
+  }
+}

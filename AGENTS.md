@@ -1,0 +1,11 @@
+# FinSight repository instructions
+
+For Developer B work, the persistent development branch is `dev/fatima` in `aviongg/sme-financial-webapp`. Fetch and verify branch/remote/status before every session. Preserve other developers' branches, existing migrations and unrelated working files. Never force-push/reset history or modify main/dev/suleman without explicit user instruction. The user's current branch policy supersedes older integration-branch instructions in historical documents.
+
+Read `docs/phase2/IMPLEMENTATION_STATE.md`, `FEATURE_REGISTER.md`, `CODEX_WORKFLOW.md` and the relevant package/contract/policy before editing. The 2026 onboarding is documentation only; feature implementation requires a subsequent explicit feature request. Proposed paths/DTOs are not existing code or approved policy. Verify current source and actual prerequisite services.
+
+Developer A owns F01/F03/F07/F10/F11/F12A and C01/C02/C04/C06/**C08**/C09/C11. Developer B owns F02/F04/F05/F06/F08/F09/F12B/F13 and C03/C05/C07/C10/C12, plus assigned intelligence/AI orchestration. Never replace a missing A service with competing B financial logic. Cross-domain recognition/valuation/rounding changes require recorded owner/reviewer approval.
+
+Reuse existing session/CSRF/MFA/business/role/audit architecture. Legacy financial `userId` means business ID; actor user ID is separate. Backend exact decimals and authoritative services own amounts. Preserve null/zero, planned/actual and snapshot/ledger distinctions. Do not change `health-score-v1` without explicit methodology approval and numerical regression. New features need authorized complete UI/API/DB journeys; backend-only or visual-only work is partial.
+
+Reserve migrations and shared-file editing ownership in implementation state before implementation. Do not edit V1–V17. Run relevant checks from DEVELOPMENT_SETUP, report failures/skips and distinguish fixtures from real PostgreSQL/browser/production. Do not commit credentials, local DBs, builds or tmp files. Stage explicit paths, review the diff, fetch again, commit coherent verified authorized work and push to `origin/dev/fatima`; verify/report exact remote commit. Main PRs and production actions need explicit authorization. Update persistent handoff so another chat can resume without conversation memory.

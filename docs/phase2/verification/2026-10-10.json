@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-10",
+  "timezone": "Asia/Karachi",
+  "sourceCommit": "b412662866519627ccc81ae80dcc6a5aaf48fe8d",
+  "scope": "Documentation-only audit; source and migration trees unchanged. Results from current run logs; stale Maven XML files not summed.",
+  "baselineMain": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
+  "runtime": {
+    "java": "26.0.1 compiling release 21",
+    "maven": "3.9.16",
+    "node": "24.19.0",
+    "pnpm": "11.19.0",
+    "next": "16.3.8 after frozen install"
+  },
+  "checks": {
+    "backendDefault": {
+      "tests": 754,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "postgresFullVerify": {
+      "tests": 92,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "postgresFullRerun": {
+      "tests": 92,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "documentClassIsolatedRerun": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "javaFastApiHttps": {
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontendTests": {
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typescript": {
+      "exitCode": 0
+    },
+    "eslint": {
+      "exitCode": 0,
+      "warnings": 1
+    },
+    "productionBuild": {
+      "exitCode": 0,
+      "mode": "live",
+      "backendRewrite": "http://127.0.0.1:8080"
+    },
+    "ocrPython": {
+      "passed": 248,
+      "warnings": 2,
+      "realProviderCalls": false
+    },
+    "backupFixtures": {
+      "passed": 46,
+      "realDatabaseRestore": false
+    },
+    "productionConfigurationFixtures": {
+      "passed": 15,
+      "realDockerAcceptance": false
+    },
+    "browserMain": {
+      "passed": 22,
+      "errors": [],
+      "scope": "Production Next build against synthetic backend contract fixture, not deployed Spring/PostgreSQL",
+      "checks": [
+        "signed-out user sees login, not financial data",
+        "login rejection shown without sample fallback",
+        "cookie session loads canonical score and null-safe dashboard",
+        "no legacy UUID identity in localStorage",
+        "cash-flow chevron expands recorded data",
+        "health history shows evidence and recommendation lifecycle persists across reload",
+        "owner can rename business and manage an existing-account invitation without creating owner access",
+        "record edit locks original month",
+        "unchanged session focus revalidation preserves unsaved form inputs",
+        "record edit saves once through tenant-free POST upsert",
+        "saved record survives frontend reload",
+        "switching businesses removes previous financial rows",
+        "logout removes all private screens",
+        "viewer cannot create or edit records even by direct URL",
+        "search converts results into safe supported local links",
+        "expired session cannot retain financial data",
+        "MFA challenge gates finances until completion",
+        "mobile dashboard fits viewport",
+        "Urdu direction and mobile layout render",
+        "invited account has no business access before acceptance and gains named business after accepting",
+        "production CSP ignores untrusted caller nonce and omits unsafe-eval",
+        "no browser exceptions, CSP violations or hydration errors"
+      ]
+    },
+    "browserExtra": {
+      "passed": 10,
+      "errors": [],
+      "scope": "Production Next build against synthetic backend contract fixture; not deployed Spring/PostgreSQL or email/OCR provider E2E",
+      "checks": [
+        "registration creates an account without treating its response as a login",
+        "reset request shows the account-neutral server response",
+        "password reset removes the fragment and sends the token once in the confirm body",
+        "document review initializes extracted draft values and uses the protected original URL",
+        "vendor-only draft correction preserves OCR category and document type and does not confirm financial data",
+        "document contribution requires explicit review, confirms once, and stays confirmed after reload",
+        "saved-month Zakat sends unknown declarations as null and renders incomplete results without inventing zero",
+        "changing Zakat inputs clears stale results and manual blank balances remain unknown",
+        "invalid MFA code preserves the challenge, shows feedback, and allows a subsequent valid code",
+        "additional flows have no browser exceptions, CSP violations or hydration errors"
+      ]
+    },
+    "documentation": {
+      "relativeLinks": "passed",
+      "headingAnchors": "passed",
+      "featurePackages": 14,
+      "contractExamples": 12,
+      "unchangedMigrationHashes": 17,
+      "applicationConfigurationLockfileDiff": "empty",
+      "testServersStopped": true,
+      "whitespace": "passed after normalization and staging",
+      "secretScan": {
+        "tool": "gitleaks 8.30.1",
+        "scope": "new docs/phase2",
+        "findings": 0
+      }
+    }
+  },
+  "knownFailure": {
+    "class": "DocumentSecurityPostgreSqlIT",
+    "method": "testDocumentLifecycleAndCompensation",
+    "line": 416,
+    "expected": "processing_interrupted",
+    "actual": "unavailable",
+    "fullRunFailures": 2,
+    "isolatedClassPassed": true,
+    "rootCause": "Not proven; asynchronous retry/recovery timing is a source-grounded hypothesis. No test/source edits."
+  },
+  "exclusions": {
+    "DatabaseRolePrivilegesPostgreSqlIT": "production-like configured target absent",
+    "PostgreSqlTlsConnectionIT": "TLS/wrong-host/CA fixtures absent",
+    "productionTargetCaseCount": 19,
+    "windowsSymlinkSkipped": 1
+  },
+  "unverified": [
+    "deployed frontend/ingress/backend browser journey",
+    "production Docker/Java21/PostgreSQL17 TLS/HBA/grants",
+    "real encrypted PostgreSQL staging restore",
+    "real Google OCR accuracy and deployment transport",
+    "SMTP provider delivery",
+    "WhatsApp provider delivery"
+  ],
+  "migrationSha256": [
+    {
+      "path": "backend/src/main/resources/db/migration/V10__link_business_profiles_to_businesses.sql",
+      "sha256": "04c3026c34611027116170504f5c6332984d2bb28ac20ea7b254073a1db2c1fa"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V11__widen_encrypted_pii_columns.sql",
+      "sha256": "c804b56a5022e9ed4e6fe31cd88915a516acd03d7b828d70858f954d5b16c712"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V12__add_security_audit_events.sql",
+      "sha256": "676bc7f28c72f272c23183a950b9ee3c091a43b2e874cfef2f1ebd11faeca7c5"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V13__add_password_reset_tokens.sql",
+      "sha256": "c2dea40af2946d803ea4b06b03c597d9e25bc58ff33ca268f3dd1092516a9f5d"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V14__add_platform_role_and_mfa.sql",
+      "sha256": "bb081b80120a4c2f295c9010fe74f56f676b784a6a3a292776fadd38d6a80587"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V15__restrict_flyway_history_privileges.sql",
+      "sha256": "d5f8371b881ba3800630b8352724b97147cd5f86d3862077e2829a1e93c1c8a1"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V16__score_explainability_and_actions.sql",
+      "sha256": "2507dfaca1e0bd5a4284c9ec3baea502a9307f2dc11e44440ef77fdaac0db0ab"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V17__business_team_and_document_provenance.sql",
+      "sha256": "482ecebc10452d69338b44f910ac2e5ef1d9ae6afaabc9cd1edb51dbd8ddf0c3"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V1__initial_schema.sql",
+      "sha256": "8f46acf5f6cec07bb8806518f437b7cfa1349a4af5cc1e9c81ddc11338d861cb"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V2__add_compliance_and_repayment_fields.sql",
+      "sha256": "f603a25565cd76d5d91e67bfb95d73e47e1be0df9c0b8194f0520acae1ef8443"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V3__allow_null_cogs.sql",
+      "sha256": "6b43bfd81941870159248b8424617f37ddd2a660b53635085c27f6ea4806738d"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V4__create_insights_table.sql",
+      "sha256": "7fbeb6868c57db89483850b8a5591665c3bc70091fa142680f397f2e97bc2677"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V5__create_recommendations_table.sql",
+      "sha256": "a0bd41e4a8a5c823247c41e3d848d55c95434deb4d637aa4660fe190844844bf"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V6__version_and_deduplicate_advice.sql",
+      "sha256": "a95116ce42ed97d856f227dc85941b34c8ba1fd41ef5662acb1735ac433c48d0"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V7__add_document_metadata_and_indices.sql",
+      "sha256": "9081d4f3796e24864fe3e46b742f3902380961a00091bd65012e817a11d45f63"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V8__add_whatsapp_delivery.sql",
+      "sha256": "336c89b0228d0d5406af7c3ebb661693a7b73d71e52d67cde4fc81b83209cf90"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V9__add_identity_and_authentication.sql",
+      "sha256": "8ff911c7594c8d19679ca7eb98aca036b59fcb2a91001f989d2ae126d240e7e5"
+    }
+  ]
+}
