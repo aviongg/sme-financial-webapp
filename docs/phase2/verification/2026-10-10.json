@@ -129,7 +129,7 @@
       "whitespace": "passed after normalization and staging",
       "secretScan": {
         "tool": "gitleaks 8.30.1",
-        "scope": "new docs/phase2",
+        "scope": "new docs/phase2 plus complete staged onboarding diff",
         "findings": 0
       }
     }
@@ -227,5 +227,12 @@
       "path": "backend/src/main/resources/db/migration/V9__add_identity_and_authentication.sql",
       "sha256": "8ff911c7594c8d19679ca7eb98aca036b59fcb2a91001f989d2ae126d240e7e5"
     }
-  ]
+  ],
+  "publication": {
+    "branch": "dev/fatima",
+    "setupCommit": "4935734ad1cdb6896f1c2236390d34d45c5a7e84",
+    "remoteVerifiedAtUtc": "2026-10-10T14:13:12Z",
+    "method": "git push succeeded; live git ls-remote matched setupCommit; git fetch origin followed by HEAD...origin/dev/fatima returned 0/0",
+    "handoffCommit": "Resolve with git log -1 --format=%H -- docs/phase2/IMPLEMENTATION_STATE.md; exact final SHA is reported outside this commit after remote verification."
+  }
 }

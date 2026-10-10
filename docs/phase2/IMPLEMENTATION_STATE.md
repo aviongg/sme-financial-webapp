@@ -8,11 +8,12 @@ Updated 10 October 2026 (Asia/Karachi). Session: repository onboarding, audit, a
 |---|---|
 | Repository / persistent branch | `aviongg/sme-financial-webapp` / `dev/fatima` |
 | Last verified remote before this documentation milestone | `b412662866519627ccc81ae80dcc6a5aaf48fe8d` (origin/dev/fatima, fetched and live ls-remote checked on 10 October) |
+| Last verified published setup | `4935734ad1cdb6896f1c2236390d34d45c5a7e84` on origin/dev/fatima; push succeeded, live `ls-remote` matched and fetched local/remote divergence was 0/0 at 19:13:12 Asia/Karachi on 10 October 2026 (14:13:12 UTC). |
 | Verified origin/main | `b51e27696cccc59b94aa9d9c9388ad0faa5b4176` (PR #3 merged 8 October) |
 | Baseline relationship | dev/fatima ahead 9 / behind 0 relative to main, identical trees; local dev/fatima synchronized before setup |
 | Unmodified other developer tip | origin/dev/suleman `f2ed9bda671404598bd73729563c6e0ceb2b08d1` |
 | Source tested | `b412662866519627ccc81ae80dcc6a5aaf48fe8d`; application/configuration/lockfiles/migrations unchanged by onboarding |
-| Publication commit | The Git commit containing this file and final user report identify the exact published SHA. Resolve with `git log -1 --format=%H -- docs/phase2/IMPLEMENTATION_STATE.md`, then compare to live origin/dev/fatima/ancestry. A commit cannot embed its own hash. This file does not claim push success before the publishing command runs. |
+| Publication commit | The verified setup milestone above contains all twenty onboarding files. This follow-up handoff records its confirmed publication. Resolve the containing handoff commit with `git log -1 --format=%H -- docs/phase2/IMPLEMENTATION_STATE.md`, then compare to live origin/dev/fatima/ancestry; its exact final SHA is also reported to the user after push verification. A commit cannot embed its own hash. |
 | Latest migration | **V17__business_team_and_document_provenance.sql**, V1–V17 preserved |
 | Next candidate | V18, **unreserved**; fetch and check A/B reservations before choosing any number |
 
@@ -55,7 +56,7 @@ Commands and scopes are detailed in DEVELOPMENT_SETUP and [machine-readable evid
 | OCR regression | **248 passed**, two upstream warnings | Current source; fixture providers only. Also ran using existing integration test interpreter; not two distinct coverage sets. |
 | Backup/recovery fixtures | **46 passed** | Real age/AES-GCM but simulated PostgreSQL/process boundary; first environment lacked pyrage, recovered with existing test interpreter |
 | Production configuration | **15 passed** | PyYAML + Git Bash shell fixtures; not actual Docker/TLS/provider acceptance |
-| Docs/source integrity | **Passed**: links/heading anchors, 14 package IDs, 12 parseable contract examples, 17 unchanged migration hashes, whitespace, new-doc Gitleaks scan (zero findings) and unchanged application/configuration/lockfiles | See final verification evidence/commit review; no secret/generated-file commit intended |
+| Docs/source integrity | **Passed**: links/heading anchors, 14 package IDs, 12 parseable contract examples, 17 unchanged migration hashes, whitespace, Gitleaks scans of new docs and the complete staged diff (zero findings) and unchanged application/configuration/lockfiles | See final verification evidence/commit review; no secret/generated-file commit intended |
 
 ## Known failures, risks and blocked acceptance
 
