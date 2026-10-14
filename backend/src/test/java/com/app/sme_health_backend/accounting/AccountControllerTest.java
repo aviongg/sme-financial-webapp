@@ -32,10 +32,16 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import com.app.sme_health_backend.accounting.dto.AccountCreateRequest;
+import com.app.sme_health_backend.accounting.exception.AccountValidationException;
+import com.app.sme_health_backend.accounting.service.AccountCreateService;
+import com.app.sme_health_backend.shared.exception.DuplicateResourceException;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AccountController.class)
@@ -49,6 +55,9 @@ class AccountControllerTest {
     private AccountReadService accountReadService;
 
     @MockitoBean
+    private AccountCreateService accountCreateService;
+
+    @MockitoBean
     private BusinessAuthorizationService authService;
 
     private final UUID userId = UUID.randomUUID();
@@ -58,6 +67,7 @@ class AccountControllerTest {
     void setUp() {
         BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
         when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_ACCOUNT_READ))).thenReturn(context);
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_ACCOUNT_CREATE))).thenReturn(context);
     }
 
     @ParameterizedTest
@@ -333,5 +343,117 @@ class AccountControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("active_business_required"))
                 .andExpect(jsonPath("$.message").value("Select or create a business before using this feature."));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/accounts returns 201 Created on valid request")
+    void createAccount_success() throws Exception {
+        AccountDetailResponse created = new AccountDetailResponse(
+                UUID.randomUUID(),
+                "Main Operating Account",
+                AccountType.BANK,
+                "PKR",
+                2,
+                "50000.00",
+                LocalDate.of(2026, 10, 14),
+                "50000.00",
+                BalanceStatus.AVAILABLE,
+                null,
+                AccountStatus.ACTIVE,
+                "2026-10-14T10:00:00Z",
+                LocalDate.of(2026, 10, 14),
+                "Habib Bank Limited",
+                null,
+                "Primary account",
+                "2026-10-14T10:00:00Z",
+                "2026-10-14T10:00:00Z"
+        );
+
+        when(accountCreateService.createAccount(any(), eq("key-123"), any())).thenReturn(created);
+
+        mockMvc.perform(post("/api/finance/accounts")
+                        .header("Idempotency-Key", "key-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "accountName": "Main Operating Account",
+                                  "accountType": "BANK",
+                                  "currency": "PKR",
+                                  "openingBalance": "50000.00",
+                                  "openingDate": "2026-10-14",
+                                  "institutionName": "Habib Bank Limited",
+                                  "notes": "Primary account"
+                                }
+                                """)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.accountName").value("Main Operating Account"))
+                .andExpect(jsonPath("$.accountType").value("BANK"))
+                .andExpect(jsonPath("$.currency").value("PKR"))
+                .andExpect(jsonPath("$.openingBalance").value("50000.00"))
+                .andExpect(jsonPath("$.currentBalance").value("50000.00"))
+                .andExpect(jsonPath("$.balanceStatus").value("AVAILABLE"))
+                .andExpect(jsonPath("$.institutionName").value("Habib Bank Limited"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/accounts returns 403 when user lacks FINANCIAL_ACCOUNT_CREATE")
+    void createAccount_missingPermission_returns403() throws Exception {
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_ACCOUNT_CREATE)))
+                .thenThrow(new AccessDeniedException("Caller does not have permission: FINANCIAL_ACCOUNT_CREATE"));
+
+        mockMvc.perform(post("/api/finance/accounts")
+                        .header("Idempotency-Key", "key-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "accountName": "Main Operating Account",
+                                  "accountType": "BANK",
+                                  "currency": "PKR",
+                                  "openingBalance": "50000.00"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/accounts returns 400 on validation failure")
+    void createAccount_validationError_returns400() throws Exception {
+        when(accountCreateService.createAccount(any(), any(), any()))
+                .thenThrow(new AccountValidationException("accountName", "Account name is required"));
+
+        mockMvc.perform(post("/api/finance/accounts")
+                        .header("Idempotency-Key", "key-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.accountName").value("Account name is required"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/accounts returns 409 on duplicate name or payload conflict")
+    void createAccount_conflict_returns409() throws Exception {
+        when(accountCreateService.createAccount(any(), any(), any()))
+                .thenThrow(new DuplicateResourceException("An account with name 'Main Operating Account' already exists for this business"));
+
+        mockMvc.perform(post("/api/finance/accounts")
+                        .header("Idempotency-Key", "key-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "accountName": "Main Operating Account",
+                                  "accountType": "BANK",
+                                  "currency": "PKR",
+                                  "openingBalance": "50000.00"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("An account with name 'Main Operating Account' already exists for this business"));
     }
 }

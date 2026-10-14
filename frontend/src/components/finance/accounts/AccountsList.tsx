@@ -1,7 +1,9 @@
 "use client";
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useSession } from '@/components/auth/SessionProvider';
+import { canPresentAccountCreate } from '@/lib/api/dev-a/account-create-contracts';
 import { accountsApi, accountQueryString } from '@/lib/api/dev-a/accounts';
-import { accountStatuses, accountTypes, type AccountQuery, type AccountStatus, type AccountType } from '@/lib/api/dev-a/account-contracts';
+import { accountStatuses, accountTypes, type AccountDetailData, type AccountQuery, type AccountStatus, type AccountType } from '@/lib/api/dev-a/account-contracts';
 import { currencyScales } from '@/lib/utils/decimal-display';
 import { useLanguage } from '@/lib/i18n/context';
 import { LivePage } from '@/components/integration/LivePage';
@@ -11,15 +13,23 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { AccountDetail } from './AccountDetail';
 import { AccountMoneyValue } from './AccountMoneyValue';
-import { accountEn, accountUr, accountErrorKey } from './account-copy';
+import { accountEn, accountUr, accountCreateEn, accountCreateUr, accountErrorKey } from './account-copy';
+import { CreateAccountForm } from './CreateAccountForm';
 
 export function AccountsList() {
   const { locale, direction } = useLanguage();
   const copy = locale === 'ur' ? accountUr : accountEn;
+  const createCopy = locale === 'ur' ? accountCreateUr : accountCreateEn;
+  const session = useSession();
+  const contextKey = JSON.stringify([session.epoch, session.user?.id, session.business?.businessId, session.business?.role, session.business?.membershipStatus, session.status]);
+  const [creating, setCreating] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ context: string; account: AccountDetailData } | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const addRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState<AccountQuery>({ status: 'ACTIVE', page: 0, size: 50 });
   const [selected, setSelected] = useState<string | null>(null);
   const close = useCallback(() => setSelected(null), []);
-  const queryKey = accountQueryString(query);
+  const queryKey = contextKey + ':' + refresh + ':' + accountQueryString(query);
   const resource = useLiveResource(useCallback(async (signal: AbortSignal) => {
     try { return { key: queryKey, page: await accountsApi.list(query, signal), error: null }; }
     catch (error) {
@@ -34,6 +44,12 @@ export function AccountsList() {
   const filter = (patch: Partial<AccountQuery>) => { close(); setQuery(previous => ({ ...previous, ...patch, page: 0 })); };
   return <LivePage title={copy.title}><div dir={direction} className="space-y-5 min-w-0">
     <p className="text-sm text-[var(--color-text-muted)]">{copy.readOnly}</p>
+    {session.status === 'authenticated' && canPresentAccountCreate(session.business) && <Button ref={addRef} aria-expanded={creating === contextKey} disabled={creating === contextKey} onClick={() => { close(); setCreated(null); setCreating(contextKey); }}>{createCopy.add}</Button>}
+    {creating === contextKey && <CreateAccountForm key={contextKey} onClose={() => { setCreating(null); requestAnimationFrame(() => addRef.current?.focus()); }} onCreated={account => {
+      setCreated({ context: contextKey, account }); setCreating(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
+      requestAnimationFrame(() => addRef.current?.focus());
+    }} />}
+    {created?.context === contextKey && <p role="status" className="text-sm">{createCopy.created} <span className="font-semibold [overflow-wrap:anywhere]">{created.account.accountName}</span></p>}
     <Card className="min-w-0"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Select label={copy.status} value={query.status} onChange={event => filter({ status: event.target.value as AccountStatus })} options={accountStatuses.map(value => ({ value, label: copy[value] }))} />
       <Select label={copy.type} value={query.accountType ?? ''} onChange={event => filter({ accountType: event.target.value ? event.target.value as AccountType : undefined })} options={[{ value: '', label: copy.allTypes }, ...accountTypes.map(value => ({ value, label: copy[value] }))]} />

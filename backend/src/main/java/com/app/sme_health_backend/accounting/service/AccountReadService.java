@@ -111,7 +111,7 @@ public class AccountReadService {
         );
     }
 
-    private AccountDetailResponse toDetailResponse(
+    AccountDetailResponse toDetailResponse(
             FinancialAccount account,
             String observationAt,
             LocalDate effectiveCutoffDate

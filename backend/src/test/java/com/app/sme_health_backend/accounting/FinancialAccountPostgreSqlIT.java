@@ -1,17 +1,25 @@
 package com.app.sme_health_backend.accounting;
 
+import com.app.sme_health_backend.accounting.dto.AccountCreateRequest;
 import com.app.sme_health_backend.accounting.dto.AccountDetailResponse;
 import com.app.sme_health_backend.accounting.dto.AccountListResponse;
 import com.app.sme_health_backend.accounting.entity.FinancialAccount;
+import com.app.sme_health_backend.accounting.entity.FinancialIdempotencyRecord;
+import com.app.sme_health_backend.accounting.exception.AccountValidationException;
 import com.app.sme_health_backend.accounting.model.AccountStatus;
 import com.app.sme_health_backend.accounting.model.AccountType;
 import com.app.sme_health_backend.accounting.model.BalanceStatus;
 import com.app.sme_health_backend.accounting.repository.FinancialAccountRepository;
+import com.app.sme_health_backend.accounting.repository.FinancialIdempotencyRepository;
+import com.app.sme_health_backend.accounting.service.AccountCreateService;
 import com.app.sme_health_backend.accounting.service.AccountReadService;
+import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.dto.CreateBusinessRequest;
 import com.app.sme_health_backend.identity.entity.AppUser;
+import com.app.sme_health_backend.identity.model.MembershipRole;
 import com.app.sme_health_backend.identity.repository.AppUserRepository;
 import com.app.sme_health_backend.identity.service.BusinessService;
+import com.app.sme_health_backend.shared.exception.DuplicateResourceException;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
 import com.app.sme_health_backend.testsupport.DisposablePostgres;
 import org.junit.jupiter.api.AfterEach;
@@ -24,6 +32,10 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -33,15 +45,27 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 class FinancialAccountPostgreSqlIT extends DisposablePostgres {
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
     private FinancialAccountRepository accountRepository;
 
     @Autowired
     private AccountReadService accountReadService;
+
+    @Autowired
+    private AccountCreateService accountCreateService;
+
+    @Autowired
+    private FinancialIdempotencyRepository idempotencyRepository;
 
     @Autowired
     private AppUserRepository userRepository;
@@ -83,6 +107,7 @@ class FinancialAccountPostgreSqlIT extends DisposablePostgres {
 
     @AfterEach
     void tearDown() {
+        jdbcTemplate.update("DELETE FROM financial_idempotency_records WHERE business_id IN (?, ?)", businessA, businessB);
         jdbcTemplate.update("DELETE FROM financial_accounts WHERE business_id IN (?, ?)", businessA, businessB);
         jdbcTemplate.update("DELETE FROM business_memberships WHERE business_id IN (?, ?)", businessA, businessB);
         jdbcTemplate.update("DELETE FROM business_profiles WHERE user_id IN (?, ?)", businessA, businessB);
@@ -514,5 +539,205 @@ class FinancialAccountPostgreSqlIT extends DisposablePostgres {
                 assertEquals(2, item.currencyDecimals());
             }
         }
+    }
+
+    @Test
+    @DisplayName("IT-CREATE-01: Account creation persists in PostgreSQL with durable idempotency and replay")
+    void testCreateAccountAndDurableIdempotencyInPostgreSql() {
+        BusinessAccessContext contextA = new BusinessAccessContext(userA, businessA, MembershipRole.OWNER);
+
+        AccountCreateRequest request = new AccountCreateRequest(
+                "PostgreSQL Verified Bank",
+                "BANK",
+                "PKR",
+                "75000.50",
+                "2026-10-14",
+                "Bank Alfalah",
+                "Integration test account"
+        );
+
+        String idempKey = "it-idemp-" + UUID.randomUUID();
+
+        // 1. Initial creation
+        AccountDetailResponse created = accountCreateService.createAccount(contextA, idempKey, request);
+        assertNotNull(created.id());
+        assertEquals("PostgreSQL Verified Bank", created.accountName());
+        assertEquals("75000.50", created.openingBalance());
+        assertEquals("75000.50", created.currentBalance());
+        assertEquals(BalanceStatus.AVAILABLE, created.balanceStatus());
+        assertEquals("Bank Alfalah", created.institutionName());
+
+        // Verify direct database persistence in financial_accounts table
+        FinancialAccount dbAccount = accountRepository.findById(created.id()).orElseThrow();
+        assertEquals("PostgreSQL Verified Bank", dbAccount.getAccountName());
+        assertEquals(businessA, dbAccount.getBusinessId());
+        assertEquals(AccountType.BANK, dbAccount.getAccountType());
+        assertEquals("PKR", dbAccount.getCurrency());
+        assertEquals(2, dbAccount.getCurrencyDecimals());
+        assertEquals(0, new BigDecimal("75000.50").compareTo(dbAccount.getOpeningBalance()));
+
+        // Verify durable idempotency record in financial_idempotency_records table
+        var idempRecord = idempotencyRepository.findByBusinessIdAndOperationAndIdempotencyKey(
+                businessA, "ACCOUNT_CREATE", idempKey
+        ).orElseThrow();
+        assertEquals(201, idempRecord.getResponseStatus());
+        assertTrue(idempRecord.getResponseBody().contains("PostgreSQL Verified Bank"));
+        assertEquals(created.id(), idempRecord.getResourceId());
+
+        long initialCount = accountRepository.count();
+
+        // 2. Authorized replay with identical key and identical payload returns stored result without creating duplicate
+        AccountDetailResponse replay = accountCreateService.createAccount(contextA, idempKey, request);
+        assertEquals(created.id(), replay.id());
+        assertEquals(created.accountName(), replay.accountName());
+        assertEquals(initialCount, accountRepository.count(), "Replay must not insert additional accounts");
+
+        // 3. Same key with different payload throws 409 conflict
+        AccountCreateRequest conflictingRequest = new AccountCreateRequest(
+                "Different Name",
+                "BANK",
+                "PKR",
+                "99999.00",
+                "2026-10-14",
+                null,
+                null
+        );
+        assertThrows(DuplicateResourceException.class, () ->
+                accountCreateService.createAccount(contextA, idempKey, conflictingRequest)
+        );
+    }
+
+    @Test
+    @DisplayName("IT-CREATE-02: Duplicate account name within business throws 409 conflict; distinct businesses isolated")
+    void testDuplicateAccountNameInSameBusinessThrowsConflict() {
+        BusinessAccessContext contextA = new BusinessAccessContext(userA, businessA, MembershipRole.OWNER);
+        BusinessAccessContext contextB = new BusinessAccessContext(userB, businessB, MembershipRole.OWNER);
+
+        String accountName = "Shared Branch Drawer " + UUID.randomUUID();
+
+        AccountCreateRequest requestA = new AccountCreateRequest(
+                accountName,
+                "CASH",
+                "PKR",
+                "10000.00",
+                "2026-10-14",
+                null,
+                null
+        );
+
+        // Business A creates account
+        AccountDetailResponse createdA = accountCreateService.createAccount(contextA, "key-a-" + UUID.randomUUID(), requestA);
+        assertNotNull(createdA.id());
+
+        // Business A attempts to create duplicate name with new key -> 409 conflict
+        AccountCreateRequest duplicateRequest = new AccountCreateRequest(
+                accountName,
+                "CASH",
+                "PKR",
+                "5000.00",
+                "2026-10-14",
+                null,
+                null
+        );
+        assertThrows(DuplicateResourceException.class, () ->
+                accountCreateService.createAccount(contextA, "key-a-new-" + UUID.randomUUID(), duplicateRequest)
+        );
+
+        // Business B can create account with same name (tenant isolation)
+        AccountDetailResponse createdB = accountCreateService.createAccount(contextB, "key-b-" + UUID.randomUUID(), requestA);
+        assertNotNull(createdB.id());
+        assertNotEquals(createdA.id(), createdB.id());
+    }
+
+    @Test
+    @DisplayName("IT-CREATE-03: Account creation changes no MonthlyRecord, financial health score, or advice")
+    void testAccountCreationLeavesMonthlyRecordsAndScoresUntouched() {
+        BusinessAccessContext contextA = new BusinessAccessContext(userA, businessA, MembershipRole.OWNER);
+
+        Integer recordsBefore = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM monthly_records WHERE user_id = ?",
+                Integer.class,
+                businessA
+        );
+        assertEquals(0, recordsBefore);
+
+        Integer scoresBefore = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM score_results WHERE user_id = ?",
+                Integer.class,
+                businessA
+        );
+        assertEquals(0, scoresBefore);
+
+        AccountCreateRequest request = new AccountCreateRequest(
+                "Untouched Baseline Test Account",
+                "BANK",
+                "USD",
+                "25000.00",
+                "2026-10-14",
+                "Chase Bank",
+                null
+        );
+
+        accountCreateService.createAccount(contextA, "key-untouched-" + UUID.randomUUID(), request);
+
+        Integer recordsAfter = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM monthly_records WHERE user_id = ?",
+                Integer.class,
+                businessA
+        );
+        assertEquals(0, recordsAfter, "Monthly records count must remain exactly 0");
+
+        Integer scoresAfter = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM score_results WHERE user_id = ?",
+                Integer.class,
+                businessA
+        );
+        assertEquals(0, scoresAfter, "Score results must remain untouched");
+    }
+
+    @Test
+    @DisplayName("IT-CREATE-04: Signed negative opening balance allowed for BANK; CASH negative rejected")
+    void testSignedOpeningBalanceForBankAndCashNonNegative() {
+        BusinessAccessContext contextA = new BusinessAccessContext(userA, businessA, MembershipRole.OWNER);
+
+        // Negative opening balance for BANK is valid
+        AccountCreateRequest bankReq = new AccountCreateRequest(
+                "Overdraft Facility " + UUID.randomUUID(),
+                "BANK",
+                "PKR",
+                "-150000.00",
+                "2026-10-14",
+                "HBL",
+                "Approved revolving credit line"
+        );
+        AccountDetailResponse bankResp = accountCreateService.createAccount(
+                contextA, "key-od-" + UUID.randomUUID(), bankReq
+        );
+        assertEquals("-150000.00", bankResp.openingBalance());
+        assertEquals("-150000.00", bankResp.currentBalance());
+        assertEquals(BalanceStatus.AVAILABLE, bankResp.balanceStatus());
+
+        // Negative opening balance for CASH is rejected
+        AccountCreateRequest cashReq = new AccountCreateRequest(
+                "Negative Cash Invalid " + UUID.randomUUID(),
+                "CASH",
+                "PKR",
+                "-100.00",
+                "2026-10-14",
+                null,
+                null
+        );
+        assertThrows(AccountValidationException.class, () ->
+                accountCreateService.createAccount(contextA, "key-cash-neg-" + UUID.randomUUID(), cashReq)
+        );
+    }
+
+    @Test
+    @DisplayName("IT-CREATE-05: Real HTTP mutation path enforces CSRF protection (missing CSRF -> 403 Forbidden)")
+    void testRealHttpMutationPathEnforcesCsrf() throws Exception {
+        mockMvc.perform(post("/api/finance/accounts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accountName\":\"CSRF Attack Test\",\"accountType\":\"CASH\",\"currency\":\"PKR\",\"openingBalance\":\"100.00\"}"))
+                .andExpect(status().isForbidden());
     }
 }

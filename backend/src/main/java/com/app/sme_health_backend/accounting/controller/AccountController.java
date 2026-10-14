@@ -18,19 +18,38 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+import com.app.sme_health_backend.accounting.dto.AccountCreateRequest;
+import com.app.sme_health_backend.accounting.service.AccountCreateService;
+import org.springframework.http.HttpStatus;
+
 @RestController
 @RequestMapping("/api/finance/accounts")
 public class AccountController {
 
     private final AccountReadService accountReadService;
+    private final AccountCreateService accountCreateService;
     private final BusinessAuthorizationService authService;
 
     public AccountController(
             AccountReadService accountReadService,
+            AccountCreateService accountCreateService,
             BusinessAuthorizationService authService
     ) {
         this.accountReadService = accountReadService;
+        this.accountCreateService = accountCreateService;
         this.authService = authService;
+    }
+
+    @PostMapping
+    public ResponseEntity<AccountDetailResponse> createAccount(
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) AccountCreateRequest requestDto,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.FINANCIAL_ACCOUNT_CREATE);
+
+        AccountDetailResponse response = accountCreateService.createAccount(context, idempotencyKey, requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping

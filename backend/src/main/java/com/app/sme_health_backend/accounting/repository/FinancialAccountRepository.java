@@ -19,6 +19,10 @@ public interface FinancialAccountRepository extends JpaRepository<FinancialAccou
 
     Optional<FinancialAccount> findByIdAndBusinessId(UUID id, UUID businessId);
 
+    boolean existsByBusinessIdAndAccountName(UUID businessId, String accountName);
+
+    Optional<FinancialAccount> findByBusinessIdAndAccountName(UUID businessId, String accountName);
+
     @Query("SELECT a FROM FinancialAccount a WHERE a.businessId = :businessId " +
             "AND (:status IS NULL OR a.status = :status) " +
             "AND (:accountType IS NULL OR a.accountType = :accountType) " +

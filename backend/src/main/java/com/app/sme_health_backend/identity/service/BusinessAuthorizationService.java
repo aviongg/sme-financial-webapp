@@ -31,7 +31,8 @@ public class BusinessAuthorizationService {
                 BusinessPermission.DOCUMENT_EDIT,
                 BusinessPermission.SCORE_CALCULATE,
                 BusinessPermission.ZAKAT_READ_CALCULATE,
-                BusinessPermission.FINANCIAL_ACCOUNT_READ
+                BusinessPermission.FINANCIAL_ACCOUNT_READ,
+                BusinessPermission.FINANCIAL_ACCOUNT_CREATE
         )));
 
         // MANAGER: financial read, document upload/read, Zakat read/calculate, accounts read (NO SCORE_CALCULATE, NO DOCUMENT_EDIT)

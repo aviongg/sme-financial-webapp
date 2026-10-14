@@ -1,5 +1,5 @@
 import { apiClient } from '../client';
-import { accountStatuses, accountTypes, isAccountId, parseAccountDetail, parseAccountPage, type AccountQuery } from './account-contracts';
+import { accountStatuses, accountTypes, isAccountId, parseAccount, parseAccountDetail, parseAccountPage, InvalidAccountResponse, type AccountQuery } from './account-contracts';
 import { isSupportedCurrency } from '../../utils/decimal-display';
 
 export function accountQueryString(query: AccountQuery = {}): string {
@@ -26,7 +26,23 @@ export function accountQueryString(query: AccountQuery = {}): string {
   const serialized = params.toString();
   return serialized ? '?' + serialized : '';
 }
+import type { OpeningSetupDraft } from './account-create-contracts';
 export const accountsApi = {
+  create: async (draft: OpeningSetupDraft, idempotencyKey: string, signal?: AbortSignal) => {
+    if (!idempotencyKey.trim() || idempotencyKey.length > 100) throw new Error('Invalid idempotency key.');
+    const { accountCreatePayload } = await import('./account-create-contracts');
+    const payload = accountCreatePayload(draft), body = JSON.stringify(payload);
+    const data = await apiClient<unknown>('/finance/accounts', { method: 'POST', signal,
+      headers: { 'Idempotency-Key': idempotencyKey }, body });
+    const account = parseAccount(data);
+    const detail = parseAccountDetail(data, account.id);
+    if (detail.balanceStatus !== 'AVAILABLE' || detail.status !== 'ACTIVE'
+      || detail.accountName !== payload.accountName || detail.accountType !== payload.accountType
+      || detail.currency !== payload.currency || detail.openingBalance !== payload.openingBalance
+      || detail.openingDate !== payload.openingDate
+      || detail.openingDate <= detail.effectiveCutoffDate && detail.currentBalance !== detail.openingBalance) throw new InvalidAccountResponse();
+    return detail;
+  },
   list: async (query: AccountQuery = {}, signal?: AbortSignal) => {
     const suffix = accountQueryString(query);
     const data = await apiClient<unknown>('/finance/accounts' + suffix, { signal });

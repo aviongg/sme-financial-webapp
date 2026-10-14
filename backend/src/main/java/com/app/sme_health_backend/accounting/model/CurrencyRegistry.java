@@ -21,9 +21,13 @@ public final class CurrencyRegistry {
         CURRENCY_SCALES.put("OMR", 3);
     }
 
-    private static final BigDecimal MAX_CAPACITY = new BigDecimal("1000000000000"); // 10^12
+    public static final BigDecimal MAX_CAPACITY = new BigDecimal("1000000000000"); // 10^12
 
     private CurrencyRegistry() {}
+
+    public static Set<String> supportedCurrencies() {
+        return Collections.unmodifiableSet(CURRENCY_SCALES.keySet());
+    }
 
     public static boolean isSupported(String currencyCode) {
         if (currencyCode == null) {
