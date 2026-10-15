@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import ts from 'typescript';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'finsight-accounts-create-'));
-const modules = ['lib/api/client', 'lib/utils/decimal-display', 'lib/api/dev-a/account-contracts', 'lib/api/dev-a/account-create-contracts', 'lib/api/dev-a/accounts', 'components/finance/accounts/account-copy'];
+const modules = ['lib/api/client', 'lib/utils/decimal-display', 'lib/utils/amount-input', 'lib/api/dev-a/account-contracts', 'lib/api/dev-a/account-create-contracts', 'lib/api/dev-a/accounts', 'components/finance/accounts/account-copy'];
 for (const file of modules) {
   const target = path.join(directory, file + '.js');
   mkdirSync(path.dirname(target), { recursive: true });
@@ -202,7 +202,7 @@ test('actual EN/UR form renders labelled exact-text inputs and locks edits for e
   const alias = name => {
     if (name === '@/components/auth/SessionProvider' || name === '@/lib/i18n/context') return {};
     if (name === './account-copy') return copy;
-    if (name.startsWith('@/lib/api/') || name === '@/lib/utils/decimal-display') return require(path.join(directory, name.slice(2) + '.js'));
+    if (name.startsWith('@/lib/api/') || (name === '@/lib/utils/decimal-display' || name === '@/lib/utils/amount-input')) return require(path.join(directory, name.slice(2) + '.js'));
     if (!name.startsWith('@/')) return require(name);
     if (cache.has(name)) return cache.get(name);
     const extension = name === '@/lib/utils/cn' ? '.ts' : '.tsx';

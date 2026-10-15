@@ -66,6 +66,10 @@ test('actual money component renders null as bilingual unavailable and isolates 
     assert.equal(render('1.0001'), '<span>' + copy.unavailable + '</span>');
     assert.match(render('-2500.50'), /<bdi dir="ltr"[^>]*>PKR - 2,500.50<\/bdi>/);
     assert.match(render('0.00'), /PKR 0.00/);
+    const overflow = contracts.parseAccount({ ...account(), openingBalance: '999999999999.99', currentBalance: null,
+      balanceStatus: 'UNAVAILABLE', balanceUnavailableReason: 'CAPACITY_OVERFLOW' });
+    assert.match(render(overflow.openingBalance), /PKR 999,999,999,999.99/);
+    assert.equal(render(overflow.currentBalance), '<span>' + copy.unavailable + '</span>');
   }
 });
 test('all supported currencies require their declared scale', () => {
@@ -114,11 +118,25 @@ test('unsupported currency is allowed only as explicit unavailable metadata, nev
   assert.throws(() => contracts.parseAccount({ ...raw, balanceUnavailableReason: 'CAPACITY_OVERFLOW' }));
   assert.throws(() => contracts.parseAccount({ ...raw, openingBalance: 'opaque' }));
 });
+test('current-only capacity overflow preserves only a valid exact opening across supported scales', async () => {
+  for (const [currency, currencyDecimals, openingBalance] of [['PKR', 2, '999999999999.99'], ['PKR', 2, '-999999999999.99'], ['JPY', 0, '999999999999'], ['BHD', 3, '-999999999999.999']]) {
+    const raw = { ...account(), currency, currencyDecimals, openingBalance, currentBalance: null, balanceStatus: 'UNAVAILABLE', balanceUnavailableReason: 'CAPACITY_OVERFLOW', notes: null };
+    assert.equal(contracts.parseAccount(raw).openingBalance, openingBalance);
+    assert.equal(contracts.parseAccountDetail(raw, id).currentBalance, null);
+  }
+  const raw = { ...account(), openingBalance: '999999999999.99', currentBalance: null, balanceStatus: 'UNAVAILABLE', balanceUnavailableReason: 'CAPACITY_OVERFLOW', notes: null };
+  backend(() => Response.json(raw));
+  assert.equal((await accountsApi.detail(id)).openingBalance, raw.openingBalance);
+  assert.equal(calls.length, 1);
+  for (const patch of [{ currentBalance: '0.00' }, { currentBalance: '1000000000000.00' }, { currencyDecimals: 3 }, { currency: 'ZZZ' }, { balanceUnavailableReason: null }, { openingDate: '2026-11-01' }]) {
+    assert.throws(() => contracts.parseAccount({ ...raw, ...patch }), contracts.InvalidAccountResponse);
+  }
+});
 test('v1.3 rejects invalid null/reason combinations and malformed preserved openings', () => {
   const unavailable = { ...account(), currentBalance: null, balanceStatus: 'UNAVAILABLE' };
   for (const reason of ['PRECISION_OVERFLOW', 'CAPACITY_OVERFLOW']) {
     assert.equal(contracts.parseAccount({ ...unavailable, openingBalance: null, balanceUnavailableReason: reason }).openingBalance, null);
-    for (const openingBalance of ['100000.00', '1.0001', '1000000000000.00', undefined]) {
+    for (const openingBalance of [...(reason === 'PRECISION_OVERFLOW' ? ['100000.00'] : []), '1.0001', '1000000000000.00', '-0.00', '1e5', '+1.00', '01.00', 100000, undefined]) {
       assert.throws(() => contracts.parseAccount({ ...unavailable, openingBalance, balanceUnavailableReason: reason }));
     }
   }

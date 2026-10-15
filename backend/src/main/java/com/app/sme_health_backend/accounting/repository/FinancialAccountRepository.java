@@ -19,6 +19,10 @@ public interface FinancialAccountRepository extends JpaRepository<FinancialAccou
 
     Optional<FinancialAccount> findByIdAndBusinessId(UUID id, UUID businessId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM FinancialAccount a WHERE a.id = :id AND a.businessId = :businessId")
+    Optional<FinancialAccount> findForUpdateByIdAndBusinessId(@Param("id") UUID id, @Param("businessId") UUID businessId);
+
     boolean existsByBusinessIdAndAccountName(UUID businessId, String accountName);
 
     Optional<FinancialAccount> findByBusinessIdAndAccountName(UUID businessId, String accountName);

@@ -20,7 +20,7 @@ public class BusinessAuthorizationService {
         // OWNER: all business permissions
         map.put(MembershipRole.OWNER, Collections.unmodifiableSet(EnumSet.allOf(BusinessPermission.class)));
 
-        // ACCOUNTANT: financial read/write, scoring, documents, confirmation, deletion, edit/retry, Zakat, accounts read
+        // ACCOUNTANT: financial read/write, scoring, documents, confirmation, deletion, edit/retry, Zakat, accounts read/create, transactions read/post
         map.put(MembershipRole.ACCOUNTANT, Collections.unmodifiableSet(EnumSet.of(
                 BusinessPermission.FINANCIAL_DATA_READ,
                 BusinessPermission.RECORD_CREATE_UPDATE,
@@ -32,22 +32,26 @@ public class BusinessAuthorizationService {
                 BusinessPermission.SCORE_CALCULATE,
                 BusinessPermission.ZAKAT_READ_CALCULATE,
                 BusinessPermission.FINANCIAL_ACCOUNT_READ,
-                BusinessPermission.FINANCIAL_ACCOUNT_CREATE
+                BusinessPermission.FINANCIAL_ACCOUNT_CREATE,
+                BusinessPermission.FINANCIAL_TRANSACTION_READ,
+                BusinessPermission.FINANCIAL_TRANSACTION_POST
         )));
 
-        // MANAGER: financial read, document upload/read, Zakat read/calculate, accounts read (NO SCORE_CALCULATE, NO DOCUMENT_EDIT)
+        // MANAGER: financial read, document upload/read, Zakat read/calculate, accounts read, transactions read (NO SCORE_CALCULATE, NO DOCUMENT_EDIT, NO CREATION/POSTING)
         map.put(MembershipRole.MANAGER, Collections.unmodifiableSet(EnumSet.of(
                 BusinessPermission.FINANCIAL_DATA_READ,
                 BusinessPermission.DOCUMENT_UPLOAD,
                 BusinessPermission.DOCUMENT_READ,
                 BusinessPermission.ZAKAT_READ_CALCULATE,
-                BusinessPermission.FINANCIAL_ACCOUNT_READ
+                BusinessPermission.FINANCIAL_ACCOUNT_READ,
+                BusinessPermission.FINANCIAL_TRANSACTION_READ
         )));
 
-        // VIEWER: financial read, accounts read (NO SCORE_CALCULATE)
+        // VIEWER: financial read, accounts read, transactions read (NO SCORE_CALCULATE, NO CREATION/POSTING)
         map.put(MembershipRole.VIEWER, Collections.unmodifiableSet(EnumSet.of(
                 BusinessPermission.FINANCIAL_DATA_READ,
-                BusinessPermission.FINANCIAL_ACCOUNT_READ
+                BusinessPermission.FINANCIAL_ACCOUNT_READ,
+                BusinessPermission.FINANCIAL_TRANSACTION_READ
         )));
 
         ROLE_PERMISSIONS = Collections.unmodifiableMap(map);

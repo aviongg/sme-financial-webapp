@@ -15,7 +15,7 @@ interface AccountFields {
 }
 export type Account = AccountFields & (
   { balanceStatus: 'AVAILABLE'; openingBalance: string; currentBalance: string; balanceUnavailableReason: null } |
-  { balanceStatus: 'UNAVAILABLE'; openingBalance: string; currentBalance: null; balanceUnavailableReason: 'INTEGRITY_CHECK_FAILED' } |
+  { balanceStatus: 'UNAVAILABLE'; openingBalance: string; currentBalance: null; balanceUnavailableReason: 'INTEGRITY_CHECK_FAILED' | 'CAPACITY_OVERFLOW' } |
   { balanceStatus: 'UNAVAILABLE'; openingBalance: null; currentBalance: null; balanceUnavailableReason: Exclude<BalanceReason, 'INTEGRITY_CHECK_FAILED'> }
 );
 export type AccountDetailData = Account & { notes: string | null };
@@ -73,8 +73,10 @@ export function parseAccount(value: unknown): Account {
     }
   } else {
     ensure(a.currentBalance === null && balanceReasons.includes(a.balanceUnavailableReason as BalanceReason));
-    if (a.balanceUnavailableReason === 'INTEGRITY_CHECK_FAILED') {
+    if (a.balanceUnavailableReason === 'INTEGRITY_CHECK_FAILED' || a.balanceUnavailableReason === 'CAPACITY_OVERFLOW' && a.openingBalance !== null) {
       ensure(supported && validCurrencyAmount(a.openingBalance, a.currency, a.currencyDecimals as number));
+      // A valid future opening contributes zero, so cannot cause a current-only overflow.
+      if (a.balanceUnavailableReason === 'CAPACITY_OVERFLOW') ensure((a.openingDate as string) <= (a.effectiveCutoffDate as string));
     } else {
       ensure(a.openingBalance === null);
       ensure(a.balanceUnavailableReason === 'UNSUPPORTED_CURRENCY' ? !supported : supported);

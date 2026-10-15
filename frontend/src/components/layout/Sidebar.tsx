@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
+import { recordsEn, recordsUr } from '@/components/records/records-copy';
 import { routePermission } from "@/lib/api/navigation";
 
 export interface SidebarProps {
@@ -28,9 +29,9 @@ export interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
-  const { can } = useSession();
+  const { can, business } = useSession();
   const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
-  const { t, direction } = useLanguage();
+  const { t, direction, locale } = useLanguage();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
@@ -40,7 +41,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: LayoutDashboard,
     },
     {
-      label: t.nav.monthlyRecords,
+      label: t.nav.records,
       href: "/records",
       icon: CalendarCheck,
     },
@@ -50,8 +51,8 @@ export function Sidebar({ className }: SidebarProps) {
       icon: FileBarChart2,
     },
     {
-      label: t.nav.addData,
-      href: "/records/new",
+      label: (locale === 'ur' ? recordsUr : recordsEn).add,
+      href: "/records?add=1",
       icon: PlusCircle,
     },
     {
@@ -141,8 +142,8 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-        {navItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href;
+        {navItems.filter((item) => allowed(item.href) && (item.href !== '/records?add=1' || isDemoMode || business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role))).map((item) => {
+          const isActive = pathname === item.href || item.href === '/records' && pathname.startsWith('/records/');
           const Icon = item.icon;
 
           return (
@@ -168,7 +169,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
         {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || item.href === '/records' && pathname.startsWith('/records/');
           const Icon = item.icon;
 
           return (

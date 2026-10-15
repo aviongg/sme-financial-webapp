@@ -1,8 +1,11 @@
 "use client";
 import { localizedError } from '@/lib/i18n/errors';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense } from 'react';
+import { safeRecordsReturn } from '../records/record-period';
+import { RecordsDocumentContext } from '../records/RecordsDocumentContext';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { documentsApi, documentFilePath, DocumentRecord, currentDocumentDraft } from '@/lib/api/documents';
 import { ApiError } from '@/lib/api/client';
 import { useSession } from '@/components/auth/SessionProvider';
@@ -13,11 +16,14 @@ import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/lib/i18n/context';
 import { interpolate, liveLabel } from '@/lib/i18n/labels';
 import { Input } from '@/components/ui/Input';
-export function LiveDocumentReview() { const params = useParams(); const id = typeof params.id === 'string' ? params.id : ''; return <DocumentReview key={id} id={id}/>; }
+function documentReturnQuery() { if (typeof window === 'undefined') return ''; const value = new URLSearchParams(window.location.search).get('returnTo'); return value ? '?returnTo=' + encodeURIComponent(safeRecordsReturn(value)) : ''; }
+export function LiveDocumentReview() { const params = useParams(); const id = typeof params.id === 'string' ? params.id : ''; return <Suspense><DocumentReview key={id} id={id}/></Suspense>; }
 function DocumentReview({ id }: {
     id: string;
 }) {
     const { can } = useSession();
+    const search = useSearchParams();
+    const returnQuery = search.get('returnTo') ? '?returnTo=' + encodeURIComponent(safeRecordsReturn(search.get('returnTo'))) : '';
     const { t } = useLanguage();
     const resource = useLiveResource(useCallback((signal: AbortSignal) => documentsApi.get(id, signal), [id]));
     const pending = resource.data && ['pending', 'processing'].includes(resource.data.processingStatus);
@@ -32,7 +38,7 @@ function DocumentReview({ id }: {
         }, 5000);
         return () => clearInterval(timer);
     }, [pending]);
-    return <LivePage title={t.live.reviewDocument} {...resource} actions={<Link href="/upload" className="underline">{t.live.allDocuments}</Link>}>{!can('DOCUMENT_READ') ? <p>{t.live.noDocumentAccess}</p> : resource.data && <ReviewForm key={`${id}:${resource.data.processingStatus}:${resource.data.reviewedData}`} document={resource.data} reload={resource.retry}/>}</LivePage>;
+    return <LivePage title={t.live.reviewDocument} {...resource} actions={<Link href={'/upload' + returnQuery} className="underline">{t.live.allDocuments}</Link>}><Suspense><RecordsDocumentContext /></Suspense>{!can('DOCUMENT_READ') ? <p>{t.live.noDocumentAccess}</p> : resource.data && <ReviewForm key={`${id}:${resource.data.processingStatus}:${resource.data.reviewedData}`} document={resource.data} reload={resource.retry}/>}</LivePage>;
 }
 function ReviewForm({ document: doc, reload }: {
     document: DocumentRecord;
@@ -95,7 +101,7 @@ function ReviewForm({ document: doc, reload }: {
  </form></Card>}
  <div className="flex gap-3">{doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <Button variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.retry(doc.id))}>{t.live.retryExtraction}</Button>}{doc.processingStatus !== 'confirmed' && can('DOCUMENT_DELETE') && <Button variant="destructive" disabled={busy} onClick={() => {
                 if (window.confirm(t.live.deleteDocument))
-                    void action(async () => { await documentsApi.remove(doc.id); router.replace('/upload'); });
+                    void action(async () => { await documentsApi.remove(doc.id); router.replace('/upload' + documentReturnQuery()); });
             }}>{t.live.deleteDraft}</Button>}</div>
  </div>;
 }

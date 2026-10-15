@@ -4,12 +4,12 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, statSync, openSync, closeSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import net from 'node:net';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const frontend = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -31,7 +31,14 @@ const playwrightPath = process.env.PLAYWRIGHT_MODULE;
 const { chromium, request } = require(playwrightPath || 'playwright');
 const temporary = mkdtempSync(path.join(tmpdir(), 'finsight-accounts-live-'));
 const origin = 'http://127.0.0.1:3180';
+const manifest = JSON.parse(readFileSync(path.join(frontend,'.next/routes-manifest.json'),'utf8'));
+const rewrite = Object.values(manifest.rewrites).flat().find(rule => rule.source === '/api/:path*');
+if (rewrite?.destination !== 'http://127.0.0.1:8180/api/:path*') throw new Error('Live harness requires a build with process-only BACKEND_API_URL=http://127.0.0.1:8180. No environment file should be changed.');
 const demoOnly = process.argv.includes('--demo');
+const reviewOnly = process.argv.includes('--review');
+const parityOnly = process.argv.includes('--parity');
+const captureOldParity = process.argv.includes('--capture-old-parity');
+let leaveReview = false;
 let runtime, next, browser;
 const apiContexts = [];
 const exited = child => child.exitCode !== null || child.signalCode !== null;
@@ -72,7 +79,13 @@ public class AccountsLiveRuntime {
         "--app.whatsapp.scheduler.enabled=false", "--finsight.crypto.keys.k1="+key,
         "--app.security.cors.allowed-origins=http://127.0.0.1:3180", "--logging.level.root=ERROR");
       try(var c=pg.getPostgresDatabase().getConnection(); var s=c.createStatement(); var r=s.executeQuery("SELECT version(), (SELECT max(version::int) FROM flyway_schema_history WHERE success)")) { r.next(); System.out.println("LIVE_ENV:"+r.getString(1).split(",")[0]+";schema="+r.getInt(2)); }
+      var accountReadClass=com.app.sme_health_backend.accounting.service.AccountReadService.class;
+      try(var bytes=accountReadClass.getResourceAsStream("AccountReadService.class")) {
+        System.out.println("LIVE_ACCOUNT_READ_CLASS:"+accountReadClass.getProtectionDomain().getCodeSource().getLocation()+";sha256="+HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes.readAllBytes())));
+      }
       System.out.println("LIVE_READY"); System.out.flush();
+      System.out.println("LIVE_DB_PORT:"+pg.getPort()); System.out.flush();
+      if(args.length==2 && args[0].equals("--review")) { while(!Files.exists(Path.of(args[1]))) Thread.sleep(500); return; }
       var input=new Scanner(System.in);
       while(input.hasNextLine()) {
         String[] parts=input.nextLine().split(" ");
@@ -106,6 +119,21 @@ public class AccountsLiveRuntime {
             }
             System.out.println("LIVE_SNAPSHOT_"+parts[1]+":"+snapshot);
           }
+          else if(parts[0].equals("TXCOUNTS")) {
+            StringBuilder counts=new StringBuilder();
+            for(String sql:List.of("SELECT count(*) FROM financial_transactions","SELECT count(*) FROM account_movements","SELECT count(*) FROM financial_idempotency_records WHERE operation='FINANCIAL_TRANSACTION'","SELECT count(*) FROM security_audit_events WHERE event_type='FINANCIAL_TRANSACTION_POSTED'")) {
+              try(var q=c.createStatement(); var r=q.executeQuery(sql)) { r.next(); counts.append(r.getLong(1)).append(":"); }
+            }
+            System.out.println("LIVE_TXCOUNTS_"+parts[1]+":"+counts);
+          } else if(parts[0].equals("AUDIT")) {
+            for(int i=1;i<4;i++) UUID.fromString(parts[i]);
+            try(var q=c.prepareStatement("SELECT count(*) FROM security_audit_events WHERE event_type='FINANCIAL_TRANSACTION_POSTED' AND target_id=? AND actor_user_id=?::uuid AND business_id=?::uuid")) { q.setString(1,parts[1]);q.setString(2,parts[2]);q.setString(3,parts[3]);try(var r=q.executeQuery()){r.next();System.out.println("LIVE_AUDIT_"+parts[1]+":"+r.getLong(1));} }
+          }
+          else if(parts[0].equals("CORRUPT_OPENING")) {
+            UUID.fromString(parts[1]);
+            try(var q=c.prepareStatement("UPDATE financial_accounts SET opening_balance=999999999999.99 WHERE id=?::uuid")){q.setString(1,parts[1]);if(q.executeUpdate()!=1)throw new IllegalStateException("Missing isolated integrity fixture");}
+            System.out.println("LIVE_CORRUPT_OPENING");
+          }
           else if(parts[0].equals("EXPIRE")) { try(var s=c.createStatement()) { s.executeUpdate("DELETE FROM spring_session"); } System.out.println("LIVE_EXPIRED"); }
         }
         System.out.flush();
@@ -113,6 +141,24 @@ public class AccountsLiveRuntime {
     } finally { if(app!=null) app.close(); pg.close(); }
   }
 }`;
+function accountReadClassFreshness() {
+  const base='com/app/sme_health_backend/accounting/';
+  for(const name of ['service/AccountReadService','service/TransactionPostService','service/TransactionReadService','controller/AccountController','controller/TransactionController','dto/AccountListItemResponse','dto/AccountDetailResponse']) {
+    const source=path.join(root,'backend/src/main/java',base+name+'.java'),compiled=path.join(root,'backend/target/classes',base+name+'.class');
+    assert.ok(statSync(compiled).mtimeMs>=statSync(source).mtimeMs,'Backend compilation is stale: '+name);
+  }
+  return createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes',base+'service/AccountReadService.class'))).digest('hex');
+}
+let accountParser;
+function consumerAccountParser() {
+  if(accountParser)return accountParser;
+  const ts=require('typescript');
+  for(const name of ['lib/utils/decimal-display','lib/api/dev-a/account-contracts']){
+    const output=path.join(temporary,'consumer',name+'.js');mkdirSync(path.dirname(output),{recursive:true});
+    writeFileSync(output,ts.transpileModule(readFileSync(path.join(frontend,'src',name+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
+  }
+  accountParser=require(path.join(temporary,'consumer/lib/api/dev-a/account-contracts.js'));return accountParser;
+}
 async function waitFor(predicate, label, timeout = 60000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 200)); }
@@ -151,6 +197,28 @@ async function api(context, route, method = 'GET', data, extraHeaders = {}) {
   return response;
 }
 const isAccountPost = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/finance/accounts';
+const isTransactionPost = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/finance/transactions';
+const transactionPost = (context, data, key = randomUUID()) => api(context, '/finance/transactions', 'POST', data, { 'Idempotency-Key': key });
+async function txCounts() {
+  const tag = randomBytes(6).toString('hex'); await control('TXCOUNTS ' + tag, 'LIVE_TXCOUNTS_' + tag + ':');
+  return runtimeText.match(new RegExp('LIVE_TXCOUNTS_' + tag + ':([^\\r\\n]+)'))[1];
+}
+async function audit(transaction, actor, business) {
+  await control('AUDIT ' + transaction + ' ' + actor + ' ' + business, 'LIVE_AUDIT_' + transaction + ':');
+  assert.equal(runtimeText.match(new RegExp('LIVE_AUDIT_' + transaction + ':(\\d+)'))[1], '1');
+}
+async function fillTransaction(page, data, urdu = false) {
+  await page.getByRole('button', { name: urdu ? 'ریکارڈ شامل کریں' : 'Add record', exact: true }).click();
+  const form = page.getByRole('form', { name: urdu ? 'ریکارڈ شامل کریں' : 'Add record', exact: true });
+  const select = form.getByLabel(urdu ? /^اکاؤنٹ/ : /^Account/);
+  await page.waitForFunction(id => document.getElementById(id) === document.activeElement, await select.getAttribute('id'));
+  await select.selectOption(data.accountId);
+  await form.getByLabel(urdu ? /^واقعہ/ : /^Event/).selectOption(data.eventType);
+  await form.getByLabel(urdu ? /^رقم/ : /^Amount/).fill(data.amount);
+  await form.getByLabel(urdu ? /^مؤثر تاریخ/ : /^Effective date/).fill(data.effectiveDate);
+  if (data.description) await form.getByLabel(urdu ? /^تفصیل/ : /^Description/).fill(data.description);
+  await form.getByRole('checkbox').check(); return form;
+}
 const accountPost = (context, payload, key = randomUUID()) => api(context, '/finance/accounts', 'POST', payload, { 'Idempotency-Key': key });
 async function accountsNamed(context, name) {
   const response = await api(context, '/finance/accounts?size=100'); assert.equal(response.status(), 200);
@@ -191,7 +259,67 @@ async function signin(page, email) {
   await page.getByText('Live PKR Bank', { exact: true }).waitFor();
 }
 try {
-  if (demoOnly) {
+  if (reviewOnly) {
+    const expectedReviewClassHash = accountReadClassFreshness();
+    // Independent Java lifetime: not tied to this setup process or acceptance teardown.
+    const reviewDirectory = process.env.FINSIGHT_REVIEW_DIRECTORY;
+    if (!reviewDirectory || !path.isAbsolute(reviewDirectory)) throw new Error('Absolute private review directory required.');
+    mkdirSync(reviewDirectory, { recursive: true });
+    await free(8180); await free(3180);
+    const manifestValue = classpath.split(';').filter(Boolean).map(entry => pathToFileURL(entry).href + (statSync(entry).isDirectory() ? '/' : '')).join(' ');
+    const lines = ('Class-Path: ' + manifestValue).match(/.{1,70}/g);
+    writeFileSync(path.join(temporary, 'MANIFEST.MF'), 'Manifest-Version: 1.0\r\n' + lines.map((line, index) => (index ? ' ' : '') + line).join('\r\n') + '\r\n\r\n');
+    await command(path.join(javaHome, 'bin/jar.exe'), ['cfm', path.join(temporary, 'classpath.jar'), path.join(temporary, 'MANIFEST.MF')]);
+    writeFileSync(path.join(temporary, 'AccountsLiveRuntime.java'), javaSource);
+    const stopFile = path.join(temporary, 'review.stop'), backendLog = path.join(reviewDirectory, 'backend.log'), frontendLog = path.join(reviewDirectory, 'frontend.log');
+    const backendFd = openSync(backendLog, 'w');
+    runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
+    await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
+    assert.match(runtimeText, /schema=20/);
+    assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
+    const frontendFd = openSync(frontendLog, 'w');
+    next = spawn(process.execPath, [path.join(frontend, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', '3180'], { cwd: frontend, windowsHide: true, detached: true, stdio: ['ignore', frontendFd, frontendFd] }); closeSync(frontendFd);
+    await waitFor(() => /Ready in/.test(readFileSync(frontendLog, 'utf8')), 'Independent review frontend');
+    const owner = await identity('local-review@finsight.example.test');
+    const b = await api(owner.context, '/businesses', 'POST', { businessName: 'LOCAL REVIEW — isolated sample business', businessType: 'retail', languagePreference: 'en', whatsappOptIn: false }); assert.equal(b.status(), 201);
+    await api(owner.context, '/businesses/active', 'POST', { businessId: (await b.json()).businessId });
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const a = await accountPost(owner.context, { accountName: 'LOCAL REVIEW — PKR operating bank', accountType: 'BANK', currency: 'PKR', openingBalance: '100000.00', openingDate: today }); assert.equal(a.status(), 201); const accountId = (await a.json()).id;
+    for (const [eventType, amount] of [['DIRECT_SALE_RECEIPT', '20000.00'], ['OPERATING_EXPENSE_PAYMENT', '5000.00']]) assert.equal((await transactionPost(owner.context, { accountId, eventType, amount, effectiveDate: today, description: 'LOCAL REVIEW synthetic sample only' })).status(), 201);
+    for (const [currency, openingBalance, name] of [['JPY', '125000', 'JPY wallet'], ['BHD', '1250.375', 'BHD bank'], ['PKR', '5000.00', 'PKR cash']]) assert.equal((await accountPost(owner.context, { accountName: 'LOCAL REVIEW — ' + name, accountType: name.includes('cash') ? 'CASH' : name.includes('wallet') ? 'WALLET' : 'BANK', currency, openingBalance, openingDate: today })).status(), 201);
+    assert.equal((await (await api(owner.context, '/finance/accounts/' + accountId)).json()).currentBalance, '115000.00');
+    const reviewMonth = today.slice(0, 7);
+    assert.equal((await api(owner.context, '/records/monthly', 'POST', { month: reviewMonth, cashInflow: 20000, cashOutflow: 5000, revenue: 20000, operatingExpenses: 5000, cashBalanceEom: 115000, cogs: 4000, financingType: 'none' })).status(), 201);
+    assert.equal((await api(owner.context, '/scores/calculate', 'POST', { month: reviewMonth })).status(), 200);
+    browser = await chromium.launch({ channel: 'msedge', headless: true });
+    const reviewBrowserContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const reviewPage = await reviewBrowserContext.newPage();
+    await reviewPage.goto(origin + '/records');
+    await reviewPage.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+    await reviewPage.getByLabel(/^Email/).fill(owner.email); await reviewPage.getByLabel(/^Password/).fill(password);
+    await reviewPage.getByRole('button', { name: 'Continue', exact: true }).click();
+    await reviewPage.getByRole('button', { name: /^View transaction details:/ }).first().waitFor();
+    await reviewPage.getByRole('button', { name: /^Money received/ }).getByText('20,000.00 PKR', { exact: true }).waitFor();
+    await reviewPage.getByRole('button', { name: 'اردو', exact: true }).click();
+    await reviewPage.getByRole('button', { name: /^لین دین کی تفصیل دیکھیں:/ }).first().waitFor();
+    assert.equal(await reviewPage.locator('html').getAttribute('dir'), 'rtl');
+    assert.equal(await reviewPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await reviewPage.screenshot({ path: path.join(out, 'records-review-urdu-mobile.png'), fullPage: true });
+    await reviewPage.getByRole('button', { name: 'ریکارڈ شامل کریں', exact: true }).click();
+    const reviewForm = reviewPage.getByRole('form', { name: 'ریکارڈ شامل کریں', exact: true });
+    await reviewForm.getByLabel(/^رقم/).fill('۱,۵۰۰.۵');
+    await reviewForm.getByText('1500.50 PKR', { exact: true }).waitFor();
+    await reviewForm.getByRole('button', { name: 'منسوخ کریں', exact: true }).click();
+    await reviewPage.getByRole('button', { name: 'English', exact: true }).click();
+    await reviewPage.getByRole('button', { name: /^View transaction details:/ }).first().waitFor();
+    await reviewBrowserContext.close();
+    console.log('REVIEW_BROWSER_PASS loaded EN/UR mobile Records and natural amount preview; no smoke-test posting');
+    writeFileSync(path.join(reviewDirectory, 'credentials.txt'), 'Local isolated review only\nEmail: ' + owner.email + '\nPassword: ' + password + '\nSign in through the normal app. Complete any security/MFA prompts.\n');
+    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: 20, backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
+    writeFileSync(path.join(reviewDirectory, 'processes.json'), JSON.stringify(metadata, null, 2));
+    leaveReview = true; runtime.unref(); next.unref();
+    console.log('REVIEW_READY ' + origin + ' backendPid=' + runtime.pid + ' frontendPid=' + next.pid + ' databasePort=' + metadata.databasePort);
+  } else if (demoOnly) {
     await startNext();
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -204,9 +332,14 @@ try {
     assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
     assert.deepEqual(privateRequests, []);
     await page.screenshot({ path: path.join(out, 'demo-urdu-mobile.png'), fullPage: true });
-    mark('demo browser English/Urdu preview unavailable; zero private API requests');
+    await page.goto(origin + '/finance/transactions'); await page.getByText('ڈیمو موڈ میں لین دین کا پیش منظر دستیاب نہیں ہے۔', { exact: true }).waitFor(); assert.deepEqual(privateRequests, []);
+    await page.goto(origin + '/records'); await page.getByText('ڈیمو موڈ میں سرگرمی اور رقم کے اکاؤنٹس کا پیش منظر دستیاب نہیں۔', {exact:true}).waitFor(); assert.deepEqual(privateRequests, []);
+    await page.getByRole('button', {name:'Switch interface language'}).click(); await page.getByText('Activity and money accounts preview is not available in demo mode.', {exact:true}).waitFor(); assert.deepEqual(privateRequests, []);
+    assert.equal(await page.getByRole('button', {name:'Add record',exact:true}).count(),0);
+    mark('demo browser accounts/transactions/Records English/Urdu preview unavailable; zero private API requests');
     await context.close();
   } else {
+  const expectedAccountReadHash=accountReadClassFreshness();
   await free(8180); await free(3180);
   const manifestValue = classpath.split(';').filter(Boolean).map(entry => pathToFileURL(entry).href + (statSync(entry).isDirectory() ? '/' : '')).join(' ');
   const lines = ('Class-Path: ' + manifestValue).match(/.{1,70}/g);
@@ -216,9 +349,33 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=19/);
-  mark('real disposable PostgreSQL migrations through V19 and Spring on reserved port 8180');
+  assert.match(runtimeText, /schema=20/);
+  assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
+  mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
+  mark('real disposable PostgreSQL migrations through V20 and Spring on reserved port 8180');
   await startNext();
+  if(parityOnly) {
+    const owner=await identity('parity-owner@example.test');
+    const b=await api(owner.context,'/businesses','POST',{businessName:'PARITY — disposable synthetic business',businessType:'retail',languagePreference:'en',whatsappOptIn:false});assert.equal(b.status(),201);
+    await api(owner.context,'/businesses/active','POST',{businessId:(await b.json()).businessId});
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const response=await accountPost(owner.context,{accountName:'PARITY current-only overflow',accountType:'BANK',currency:'PKR',openingBalance:'0.00',openingDate:today});assert.equal(response.status(),201);const id=(await response.json()).id;
+    assert.equal((await transactionPost(owner.context,{accountId:id,eventType:'DIRECT_SALE_RECEIPT',amount:'1.00',effectiveDate:today})).status(),201);
+    await control('CORRUPT_OPENING '+id,'LIVE_CORRUPT_OPENING');
+    const read=await api(owner.context,'/finance/accounts/'+id);assert.equal(read.status(),200);const payload=await read.json();
+    writeFileSync(path.join(out,captureOldParity?'parity-before.json':'parity-after.json'),JSON.stringify(payload,null,2));
+    console.log('PARITY_RESPONSE '+JSON.stringify(payload));
+    const parser=consumerAccountParser();
+    if(captureOldParity) {
+      assert.throws(()=>parser.parseAccountDetail(payload,id),parser.InvalidAccountResponse);
+      assert.ok(payload.openingBalance!==null && payload.balanceUnavailableReason!=='INTEGRITY_CHECK_FAILED');
+      console.log('CAPTURED_OLD_FAILURE parseAccountDetail => InvalidAccountResponse; old harness condition openingBalance!==null && reason!==INTEGRITY_CHECK_FAILED evaluates true');
+    } else {
+      assert.equal(parser.parseAccountDetail(payload,id).openingBalance,'999999999999.99');
+      assert.equal(payload.currentBalance,null);assert.equal(payload.balanceStatus,'UNAVAILABLE');assert.equal(payload.balanceUnavailableReason,'CAPACITY_OVERFLOW');
+      mark('targeted real current-only overflow accepted with exact preserved opening and unavailable current');
+    }
+  } else {
   const owner = await identity('owner-accounts@example.test');
   const create = async name => { const response = await api(owner.context, '/businesses', 'POST', { businessName: name, businessType: 'retail', languagePreference: 'en', whatsappOptIn: false }); assert.equal(response.status(), 201, 'real POST /api/businesses must succeed'); return (await response.json()).businessId; };
   const businessA = await create('Live Accounts A'), businessB = await create('Live Accounts B');
@@ -300,6 +457,7 @@ try {
   assert.equal(await page.evaluate(() => document.querySelector('[role=dialog]').contains(document.activeElement)), true);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'English', exact: true }).click(); await page.getByText('Financial accounts', { exact: true }).first().waitFor();
+  await page.getByLabel('Currency', { exact: true }).selectOption('');
   mark('real filters/page reset/empty/out-of-range response; Urdu RTL and mobile page bounds');
   await page.getByLabel('Account status', { exact: true }).selectOption('ARCHIVED');
   await page.getByText('Currency metadata is unsupported.', { exact: true }).waitFor();
@@ -455,9 +613,12 @@ try {
   assert.deepEqual(posts[beforeUncertain], posts[beforeUncertain + 1]);
   assert.equal((await accountsNamed(owner.context, uncertainPayload.accountName)).length, 1);
   await page.unroute(postRoute);
+  assert.equal(new URL(page.url()).searchParams.get('currency'), 'PKR');
+  await page.getByLabel('کرنسی', { exact: true }).selectOption('BHD');
   await page.getByRole('button', { name: 'اکاؤنٹ کی تفصیل دیکھیں: UI Uncertain BHD', exact: true }).click();
   await page.getByRole('dialog').getByText('BHD - 12.375', { exact: true }).first().waitFor(); await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'English', exact: true }).click(); await page.getByText('Financial accounts', { exact: true }).first().waitFor();
+  await page.getByLabel('Currency', { exact: true }).selectOption('');
   mark('BROWSER Urdu RTL/mobile exact BHD, real committed/lost response resolved by explicit same-key identical-payload retry with one account');
   // Delayed real creation response is discarded when another tab switches business.
   const switchSettings = await context.newPage(); await switchSettings.goto(origin + '/settings');
@@ -476,9 +637,194 @@ try {
   await switchSettings.getByLabel(/^Active business/).selectOption(businessA); await page.getByText('Live PKR Bank', { exact: true }).waitFor();
   await switchSettings.close();
   mark('BROWSER business switch invalidates a pending real creation and discards stale success');
+  // Transaction acceptance uses independently specified expected balances, never UI formulas.
+  const day = offset => new Date(Date.parse(cutoff + 'T00:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
+  const createTxAccount = async (name, opening = '100000.00', type = 'BANK') => {
+    const response = await accountPost(owner.context, payload(name, { accountType: type, openingBalance: opening, openingDate: day(-10) }));
+    assert.equal(response.status(), 201); return (await response.json()).id;
+  };
+  const mainAccount = await createTxAccount('TX Verified Main'), concurrentAccount = await createTxAccount('TX Concurrent', '1000.00');
+  const roleAccount = await createTxAccount('TX Role Journeys', '1000.00'), cashAccount = await createTxAccount('TX CASH Sequence', '100.00', 'CASH');
+  const tx = (accountId, amount = '1.00', eventType = 'DIRECT_SALE_RECEIPT', effectiveDate = cutoff) => ({ accountId, eventType, amount, effectiveDate });
+  const reject = async (data, expected = 400) => {
+    const before = await txCounts(), response = await transactionPost(owner.context, data), after = await txCounts();
+    if (response.status() !== expected || before !== after) blockers.push('BE-TX-REJECTION: expected ' + expected + ' with no writes; actual ' + response.status() + ', counts ' + before + ' -> ' + after + '; input=' + JSON.stringify(data));
+    return response;
+  };
+  const txCsrf = await (await owner.context.get(origin + '/api/auth/csrf')).json();
+  const beforeCsrf = await txCounts();
+  for (const headers of [{ 'Idempotency-Key': randomUUID() }, { 'Idempotency-Key': randomUUID(), [txCsrf.headerName]: 'invalid' }]) assert.equal((await owner.context.post(origin + '/api/finance/transactions', { data: tx(concurrentAccount), headers })).status(), 403);
+  for (const member of [viewer, manager]) assert.equal((await transactionPost(member.context, tx(concurrentAccount))).status(), 403);
+  assert.equal(await txCounts(), beforeCsrf);
+  await reject(tx(ids.other), 404); await reject(tx(ids.corrupt)); await reject(tx(ids.jpy));
+  await reject(tx(mainAccount, '1.00', 'DIRECT_SALE_RECEIPT', day(-11))); await reject(tx(mainAccount, '1.00', 'DIRECT_SALE_RECEIPT', day(1)));
+  for (const amount of ['0.00', '-1.00', '1.001', '1000000000000.00', 'not-a-number']) await reject(tx(mainAccount, amount));
+  mark('HTTP transactions: actual CSRF and role denial; foreign/inactive/non-PKR/date/amount rejection checked for atomic no-write behavior');
+  const sameKey = randomUUID(), samePayload = tx(concurrentAccount);
+  const sameResponses = await Promise.all(Array.from({ length: 8 }, () => transactionPost(owner.context, samePayload, sameKey)));
+  assert.equal(sameResponses.every(r => r.status() === 201), true); const sameBodies = await Promise.all(sameResponses.map(r => r.json()));
+  assert.equal(new Set(sameBodies.map(t => t.id)).size, 1); assert.equal(new Set(sameBodies.map(t => t.movements[0].id)).size, 1);
+  const replayTx = await transactionPost(owner.context, samePayload, sameKey); assert.equal(replayTx.status(), 201); assert.deepEqual(await replayTx.json(), sameBodies[0]);
+  assert.equal((await transactionPost(owner.context, { ...samePayload, amount: '2.00' }, sameKey)).status(), 409);
+  const distinct = await Promise.all(Array.from({ length: 8 }, () => transactionPost(owner.context, tx(concurrentAccount))));
+  assert.equal(distinct.every(r => r.status() === 201), true); const distinctBodies = await Promise.all(distinct.map(r => r.json()));
+  assert.equal(new Set(distinctBodies.map(t => t.id)).size, 8);
+  assert.equal((await (await api(owner.context, '/finance/accounts/' + concurrentAccount)).json()).currentBalance, '1009.00');
+  const concurrentHistory = await (await api(owner.context, '/finance/transactions?accountId=' + concurrentAccount + '&size=100')).json();
+  assert.equal(concurrentHistory.totalElements, 9);
+  await audit(sameBodies[0].id, owner.user.id, businessA);
+  mark('HTTP/DB transactions: concurrent same-key one event/movement; eight distinct requests preserved; replay contributes nothing; audit actor/business verified');
+  assert.equal((await transactionPost(owner.context, tx(cashAccount, '80.00', 'OPERATING_EXPENSE_PAYMENT', day(-2)))).status(), 201);
+  assert.equal((await transactionPost(owner.context, tx(cashAccount, '100.00'))).status(), 201);
+  const cashRejected = await reject(tx(cashAccount, '30.00', 'OPERATING_EXPENSE_PAYMENT', day(-3)));
+  assert.ok((await cashRejected.json()).errors.cashBalance);
+  assert.equal((await (await api(owner.context, '/finance/accounts/' + cashAccount)).json()).currentBalance, '120.00');
+  mark('HTTP CASH: backdated outflow rejected for later intermediate deficit even though final balance would be positive');
+  // Keep destructive integrity experiments away from functioning A/B browser fixtures.
+  const integrityBusiness = await create('Live Integrity Experiments'); await api(owner.context, '/businesses/active', 'POST', { businessId: integrityBusiness });
+  const capacityAccount = await createTxAccount('TX Capacity Boundary', '999999999999.99');
+  const beforeCapacity = await txCounts(), capacityResponse = await transactionPost(owner.context, tx(capacityAccount, '0.01')), afterCapacity = await txCounts();
+  if (capacityResponse.status() !== 400 || beforeCapacity !== afterCapacity) blockers.push('BE-TX-CAPACITY: aggregate overflow must reject atomically; actual HTTP ' + capacityResponse.status() + ', event/movement/idempotency/audit counts ' + beforeCapacity + ' -> ' + afterCapacity + '.');
+  const capacityRead = await (await api(owner.context, '/finance/accounts/' + capacityAccount)).json();
+  for (const amount of ['1e2', '+1.00', '01.00']) await reject(tx(capacityAccount, amount));
+  assert.equal(capacityRead.openingBalance,'999999999999.99');assert.equal(capacityRead.currentBalance,'999999999999.99');assert.equal(capacityRead.balanceStatus,'AVAILABLE');
+  mark('HTTP/DB original regression: capacity overflow and malformed exponent/plus/leading-zero amounts rejected atomically; available account unchanged');
+  const corruptCurrentAccount=await createTxAccount('TX Pre-existing Current Overflow','0.00');
+  assert.equal((await transactionPost(owner.context,tx(corruptCurrentAccount,'1.00'))).status(),201);
+  await control('CORRUPT_OPENING '+corruptCurrentAccount,'LIVE_CORRUPT_OPENING');
+  const corruptCurrentRead=await (await api(owner.context,'/finance/accounts/'+corruptCurrentAccount)).json();
+  const parsedCurrentOverflow=consumerAccountParser().parseAccountDetail(corruptCurrentRead,corruptCurrentAccount);
+  assert.equal(parsedCurrentOverflow.openingBalance,'999999999999.99');assert.equal(parsedCurrentOverflow.currentBalance,null);
+  assert.equal(parsedCurrentOverflow.balanceStatus,'UNAVAILABLE');assert.equal(parsedCurrentOverflow.balanceUnavailableReason,'CAPACITY_OVERFLOW');
+  await page.goto(origin+'/settings');await page.getByLabel(/^Active business/).selectOption(integrityBusiness);
+  await page.goto(origin+'/finance/accounts');await page.getByRole('button',{name:'View account details: TX Pre-existing Current Overflow',exact:true}).click();
+  const overflowDialog=page.getByRole('dialog');
+  await overflowDialog.getByText('PKR 999,999,999,999.99',{exact:true}).waitFor();
+  await overflowDialog.getByText('Current balance',{exact:true}).locator('..').getByText('Unavailable',{exact:true}).waitFor();
+  assert.equal(await overflowDialog.getByText('PKR 0.00',{exact:true}).count(),0);await page.keyboard.press('Escape');
+  await page.goto(origin+'/settings');await page.getByLabel(/^Active business/).selectOption(businessA);
+  mark('HTTP/browser current-only capacity overflow: strict parser accepts exact preserved opening; detail shows unavailable current, never zero');
+  await api(owner.context, '/businesses/active', 'POST', { businessId: businessA });
+  // Browser OWNER sale, ACCOUNTANT expense: independent 100000 + 20000 - 5000 = 115000.
+  await page.goto(origin + '/finance/transactions');
+  const notice = 'Transactions update account balances. Monthly records and health scores still use your existing monthly entries until ledger cutover is enabled.';
+  await page.getByText(notice, { exact: true }).waitFor();
+  const txPosts = []; page.on('request', req => { if (isTransactionPost(req)) txPosts.push({ key: req.headers()['idempotency-key'], body: req.postData() }); });
+  let txForm = await fillTransaction(page, tx(mainAccount, '20000.00'));
+  await txForm.evaluate(element => { element.requestSubmit(); element.requestSubmit(); }); await txForm.waitFor({ state: 'detached' });
+  await page.getByText('PKR 120,000.00', { exact: true }).waitFor(); assert.equal(txPosts.length, 1);
+  const salePost = JSON.parse(txPosts[0].body), saleResponse = await transactionPost(owner.context, salePost, txPosts[0].key); const saleBody = await saleResponse.json();
+  await audit(saleBody.id, owner.user.id, businessA);
+  const txAccountantContext = await browser.newContext(); const txAccountantPage = await txAccountantContext.newPage(); await signin(txAccountantPage, accountant.email); await txAccountantPage.goto(origin + '/finance/transactions');
+  txForm = await fillTransaction(txAccountantPage, tx(mainAccount, '5000.00', 'OPERATING_EXPENSE_PAYMENT'));
+  await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await txForm.waitFor({ state: 'detached' }); await txAccountantPage.getByText('PKR 115,000.00', { exact: true }).waitFor();
+  txForm = await fillTransaction(txAccountantPage, tx(roleAccount, '0.50')); await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await txForm.waitFor({ state: 'detached' });
+  await txAccountantContext.close();
+  const expectedRead = await (await api(owner.context, '/finance/accounts/' + mainAccount)).json(); assert.equal(expectedRead.openingBalance, '100000.00'); assert.equal(expectedRead.currentBalance, '115000.00'); assert.equal(expectedRead.balanceStatus, 'AVAILABLE');
+  assert.equal((await transactionPost(owner.context, salePost, txPosts[0].key)).status(), 201);
+  assert.equal((await (await api(owner.context, '/finance/accounts/' + mainAccount)).json()).currentBalance, '115000.00');
+  const mainHistory = await (await api(owner.context, '/finance/transactions?accountId=' + mainAccount + '&size=100')).json(); assert.equal(mainHistory.totalElements, 2);
+  const expenseBody = mainHistory.content.find(t => t.eventType === 'OPERATING_EXPENSE_PAYMENT'); await audit(expenseBody.id, accountant.user.id, businessA);
+  mark('BROWSER/HTTP: OWNER sale and ACCOUNTANT expense refresh real balances 100000 -> 120000 -> 115000; retry adds nothing');
+  await page.reload(); await page.getByLabel('Transactions per page', { exact: true }).selectOption('10'); await page.getByRole('button', { name: 'Next page', exact: true }).click();
+  await page.getByLabel('Account', { exact: true }).selectOption(mainAccount); assert.equal(await page.getByRole('button', { name: 'Previous page', exact: true }).isDisabled(), true);
+  await page.getByLabel('Event', { exact: true }).selectOption('DIRECT_SALE_RECEIPT'); await page.getByText('PKR 20,000.00', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'View transaction details: ' + saleBody.id, exact: true }).click();
+  await page.getByRole('dialog').getByText('PKR 20,000.00', { exact: true }).waitFor(); assert.equal(await page.evaluate(() => document.querySelector('[role=dialog]').contains(document.activeElement)), true); await page.keyboard.press('Escape');
+  await page.getByLabel('Event', { exact: true }).selectOption(''); await page.getByLabel('Through effective date', { exact: true }).fill(day(-1)); await page.getByText('No transactions match these filters.', { exact: true }).waitFor();
+  await page.getByLabel('Through effective date', { exact: true }).fill('');
+  let txDelayed = false; await page.route('**/api/finance/transactions/' + saleBody.id, async route => { const response = await route.fetch(); txDelayed = true; await new Promise(resolve => setTimeout(resolve, 750)); try { await route.fulfill({ response }); } catch { /* canceled selection */ } });
+  await page.getByRole('button', { name: 'View transaction details: ' + saleBody.id, exact: true }).click(); await waitFor(() => txDelayed, 'Real delayed transaction detail'); await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'View transaction details: ' + expenseBody.id, exact: true }).click(); await page.getByRole('dialog').getByText('PKR 5,000.00', { exact: true }).waitFor(); await page.waitForTimeout(900); assert.equal(await page.getByRole('dialog').getByText('PKR 20,000.00', { exact: true }).count(), 0); await page.keyboard.press('Escape'); await page.unroute('**/api/finance/transactions/' + saleBody.id);
+  mark('BROWSER transaction history: persisted filters/page reset/date-empty/detail, keyboard focus and canceled selection');
+  for (const member of [viewer, manager]) { const c = await browser.newContext(); const p = await c.newPage(); await signin(p, member.email); await p.goto(origin + '/finance/transactions'); await p.getByText(notice, { exact: true }).waitFor(); assert.equal(await p.getByRole('button', { name: 'Add record', exact: true }).count(), 0); await c.close(); }
+  await page.getByRole('button', { name: 'اردو', exact: true }).click(); await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  await page.getByRole('note').waitFor();
+  let txDropped = false; const txRoute = /\/api\/finance\/transactions$/;
+  await page.route(txRoute, async route => { if (!isTransactionPost(route.request()) || txDropped) { await route.continue(); return; } const response = await route.fetch(); assert.equal(response.status(), 201); txDropped = true; await route.abort('failed'); });
+  const beforeTxLost = txPosts.length; txForm = await fillTransaction(page, tx(roleAccount, '0.50', 'OPERATING_EXPENSE_PAYMENT'), true); await page.screenshot({ path: path.join(out, 'transactions-urdu-mobile.png'), fullPage: true }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await txForm.getByRole('button', { name: 'ریکارڈ شامل کریں', exact: true }).click(); await txForm.getByRole('button', { name: 'اصل درخواست دوبارہ بھیجیں', exact: true }).waitFor(); assert.equal(txPosts.length - beforeTxLost, 1);
+  await txForm.getByRole('button', { name: 'اصل درخواست دوبارہ بھیجیں', exact: true }).click(); await txForm.waitFor({ state: 'detached' }); assert.deepEqual(txPosts[beforeTxLost], txPosts[beforeTxLost + 1]); await page.unroute(txRoute);
+  await page.getByRole('button', { name: 'English', exact: true }).click(); await page.getByText(notice, { exact: true }).waitFor();
+  mark('BROWSER transactions: MANAGER/VIEWER read-only; bilingual cutover notice, RTL/mobile and real lost-response identical-key recovery');
+  const txSettings = await context.newPage(); await txSettings.goto(origin + '/settings'); let txSwitchFetched = false;
+  await page.route(txRoute, async route => { if (!isTransactionPost(route.request())) { await route.continue(); return; } const response = await route.fetch(); txSwitchFetched = true; await new Promise(resolve => setTimeout(resolve, 1500)); try { await route.fulfill({ response }); } catch { /* old business */ } });
+  txForm = await fillTransaction(page, tx(roleAccount, '0.50')); await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await waitFor(() => txSwitchFetched, 'Real transaction before business switch');
+  await txSettings.getByLabel(/^Active business/).selectOption(businessB); await page.getByText('No transactions match these filters.', { exact: true }).waitFor(); await page.waitForTimeout(1700); assert.equal(await page.getByText('TX Role Journeys', { exact: true }).count(), 0); await page.unroute(txRoute);
+  await txSettings.getByLabel(/^Active business/).selectOption(businessA); await page.getByText(notice, { exact: true }).waitFor(); await txSettings.close();
+  mark('BROWSER transactions: business switch discards stale real posting result');
+  await page.goto(origin + '/finance/accounts'); await page.getByText('Live PKR Bank', { exact: true }).waitFor();
   await control('SNAPSHOT AFTER', 'LIVE_SNAPSHOT_AFTER:');
   assert.equal(runtimeText.match(/LIVE_SNAPSHOT_AFTER:([^\r\n]+)/)[1], beforeFinancial);
-  mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by all creation/retry operations');
+  // Records workflow against real persisted Spring endpoints, never synthetic summary responses.
+  const today = cutoff;
+  await api(owner.context, '/businesses/active', 'POST', {businessId:businessA});
+  await page.goto(origin + '/records?period=today');
+  await page.getByRole('link',{name:'Historical summaries',exact:true}).click();
+  await page.getByRole('heading',{name:'Monthly summaries',exact:true}).waitFor();
+  await page.getByRole('link',{name:'Back to Records',exact:true}).click();
+  await page.waitForURL(url => url.pathname === '/records' && url.searchParams.get('period') === 'today');
+  await page.getByRole('button',{name:'Add record',exact:true}).waitFor();
+  const wholeTotals=await (await api(owner.context,'/finance/transactions/summary?startDate='+today+'&endDate='+today)).json();
+  const oneRow=await (await api(owner.context,'/finance/transactions?startDate='+today+'&endDate='+today+'&size=1')).json();
+  assert.equal(wholeTotals.transactionCount,oneRow.totalElements);assert.equal(oneRow.content.length,1);assert.ok(wholeTotals.transactionCount>1);
+  let recordForm=await fillTransaction(page,{...tx(mainAccount,'1500'),description:'Preserved contextual entry'});
+  await page.getByRole('button',{name:'Create money account',exact:true}).click();
+  let inline=page.getByRole('form',{name:'Add account',exact:true});
+  await inline.getByRole('button',{name:'Cancel',exact:true}).click();
+  recordForm=page.getByRole('form',{name:'Add record',exact:true});
+  assert.equal(await recordForm.getByLabel(/^Amount/).inputValue(),'1500');
+  assert.equal(await recordForm.getByLabel(/^Description/).inputValue(),'Preserved contextual entry');
+  assert.equal(await recordForm.getByLabel(/^Effective date/).inputValue(),today);
+  assert.equal(await recordForm.getByRole('checkbox').isChecked(),true);
+  await page.getByRole('button',{name:'Create money account',exact:true}).click();
+  inline=page.getByRole('form',{name:'Add account',exact:true});
+  await inline.getByLabel(/^Account name/).fill('Records Context Bank');
+  await inline.getByLabel(/^Opening balance/).fill('1,000.555');
+  await inline.getByLabel(/^Opening effective date/).fill(today);
+  await inline.getByText('1000.56 PKR',{exact:true}).waitFor();
+  await inline.getByRole('button',{name:'Create account',exact:true}).click();
+  await inline.waitFor({state:'detached'});
+  recordForm=page.getByRole('form',{name:'Add record',exact:true});
+  await recordForm.getByLabel(/^Account/).getByRole('option',{name:'Records Context Bank · PKR',exact:true}).waitFor({state:'attached'});
+  const contextualId=await recordForm.getByLabel(/^Account/).inputValue();assert.ok(contextualId);
+  assert.equal(await recordForm.getByLabel(/^Amount/).inputValue(),'1500');assert.equal(await recordForm.getByLabel(/^Description/).inputValue(),'Preserved contextual entry');
+  await recordForm.getByRole('checkbox').check();
+  await recordForm.getByRole('button',{name:'Add record',exact:true}).click();await recordForm.waitFor({state:'detached'});
+  assert.equal((await (await api(owner.context,'/finance/accounts/'+contextualId)).json()).currentBalance,'2500.56');
+  for(const [raw,expected] of [['1500.5','1500.50'],['۱,۵۰۰.۵۵۵','1500.56']]) {
+    recordForm=await fillTransaction(page,{...tx(contextualId,raw),description:'Natural input regression'});
+    await recordForm.getByText(expected+' PKR',{exact:true}).waitFor();
+    assert.equal(await recordForm.getByLabel(/^Amount/).inputValue(),raw);
+    await recordForm.getByRole('button',{name:'Add record',exact:true}).click();await recordForm.waitFor({state:'detached'});
+    const rows=await (await api(owner.context,'/finance/transactions?accountId='+contextualId+'&size=100')).json();assert.ok(rows.content.some(t=>t.amount===expected));
+  }
+  assert.equal((await (await api(owner.context,'/finance/accounts/'+contextualId)).json()).currentBalance,'5501.62');
+  const summaryResponse=await api(owner.context,'/finance/transactions/summary?accountId='+contextualId+'&startDate='+today+'&endDate='+today);assert.equal(summaryResponse.status(),200);
+  const expectedSummary=await summaryResponse.json();assert.equal(expectedSummary.moneyReceived,'4501.06');assert.equal(expectedSummary.moneyPaid,'0.00');assert.equal(expectedSummary.netCashMovement,'4501.06');assert.equal(expectedSummary.transactionCount,3);
+  await page.getByLabel('Account',{exact:true}).selectOption(contextualId);
+  await page.getByRole('button',{name:/^Money received/}).getByText('4,501.06 PKR',{exact:true}).waitFor();
+  await page.getByRole('button',{name:/^Money received/}).click();await page.waitForURL(/eventType=DIRECT_SALE_RECEIPT/);
+  assert.equal(await page.getByLabel('Event',{exact:true}).inputValue(),'DIRECT_SALE_RECEIPT');
+  await page.getByRole('button',{name:/^Money paid/}).click();await page.waitForURL(/eventType=OPERATING_EXPENSE_PAYMENT/);await page.getByText('No transactions match these filters.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:/^Net cash movement/}).click();await page.waitForURL(url=>!url.searchParams.has('eventType'));
+  const summaryNetwork = /\/api\/finance\/transactions\/summary(?:\?|$)/;
+  await page.route(summaryNetwork, async route => { await route.fetch(); await route.abort('connectionfailed'); });
+  await page.getByLabel('Period', { exact: true }).selectOption('week');
+  await page.getByText('Period totals are unavailable. Activity below remains usable.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: /^View transaction details:/ }).first().waitFor();
+  await page.unroute(summaryNetwork); await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.getByRole('button', { name: /^Money received/ }).getByText('4,501.06 PKR', { exact: true }).waitFor();
+  for(const period of ['week','month','custom','today']) {await page.getByLabel('Period',{exact:true}).selectOption(period);await page.waitForURL(url=>url.searchParams.get('period')===period);}
+  const beforeDetailUrl=page.url();await page.getByRole('button',{name:/^View transaction details:/}).first().click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});assert.equal(page.url(),beforeDetailUrl);
+  await page.getByRole('link',{name:'Scan/upload',exact:true}).click();await page.getByRole('link',{name:'Back to Records',exact:true}).waitFor();await page.getByText('Document confirmation updates monthly summaries. Uploaded receipts are not yet linked to transaction activity.',{exact:true}).waitFor();await page.getByRole('link',{name:'Back to Records',exact:true}).click();await page.waitForURL(url=>url.pathname==='/records');await page.waitForFunction(()=>document.activeElement?.id==='records-scan');assert.equal(new URL(page.url()).searchParams.get('accountId'),contextualId);
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'اردو',exact:true}).click();await page.getByRole('link',{name:'تاریخی خلاصے',exact:true}).waitFor();assert.equal(await page.locator('html').getAttribute('dir'),'rtl');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(out,'records-urdu-mobile.png'),fullPage:true});await page.getByRole('button',{name:'English',exact:true}).click();await page.setViewportSize({width:1280,height:900});
+  for (const member of [viewer,manager]) {const c=await browser.newContext(),p=await c.newPage();await signin(p,member.email);await p.goto(origin+'/records');await p.getByRole('note').waitFor();assert.equal(await p.getByRole('button',{name:'Add record',exact:true}).count(),0);await c.close();}
+  mark('Browser Records: historical access, preserved/cancelled inline account creation, natural/grouped/Urdu HALF_UP amounts, real summary drilldowns, URL periods/details/OCR return and RTL/mobile');
+  mark('HTTP Records summary: independent 1500.00 + 1500.50 + 1500.56 = 4501.06 across complete matching dataset; refreshed bank balance 5501.62');
+  await control('SNAPSHOT RECORDS', 'LIVE_SNAPSHOT_RECORDS:');assert.equal(runtimeText.match(/LIVE_SNAPSHOT_RECORDS:([^\r\n]+)/)[1],beforeFinancial);
+  mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by accounts, transactions and Records entry');
+  await page.goto(origin + '/finance/accounts');await page.getByText('Live PKR Bank',{exact:true}).waitFor();
   const settings = await context.newPage(); await settings.goto(origin + '/settings');
   await settings.getByLabel(/^Active business/).waitFor();
   let oldListFetched = false;
@@ -504,7 +850,11 @@ try {
   });
   form = await fillCreate(page, payload('UI Stale Session Creation')); await submitCreate(form);
   await waitFor(() => sessionCreationFetched, 'Actual creation before session expiry');
+  const expiryTransactions = await context.newPage(); await expiryTransactions.goto(origin + '/finance/transactions'); let expiryTxFetched = false;
+  await expiryTransactions.route(txRoute, async route => { if (!isTransactionPost(route.request())) { await route.continue(); return; } const response = await route.fetch(); expiryTxFetched = true; await new Promise(resolve => setTimeout(resolve, 1500)); try { await route.fulfill({ response }); } catch { /* session expired */ } });
+  txForm = await fillTransaction(expiryTransactions, tx(ids.other, '0.01')); await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await waitFor(() => expiryTxFetched, 'Actual transaction before expiry');
   await control('EXPIRE', 'LIVE_EXPIRED'); await page.reload(); await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+  await expiryTransactions.reload(); await expiryTransactions.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor(); await expiryTransactions.close();
   await page.waitForTimeout(1700); await page.unroute(postRoute);
   assert.equal(await page.getByText('UI Stale Session Creation', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Other Business Bank', { exact: true }).count(), 0);
@@ -512,11 +862,17 @@ try {
   await control('SNAPSHOT FINAL', 'LIVE_SNAPSHOT_FINAL:');
   assert.equal(runtimeText.match(/LIVE_SNAPSHOT_FINAL:([^\r\n]+)/)[1], beforeFinancial);
   await signin(page, viewer.email);
+  const outageTransactions = await context.newPage(); await outageTransactions.goto(origin + '/finance/transactions'); await outageTransactions.getByText(notice, { exact: true }).waitFor();
   await control('STOP_SPRING', 'LIVE_STOPPED_SPRING'); await page.reload();
+  await outageTransactions.reload(); await outageTransactions.getByRole('alert').first().waitFor(); assert.equal(await outageTransactions.getByText('No transactions match these filters.', { exact: true }).count(), 0); await outageTransactions.close();
   await page.getByRole('alert').first().waitFor(); assert.equal(await page.getByText('No accounts match these filters.', { exact: true }).count(), 0);
+  await page.goto(origin + '/records');
+  await page.getByText('Unable to verify your session. Retry to continue.', { exact: true }).waitFor();
+  assert.equal(await page.getByText('No transactions match these filters.', { exact: true }).count(), 0);
   mark('stopped task-owned Spring produces visible failure, never mock or empty financial data');
   assert.deepEqual(errors, []);
   await context.close();
+  }
   }
 } catch (error) {
   console.error(error.stack);
@@ -530,16 +886,16 @@ try {
 } finally {
   if (browser) await browser.close();
   for (const context of apiContexts) await context.dispose();
-  await stopNext().catch(error => { blockers.push(error.message); process.exitCode = 1; });
-  if (runtime && !exited(runtime)) {
-    runtime.stdin.write('STOP\n');
+  if (!leaveReview) await stopNext().catch(error => { blockers.push(error.message); process.exitCode = 1; });
+  if (!leaveReview && runtime && !exited(runtime)) {
+    if (reviewOnly) { writeFileSync(path.join(temporary, 'review.stop'), 'stop'); } else runtime.stdin.write('STOP\n');
     await waitFor(() => exited(runtime), 'Task-owned PostgreSQL/Spring shutdown', 15000).catch(() => { runtime.kill(); process.exitCode = 1; });
   }
-  writeFileSync(path.join(out, demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && blockers.length === 0 }, null, 2));
+  if (!reviewOnly) writeFileSync(path.join(out, parityOnly ? (captureOldParity ? 'parity-before-results.json' : 'parity-after-results.json') : demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, backendClass: runtimeText.match(/LIVE_ACCOUNT_READ_CLASS:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && !parityOnly && blockers.length === 0 }, null, 2));
   if (blockers.length) {
     for (const blocker of blockers) console.error('BLOCKER ' + blocker);
     process.exitCode = 1;
   }
   const resolved = path.resolve(temporary);
-  if (resolved.startsWith(path.resolve(tmpdir()) + path.sep) && path.basename(resolved).startsWith('finsight-accounts-live-')) rmSync(resolved, { recursive: true });
+  if (!leaveReview && resolved.startsWith(path.resolve(tmpdir()) + path.sep) && path.basename(resolved).startsWith('finsight-accounts-live-')) rmSync(resolved, { recursive: true });
 }

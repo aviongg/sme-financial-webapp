@@ -18,14 +18,15 @@ import { useLanguage } from "@/lib/i18n/context";
 import { Sheet } from "@/components/ui/Sheet";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
+import { recordsEn, recordsUr } from '@/components/records/records-copy';
 import { routePermission } from "@/lib/api/navigation";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { can } = useSession();
+  const { can, business } = useSession();
   const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   const tabs = [
@@ -139,9 +140,9 @@ export function MobileNav() {
       >
         <div className="space-y-3 pt-2">
           <button
-            disabled={!allowed("/records/new")}
+            disabled={!allowed('/records') || !isDemoMode && !(business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role))}
             type="button"
-            onClick={() => handleActionSelect("/records/new")}
+            onClick={() => handleActionSelect("/records?add=1")}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none"
           >
             <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0">
@@ -149,10 +150,10 @@ export function MobileNav() {
             </div>
             <div>
               <p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">
-                {t.quickActions.enterFigures}
+                {(locale === 'ur' ? recordsUr : recordsEn).add}
               </p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
-                {t.quickActions.enterFiguresDesc}
+                {t.nav.records}
               </p>
             </div>
           </button>

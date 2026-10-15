@@ -66,6 +66,8 @@ class BusinessAuthorizationServiceTest {
         assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.ZAKAT_READ_CALCULATE)).isTrue();
         assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.FINANCIAL_ACCOUNT_READ)).isTrue();
         assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.FINANCIAL_ACCOUNT_CREATE)).isTrue();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.FINANCIAL_TRANSACTION_READ)).isTrue();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.FINANCIAL_TRANSACTION_POST)).isTrue();
 
         // Mutating membership/settings not allowed
         assertThat(authorizationService.hasRolePermission(MembershipRole.ACCOUNTANT, BusinessPermission.BUSINESS_SETTINGS_MANAGE)).isFalse();
@@ -81,26 +83,30 @@ class BusinessAuthorizationServiceTest {
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.DOCUMENT_READ)).isTrue();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.ZAKAT_READ_CALCULATE)).isTrue();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.FINANCIAL_ACCOUNT_READ)).isTrue();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.FINANCIAL_TRANSACTION_READ)).isTrue();
 
-        // Must NOT have SCORE_CALCULATE or FINANCIAL_ACCOUNT_CREATE
+        // Must NOT have SCORE_CALCULATE or FINANCIAL_ACCOUNT_CREATE or FINANCIAL_TRANSACTION_POST
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.SCORE_CALCULATE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.RECORD_CREATE_UPDATE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.DOCUMENT_CONFIRM)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.DOCUMENT_DELETE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.FINANCIAL_ACCOUNT_CREATE)).isFalse();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.MANAGER, BusinessPermission.FINANCIAL_TRANSACTION_POST)).isFalse();
     }
 
     @Test
-    @DisplayName("VIEWER has only FINANCIAL_DATA_READ and strictly lacks SCORE_CALCULATE")
+    @DisplayName("VIEWER has only FINANCIAL_DATA_READ, FINANCIAL_ACCOUNT_READ, FINANCIAL_TRANSACTION_READ and strictly lacks mutations")
     void viewerPermissions() {
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.FINANCIAL_DATA_READ)).isTrue();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.FINANCIAL_ACCOUNT_READ)).isTrue();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.FINANCIAL_TRANSACTION_READ)).isTrue();
 
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.SCORE_CALCULATE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.RECORD_CREATE_UPDATE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.DOCUMENT_UPLOAD)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.DOCUMENT_READ)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.FINANCIAL_ACCOUNT_CREATE)).isFalse();
+        assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.FINANCIAL_TRANSACTION_POST)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.DOCUMENT_CONFIRM)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.DOCUMENT_DELETE)).isFalse();
         assertThat(authorizationService.hasRolePermission(MembershipRole.VIEWER, BusinessPermission.ZAKAT_READ_CALCULATE)).isFalse();

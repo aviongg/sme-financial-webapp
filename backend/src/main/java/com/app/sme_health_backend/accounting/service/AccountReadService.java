@@ -34,9 +34,19 @@ public class AccountReadService {
     private static final DateTimeFormatter ISO_INSTANT_FORMATTER = DateTimeFormatter.ISO_INSTANT;
 
     private final FinancialAccountRepository accountRepository;
+    private final com.app.sme_health_backend.accounting.repository.AccountMovementRepository movementRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AccountReadService(
+            FinancialAccountRepository accountRepository,
+            com.app.sme_health_backend.accounting.repository.AccountMovementRepository movementRepository
+    ) {
+        this.accountRepository = accountRepository;
+        this.movementRepository = movementRepository;
+    }
 
     public AccountReadService(FinancialAccountRepository accountRepository) {
-        this.accountRepository = accountRepository;
+        this(accountRepository, null);
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -61,8 +71,22 @@ public class AccountReadService {
                 businessId, status, accountType, normalizedCurrency, pageable
         );
 
+        java.util.Map<UUID, BigDecimal> netMovementsByAccount = new java.util.HashMap<>();
+        if (movementRepository != null) {
+            java.util.List<com.app.sme_health_backend.accounting.repository.AccountMovementSum> sums =
+                    movementRepository.findMovementSumsByBusinessIdAndCutoffDate(businessId, effectiveCutoffDate);
+            for (com.app.sme_health_backend.accounting.repository.AccountMovementSum sum : sums) {
+                BigDecimal current = netMovementsByAccount.getOrDefault(sum.getAccountId(), BigDecimal.ZERO);
+                if (sum.getMovementDirection() == com.app.sme_health_backend.accounting.model.MovementDirection.INCREASE) {
+                    netMovementsByAccount.put(sum.getAccountId(), current.add(sum.getTotalAmount()));
+                } else if (sum.getMovementDirection() == com.app.sme_health_backend.accounting.model.MovementDirection.DECREASE) {
+                    netMovementsByAccount.put(sum.getAccountId(), current.subtract(sum.getTotalAmount()));
+                }
+            }
+        }
+
         List<AccountListItemResponse> items = accountsPage.getContent().stream()
-                .map(acc -> toListItemResponse(acc, observationAt, effectiveCutoffDate))
+                .map(acc -> toListItemResponse(acc, observationAt, effectiveCutoffDate, netMovementsByAccount.getOrDefault(acc.getId(), BigDecimal.ZERO)))
                 .toList();
 
         long totalElements = accountsPage.getTotalElements();
@@ -80,15 +104,29 @@ public class AccountReadService {
         FinancialAccount account = accountRepository.findByIdAndBusinessId(accountId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Financial account not found"));
 
-        return toDetailResponse(account, observationAt, effectiveCutoffDate);
+        BigDecimal netMovements = BigDecimal.ZERO;
+        if (movementRepository != null) {
+            java.util.List<com.app.sme_health_backend.accounting.repository.AccountMovementSum> sums =
+                    movementRepository.findMovementSumsByAccountIdAndCutoffDate(accountId, effectiveCutoffDate);
+            for (com.app.sme_health_backend.accounting.repository.AccountMovementSum sum : sums) {
+                if (sum.getMovementDirection() == com.app.sme_health_backend.accounting.model.MovementDirection.INCREASE) {
+                    netMovements = netMovements.add(sum.getTotalAmount());
+                } else if (sum.getMovementDirection() == com.app.sme_health_backend.accounting.model.MovementDirection.DECREASE) {
+                    netMovements = netMovements.subtract(sum.getTotalAmount());
+                }
+            }
+        }
+
+        return toDetailResponse(account, observationAt, effectiveCutoffDate, netMovements);
     }
 
     private AccountListItemResponse toListItemResponse(
             FinancialAccount account,
             String observationAt,
-            LocalDate effectiveCutoffDate
+            LocalDate effectiveCutoffDate,
+            BigDecimal netMovements
     ) {
-        DerivedBalance derived = computeDerivedBalance(account, effectiveCutoffDate);
+        DerivedBalance derived = computeDerivedBalance(account, effectiveCutoffDate, netMovements);
 
         return new AccountListItemResponse(
                 account.getId(),
@@ -111,12 +149,21 @@ public class AccountReadService {
         );
     }
 
-    AccountDetailResponse toDetailResponse(
+    public AccountDetailResponse toDetailResponse(
             FinancialAccount account,
             String observationAt,
             LocalDate effectiveCutoffDate
     ) {
-        DerivedBalance derived = computeDerivedBalance(account, effectiveCutoffDate);
+        return toDetailResponse(account, observationAt, effectiveCutoffDate, BigDecimal.ZERO);
+    }
+
+    public AccountDetailResponse toDetailResponse(
+            FinancialAccount account,
+            String observationAt,
+            LocalDate effectiveCutoffDate,
+            BigDecimal netMovements
+    ) {
+        DerivedBalance derived = computeDerivedBalance(account, effectiveCutoffDate, netMovements);
 
         return new AccountDetailResponse(
                 account.getId(),
@@ -147,13 +194,16 @@ public class AccountReadService {
             String balanceUnavailableReason
     ) {}
 
-    private DerivedBalance computeDerivedBalance(FinancialAccount account, LocalDate effectiveCutoffDate) {
+    private DerivedBalance computeDerivedBalance(
+            FinancialAccount account,
+            LocalDate effectiveCutoffDate,
+            BigDecimal netMovements
+    ) {
         String currency = account.getCurrency();
         Integer currencyDecimals = account.getCurrencyDecimals();
         BigDecimal openingBalance = account.getOpeningBalance();
 
         // 1. Currency metadata validation: must match registry supported currency AND declared scale
-        // Rule 2: Invalid currency/scale metadata -> openingBalance=null, currentBalance=null, UNSUPPORTED_CURRENCY
         if (!CurrencyRegistry.isSupported(currency, currencyDecimals)) {
             return new DerivedBalance(
                     null,
@@ -168,8 +218,6 @@ public class AccountReadService {
                 openingBalance, currency, currencyDecimals
         );
 
-        // Rule 2: Invalid opening precision/capacity or integrity -> openingBalance=null, currentBalance=null
-        // Never expose the malformed amount, round it, fabricate zero or repair stored metadata silently.
         if (evalOpening.status() != BalanceStatus.AVAILABLE) {
             return new DerivedBalance(
                     null,
@@ -182,7 +230,6 @@ public class AccountReadService {
         String openingBalanceStr = evalOpening.formattedBalance();
 
         // 3. Pre-Opening Date Invariant: If openingDate > effectiveCutoffDate, balance is canonical zero
-        // Rule 4: Valid future-opening accounts retain their valid openingBalance, with AVAILABLE currentBalance at canonical zero
         if (account.getOpeningDate().isAfter(effectiveCutoffDate)) {
             return new DerivedBalance(
                     openingBalanceStr,
@@ -192,13 +239,24 @@ public class AccountReadService {
             );
         }
 
-        // 4. Opening Date <= effectiveCutoffDate: opening balance is included as initial balance
-        // Rule 1: AVAILABLE: valid metadata, openingBalance and currentBalance are non-null exact currency amounts, reason=null
-        // Rule 3 Note: In future slices with transaction ledgers, if current balance alone fails integrity check,
-        // valid openingBalance will be preserved while currentBalance is set to null with INTEGRITY_CHECK_FAILED.
+        // 4. Opening Date <= effectiveCutoffDate: opening balance + net movements
+        BigDecimal unverifiedCurrentBalance = openingBalance.add(netMovements != null ? netMovements : BigDecimal.ZERO);
+        BalanceEvaluation evalCurrent = CurrencyRegistry.evaluateBalance(
+                unverifiedCurrentBalance, currency, currencyDecimals
+        );
+
+        if (evalCurrent.status() != BalanceStatus.AVAILABLE) {
+            return new DerivedBalance(
+                    openingBalanceStr,
+                    null,
+                    BalanceStatus.UNAVAILABLE,
+                    evalCurrent.unavailableReason()
+            );
+        }
+
         return new DerivedBalance(
                 openingBalanceStr,
-                evalOpening.formattedBalance(),
+                evalCurrent.formattedBalance(),
                 BalanceStatus.AVAILABLE,
                 null
         );

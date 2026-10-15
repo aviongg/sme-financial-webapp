@@ -2,12 +2,13 @@ import { ApiError } from '../../../lib/api/client';
 import { InvalidAccountResponse } from '../../../lib/api/dev-a/account-contracts';
 export const accountEn = {
   title: 'Financial accounts', readOnly: 'Read-only account balances',
+  transactions: 'Transactions and posting',
   demo: 'Accounts preview is not available in demo mode.',
   status: 'Account status', type: 'Account type', currency: 'Currency', allTypes: 'All account types', allCurrencies: 'All currencies',
   ACTIVE: 'Active', INACTIVE: 'Inactive', ARCHIVED: 'Archived', CASH: 'Cash', BANK: 'Bank', WALLET: 'Wallet',
   current: 'Current balance', opening: 'Opening balance', openingDate: 'Opening effective date',
   cutoff: 'Effective through (Asia/Karachi)', observed: 'Snapshot observed (UTC)',
-  dateHelp: 'The balance includes only effective funds visible in this snapshot. A later detail read may show a newer balance.',
+  dateHelp: 'Balances include effective opening funds and posted movements through the cutoff date. A later detail read may show a newer balance.',
   details: 'View account details', detailTitle: 'Account details', close: 'Close account details',
   institution: 'Institution', identifier: 'Masked account identifier', notes: 'Notes',
   loading: 'Loading accounts…', detailLoading: 'Loading account details…',
@@ -25,12 +26,13 @@ export const accountEn = {
 export type AccountCopy = { [K in keyof typeof accountEn]: string };
 export const accountUr: AccountCopy = {
   title: 'مالی اکاؤنٹس', readOnly: 'اکاؤنٹس کے بیلنس صرف دیکھنے کے لیے',
+  transactions: 'لین دین اور اندراج',
   demo: 'ڈیمو موڈ میں اکاؤنٹس کا پیش منظر دستیاب نہیں ہے۔',
   status: 'اکاؤنٹ کی حالت', type: 'اکاؤنٹ کی قسم', currency: 'کرنسی', allTypes: 'اکاؤنٹس کی تمام اقسام', allCurrencies: 'تمام کرنسیاں',
   ACTIVE: 'فعال', INACTIVE: 'غیر فعال', ARCHIVED: 'محفوظ شدہ', CASH: 'نقد', BANK: 'بینک', WALLET: 'والٹ',
   current: 'موجودہ بیلنس', opening: 'ابتدائی بیلنس', openingDate: 'ابتدائی بیلنس کی مؤثر تاریخ',
   cutoff: 'اس تاریخ تک مؤثر (ایشیا/کراچی)', observed: 'ڈیٹا دیکھنے کا وقت (یو ٹی سی)',
-  dateHelp: 'بیلنس میں صرف اس وقت دستیاب مؤثر رقوم شامل ہیں۔ تفصیل دوبارہ کھولنے پر نیا بیلنس دکھایا جا سکتا ہے۔',
+  dateHelp: 'بیلنس میں مقررہ تاریخ تک مؤثر ابتدائی رقم اور درج شدہ لین دین شامل ہیں۔ تفصیل دوبارہ کھولنے پر نیا بیلنس دکھایا جا سکتا ہے۔',
   details: 'اکاؤنٹ کی تفصیل دیکھیں', detailTitle: 'اکاؤنٹ کی تفصیل', close: 'اکاؤنٹ کی تفصیل بند کریں',
   institution: 'ادارہ', identifier: 'جزوی طور پر پوشیدہ اکاؤنٹ شناخت', notes: 'نوٹس',
   loading: 'اکاؤنٹس لوڈ ہو رہے ہیں…', detailLoading: 'اکاؤنٹ کی تفصیل لوڈ ہو رہی ہے…',
@@ -58,13 +60,14 @@ export function accountErrorKey(error: unknown, detail = false): keyof AccountCo
 }
 
 export const accountCreateEn = {
+  rounded: 'Rounded HALF_UP opening amount', recordedAmount: 'Opening amount to record',
   add: 'Add account', name: 'Account name', save: 'Create account', cancel: 'Cancel',
   openingHelp: 'Opening balance is the amount already held or owed at the selected date.',
   revenueHelp: 'Creating an account does not add sales or revenue and does not update monthly records.',
   futureHelp: 'Future-dated opening funds become effective on the selected date.',
-  amountHelp: 'Use Western digits, no grouping, and the exact currency scale: JPY 0, PKR 0.00, BHD 0.000. Maximum 12 integer digits. Negative openings are allowed for bank and wallet accounts only.',
+  amountHelp: 'Enter the amount already held or owed.',
   nameRequired: 'Enter an account name of 1–100 characters.', typeInvalid: 'Choose cash, bank or wallet.',
-  currencyInvalid: 'Choose a supported currency.', amountInvalid: 'Enter an exact amount at the currency scale, within 12 integer digits. No rounding is applied.',
+  currencyInvalid: 'Choose a supported currency.', amountInvalid: 'Enter a valid amount, for example 1,500.50. Maximum 12 integer digits after rounding.',
   cashNegative: 'A cash opening balance cannot be negative.', dateInvalid: 'Choose a valid opening date.',
   retryOriginal: 'Retry original request', uncertain: 'The outcome is uncertain. Resolve the original request before changing these values. An explicit retry uses the same key and identical values.',
   created: 'Account created. The list uses your current filters, so the new account may not appear.',
@@ -77,13 +80,14 @@ export const accountCreateEn = {
 };
 export type AccountCreateCopy = { [K in keyof typeof accountCreateEn]: string };
 export const accountCreateUr: AccountCreateCopy = {
+  rounded: 'HALF_UP کے مطابق گول ابتدائی رقم', recordedAmount: 'درج ہونے والی ابتدائی رقم',
   add: 'اکاؤنٹ شامل کریں', name: 'اکاؤنٹ کا نام', save: 'اکاؤنٹ بنائیں', cancel: 'منسوخ کریں',
   openingHelp: 'ابتدائی بیلنس منتخب تاریخ پر پہلے سے موجود رقم یا واجب الادا رقم ہے۔',
   revenueHelp: 'اکاؤنٹ بنانے سے فروخت یا آمدنی شامل نہیں ہوتی اور ماہانہ ریکارڈ تبدیل نہیں ہوتے۔',
   futureHelp: 'مستقبل کی تاریخ کا ابتدائی بیلنس منتخب تاریخ پر مؤثر ہوتا ہے۔',
-  amountHelp: 'مغربی ہندسے، بغیر گروہ بندی اور کرنسی کے عین اعشاری خانے استعمال کریں: JPY 0، PKR 0.00، BHD 0.000۔ صحیح حصے میں زیادہ سے زیادہ 12 ہندسے۔ منفی ابتدائی رقم صرف بینک اور والٹ کے لیے ہے۔',
+  amountHelp: 'پہلے سے موجود یا واجب الادا رقم درج کریں۔',
   nameRequired: 'اکاؤنٹ کا نام 1 سے 100 حروف میں درج کریں۔', typeInvalid: 'نقد، بینک یا والٹ منتخب کریں۔',
-  currencyInvalid: 'معاونت یافتہ کرنسی منتخب کریں۔', amountInvalid: 'کرنسی کے عین اعشاری خانوں کے ساتھ رقم درج کریں۔ صحیح حصے میں زیادہ سے زیادہ 12 ہندسے ہوں۔ رقم گول نہیں کی جائے گی۔',
+  currencyInvalid: 'معاونت یافتہ کرنسی منتخب کریں۔', amountInvalid: 'درست رقم درج کریں، مثلاً 1,500.50۔ گول کرنے کے بعد صحیح حصے میں زیادہ سے زیادہ 12 ہندسے ہوں۔',
   cashNegative: 'نقد اکاؤنٹ کا ابتدائی بیلنس منفی نہیں ہو سکتا۔', dateInvalid: 'ابتدائی بیلنس کی درست تاریخ منتخب کریں۔',
   retryOriginal: 'اصل درخواست دوبارہ بھیجیں', uncertain: 'نتیجہ غیر یقینی ہے۔ ان معلومات کو تبدیل کرنے سے پہلے اصل درخواست کا نتیجہ معلوم کریں۔ دوبارہ کوشش میں وہی کلید اور عین وہی معلومات استعمال ہوں گی۔',
   created: 'اکاؤنٹ بن گیا۔ فہرست موجودہ فلٹرز کے مطابق ہے، اس لیے نیا اکاؤنٹ نظر نہ بھی آ سکتا ہے۔',

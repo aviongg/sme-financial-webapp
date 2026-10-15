@@ -67,6 +67,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(com.app.sme_health_backend.accounting.exception.TransactionValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleTransactionValidationException(
+            com.app.sme_health_backend.accounting.exception.TransactionValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST,
+                "Validation Failed",
+                exception.getMessage() != null ? exception.getMessage() : "One or more request parameters are invalid"
+        );
+        response.put("errors", exception.getErrors());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateResource(
             DuplicateResourceException exception) {

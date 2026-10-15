@@ -80,7 +80,7 @@ function RecordEditor({ recordId }: { recordId: string }) {
               description={t.records.notFoundDescription}
               showSafeMessage={false}
               retryLabel={isDemoMode ? t.records.backToDashboard : (locale === "ur" ? "ماہانہ ریکارڈ" : "Monthly records")}
-              onRetry={() => router.push(isDemoMode ? "/" : "/records")}
+              onRetry={() => router.push(isDemoMode ? "/" : "/records/history")}
             />
           )}
 

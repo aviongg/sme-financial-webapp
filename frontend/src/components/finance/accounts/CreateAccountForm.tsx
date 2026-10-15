@@ -1,4 +1,5 @@
 "use client";
+import { normalizeAmountInput } from '@/lib/utils/amount-input';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,14 +15,14 @@ import { useSession } from '@/components/auth/SessionProvider';
 import { useLanguage } from '@/lib/i18n/context';
 import { accountCreateEn, accountCreateUr, accountEn, accountUr, type AccountCopy, type AccountCreateCopy } from './account-copy';
 
-export function CreateAccountForm({ onCreated, onClose }: { onCreated: (account: AccountDetailData) => void; onClose: () => void }) {
+export function CreateAccountForm({ onCreated, onClose, fixedCurrency }: { fixedCurrency?: 'PKR'; onCreated: (account: AccountDetailData) => void; onClose: () => void }) {
   const session = useSession();
   const { locale } = useLanguage();
   const copy = locale === 'ur' ? accountCreateUr : accountCreateEn;
   const accountCopy = locale === 'ur' ? accountUr : accountEn;
   const contextKey = JSON.stringify([session.epoch, session.user?.id, session.business?.businessId, session.business?.role, session.business?.membershipStatus, session.status]);
   const entryRef = useRef<{ key: string; submission: AccountCreateSubmission } | null>(null);
-  const [draft, setDraft] = useState<OpeningSetupDraft>({ accountName: '', accountType: 'BANK', currency: 'PKR', openingBalance: '', openingDate: '' });
+  const [draft, setDraft] = useState<OpeningSetupDraft>({ accountName: '', accountType: 'BANK', currency: fixedCurrency ?? 'PKR', openingBalance: '', openingDate: '' });
   const [errors, setErrors] = useState<OpeningInputErrors>({});
   const [phase, setPhase] = useState<CreatePhase>('idle');
   const [failure, setFailure] = useState<'validation' | 'duplicate' | 'conflict' | 'denied' | 'contextEnded' | 'uncertain' | null>(null);
@@ -35,10 +36,13 @@ export function CreateAccountForm({ onCreated, onClose }: { onCreated: (account:
   const submit = async () => {
     const entry = entryRef.current;
     if (!entry || entry.key !== contextKey || !['idle', 'uncertain'].includes(entry.submission.phase)) return;
-    const validation = validateOpeningSetup(draft);
+    const amount = normalizeAmountInput(draft.openingBalance, draft.currency);
+    const normalizedDraft = { ...draft, openingBalance: amount?.canonical ?? draft.openingBalance };
+    const validation = validateOpeningSetup(normalizedDraft);
+    if (!amount) validation.openingBalance = 'amountInvalid';
     setErrors(validation);
     if (Object.keys(validation).length) { setFailure('validation'); return; }
-    const pending = entry.submission.submit(draft); // Synchronous lock before the first await.
+    const pending = entry.submission.submit(normalizedDraft); // Synchronous lock before the first await.
     setPhase(entry.submission.phase); setFailure(null);
     try {
       const account = await pending;
@@ -57,11 +61,12 @@ export function CreateAccountForm({ onCreated, onClose }: { onCreated: (account:
       setPhase(entry.submission.phase);
     }
   };
-  return <OpeningSetupForm draft={draft} onChange={(field, value) => { if (phase !== 'idle' || entryRef.current?.submission.phase !== 'idle') return; setDraft(previous => ({ ...previous, [field]: value })); setErrors(previous => ({ ...previous, [field]: undefined })); setFailure(null); }} onSubmit={() => { void submit(); }} onClose={onClose} errors={errors} copy={copy} accountCopy={accountCopy}
+  return <OpeningSetupForm fixedCurrency={fixedCurrency} draft={draft} onChange={(field, value) => { if (phase !== 'idle' || entryRef.current?.submission.phase !== 'idle') return; setDraft(previous => ({ ...previous, [field]: value })); setErrors(previous => ({ ...previous, [field]: undefined })); setFailure(null); }} onSubmit={() => { void submit(); }} onClose={onClose} errors={errors} copy={copy} accountCopy={accountCopy}
     busy={phase === 'submitting'} locked={locked} submitDisabled={phase === 'conflict' || phase === 'denied'} message={failure ? copy[failure] : undefined} />;
 }
 
-export function OpeningSetupForm({ draft, onChange, onSubmit, onClose, errors, copy, accountCopy, busy = false, locked = false, submitDisabled = false, message }: {
+export function OpeningSetupForm({ fixedCurrency, draft, onChange, onSubmit, onClose, errors, copy, accountCopy, busy = false, locked = false, submitDisabled = false, message }: {
+  fixedCurrency?: 'PKR';
   draft: OpeningSetupDraft;
   onChange: (field: OpeningField, value: string) => void;
   onSubmit: () => void;
@@ -74,6 +79,7 @@ export function OpeningSetupForm({ draft, onChange, onSubmit, onClose, errors, c
   submitDisabled?: boolean;
   message?: string;
 }) {
+  const preview = normalizeAmountInput(draft.openingBalance, draft.currency);
   const titleId = useId(), helpId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -87,10 +93,11 @@ export function OpeningSetupForm({ draft, onChange, onSubmit, onClose, errors, c
       <fieldset disabled={busy || locked} className="grid min-w-0 gap-4 sm:grid-cols-2">
         <Input ref={nameRef} label={copy.name} required maxLength={100} value={draft.accountName} onChange={event => onChange('accountName', event.target.value)} error={error('accountName')} />
         <Select label={accountCopy.type} required value={draft.accountType} options={accountTypes.map(value => ({ value, label: accountCopy[value] }))} onChange={event => onChange('accountType', event.target.value)} error={error('accountType')} />
-        <Select label={accountCopy.currency} required value={draft.currency} options={Object.keys(currencyScales).map(value => ({ value, label: value }))} onChange={event => onChange('currency', event.target.value)} error={error('currency')} />
+        <Select label={accountCopy.currency} required value={draft.currency} options={(fixedCurrency ? [fixedCurrency] : Object.keys(currencyScales)).map(value => ({ value, label: value }))} onChange={event => onChange('currency', event.target.value)} error={error('currency')} />
         <Input label={accountCopy.opening} required type="text" inputMode="decimal" dir="ltr" className="font-sans tabular-nums [unicode-bidi:isolate]" autoComplete="off" spellCheck={false} value={draft.openingBalance} onChange={event => onChange('openingBalance', event.target.value)} error={error('openingBalance')} helperText={copy.amountHelp} />
         <Input label={accountCopy.openingDate} required type="date" dir="ltr" className="font-sans [unicode-bidi:isolate]" value={draft.openingDate} onChange={event => onChange('openingDate', event.target.value)} error={error('openingDate')} />
       </fieldset>
+      {preview && <p role="status">{preview.rounded ? copy.rounded : copy.recordedAmount}: <bdi dir="ltr">{preview.canonical} {draft.currency}</bdi></p>}
       {message && <p role="alert" className="text-sm">{message}</p>}
       {locked && <p className="text-sm">{copy.uncertainExit}</p>}
       <div className="flex flex-wrap gap-3">

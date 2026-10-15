@@ -1,8 +1,11 @@
 "use client";
-import { useCallback, useRef, useState } from 'react';
+import { accountQueryFromURL, accountSearch } from '../../records/record-query';
+import { useSearchParams, usePathname } from 'next/navigation';
+import { useCallback, useMemo, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from '@/components/auth/SessionProvider';
 import { canPresentAccountCreate } from '@/lib/api/dev-a/account-create-contracts';
-import { accountsApi, accountQueryString } from '@/lib/api/dev-a/accounts';
+import { accountsApi } from '@/lib/api/dev-a/accounts';
 import { accountStatuses, accountTypes, type AccountDetailData, type AccountQuery, type AccountStatus, type AccountType } from '@/lib/api/dev-a/account-contracts';
 import { currencyScales } from '@/lib/utils/decimal-display';
 import { useLanguage } from '@/lib/i18n/context';
@@ -16,7 +19,9 @@ import { AccountMoneyValue } from './AccountMoneyValue';
 import { accountEn, accountUr, accountCreateEn, accountCreateUr, accountErrorKey } from './account-copy';
 import { CreateAccountForm } from './CreateAccountForm';
 
-export function AccountsList() {
+const EmbeddedFrame = ({ children }: { children?: React.ReactNode; title?: string }) => <>{children}</>;
+
+export function AccountsList({ embedded = false, activityHref = '/finance/transactions' }: { embedded?: boolean; activityHref?: string }) {
   const { locale, direction } = useLanguage();
   const copy = locale === 'ur' ? accountUr : accountEn;
   const createCopy = locale === 'ur' ? accountCreateUr : accountCreateEn;
@@ -26,10 +31,20 @@ export function AccountsList() {
   const [created, setCreated] = useState<{ context: string; account: AccountDetailData } | null>(null);
   const [refresh, setRefresh] = useState(0);
   const addRef = useRef<HTMLButtonElement>(null);
-  const [query, setQuery] = useState<AccountQuery>({ status: 'ACTIVE', page: 0, size: 50 });
+  const previousCreating = useRef<string | null>(null);
+  useEffect(() => {
+    if (previousCreating.current !== null && creating === null) addRef.current?.focus();
+    previousCreating.current = creating;
+  }, [creating]);
+  const params = useSearchParams(), pathname = usePathname();
+  const query = useMemo(() => accountQueryFromURL(new URLSearchParams(params.toString()), embedded), [params, embedded]);
+  const setQuery = (update: AccountQuery | ((previous: AccountQuery) => AccountQuery)) => {
+    const search = accountSearch(new URLSearchParams(window.location.search), update, embedded);
+    window.history.replaceState(null, '', pathname + '?' + search.toString());
+  };
   const [selected, setSelected] = useState<string | null>(null);
   const close = useCallback(() => setSelected(null), []);
-  const queryKey = contextKey + ':' + refresh + ':' + accountQueryString(query);
+  const queryKey = contextKey + ':' + refresh + ':' + JSON.stringify(query);
   const resource = useLiveResource(useCallback(async (signal: AbortSignal) => {
     try { return { key: queryKey, page: await accountsApi.list(query, signal), error: null }; }
     catch (error) {
@@ -42,8 +57,10 @@ export function AccountsList() {
   const page = state?.page;
   const loading = resource.loading || !state && !resource.error;
   const filter = (patch: Partial<AccountQuery>) => { close(); setQuery(previous => ({ ...previous, ...patch, page: 0 })); };
-  return <LivePage title={copy.title}><div dir={direction} className="space-y-5 min-w-0">
+  const Frame = embedded ? EmbeddedFrame : LivePage;
+  return <Frame title={copy.title}><div dir={direction} className="space-y-5 min-w-0">
     <p className="text-sm text-[var(--color-text-muted)]">{copy.readOnly}</p>
+    <Link href={activityHref} className="inline-block underline rounded focus-visible:outline-2 focus-visible:outline-offset-2">{copy.transactions}</Link>
     {session.status === 'authenticated' && canPresentAccountCreate(session.business) && <Button ref={addRef} aria-expanded={creating === contextKey} disabled={creating === contextKey} onClick={() => { close(); setCreated(null); setCreating(contextKey); }}>{createCopy.add}</Button>}
     {creating === contextKey && <CreateAccountForm key={contextKey} onClose={() => { setCreating(null); requestAnimationFrame(() => addRef.current?.focus()); }} onCreated={account => {
       setCreated({ context: contextKey, account }); setCreating(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
@@ -79,5 +96,5 @@ export function AccountsList() {
       </nav>}<p className="text-sm text-[var(--color-text-muted)]">{copy.dateHelp}</p>
     </>}
     {selected && <AccountDetail key={selected} id={selected} onClose={close} />}
-  </div></LivePage>;
+  </div></Frame>;
 }
