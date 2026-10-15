@@ -6,6 +6,8 @@ This file details F02, F12B, F13 and B's supporting intelligence roadmap. Other 
 
 ## Shared implementation rules for every package
 
+**14 October 2026:** F02 and the B-owned AI-LAUNCH-01 subset of supporting intelligence are now implemented and under verification following the explicit kickoff. Read the [actual source contract](../F02_AI_IMPLEMENTATION.md) and [current state](../IMPLEMENTATION_STATE.md). The original design below remains useful for future scope but is not an assertion that its proposed paths/DTOs exist. Initial AI consumes existing MVP read services without requiring A C11; future C11 and all original package ownership are unchanged. Reviewer signoff and paid-provider/client acceptance remain pending.
+
 - Java base path is `backend/src/main/java/com/app/sme_health_backend/`; frontend base path is `frontend/src/`. Extend the current package-by-domain structure, `SessionProvider`, `apiClient`, authorization, audit and exception systems.
 - New HTTP examples use `/api/v2`; frontend `apiClient` takes `/v2/...` because it already prefixes `/api`. Existing `/api` endpoints and numeric DTOs remain compatible. C12 (B, A review) defines the final wire schema; proposed new monetary values are decimal strings plus ISO currency, UUID references, ISO local dates/UTC instants, explicit nulls and enums. Do not convert financial strings through JavaScript Number for accounting.
 - Request bodies never choose business/user identity. Server active business and authenticated membership determine scope, including referenced document/project/obligation ownership and A's future salesperson row scope. Changing business, revoking access or disabling a module must invalidate eligible caches/results immediately. Server enforcement must precede client hiding.

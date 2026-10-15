@@ -19,8 +19,12 @@ import { formatPKR } from '@/lib/utils/currency';
 import { useLanguage } from '@/lib/i18n/context';
 import { interpolate, liveLabel } from '@/lib/i18n/labels';
 import { useSession } from '@/components/auth/SessionProvider';
+import { AiExplanationPanel } from '@/components/ai/AiExplanation';
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 export function LiveDashboard() {
   const { locale, t } = useLanguage(); const { can, business } = useSession();
+  const configuration = useConfiguration(); const copy = phaseTwoCopy(locale);
   const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [dashboard, records] = await Promise.all([financeApi.dashboard(signal), phaseOneApi.getMonthlyRecords(signal)]); return { dashboard, records }; }, []));
   const data = resource.data, score = data?.dashboard.score, projection = data?.dashboard.trendProjection;
   const presentation = score ? scorePresentation(score) : null;
@@ -29,6 +33,8 @@ export function LiveDashboard() {
   return <LivePage title={t.nav.dashboard} {...resource} actions={can('RECORD_CREATE_UPDATE') ? <Link href="/records/new"><Button size="sm">{t.dashboard.addMonthlyRecord}</Button></Link> : undefined}>
     {data && <><div className="flex flex-wrap gap-3 justify-between items-center"><h1 className="font-heading text-2xl font-bold">{business?.businessName}</h1><p className="text-sm">{t.live.savedRecords}: <span className="tabular-nums">{data.records.length}</span> · <bdi>{score?.month || '—'}</bdi></p></div>
     {presentation && score ? <><div className="grid gap-5 lg:grid-cols-3"><HealthScoreHero className="lg:col-span-2" scoreResult={presentation} explanation={{ summary: insight?.text || (score.explanation ? interpolate(t.live.scoreSummary, { months: score.explanation.historyMonthsAvailable }) : t.live.legacyScore), weakestReason: t.live.weakestReason }}/><div className="space-y-5"><ScoreCompleteness completeness={completenessPercent(score.dataCompleteness)} componentScores={score.componentScores} actionHref={can('RECORD_CREATE_UPDATE') ? '/records/new' : '/health/components'}/>{recommendation ? <><NextStep recommendation={{ id: recommendation.id, title: t.live.recommendations, action: recommendation.text, impact: '', priority: recommendation.priority.toLowerCase() === 'high' ? 'high' : 'medium' }} actionHref={`/health/components?month=${score.month}`}/><RecommendationActions key={recommendation.id + recommendation.sourceComputedAt} advice={recommendation} onUpdated={resource.retry}/></> : <Card padding="md">{t.live.noAdvice}</Card>}</div></div><HealthComponents componentScores={score.componentScores} weakestComponent={score.weakestComponent || undefined}/><ScoreEvidence score={score} compact/></> : <Card padding="lg">{t.live.noScore}</Card>}
+    {configuration?.data && !configuration.data.configured && can('BUSINESS_SETTINGS_MANAGE') && <Card padding="md"><Link href="/business-setup" className="underline">{copy.customize}</Link><p className="text-sm mt-2">{copy.savedDefault}</p></Card>}
+    <AiExplanationPanel key={`${score?.computedAt}:${data.records.map(record => record.updatedAt).join(',')}`} type="dashboard" month={score?.month}/>
     <CashFlowTrend records={data.records}/>
     <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.projection}</h2>{projection?.projectedNetCashFlow != null ? <><p><bdi>{projection.projectedMonth}</bdi>: <strong>{formatPKR(projection.projectedNetCashFlow, { locale })}</strong></p><p>{liveLabel(t, projection.trendDirection)} · {t.live.confidence}: {liveLabel(t, projection.confidence)} · {t.live.monthsUsed}: {projection.historicalMonthsCount}</p><p className="text-sm">{t.live.projectionHelp}</p></> : <p>{t.live.projectionPending}</p>}</Card></>}
   </LivePage>;

@@ -98,7 +98,30 @@ ai-service/.venv/Scripts/python.exe -m unittest discover -s scripts -p test_prod
 
 OCR tests block real provider calls. Backup tests use real cryptography with simulated PostgreSQL/process boundaries; they are not a real encrypted staging restore. This session first used an older test interpreter under `tmp/main-final-integration/ai-service/.venv` for current-source tests because it already had pyrage/PyYAML. The current OCR virtualenv's already-declared multipart dependency was also restored. Temporary-checkout interpreter locations are a recovery convenience, not the long-term setup contract.
 
-## Documentation and publication checks
+## F02 / AI-LAUNCH-01 offline acceptance
+
+The 15 October implementation adds V18, configuration/AI API tests, 100 distinct-question synthetic evaluation cases across 20 families, frontend helper tests and a synthetic browser suite. These cases test routing and grounding contracts, not real-model quality. Use the same default Maven and full local PostgreSQL commands above; they include the new tests. To isolate failures:
+
+```powershell
+# From backend; these tests never call a paid provider
+.\mvnw.cmd '-Dtest=ModuleResolverTests,Ai*Tests,OpenAiResponsesProviderTests,MvpFinancialEvidenceAdapterTests' test
+.\mvnw.cmd -Ppostgres-it '-Dit.test=BusinessConfigurationPostgreSqlIT,ConfigurationMigrationPostgreSqlIT,AiEvidencePostgreSqlIT' verify
+# From frontend, after the production build/start described above
+node tests/browser-phase-two.integration.mjs
+```
+
+Each browser fixture owns port 8080 temporarily. The additional **real HTTP acceptance harness** must run separately after all synthetic suites release it. It starts Spring on loopback 8080 with a real disposable PostgreSQL database and explicit simulated AI; a production Next server on 3100 must already be built with the 8080 rewrite. Edge and Playwright must be installed. From backend:
+
+```powershell
+$env:FINSIGHT_BROWSER_NODE = '<absolute Node executable>'
+$env:PLAYWRIGHT_MODULE = '<absolute Playwright package path>'
+$env:BROWSER_ARTIFACT_DIR = '<absolute task-local evidence directory>'
+.\mvnw.cmd '-Dtest=F02AiBrowserAcceptance' test
+```
+
+This opt-in class is intentionally excluded from default test naming. It launches `scripts/test_f02_ai_browser.mjs`, creates synthetic owner/viewer accounts and businesses, exercises onboarding/settings/AI through real session/CSRF APIs and the UI, then tears down its own browser and disposable database. It requires no OpenAI key and makes no paid requests. Inspect screenshots as well as assertions. Stop only the task's Next server when done. Do not substitute a developer/customer database or run concurrently with another service on 8080. [Activation runbook](AI_ACTIVATION_RUNBOOK.md) covers the separate later paid-provider milestone.
+
+## Documentation and publication checks (onboarding baseline)
 
 Review Markdown relative links, all fourteen feature entries, twelve contract owners, unresolved policies and truthful test status. Check source/migration invariants against the audited SHA:
 

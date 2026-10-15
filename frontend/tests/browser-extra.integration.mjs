@@ -1,3 +1,4 @@
+import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
 // Production frontend browser checks using a synthetic API contract fixture.
 // This does not test the deployed Spring service, PostgreSQL, email or OCR providers.
 // Requires the current production Next build serving http://127.0.0.1:3100.
@@ -89,6 +90,8 @@ const handler = async (req, res) => {
     return json(res, {message: 'Session expired', error: 'unauthorized'}, 401);
   if (url === '/api/businesses') return json(res, [business]);
   if (url === '/api/businesses/active') return json(res, business);
+  if (url === '/api/business-configuration') return json(res, configurationFixture());
+  if (url === '/api/ai/status') return json(res, aiStatusFixture());
   if (url === '/api/profile') return json(res, profile);
   if (url === '/api/memberships' || url === '/api/invitations') return json(res, []);
   if (url === `/api/documents/${documentId}/corrections`) return json(res,corrections);

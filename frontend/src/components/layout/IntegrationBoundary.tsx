@@ -6,6 +6,8 @@ import { AuthScreen } from '@/components/auth/AuthScreen';
 import { localizedSessionError } from '@/lib/i18n/errors';
 import { useLanguage } from '@/lib/i18n/context';
 import { BusinessSetup } from '@/components/auth/BusinessSetup';
+import { ConfigurationProvider } from '@/components/configuration/ConfigurationProvider';
+import { AiProvider } from '@/components/ai/AiProvider';
 export function IntegrationBoundary({children}:{children:React.ReactNode}) {
   const { t } = useLanguage();
   const session=useSession();const pathname=usePathname();
@@ -15,5 +17,5 @@ export function IntegrationBoundary({children}:{children:React.ReactNode}) {
   if(session.status==='error')return <main className="p-10 space-y-4"><p role="alert">{localizedSessionError(session.error, t)}</p><button type="button" className="underline" onClick={()=>void session.refresh()}>{t.live.retryConnection}</button></main>;
   if(session.status==='anonymous'||session.status==='challenge')return <AuthScreen key={session.user?.authStage||'login'}/>;
   if(!session.business||pathname==='/onboarding')return <BusinessSetup/>;
-  return <div key={`${session.user?.id}:${session.business.businessId}:${session.epoch}`}>{children}</div>;
+  return <div key={`${session.user?.id}:${session.business.businessId}:${session.epoch}`}><ConfigurationProvider><AiProvider>{children}</AiProvider></ConfigurationProvider></div>;
 }

@@ -1,13 +1,13 @@
 # Phase 2 feature and supporting-work register
 
-Updated 10 October 2026. Baseline MVP exists; **none of the fourteen Phase 2 packages is implemented**. DRAFT means designed for review, not approved/frozen. This register is the readiness authority; detailed designs and DoD live in linked package files. A is financial platform lead, B is the current contributor. Support means required cross-domain reviewer, not a replacement implementation owner.
+Updated 15 October 2026. The explicit kickoff's **F02 and AI-LAUNCH-01 offline development scope is complete, with feature-specific local checks passing**. Their formal status is PARTIAL_VERIFIED pending reciprocal review and the existing full-regression defect R01; real-provider and client acceptance remain separate. The other thirteen headline packages remain draft. DRAFT means designed for review, not approved/frozen. This register is the readiness authority; detailed designs and DoD live in linked package files. A is financial platform lead, B is the current contributor. Support means required cross-domain reviewer, not a replacement implementation owner.
 
 ## Headline packages
 
 | ID / title | Lead / support | Reuse / actual gap | Contracts / prerequisites | Wave / relative load | Current status / precise completion reference |
 |---|---|---|---|---|---|
 | F01 Transaction-Based Financial Management | A / B | Reuse monthly/scoring/security; add account/event/post/reversal/cutover/projector | C01 C02 C09; P01 P02 P10 P14 | W1 / very high finance + DB | DRAFT; [platform F01](features/PLATFORM_PACKAGES.md#f01-transaction-based-financial-management), §16: posted/reversed/transfer→month/score and snapshot safety |
-| F02 Business-Specific Configuration | B / A | Reuse business/profile/onboarding; add module registry/dependency/operating profile | C03 C12; P09 | W1 / medium-high UI + integration | DRAFT, first B candidate; [experience F02](features/EXPERIENCE_PACKAGES.md#f02--business-specific-configuration), dimension 16: real config, defaults, role/module enforcement and retained data |
+| F02 Business-Specific Configuration | B / A | Operating profiles, registry/dependencies, V18 persistence, onboarding/settings and module gates implemented | C03 C12; P09 review pending | W1 / medium-high UI + integration | PARTIAL_VERIFIED: requested development journeys complete; reciprocal review pending. [Actual implementation](F02_AI_IMPLEMENTATION.md), [tests/gates](IMPLEMENTATION_STATE.md). Original [experience design](features/EXPERIENCE_PACKAGES.md#f02--business-specific-configuration) remains broader draft |
 | F03 Receivables, Payables and Payment Cycles | A / B | Existing nullable AR/AP snapshot only; add parties/obligations/payment allocation/ageing | C01 C04 C09; P03 P04 | W2 / very high finance + concurrency | DRAFT; [platform F03](features/PLATFORM_PACKAGES.md#f03-receivables-payables-and-payment-cycles), §16: allocations/advances/refunds and balances reconcile |
 | F04 Invoice and Bill Management | B / A | Reuse OCR/UI/security; no invoice/bill entity exists | C01 C04 C09 C12; P04 | W2 / high finance + UI | DRAFT; [commercial F04](features/COMMERCIAL_PACKAGES.md#f04--invoice-and-bill-management), §16: document→obligation→settlement once with real UI |
 | F05 Project, Job and Order Finance | B / A | Reuse monthly/evidence presentation; add project/plan/source allocation | C01 C04 C05 C07 C08 C09; P05 | W3 / high integration | DRAFT; [commercial F05](features/COMMERCIAL_PACKAGES.md#f05--project-job-and-order-finance), §16: unique actual attribution and reconciled margin/budget |
@@ -23,6 +23,8 @@ Updated 10 October 2026. Baseline MVP exists; **none of the fourteen Phase 2 pac
 
 ## Committed supporting roadmap
 
+**AI-LAUNCH-01 — GPT-Powered Financial Intelligence and Client Assistant** is B-owned and PARTIAL_VERIFIED: offline development is complete, reciprocal review and real-provider/client acceptance remain pending. This first S-B05 slice uses a B-owned read-only MVP adapter, a disabled-by-default OpenAI Responses adapter targeting `gpt-6-luna`, opt-in explanations and bounded Ask FinSight with EN/UR. It does not wait for or replace A's future C11. [Actual scope](F02_AI_IMPLEMENTATION.md), [activation runbook](AI_ACTIVATION_RUNBOOK.md) and [verification state](IMPLEMENTATION_STATE.md) distinguish offline engineering from deferred real-provider/client acceptance. Original F01–F13/F12A/F12B and C01–C12 ownership is unchanged.
+
 | ID | Lead / review | Scope and reuse | Blockers / completion gate |
 |---|---|---|---|
 | S-A01 | A / B | Financing simulator/business scenarios; new deterministic engine, B controls | P11 and actual finance basis; schedule/cost fixture and no actual mutation |
@@ -33,11 +35,11 @@ Updated 10 October 2026. Baseline MVP exists; **none of the fourteen Phase 2 pac
 | S-B02 | B / A | Break-even analysis | Approved fixed/variable/contribution basis, P13; zero/unknown denominator and multi-product disclosure |
 | S-B03 | B / A | Expense/revenue/profitability intelligence, customer/product/service/project analysis | Real attribution/C05/C07/C08/C09; exact totals and no invented dimension allocation |
 | S-B04 | B / A | Action center, health history/journey and explanations | Extend current history/evidence/recommendation statuses; A alerts adapter; preserve methodology, show current limitations |
-| S-B05 | B / A | Real provider-neutral AI copilot engineering | Approved C11/P12, structured router/tool calls/validation/grounding/evaluations; live grounded read-only experience |
+| S-B05 | B / A | Provider-neutral AI copilot; initial AI-LAUNCH-01 MVP slice implemented and locally verified | P12 reciprocal review and real-provider/client acceptance pending; initial read-only MVP adapter explicitly authorized independently of future A C11 |
 | S-B06 | B / A | Read-only inbound/two-way WhatsApp AI | S-B05, verified sender/consent/webhook/replay scope and provider acceptance; preserve outbound summaries |
 | F12B/F13 extensions | B / A | Business-specific reporting/dashboard intelligence/scenario presentation | Exact same domain amounts; safe role/module restrictions and snapshot/plan/actual labels |
 
-All supporting items are DRAFT/unimplemented except explicitly reused MVP portions. Detailed supporting API/schema/test plans are in the two corresponding package files. Financial queries are not current keyword search; AI is not current OCR. Health history and action statuses already exist and must be extended rather than rebuilt.
+Supporting items remain DRAFT except the active AI-LAUNCH-01 slice and explicitly reused MVP portions. Detailed supporting API/schema/test plans are in the two corresponding package files. Financial queries are not current keyword search; AI is not current OCR. Health history and action statuses already exist and must be extended rather than rebuilt.
 
 ## State vocabulary and delivery gate
 

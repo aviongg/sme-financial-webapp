@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-15",
+  "timezone": "Asia/Karachi",
+  "repository": "aviongg/sme-financial-webapp",
+  "branch": "dev/fatima",
+  "baselineCommit": "60f570c53fe0e35248544d24f4d3ac55459564ad",
+  "mainUnchanged": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
+  "sulemanUnchanged": "f2ed9bda671404598bd73729563c6e0ceb2b08d1",
+  "testedSource": "Final F02/AI implementation in the containing milestone commit; resolve with git log -1 --format=%H -- docs/phase2/verification/2026-10-15-f02-ai.json. Verify live remote ancestry separately.",
+  "status": "PARTIAL_VERIFIED: requested development complete; feature-specific checks pass; full regression R01 and reciprocal review remain open",
+  "scope": "F02 persistent configuration and AI-LAUNCH-01 offline MVP extension. Synthetic data, simulated AI and controlled loopback provider fixtures only. No paid API, production deployment or financial methodology change.",
+  "runtime": {
+    "java": "26.0.1 compiling release 21; production Java 21 runtime not accepted",
+    "maven": "3.9.16",
+    "mavenExecutable": "C:/Users/Hp/.m2/wrapper/dists/apache-maven-3.9.16/0daed3be3ebd1c706f0e69e8b07c6b73f5cc4ea3dfce72a8d0ec2e849ca2ddb0/bin/mvn.cmd",
+    "commonMavenArgs": ["-Dmaven.repo.local=C:/Users/Hp/.m2/repository", "-o", "-B"],
+    "postgres": "14.22 real disposable embedded PostgreSQL; production PostgreSQL 17/TLS not accepted",
+    "node": "24.19.0",
+    "next": "16.3.8",
+    "browser": "Microsoft Edge via Playwright, loopback only"
+  },
+  "checks": {
+    "finalBackendLocalVerify": {
+      "date": "2026-10-15",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Ppostgres-it", "-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT", "verify"],
+      "result": "FAIL",
+      "defaultSuite": {"tests": 919, "passed": 918, "failures": 0, "errors": 0, "skipped": 1},
+      "integrationSuite": {"tests": 104, "passed": 103, "failures": 1, "errors": 0, "skipped": 0},
+      "failure": "R01: DocumentSecurityPostgreSqlIT.testDocumentLifecycleAndCompensation:416 expected processing_interrupted, actual unavailable; same pre-existing 10 October failure; source/test unchanged",
+      "skip": "Existing Windows storage symlink capability skip",
+      "productionCasesExcluded": 19,
+      "newFeatureIntegrationCases": {"passed": 12, "failed": 0},
+      "log": "tmp/f02-ai-launch/backend-local-final-verify.log"
+    },
+    "newFeaturePostgres": {
+      "date": "2026-10-15",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Dtest=ModuleResolverTests", "-Ppostgres-it", "-Dit.test=BusinessConfigurationPostgreSqlIT,ConfigurationMigrationPostgreSqlIT,AiEvidencePostgreSqlIT", "verify"],
+      "result": "PASS",
+      "defaultSuite": {"tests": 11, "passed": 11, "failures": 0, "errors": 0, "skipped": 0},
+      "integrationSuite": {"tests": 12, "passed": 12, "failures": 0, "errors": 0, "skipped": 0},
+      "scope": "Real JDBC sessions/login and CSRF, tenant and role authorization, module enforcement/history, audits, optimistic conflict, V17-to-V18 backfill/grants, authoritative read-only financial evidence",
+      "log": "tmp/f02-ai-launch/backend-fixtures-verify.log"
+    },
+    "offlineAiEvaluation": {
+      "dataset": "backend/src/test/resources/ai/offline-evaluation-v1.json",
+      "revision": 2,
+      "cases": 100,
+      "families": 20,
+      "accepted": 30,
+      "rejectedProviderOutputs": 45,
+      "unsupportedQuestions": 25,
+      "result": "PASS within final default suite; not additional tests to add to its total",
+      "limits": "Hand-authored synthetic contract catalogs; not 100 independent financial scenarios, live-model quality or real API compatibility. Authoritative adapter parity is tested separately."
+    },
+    "frontend": {
+      "date": "2026-10-14",
+      "source": "Final frontend source; no subsequent frontend edits",
+      "cwd": "frontend",
+      "commands": ["pnpm test", "pnpm exec tsc --noEmit --incremental false", "pnpm run lint", "pnpm run build"],
+      "unit": {"tests": 52, "passed": 52, "failed": 0, "skipped": 0},
+      "typescript": "PASS",
+      "lint": "PASS: zero errors, one existing SessionProvider cleanup-ref warning",
+      "productionBuild": "PASS; NEXT_PUBLIC_DATA_MODE=live, BACKEND_API_URL=http://127.0.0.1:8080",
+      "logs": ["tmp/f02-ai-frontend/unit.log", "tmp/f02-ai-frontend/typescript.log", "tmp/f02-ai-frontend/lint.log", "tmp/f02-ai-frontend/build.log"]
+    },
+    "syntheticBrowser": {
+      "date": "2026-10-14",
+      "commands": ["node tests/browser.integration.mjs", "node tests/browser-extra.integration.mjs", "node tests/browser-phase-two.integration.mjs"],
+      "checks": [22, 10, 18],
+      "totalPassed": 50,
+      "errors": 0,
+      "scope": "Production Next + synthetic loopback API, mobile/Urdu and inspected screenshots; not real backend/provider acceptance",
+      "logs": ["tmp/f02-ai-frontend/browser-main.log", "tmp/f02-ai-frontend/browser-extra.log", "tmp/f02-ai-frontend/browser-phase-two.log"]
+    },
+    "realBrowser": {
+      "date": "2026-10-15",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Dtest=F02AiBrowserAcceptance", "test"],
+      "script": "scripts/test_f02_ai_browser.mjs",
+      "environment": "FINSIGHT_BROWSER_NODE and PLAYWRIGHT_MODULE use bundled runtime; BROWSER_ARTIFACT_DIR=tmp/f02-ai-launch/real-browser-final (absolute); existing production Next on 127.0.0.1:3100; harness owns Spring 8080 and disposable PostgreSQL",
+      "junitWrapper": {"tests": 1, "passed": 1, "failures": 0, "errors": 0, "skipped": 0},
+      "browserChecksPassed": 11,
+      "runtimeCspHydrationErrors": 0,
+      "externalBrowserRequests": 0,
+      "scope": "Synthetic owner/viewer accounts, real HTTP/session/CSRF/DB, onboarding/settings persistence, scoring category preservation, module/history protection, dashboard/insight/recommendation/Ask, exact evidence, unsupported scope, tenant isolation, disabled AI and Urdu RTL mobile",
+      "screenshotsInspected": ["ask-desktop.png", "configuration-urdu-mobile.png", "ask-urdu-mobile.png"],
+      "provider": "Simulated; no paid request or real customer data",
+      "log": "tmp/f02-ai-launch/real-browser-final.log",
+      "results": "tmp/f02-ai-launch/real-browser-final/results.json"
+    }
+  },
+  "preservedEarlierAttempts": [
+    {"log": "tmp/f02-ai-launch/backend-full-verify.log", "date": "2026-10-14", "result": "FAIL: default 918 run/1 skip; integration 104 run/97 pass/6 failures/1 error. New fixtures used ignored mock sessions and omitted a document UUID; corrected without production auth changes."},
+    {"log": "tmp/f02-ai-launch/backend-final-verify.log", "date": "2026-10-15", "result": "FAIL: strengthened revision 2 found two score-routing cases; fixed explicit score intent precedence and added a regression test. Integration phase not reached."},
+    {"log": "tmp/f02-ai-launch/backend-targeted-verify.log", "date": "2026-10-15", "result": "FAIL: 106 selected unit cases passed, integration 12 run/6 pass/6 failures. CSRF test-postprocessor contamination corrected with real token/cookie helpers in both new suites."},
+    {"log": "tmp/f02-ai-launch/backend-complete-verify.log", "date": "2026-10-15", "result": "FAIL: omitted documented production exclusions; default 919 run/918 pass/1 skip; integration 123 run/104 pass/19 errors, all errors from missing explicit production PostgreSQL settings. Does not establish production acceptance or erase final R01 failure."},
+    {"log": "tmp/f02-ai-launch/real-browser-run.log", "date": "2026-10-14", "result": "FAIL: upload test sent JSON rather than multipart; fixture corrected, no production controller change."},
+    {"log": "tmp/f02-ai-launch/real-browser-rerun.log", "date": "2026-10-14", "result": "PASS: 11 checks. Superseded by 15 October final-source browser run, not additional coverage."}
+  ],
+  "integrity": {
+    "stagedWhitespace": {"command": "git diff --cached --check", "result": "PASS"},
+    "secrets": {"command": "git diff --cached --binary | tmp/main-integration-evidence/gitleaks/gitleaks.exe stdin --redact --no-banner", "result": "PASS", "findings": 0},
+    "documentation": "Final relative Markdown links/anchors resolve; verification JSON parses; totals/statuses cross-checked",
+    "stagedPaths": 86,
+    "taskServerCleanup": "Verified task-owned Next PID 22840 on loopback 3100 stopped after browser acceptance; harness tears down its own backend/database"
+  },
+  "migration": {"added": "V18__business_configuration.sql", "existingV1ThroughV17": "Unchanged", "reviewer": "Developer A pending", "productionApplied": false},
+  "sourceInvariants": ["Existing financial calculations and health-score-v1 unchanged", "Security/identity implementation and existing role grants unchanged", "Dependency manifests and lockfiles unchanged", "Only intended existing backend Java edits: audit event enum and WhatsApp capability dispatch gate"],
+  "pendingGates": ["R01 existing document-recovery full-regression failure", "Reciprocal C03/C12/P09/P12 review; no approval fabricated", "Real Responses/model compatibility and billing", "Independent live-model English/Urdu quality evaluation", "Production Java21/PostgreSQL17 TLS/HBA/grants, 19 target cases, Docker/ingress/restore and client acceptance"],
+  "developerAImplementationDependency": "None for this explicitly authorized B read-only MVP evidence adapter; C11 remains A-owned",
+  "notRerun": "OCR 248, backup 46 and production-configuration 15 are historical 10 October results only; unchanged source does not turn them into fresh runs",
+  "scratchPolicy": "Raw logs/screenshots remain untracked under tmp; unrelated docs/Phase_1_Backend_Remaining_Work.docx preserved. No generated artifacts, local database, credentials or real customer data included in the commit."
+}

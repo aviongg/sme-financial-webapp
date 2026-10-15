@@ -1,3 +1,4 @@
+import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -41,6 +42,8 @@ const handler=async(req,res)=>{
  if(url===`/api/invitations/${memberId}/accept`){member.status='ACTIVE';active=id;res.writeHead(204);return res.end();}
  if(url===`/api/invitations/${memberId}/decline`){member=null;res.writeHead(204);return res.end();}
  if(url===`/api/recommendations/${recommendationId}/status`){actionStatus=payload.status;return json(res,{id:recommendationId,status:actionStatus});}
+ if(url==='/api/business-configuration')return json(res,configurationFixture({role:businesses().find(b=>b.businessId===active)?.role}));
+ if(url==='/api/ai/status')return json(res,aiStatusFixture());
  if(url==='/api/profile')return json(res,profile());
  if(url==='/api/profile/language'){language=payload.languagePreference;return json(res,profile());}
  if(url==='/api/profile/whatsapp')return json(res,{...profile(),whatsappNumber:payload.whatsappNumber,whatsappOptIn:payload.optIn});

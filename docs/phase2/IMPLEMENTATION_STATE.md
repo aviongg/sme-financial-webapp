@@ -1,21 +1,36 @@
 # Current Phase 2 implementation state
 
-Updated 10 October 2026 (Asia/Karachi). Session: repository onboarding, audit, architecture and development setup. Contributor: **Developer B**. **No F01–F13 feature implementation, migration, financial-methodology change or production deployment is included.**
+Updated 15 October 2026 (Asia/Karachi). **F02 Business-Specific Configuration + AI-LAUNCH-01 offline development are complete for the requested MVP scope**, explicitly requested by Developer B after onboarding. Formal status remains PARTIAL_VERIFIED pending reciprocal review and the existing full-regression defect R01; client-launch acceptance is deferred. No live model requests, credentials request, production deployment or financial methodology change is authorized. Read [actual scope/contracts](F02_AI_IMPLEMENTATION.md) and the [activation runbook](AI_ACTIVATION_RUNBOOK.md), rather than treating older proposed paths as the implementation.
+
+## Implementation reservation and completion (reserved 12 October 2026)
+
+Fetched baseline: `60f570c53fe0e35248544d24f4d3ac55459564ad`, local and origin/dev/fatima synchronized. Main and dev/suleman are unchanged. V18 is absent in both fetched developer branches (A currently has migrations through V14); unpublished work remains subject to normal coordination.
+
+| Reserved scope | Sole editor | Status |
+|---|---|---|
+| V18__business_configuration.sql; backend configuration package, related module guards and tests | B / f02_backend | Implemented and tested; editor released; A security review pending |
+| backend ai package, schemas/prompts/evaluation resources and tests | B / ai_backend | Offline implementation complete; editor released; no AI migration |
+| frontend API/types, onboarding/settings/navigation, translations and AI surfaces/tests | B / feature_frontend | Implemented and tested; editor released; existing permissions and scoring categories retained |
+| shared backend configuration, integrated verification, documentation and publication | B / root | Completed in the containing milestone commit; future edits require a new reservation |
+
+The 12 October request authorizes the F02 implementation and a B-owned read-only MVP evidence adapter without waiting for A's future C11. It supersedes the onboarding-only restriction for these two workstreams. It does not approve accounting changes or impersonate Developer A's required review. Existing role permissions remain unchanged. Contract/security review is recorded as pending; real-provider and client-launch acceptance are separate gates.
+
+Implementation direction: preserve mandatory core finance and all legacy MVP defaults; optional module disabling retains historical data/read access and prevents new operational writes; unavailable future modules cannot be enabled. Operating profiles do not change score categories. AI defaults disabled; simulated output requires explicit development configuration and labels. New feature endpoints remain under the existing `/api` convention; the broader `/api/v2` proposal remains unfrozen.
 
 ## Repository and publication identity
 
 | Field | Value |
 |---|---|
 | Repository / persistent branch | `aviongg/sme-financial-webapp` / `dev/fatima` |
-| Last verified remote before this documentation milestone | `b412662866519627ccc81ae80dcc6a5aaf48fe8d` (origin/dev/fatima, fetched and live ls-remote checked on 10 October) |
+| Fetched implementation baseline | `60f570c53fe0e35248544d24f4d3ac55459564ad`, HEAD and origin/dev/fatima synchronized on 15 October before final verification; no intervening commits |
 | Last verified published setup | `4935734ad1cdb6896f1c2236390d34d45c5a7e84` on origin/dev/fatima; push succeeded, live `ls-remote` matched and fetched local/remote divergence was 0/0 at 19:13:12 Asia/Karachi on 10 October 2026 (14:13:12 UTC). |
 | Verified origin/main | `b51e27696cccc59b94aa9d9c9388ad0faa5b4176` (PR #3 merged 8 October) |
-| Baseline relationship | dev/fatima ahead 9 / behind 0 relative to main, identical trees; local dev/fatima synchronized before setup |
+| Baseline relationship | dev/fatima contains main and the prior onboarding/handoff; no branch history replacement |
 | Unmodified other developer tip | origin/dev/suleman `f2ed9bda671404598bd73729563c6e0ceb2b08d1` |
-| Source tested | `b412662866519627ccc81ae80dcc6a5aaf48fe8d`; application/configuration/lockfiles/migrations unchanged by onboarding |
-| Publication commit | The verified setup milestone above contains all twenty onboarding files. This follow-up handoff records its confirmed publication. Resolve the containing handoff commit with `git log -1 --format=%H -- docs/phase2/IMPLEMENTATION_STATE.md`, then compare to live origin/dev/fatima/ancestry; its exact final SHA is also reported to the user after push verification. A commit cannot embed its own hash. |
-| Latest migration | **V17__business_team_and_document_provenance.sql**, V1–V17 preserved |
-| Next candidate | V18, **unreserved**; fetch and check A/B reservations before choosing any number |
+| Source tested | Current F02/AI working tree on baseline `60f570c`; dated results below distinguish current runs from historical onboarding |
+| Publication commit | Resolve the containing implementation commit with `git log -1 --format=%H -- docs/phase2/verification/2026-10-15-f02-ai.json`, then compare to live origin/dev/fatima/ancestry. Its exact SHA is reported in the final publication response after verified push; a commit cannot embed its own hash. A local commit alone does not establish remote publication. |
+| Latest migration | **V18__business_configuration.sql**, additive F02 configuration; V1–V17 preserved |
+| Migration allocation / next candidate | V18 implemented for F02; V19 unreserved and must be revalidated before use |
 
 The direct user instruction to use dev/fatima supersedes the supplied work division's phase2/integration procedure. Ownership and required financial review remain as specified in that document. No main PR is authorized. No open PR was returned by GitHub search during the audit; no configured tracked GitHub Actions workflow or baseline status was found. An empty CI response is not a pass.
 
@@ -30,14 +45,38 @@ The direct user instruction to use dev/fatima supersedes the supplied work divis
 
 ## Current feature and contract status
 
-All F01/F02/F03/F04/F05/F06/F07/F08/F09/F10/F11/F12A/F12B/F13 and supporting packages are **DRAFT, not implemented**. Existing MVP capabilities remain implemented as audited. No contract is FROZEN, no P01–P14 decision is signed, and no owner/reviewer signoff has been supplied. This session delivers reviewable plans and safe setup only. A dependency cannot be considered ready merely because its proposed DTO appears in documentation.
+F02 and AI-LAUNCH-01 are **PARTIAL_VERIFIED** in the register's formal review vocabulary. Their requested development journeys are complete: persistent profile/module onboarding and settings, server capability enforcement, opt-in dashboard/insight/recommendation explanations, bounded Ask FinSight, EN/UR and session/tenant isolation. Remaining gates are reciprocal C03/C12/P09/P12 review and the full regression failure R01 below, not a missing UI/API/DB journey or an A implementation dependency. Real-provider compatibility, model quality and production/client acceptance remain separate and unperformed. No contract is FROZEN, no P01–P14 decision is signed, and no owner/reviewer signoff has been supplied.
+
+All other F01/F03/F04/F05/F06/F07/F08/F09/F10/F11/F12A/F12B/F13 and supporting packages remain **DRAFT, not implemented**, apart from explicitly reused MVP capabilities. A dependency cannot be considered ready merely because its proposed DTO appears in documentation. The current slice preserves financial recognition, valuation, rounding and `health-score-v1`.
 
 | Contract owner | IDs | Review / readiness |
 |---|---|---|
 | A | C01 C02 C04 C06 **C08** C09 C11 | B reviewer; all draft / real producer absent |
-| B | C03 C05 C07 C10 C12 | A reviewer; all draft / real producer absent |
+| B | C03 C05 C07 C10 C12 | A reviewer; C03/configuration and narrow C12 wire subset implemented in the actual-scope document; broader drafts unfrozen; C05/C07/C10 producers absent |
 
-## Actual verification on 10 October 2026
+## F02 / AI offline verification, 14–15 October 2026
+
+Exact commands, dates, totals and limitations are preserved in [machine-readable evidence](verification/2026-10-15-f02-ai.json). Results come from individual run logs, not accumulated stale Maven XML. Runtime: Java 26.0.1 compiling release 21, Maven 3.9.16, real disposable PostgreSQL 14.22, Node 24.19.0, Next 16.3.8 and Edge. This is not the Java 21/PostgreSQL 17 production stack.
+
+| Gate | Result | Scope / qualifications |
+|---|---|---|
+| Final default backend suite | **919 run, 918 passed, 1 existing Windows symlink skip**, zero failures/errors | Included in the final local Maven verify on 15 October |
+| Final full local PostgreSQL/package verify | **FAIL: 104 run, 103 passed, 1 failure**, zero errors/skips | R01 document-recovery assertion recurred. All 12 new F02/AI integration cases passed. Nineteen production-target cases explicitly excluded, not accepted. |
+| Isolated new PostgreSQL suites | **12 passed**, zero failures/errors/skips | Real login, JDBC sessions/CSRF, tenant/role/module boundaries, audited persistence, V17→V18 upgrade and exact authoritative AI evidence |
+| AI evaluation revision 2 | **100 parameterized cases passed** as part of the default suite | 20 families, 30 accepted/45 rejected provider outputs/25 unsupported questions; synthetic contract checks, not model-quality evidence or 100 independent financial situations |
+| Frontend helper/API tests | **52 passed**, zero failures/skips | 14 October; final frontend source unchanged afterward |
+| TypeScript / ESLint / production Next build | **Pass / pass / pass** | One existing SessionProvider cleanup-ref warning; no dependency/lockfile change |
+| Synthetic browser suites | **22 + 10 + 18 = 50 checks passed** | Production Next with loopback fixture API; no browser/CSP/hydration errors; screenshots inspected |
+| Real HTTP browser journey | **11 checks passed** on final source, 15 October | Production Next + real Spring/session/CSRF + disposable PostgreSQL, simulated AI and synthetic accounts/data; owner/viewer, persistence, explanations, module/history safety, tenant switching and Urdu mobile; no external browser requests or runtime/CSP/hydration errors; desktop and both Urdu screenshots inspected |
+| Source / documentation integrity | **Pass** | V1–V17, authoritative financial services, security/identity services, dependencies and lockfiles unchanged; relative links and whitespace checked; final staged secret scan recorded in evidence |
+
+The initial 14 October full run exposed new test-fixture session/CSRF setup and a missing synthetic document UUID; these were corrected using actual login/JDBC sessions and real CSRF cookies without changing production security. The strengthened evaluation exposed score questions being routed by incidental words such as “recorded”; the explicit-score route now takes precedence, with a regression assertion. The intermediate targeted rerun caught CSRF test-postprocessor contamination; both new suites now use the real token/cookie flow.
+
+One 15 October broad command omitted the documented production-suite exclusions: its default suite passed and all 104 local integration tests passed, but all 19 production-target cases errored on missing explicit acceptance-environment settings. That command is **failed**, not production verification. The corrected final local command then reproduced R01 and remains **failed**; earlier passes do not erase it. No assertions were removed and no unrelated recovery code was changed. OCR/backup/production-configuration fixture results below are historical 10 October evidence, not fresh runs for this milestone.
+
+Offline development is implemented and feature-tested. Real-model quality, real API/billing compatibility and deployed client acceptance are **not run / not accepted**. AI remains disabled by default; development simulation is explicitly labeled. C03/C12/P09/P12 review is pending, and no new A-side implementation is required for this MVP evidence adapter.
+
+## Historical onboarding verification on 10 October 2026
 
 Commands and scopes are detailed in DEVELOPMENT_SETUP and [machine-readable evidence](verification/2026-10-10.json). Counts below come from **current run logs**, not summing stale Maven report files from prior runs. Historical 8 October results are not counted again.
 
@@ -62,7 +101,7 @@ Commands and scopes are detailed in DEVELOPMENT_SETUP and [machine-readable evid
 
 | ID | Finding / state | Owner or next review / required action |
 |---|---|---|
-| R01 | `backend/src/test/java/com/app/sme_health_backend/documents/DocumentSecurityPostgreSqlIT.java:416` fails in two full runs: expected `processing_interrupted`, actual `unavailable`; isolated class passes. Test retries asynchronously, then manually sets processing/recovery state. Timing interference is source-consistent, not yet proved as sole cause. | Cross-domain documents/platform review; request a focused investigation/fix in a subsequent scoped chat before claiming full app regression green. Do not skip the assertion or relabel these runs passing. |
+| R01 | `backend/src/test/java/com/app/sme_health_backend/documents/DocumentSecurityPostgreSqlIT.java:416` failed in two 10 October full runs and recurred in the final 15 October local full run: expected `processing_interrupted`, actual `unavailable`. Other full/isolated runs passed. Test retries asynchronously, then manually sets processing/recovery state. Timing interference is source-consistent, not yet proved as sole cause. | Cross-domain documents/platform review; request a focused investigation/fix in a subsequent scoped chat before claiming full app regression green. Do not skip the assertion, rerun until green, or relabel these failed runs passing. No document-recovery source/test change is included here. |
 | R02 | Source-inferred same-month distinct-document/manual contribution race and lack of economic-source deduplication; snapshot overwrite can lose prior OCR contribution. | A C01/C02/P14 with B document handoff; real concurrency/source fixtures and explicit mode/locking policy. |
 | R03 | Several monthly/document/WhatsApp audit calls confuse business UUID with actor UUID and omit business linkage. | Scoped shared-security review; pass actual actor + tenant (or system event) and add assertions. No source fix made here. |
 | R04 | Legacy scale validation, source/evidence history, negative cash/overdraft and score-unavailable posting behavior need decisions. | P01/P02/P10/P14; preserve old methodology and missing values. |
@@ -71,24 +110,24 @@ Commands and scopes are detailed in DEVELOPMENT_SETUP and [machine-readable evid
 | E01 | Docker/production Java21/PostgreSQL17 TLS/HBA/grants, nineteen target tests, deployed ingress browser, real encrypted restore not run. | A DB/recovery + B Docker/browser, explicitly authorized disposable acceptance environment; production deploy requires separate request. |
 | E02 | Real SMTP, Google OCR accuracy/CA/proxy and WhatsApp inbound/outbound provider acceptance absent. | Assigned owners plus approved credentials/consent; fixtures do not close these gates. |
 
-Baseline full-regression failure does not make a documentation-only audit unsafe to publish: its relevant gate is accurate evidence and unchanged source. It does prevent claiming a fully green application, production readiness or completed feature acceptance. No remediation was silently mixed into onboarding.
+The historical baseline failure remains recorded even if a later run passes. Current local engineering evidence does not establish production acceptance or reciprocal policy signoff. No unrelated document recovery/source-accounting fix is included in F02/AI.
 
 ## Migration and shared-file reservations
 
 | Version | Feature | Author / reviewer | Filename / status / commit |
 |---|---|---|---|
 | V1–V17 | Existing MVP | Historical | Applied/tested baseline; immutable |
-| None reserved | Phase 2 | None | Next candidate must be revalidated against both developers' work |
+| V18 | F02 | B author / A reviewer pending | V18__business_configuration.sql; implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
 
 Reserve `{version,feature,author,reviewer,filename,status,producerBranch,producerCommit,date}` before authoring SQL. Only reuse a cancelled reservation if it was never applied/shared and both agree. Coordinate numbers across branches in this file; do not assume A's unseen WIP cannot collide. No blanket V18–V40 preallocation.
 
-Shared-file ownership currently: onboarding documentation owned by this B session; no active source editor reservation. Each future slice records the sole editor for navigation/AppShell/onboarding, translation dictionaries, security permission map, shared DTOs and migration reservations, plus expected handoff. A's work remains A-owned regardless of which reviewed source is later integrated into dev/fatima.
+Shared-file editing for this slice is complete and released as recorded in the opening table. Existing permission grants and financial services remain unchanged. Future slices must renew reservations; A's work remains A-owned regardless of which reviewed source is later integrated into dev/fatima.
 
 ## Next recommended actions and recovery
 
-1. Read MASTER_IMPLEMENTATION_PLAN/FEATURE_REGISTER and review C03/C12/P09 with Developer A; decide safe legacy defaults, implemented module availability and permission behavior. **F02 is the first B feature**, requested separately; F13 core can follow using current live data.
-2. Schedule R01 focused baseline regression investigation and R02/R03 source/audit remediation with the responsible shared owners. Record actual fix scope and tests rather than changing features in this onboarding.
+1. Verify the containing milestone commit against origin/dev/fatima, then obtain reciprocal C03/C12/P09/P12 review before release. No additional A-side implementation is needed for the initial read-only evidence adapter. Paid-provider work remains separately deferred; follow the activation runbook only under a later explicit request.
+2. Keep R01 baseline recovery instability and R02/R03 source/audit remediation with the responsible shared owners. Record any future authorized fix scope and tests separately.
 3. A prepares C01/C02/C04/C09 initial policy/contract producer sequence; B freezes C05 project identity/plan early for parallel funding calculator fixtures. Never fabricate producer services.
-4. For the next feature prompt, refresh live dev/fatima and follow `prompts/README.md`; use current code, approvals and migration reservations.
+4. The next independent development candidate is F13 dashboard presets/preferences using the actual F02 capabilities and existing MVP data, after an explicit F13 request and C10/P09 review. Preserve unavailable future widgets; do not invent A services. For any next feature prompt, refresh live dev/fatima and follow `prompts/README.md` with current code, approvals and migration reservations.
 
-Preserved unrelated local files: `docs/Phase_1_Backend_Remaining_Work.docx` and pre-existing `tmp/`. New raw logs/screenshots/tool scratch remain under `tmp/phase2-onboarding`, untracked and excluded from staged paths. Do not clean them by broad recursive deletion. New chats use committed summaries and repeat required checks rather than depending on local scratch. No app test server is intended to remain running after this session.
+Preserved unrelated local files: `docs/Phase_1_Backend_Remaining_Work.docx` and pre-existing `tmp/`. Current raw evidence is under `tmp/f02-ai-launch` and `tmp/f02-ai-frontend`; historical onboarding evidence remains under `tmp/phase2-onboarding`. All are untracked and excluded from publication. Do not clean them by broad recursive deletion. New chats use committed summaries and repeat required checks rather than depending on local scratch. The task-owned Next server on 3100 was verified and stopped after final browser acceptance; the harness closes its own Spring/disposable database. No permanent local server or database was provisioned.

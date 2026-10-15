@@ -47,6 +47,10 @@ public class WhatsAppDeliveryService {
     private final ZoneId schedulerZone;
     private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
+    // Mandatory in Spring; older direct-constructor fixtures retain their isolated behavior.
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.app.sme_health_backend.configuration.service.ModuleAccessPolicy moduleAccessPolicy;
+
     public WhatsAppDeliveryService(
             WhatsAppDeliveryRepository deliveryRepository,
             BusinessProfileRepository profileRepository,
@@ -117,6 +121,8 @@ public class WhatsAppDeliveryService {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
         }
+
+        if (moduleAccessPolicy != null && !moduleAccessPolicy.isEnabled(userId, "whatsapp")) return Optional.empty();
 
         LocalDate targetDate = (referenceDate != null) ? referenceDate : LocalDate.now(schedulerZone);
         String deliveryCycle = calculateDeliveryCycle(targetDate, schedulerZone);

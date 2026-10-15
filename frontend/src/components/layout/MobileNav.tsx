@@ -19,11 +19,13 @@ import { Sheet } from "@/components/ui/Sheet";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
 import { routePermission } from "@/lib/api/navigation";
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
 
 export function MobileNav() {
   const pathname = usePathname();
   const { can } = useSession();
-  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
+  const configuration = useConfiguration();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true)); };
   const router = useRouter();
   const { t } = useLanguage();
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
@@ -95,7 +97,7 @@ export function MobileNav() {
             <button
               type="button"
               onClick={() => setIsActionSheetOpen(true)}
-              disabled={!isDemoMode && !can("RECORD_CREATE_UPDATE") && !can("DOCUMENT_UPLOAD")}
+              disabled={!allowed('/records/new') && !allowed('/scan')}
               aria-label={t.quickActions.title}
               className="w-12 h-12 -mt-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center shadow-md hover:bg-[var(--color-brand-hover)] active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]"
             >

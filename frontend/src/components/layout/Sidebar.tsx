@@ -15,12 +15,16 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
 import { routePermission } from "@/lib/api/navigation";
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { useAi } from '@/components/ai/AiProvider';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 
 export interface SidebarProps {
   className?: string;
@@ -29,8 +33,9 @@ export interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const { can } = useSession();
-  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
-  const { t, direction } = useLanguage();
+  const configuration = useConfiguration(); const ai = useAi();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true) && (path !== '/ask-finsight' || ai?.available === true)); };
+  const { t, direction, locale } = useLanguage(); const copy = phaseTwoCopy(locale);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
@@ -72,6 +77,7 @@ export function Sidebar({ className }: SidebarProps) {
   ];
 
   const secondaryNavItems = [
+    ...(!isDemoMode ? [{ label: copy.ask, href: '/ask-finsight', icon: MessageCircle }] : []),
     {
       label: t.nav.search,
       href: "/search",

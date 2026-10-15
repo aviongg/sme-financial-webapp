@@ -4,6 +4,8 @@ Status: **design drafts, not approved interfaces or implemented APIs**. Baseline
 
 ## Shared wire and service rules
 
+**14 October implementation note:** the later user kickoff authorizes the bounded F02 and AI-LAUNCH-01 slice. Its actual `/api/business-configuration` and `/api/ai` contracts are recorded in [F02_AI_IMPLEMENTATION](F02_AI_IMPLEMENTATION.md). These implemented endpoints do not freeze or retrospectively approve the broader C03/C10/C11/C12 drafts below. P09/P12 and reciprocal security/financial review remain pending. C11 ownership remains A; the initial read-only MVP adapter belongs to B.
+
 These proposed conventions apply to C01–C12. A contract section inherits all rules here unless it explicitly specializes them. New HTTP resources use `/api/v2`; existing `/api` DTOs and endpoints retain their contracts. This namespace is a proposal to freeze under C12, not an existing router.
 
 * Resolve `BusinessAccessContext` through existing `BusinessAuthorizationService`; session cookies, MFA stage, CSRF and active membership remain mandatory. Never accept a financial request's tenant from JSON, an LLM, a URL business parameter or a phone number alone. Internal methods receive a server-created authorized context. Check every referenced ID belongs to that business; absent/cross-tenant resources return the same 404. Permission failures return 403. A module toggle never grants a permission.

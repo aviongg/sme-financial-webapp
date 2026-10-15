@@ -15,6 +15,10 @@ import { Button } from '@/components/ui/Button';
 import { TeamAccess, Invitations } from './TeamAccess';
 import { teamApi } from '@/lib/api/team';
 import { liveLabel } from '@/lib/i18n/labels';
+import { BusinessConfigurationPanel } from '@/components/configuration/BusinessConfigurationPanel';
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { useAi } from '@/components/ai/AiProvider';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Input } from '@/components/ui/Input';
 interface Delivery {
     id: string;
@@ -26,11 +30,13 @@ interface Delivery {
 }
 export function LiveSettings() {
     const session = useSession();
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage(); const copy = phaseTwoCopy(locale); const ai = useAi();
     const [error, setError] = useState('');
     const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [profile, deliveries] = await Promise.all([phaseOneApi.getProfile(), apiClient<Delivery[]>('/whatsapp/deliveries', { signal })]); return { profile, deliveries }; }, []));
     const changeBusiness = (id: string) => void session.switchBusiness(id).catch(e => setError(localizedError(e, t)));
     return <LivePage title={t.nav.settings} {...resource}><Card padding="lg" className="space-y-4"><h2 className="font-semibold">{t.live.accountBusiness}</h2><p>{session.user?.fullName} · {session.user?.email}</p><label className="block">{t.live.activeBusiness}<select className="block border rounded-lg p-2 mt-2 max-w-full" value={session.business?.businessId || ''} onChange={e => changeBusiness(e.target.value)}>{session.businesses.filter(b => b.membershipStatus === 'ACTIVE').map(b => <option key={b.businessId} value={b.businessId}>{b.businessName} · {liveLabel(t, b.businessType)} · {liveLabel(t, b.role)}</option>)}</select></label><Link className="underline block" href="/onboarding">{t.live.anotherBusiness}</Link><p className="text-sm">{t.live.yourRole}: {liveLabel(t, session.business?.role)}</p><LanguageControl />{!session.can('BUSINESS_SETTINGS_MANAGE') && <p className="text-sm">{t.live.interfaceLanguage}</p>}{error && <p role="alert">{error}</p>}<Button variant="secondary" onClick={() => void session.logout().catch(e => setError(localizedError(e, t)))}>{t.live.signOut}</Button></Card>
+    <BusinessConfigurationPanel/>
+    {ai?.available && <Card padding="md"><Link className="underline" href="/ask-finsight">{copy.ask}</Link></Card>}
     {resource.data && <WhatsAppSettings key={resource.data.profile.businessId} profile={resource.data.profile} editable={session.can('WHATSAPP_CONFIG_MANAGE')}/>}
     <Card padding="lg" className="md:hidden space-y-3"><h2 className="font-semibold">{t.live.moreTools}</h2><Link className="underline block" href="/search">{t.nav.search}</Link>{session.can('DOCUMENT_READ') && <Link className="underline block" href="/upload">{t.live.document}</Link>}{session.can('ZAKAT_READ_CALCULATE') && <Link className="underline block" href="/sharia-zakat">{t.live.zakatTitle}</Link>}</Card>
     <BusinessIdentity />
@@ -43,12 +49,12 @@ function WhatsAppSettings({ profile, editable }: {
     profile: BusinessProfileResponse;
     editable: boolean;
 }) {
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage(); const configuration = useConfiguration(); const copy = phaseTwoCopy(locale); const enabled = configuration?.available('whatsapp') === true;
     const [optIn, setOptIn] = useState(profile.whatsappOptIn);
     const [phone, setPhone] = useState(profile.whatsappNumber || '');
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('');
-    const save = async (e: React.FormEvent) => { e.preventDefault(); if (busy)
+    const save = async (e: React.FormEvent) => { e.preventDefault(); if (busy || !enabled)
         return; setBusy(true); setMessage(''); try {
         await phaseOneApi.updateWhatsApp(optIn ? phone : null, optIn);
         setMessage(t.live.preferencesSaved);
@@ -59,7 +65,7 @@ function WhatsAppSettings({ profile, editable }: {
     finally {
         setBusy(false);
     } };
-    return <Card padding="lg"><form className="space-y-4" onSubmit={save}><h2 className="font-semibold">{t.live.whatsapp}</h2><label className="flex gap-3 border rounded-lg p-4 cursor-pointer"><input type="checkbox" checked={optIn} disabled={!editable || busy} onChange={e => setOptIn(e.target.checked)}/><span>{t.live.whatsappConsent}<small className="block">{t.live.consentHelp}</small></span></label>{optIn && <Input label={t.live.phone} value={phone} onChange={e => setPhone(e.target.value)} type="tel" required pattern="\+[1-9][0-9]{7,14}" disabled={!editable || busy}/>}<Button type="submit" disabled={!editable || busy} isLoading={busy}>{t.live.savePreferences}</Button>{!editable && <p>{t.live.ownerOnly}</p>}{message && <p role="status">{message}</p>}</form></Card>;
+    return <Card padding="lg"><form className="space-y-4" onSubmit={save}><h2 className="font-semibold">{t.live.whatsapp}</h2><label className="flex gap-3 border rounded-lg p-4 cursor-pointer"><input type="checkbox" checked={optIn} disabled={!editable || busy || !enabled} onChange={e => setOptIn(e.target.checked)}/><span>{t.live.whatsappConsent}<small className="block">{t.live.consentHelp}</small></span></label>{optIn && <Input label={t.live.phone} value={phone} onChange={e => setPhone(e.target.value)} type="tel" required pattern="\+[1-9][0-9]{7,14}" disabled={!editable || busy || !enabled}/>}<Button type="submit" disabled={!editable || busy || !enabled} isLoading={busy}>{t.live.savePreferences}</Button>{!editable && <p>{t.live.ownerOnly}</p>}{!enabled && <p role="status">{configuration?.data ? copy.historyOnly : copy.configurationMissing}</p>}{message && <p role="status">{message}</p>}</form></Card>;
 }
 function PasswordSettings() {
     const { t } = useLanguage();
