@@ -1,5 +1,20 @@
 # Current Phase 2 implementation state
 
+## F13 active reservation — 15 October 2026; resumed 16 October 2026
+
+The user's explicit F13 implementation request authorizes the complete independent MVP workspace journey. Fetched `HEAD=origin/dev/fatima=9f5b2b46bf9aaa8bacc462c7217a45db46b0fc77`; origin/main remains `b51e27696cccc59b94aa9d9c9388ad0faa5b4176`. Existing untracked document and tmp files are preserved. C03/C10/C12/P09 reciprocal review is pending; no approval or financial policy change is implied.
+
+| Reserved scope | Sole editor | Status |
+|---|---|---|
+| V19__dashboard_preferences.sql; backend dashboard/workspace package and workspace tests; AuditEventType additions | B / backend agent | Reserved; fetched dev/fatima ends at V18 and dev/suleman at V14; no V19 reservation found |
+| Frontend workspace components/API/translations, LiveDashboard, CashFlowTrend compatibility, F02 preset-help EN/UR strings and workspace helper tests | B / frontend agent | Reserved; existing components and financial source values reused |
+| Synthetic browser fixtures and three existing browser suite compatibility edits | B / review agent | Reserved; fixture-only changes, preserve assertions |
+| F13 real browser harness/script, docs/contracts/state and integrated validation | B / root | Reserved |
+
+Implementation follows current `/api` session/CSRF conventions and F02 preset keys. Persist only actor/business-scoped layout overrides, use optimistic versions, resolve permissions/modules before layout, and consume the existing DashboardService/monthly sources. Future producer widgets remain unavailable. AI stays opt-in and globally disabled by default; no paid provider calls. This reservation supersedes the next-feature suggestion below while F13 is in progress.
+
+**16 October backend milestone (M1/M2):** registry, four deterministic F02 presets, resolver, batched canonical summaries, V19 preference persistence, session/CSRF APIs, optimistic configuration/preference checks and audit are implemented. Targeted cached Maven command `-o -B -Ppostgres-it '-Dtest=Workspace*Tests' '-Dit.test=WorkspacePostgreSqlIT,WorkspaceMigrationPostgreSqlIT' verify` passed **11 unit + 8 real disposable PostgreSQL cases**, zero failures/errors/skips. V18→V19 migration preservation and runtime/backup grants pass. Log: untracked `tmp/f13-workspace-postgres.log`. Java 26.0.1 compiles release 21; this is not production Java21/PostgreSQL17/TLS acceptance. Sandbox JVM startup stalled; the authorized escalation completed normally. Frontend and full integration acceptance remain in progress; no F13 completion claim yet.
+
 Updated 15 October 2026 (Asia/Karachi). **F02 Business-Specific Configuration + AI-LAUNCH-01 offline development are complete for the requested MVP scope**, explicitly requested by Developer B after onboarding. Formal status remains PARTIAL_VERIFIED pending reciprocal review and the existing full-regression defect R01; client-launch acceptance is deferred. No live model requests, credentials request, production deployment or financial methodology change is authorized. Read [actual scope/contracts](F02_AI_IMPLEMENTATION.md) and the [activation runbook](AI_ACTIVATION_RUNBOOK.md), rather than treating older proposed paths as the implementation.
 
 ## Implementation reservation and completion (reserved 12 October 2026)
@@ -118,6 +133,7 @@ The historical baseline failure remains recorded even if a later run passes. Cur
 |---|---|---|---|
 | V1–V17 | Existing MVP | Historical | Applied/tested baseline; immutable |
 | V18 | F02 | B author / A reviewer pending | V18__business_configuration.sql; implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
+| V19 | F13 | B author / A reviewer pending | V19__dashboard_preferences.sql; reserved at 9f5b2b4 on 2026-10-15, implemented and V18 upgrade-tested on 2026-10-16; producer is the backend milestone commit |
 
 Reserve `{version,feature,author,reviewer,filename,status,producerBranch,producerCommit,date}` before authoring SQL. Only reuse a cancelled reservation if it was never applied/shared and both agree. Coordinate numbers across branches in this file; do not assume A's unseen WIP cannot collide. No blanket V18–V40 preallocation.
 
