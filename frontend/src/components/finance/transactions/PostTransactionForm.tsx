@@ -1,4 +1,7 @@
 "use client";
+import { draftPayload, draftsApi } from '@/lib/api/dev-a/drafts';
+import { ApiError } from '@/lib/api/client';
+import { draftEn, draftUr } from '../../records/draft-copy';
 import { normalizeAmountInput } from '@/lib/utils/amount-input';
 import { CreateAccountForm } from '../accounts/CreateAccountForm';
 import { loadTransactionAccounts } from './transaction-accounts';
@@ -16,7 +19,7 @@ import { descriptionLimit, type TransactionDetailData } from '@/lib/api/dev-a/tr
 import { useSession } from '@/components/auth/SessionProvider';
 import { useLanguage } from '@/lib/i18n/context';
 
-export function PostTransactionForm({ accounts, onPosted, onClose }: { accounts: Account[]; onPosted: (transaction: TransactionDetailData) => void; onClose: () => void }) {
+export function PostTransactionForm({ accounts, onPosted, onClose, onDraftSaved }: { accounts: Account[]; onPosted: (transaction: TransactionDetailData) => void; onClose: () => void; onDraftSaved?: () => void }) {
   const session = useSession(), { locale } = useLanguage(), copy = locale === 'ur' ? transactionUr : transactionEn;
   const context = JSON.stringify([session.epoch, session.user?.id, session.business?.businessId, session.business?.role, session.business?.membershipStatus, session.status]);
   const entryRef = useRef<{ key: string; submission: TransactionSubmission } | null>(null);
@@ -28,6 +31,23 @@ export function PostTransactionForm({ accounts, onPosted, onClose }: { accounts:
   const accountOptions = [...accounts.filter(a => !createdAccounts.some(b => b.id === a.id)), ...createdAccounts];
   const [errors, setErrors] = useState<PostingInputErrors>({}), [phase, setPhase] = useState<PostingPhase>('idle');
   const [message, setMessage] = useState<keyof TransactionCopy | null>(null);
+  const draftCopy = locale === 'ur' ? draftUr : draftEn;
+  const [savingDraft, setSavingDraft] = useState(false), [saveUncertain, setSaveUncertain] = useState(false), [closeChoice, setCloseChoice] = useState(false);
+  const [saveError, setSaveError] = useState<keyof typeof draftCopy | null>(null);
+  const saveOperation = useRef<{key:string;controller:AbortController;context:string} | null>(null);
+  const saveInFlight = useRef(false);
+  useEffect(() => () => {saveOperation.current?.controller.abort(); saveOperation.current=null;}, [context]);
+  const saveDraft = async () => {
+    if(saveInFlight.current || !onDraftSaved || entryRef.current?.key!==context || entryRef.current.submission.phase!=='idle') return;
+    try { draftPayload(draft); } catch { setSaveError('invalid'); return; }
+    saveInFlight.current=true;setSavingDraft(true);setSaveError(null);
+    saveOperation.current ??= {key:crypto.randomUUID(),controller:new AbortController(),context};
+    const operation=saveOperation.current;
+    try {await draftsApi.save(draft,null,operation.key,operation.controller.signal);if(saveOperation.current===operation&&!operation.controller.signal.aborted)onDraftSaved();}
+    catch(error){if(saveOperation.current!==operation||operation.controller.signal.aborted)return;setSaveError(error instanceof ApiError && [401,403].includes(error.status) ? 'denied' : 'saveFailed');if(error instanceof ApiError && [400,401,403,404,409].includes(error.status)){setSaveUncertain(false);saveOperation.current=null;}else setSaveUncertain(true);}
+    finally{saveInFlight.current=false;if(saveOperation.current===operation&&!operation.controller.signal.aborted)setSavingDraft(false);else if(!operation.controller.signal.aborted)setSavingDraft(false);}
+  };
+  const requestClose=()=>{if(savingDraft||saveUncertain)return;if(draft.selectedAccount||draft.amountText||draft.descriptionText||draft.event!=='DIRECT_SALE_RECEIPT'||draft.dateText!==karachiToday())setCloseChoice(true);else onClose();};
   const business = session.business?.businessId;
   useEffect(() => {
     const entry = { key: context, submission: new TransactionSubmission((payload, key, signal) => transactionsApi.post(payload, key, signal, business)) };
@@ -63,18 +83,18 @@ export function PostTransactionForm({ accounts, onPosted, onClose }: { accounts:
     try { const refreshed = await loadTransactionAccounts(controller.signal); if (entryRef.current === entry && !controller.signal.aborted) setCreatedAccounts(refreshed); }
     catch { if (entryRef.current === entry && !controller.signal.aborted) setAccountRefreshError(true); }
   }} />;
-  return <><Button variant="secondary" disabled={phase !== 'idle'} onClick={() => {if (entryRef.current?.submission.phase === 'idle') setCreating(true);}}>{copy.createAccount}</Button>
+  return <><Button variant="secondary" disabled={phase !== 'idle' || savingDraft || saveUncertain} onClick={() => {if (entryRef.current?.submission.phase === 'idle') setCreating(true);}}>{copy.createAccount}</Button>
     {accountRefreshError && <p role="alert">{copy.accountRefreshFailed}</p>}
     <PostingFormView draft={draft} accounts={accountOptions} descriptionLimit={descriptionLimit} errors={errors} copy={copy}
-    busy={phase === 'submitting'} locked={['uncertain', 'conflict', 'denied'].includes(phase)} blocked={phase === 'conflict' || phase === 'denied'} message={message ? copy[message] : undefined}
-    onChange={patch => { if (phase === 'idle' && entryRef.current?.submission.phase === 'idle') { setDraft(previous => ({ ...previous, ...patch })); setErrors({}); setMessage(null); } }}
-    onSubmit={() => { void submit(); }} onClose={onClose} /></>;
+    busy={phase === 'submitting' || savingDraft} locked={saveUncertain || ['uncertain', 'conflict', 'denied'].includes(phase)} blocked={saveUncertain || phase === 'conflict' || phase === 'denied'} message={message ? copy[message] : undefined}
+    onChange={patch => { if (!savingDraft && !saveUncertain && phase === 'idle' && entryRef.current?.submission.phase === 'idle') { setDraft(previous => ({ ...previous, ...patch })); setErrors({}); setMessage(null); } }}
+    onSubmit={() => { if(!savingDraft&&!saveUncertain) void submit(); }} onClose={requestClose} extraActions={onDraftSaved ? <><Button type="button" variant="secondary" disabled={savingDraft || phase !== 'idle'} onClick={() => void saveDraft()}>{draftCopy.save}</Button>{saveError&&<p role="alert">{saveUncertain?draftCopy.saveUncertain:draftCopy[saveError]}</p>}{closeChoice&&<div role="group" aria-label={draftCopy.unsaved}><p>{draftCopy.unsaved}</p><Button type="button" disabled={savingDraft} onClick={() => void saveDraft()}>{draftCopy.save}</Button><Button type="button" variant="secondary" onClick={onClose}>{draftCopy.discardEdits}</Button><Button type="button" variant="secondary" onClick={()=>setCloseChoice(false)}>{draftCopy.keepEditing}</Button></div>}</> : undefined} /></>;
 }
 
 /** Controlled presentation; request wiring requires the ready contract. */
-export function PostingFormView({ draft, accounts, descriptionLimit, errors, copy, busy = false, locked = false, blocked = false, message, onChange, onSubmit, onClose }: {
+export function PostingFormView({ draft, accounts, descriptionLimit, errors, copy, busy = false, locked = false, blocked = false, message, onChange, onSubmit, onClose, extraActions }: {
   draft: PostingDraft; accounts: Account[]; descriptionLimit: number; errors: PostingInputErrors; copy: TransactionCopy;
-  busy?: boolean; locked?: boolean; blocked?: boolean; message?: string;
+  busy?: boolean; locked?: boolean; blocked?: boolean; message?: string; extraActions?: React.ReactNode;
   onChange: (patch: Partial<PostingDraft>) => void; onSubmit: () => void; onClose: () => void;
 }) {
   const id = useId(), form = useRef<HTMLFormElement>(null), accountInput = useRef<HTMLSelectElement>(null);
@@ -99,6 +119,6 @@ export function PostingFormView({ draft, accounts, descriptionLimit, errors, cop
     {errors.confirmed && <p id={id + '-confirm-error'} role="alert" className="text-sm">{copy.confirmRequired}</p>}
     {message && <p role="alert" className="text-sm">{message}</p>}
     {!eligible.length && <p role="status">{copy.noAccounts}</p>}
-    <div className="flex flex-wrap gap-3"><Button type="submit" isLoading={busy} disabled={blocked || !eligible.length}>{locked ? copy.retryOriginal : copy.add}</Button><Button type="button" variant="secondary" disabled={busy || locked} onClick={onClose}>{copy.cancel}</Button></div>
+    <div className="flex flex-wrap gap-3">{extraActions}<Button type="submit" isLoading={busy} disabled={blocked || !eligible.length}>{locked ? copy.retryOriginal : copy.add}</Button><Button type="button" variant="secondary" disabled={busy || locked} onClick={onClose}>{copy.cancel}</Button></div>
   </form></Card>;
 }

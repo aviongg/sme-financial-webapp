@@ -1,6 +1,7 @@
+import { verifyRecordDrafts, verifyReplaySyntax } from './record-drafts.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
-// installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8180.
+// installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -30,16 +31,22 @@ const classpath = property('surefire.test.class.path');
 const playwrightPath = process.env.PLAYWRIGHT_MODULE;
 const { chromium, request } = require(playwrightPath || 'playwright');
 const temporary = mkdtempSync(path.join(tmpdir(), 'finsight-accounts-live-'));
-const origin = 'http://127.0.0.1:3180';
+const backendPort=8580,nextPort=3481,gatewayPort=3480;
+const expectedDraftHash='595b0f69705cce3d21022e6ad67e8be4105575ebdce89781500b0a939bc50b4a';
+const origin = 'http://127.0.0.1:'+gatewayPort;
+// Parallel acceptance preserves the existing 3180/8280 review app and its data.
+// Transparent gateway routes real API traffic to fresh Spring 8380 and page/assets to production Next 3281.
 const manifest = JSON.parse(readFileSync(path.join(frontend,'.next/routes-manifest.json'),'utf8'));
 const rewrite = Object.values(manifest.rewrites).flat().find(rule => rule.source === '/api/:path*');
-if (rewrite?.destination !== 'http://127.0.0.1:8180/api/:path*') throw new Error('Live harness requires a build with process-only BACKEND_API_URL=http://127.0.0.1:8180. No environment file should be changed.');
+if (rewrite?.destination !== 'http://127.0.0.1:8280/api/:path*') throw new Error('Live harness requires a build with process-only BACKEND_API_URL=http://127.0.0.1:8280. No environment file should be changed.');
 const demoOnly = process.argv.includes('--demo');
 const reviewOnly = process.argv.includes('--review');
 const parityOnly = process.argv.includes('--parity');
+const draftSyntaxOnly=process.argv.includes('--draft-syntax');
 const captureOldParity = process.argv.includes('--capture-old-parity');
 let leaveReview = false;
-let runtime, next, browser;
+let runtime, next, browser, gateway;
+let gatewayText = "";
 const apiContexts = [];
 const exited = child => child.exitCode !== null || child.signalCode !== null;
 let runtimeText = '', nextText = '';
@@ -72,17 +79,19 @@ public class AccountsLiveRuntime {
     try {
       String key=Base64.getEncoder().encodeToString(java.security.SecureRandom.getSeed(32));
       app=SpringApplication.run(SmeHealthBackendApplication.class,
-        "--server.port=8180", "--server.address=127.0.0.1",
+        "--server.port=${backendPort}", "--server.address=127.0.0.1",
         "--spring.datasource.url="+DisposablePostgres.URL,
         "--spring.datasource.username=finsight_app", "--spring.datasource.password="+DisposablePostgres.PASSWORD,
         "--spring.flyway.enabled=false", "--app.documents.storage-dir="+DisposablePostgres.DOCUMENTS,
         "--app.whatsapp.scheduler.enabled=false", "--finsight.crypto.keys.k1="+key,
-        "--app.security.cors.allowed-origins=http://127.0.0.1:3180", "--logging.level.root=ERROR");
+        "--app.security.cors.allowed-origins=${origin}", "--logging.level.root=ERROR");
       try(var c=pg.getPostgresDatabase().getConnection(); var s=c.createStatement(); var r=s.executeQuery("SELECT version(), (SELECT max(version::int) FROM flyway_schema_history WHERE success)")) { r.next(); System.out.println("LIVE_ENV:"+r.getString(1).split(",")[0]+";schema="+r.getInt(2)); }
       var accountReadClass=com.app.sme_health_backend.accounting.service.AccountReadService.class;
       try(var bytes=accountReadClass.getResourceAsStream("AccountReadService.class")) {
         System.out.println("LIVE_ACCOUNT_READ_CLASS:"+accountReadClass.getProtectionDomain().getCodeSource().getLocation()+";sha256="+HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes.readAllBytes())));
       }
+      var draftClass=com.app.sme_health_backend.accounting.draft.RecordDraftService.class;
+      try(var bytes=draftClass.getResourceAsStream("RecordDraftService.class")){System.out.println("LIVE_DRAFT_CLASS:"+draftClass.getProtectionDomain().getCodeSource().getLocation()+";sha256="+HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes.readAllBytes())));}
       System.out.println("LIVE_READY"); System.out.flush();
       System.out.println("LIVE_DB_PORT:"+pg.getPort()); System.out.flush();
       if(args.length==2 && args[0].equals("--review")) { while(!Files.exists(Path.of(args[1]))) Thread.sleep(500); return; }
@@ -143,7 +152,8 @@ public class AccountsLiveRuntime {
 }`;
 function accountReadClassFreshness() {
   const base='com/app/sme_health_backend/accounting/';
-  for(const name of ['service/AccountReadService','service/TransactionPostService','service/TransactionReadService','controller/AccountController','controller/TransactionController','dto/AccountListItemResponse','dto/AccountDetailResponse']) {
+  assert.equal(createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes',base+'draft/RecordDraftService.class'))).digest('hex'),expectedDraftHash,'Expected replay-syntax class is not compiled');
+  for(const name of ['service/AccountReadService','service/TransactionPostService','service/TransactionReadService','controller/AccountController','controller/TransactionController','dto/AccountListItemResponse','dto/AccountDetailResponse','draft/RecordDraftService','draft/RecordDraftController','draft/DraftDetailResponse']) {
     const source=path.join(root,'backend/src/main/java',base+name+'.java'),compiled=path.join(root,'backend/target/classes',base+name+'.class');
     assert.ok(statSync(compiled).mtimeMs>=statSync(source).mtimeMs,'Backend compilation is stale: '+name);
   }
@@ -175,16 +185,32 @@ async function command(executable, args, options = {}) {
   await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', code => code === 0 ? resolve() : reject(new Error('Task command failed: ' + path.basename(executable) + ' (exit ' + code + ')'))); });
   return output;
 }
+async function startGateway(reviewDirectory) {
+ await free(gatewayPort);
+ const source = `import http from 'node:http';
+ const server=http.createServer((req,res)=>{
+  const port=(req.url.startsWith('/api/')||req.url==='/api')?${backendPort}:${nextPort};
+  const upstream=http.request({hostname:'127.0.0.1',port,path:req.url,method:req.method,headers:req.headers},reply=>{res.writeHead(reply.statusCode,reply.headers);reply.pipe(res);});
+  upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502,{'content-type':'text/plain'});res.end('Upstream unavailable');});
+  req.on('aborted',()=>upstream.destroy());res.on('close',()=>upstream.destroy());req.pipe(upstream);
+ });server.listen(${gatewayPort},'127.0.0.1',()=>console.log('GATEWAY_READY'));
+ process.on('SIGTERM',()=>{server.closeAllConnections();server.close(()=>process.exit(0));});`;
+ const file=path.join(temporary,'gateway.mjs');writeFileSync(file,source);
+ if(reviewDirectory){const log=path.join(reviewDirectory,'gateway.log'),fd=openSync(log,'w');gateway=spawn(process.execPath,[file],{windowsHide:true,detached:true,stdio:['ignore',fd,fd]});closeSync(fd);await waitFor(()=>readFileSync(log,'utf8').includes('GATEWAY_READY'),'Review gateway');}
+ else{gateway=spawn(process.execPath,[file],{windowsHide:true});gateway.stdout.on('data',data=>gatewayText+=data);gateway.stderr.on('data',data=>gatewayText+=data);await waitFor(()=>gatewayText.includes('GATEWAY_READY'),'Acceptance gateway');}
+}
 async function stopNext() {
+  if(gateway&&!exited(gateway)){gateway.kill();await waitFor(()=>exited(gateway),'Task-owned gateway shutdown',15000);}
   if (!next || exited(next)) return;
   next.kill(); await waitFor(() => exited(next), 'Task-owned Next shutdown', 15000);
 }
 async function startNext() {
-  await free(3180);
+  await free(nextPort);
   nextText = '';
-  next = spawn(process.execPath, [path.join(frontend, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', '3180'], { cwd: frontend, windowsHide: true });
+  next = spawn(process.execPath, [path.join(frontend, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', String(nextPort)], { cwd: frontend, windowsHide: true });
   next.stdout.on('data', data => nextText += data); next.stderr.on('data', data => nextText += data);
   await waitFor(() => /Ready in/.test(nextText), 'Task-owned Next');
+  await startGateway();
 }
 async function control(action, marker) { const offset = runtimeText.length; runtime.stdin.write(action + '\n'); await waitFor(() => runtimeText.slice(offset).includes(marker), marker); }
 async function api(context, route, method = 'GET', data, extraHeaders = {}) {
@@ -265,7 +291,7 @@ try {
     const reviewDirectory = process.env.FINSIGHT_REVIEW_DIRECTORY;
     if (!reviewDirectory || !path.isAbsolute(reviewDirectory)) throw new Error('Absolute private review directory required.');
     mkdirSync(reviewDirectory, { recursive: true });
-    await free(8180); await free(3180);
+    await free(backendPort); await free(nextPort); await free(gatewayPort);
     const manifestValue = classpath.split(';').filter(Boolean).map(entry => pathToFileURL(entry).href + (statSync(entry).isDirectory() ? '/' : '')).join(' ');
     const lines = ('Class-Path: ' + manifestValue).match(/.{1,70}/g);
     writeFileSync(path.join(temporary, 'MANIFEST.MF'), 'Manifest-Version: 1.0\r\n' + lines.map((line, index) => (index ? ' ' : '') + line).join('\r\n') + '\r\n\r\n');
@@ -275,11 +301,14 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=20/);
+    assert.match(runtimeText, /schema=21/);
+  assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
+    assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
     const frontendFd = openSync(frontendLog, 'w');
-    next = spawn(process.execPath, [path.join(frontend, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', '3180'], { cwd: frontend, windowsHide: true, detached: true, stdio: ['ignore', frontendFd, frontendFd] }); closeSync(frontendFd);
+    next = spawn(process.execPath, [path.join(frontend, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', String(nextPort)], { cwd: frontend, windowsHide: true, detached: true, stdio: ['ignore', frontendFd, frontendFd] }); closeSync(frontendFd);
     await waitFor(() => /Ready in/.test(readFileSync(frontendLog, 'utf8')), 'Independent review frontend');
+    await startGateway(reviewDirectory);
     const owner = await identity('local-review@finsight.example.test');
     const b = await api(owner.context, '/businesses', 'POST', { businessName: 'LOCAL REVIEW — isolated sample business', businessType: 'retail', languagePreference: 'en', whatsappOptIn: false }); assert.equal(b.status(), 201);
     await api(owner.context, '/businesses/active', 'POST', { businessId: (await b.json()).businessId });
@@ -288,6 +317,7 @@ try {
     for (const [eventType, amount] of [['DIRECT_SALE_RECEIPT', '20000.00'], ['OPERATING_EXPENSE_PAYMENT', '5000.00']]) assert.equal((await transactionPost(owner.context, { accountId, eventType, amount, effectiveDate: today, description: 'LOCAL REVIEW synthetic sample only' })).status(), 201);
     for (const [currency, openingBalance, name] of [['JPY', '125000', 'JPY wallet'], ['BHD', '1250.375', 'BHD bank'], ['PKR', '5000.00', 'PKR cash']]) assert.equal((await accountPost(owner.context, { accountName: 'LOCAL REVIEW — ' + name, accountType: name.includes('cash') ? 'CASH' : name.includes('wallet') ? 'WALLET' : 'BANK', currency, openingBalance, openingDate: today })).status(), 201);
     assert.equal((await (await api(owner.context, '/finance/accounts/' + accountId)).json()).currentBalance, '115000.00');
+    const reviewDraft = await api(owner.context,'/finance/drafts','POST',{amountInput:'1500.',description:'LOCAL REVIEW — unfinished draft; no financial effect'},{'Idempotency-Key':randomUUID()});assert.equal(reviewDraft.status(),201);
     const reviewMonth = today.slice(0, 7);
     assert.equal((await api(owner.context, '/records/monthly', 'POST', { month: reviewMonth, cashInflow: 20000, cashOutflow: 5000, revenue: 20000, operatingExpenses: 5000, cashBalanceEom: 115000, cogs: 4000, financingType: 'none' })).status(), 201);
     assert.equal((await api(owner.context, '/scores/calculate', 'POST', { month: reviewMonth })).status(), 200);
@@ -309,15 +339,15 @@ try {
     const reviewForm = reviewPage.getByRole('form', { name: 'ریکارڈ شامل کریں', exact: true });
     await reviewForm.getByLabel(/^رقم/).fill('۱,۵۰۰.۵');
     await reviewForm.getByText('1500.50 PKR', { exact: true }).waitFor();
-    await reviewForm.getByRole('button', { name: 'منسوخ کریں', exact: true }).click();
+    await reviewForm.getByRole('button', { name: 'منسوخ کریں', exact: true }).click();await reviewForm.getByRole('button',{name:'غیر محفوظ ترامیم چھوڑ دیں',exact:true}).click();
     await reviewPage.getByRole('button', { name: 'English', exact: true }).click();
     await reviewPage.getByRole('button', { name: /^View transaction details:/ }).first().waitFor();
     await reviewBrowserContext.close();
     console.log('REVIEW_BROWSER_PASS loaded EN/UR mobile Records and natural amount preview; no smoke-test posting');
     writeFileSync(path.join(reviewDirectory, 'credentials.txt'), 'Local isolated review only\nEmail: ' + owner.email + '\nPassword: ' + password + '\nSign in through the normal app. Complete any security/MFA prompts.\n');
-    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: 20, backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
+    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: 21, backendPort, nextPort, gatewayPort, gatewayPid: gateway.pid, gatewayCommandPath: path.join(temporary,'gateway.mjs'), draftClassSha256: createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex'), backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
     writeFileSync(path.join(reviewDirectory, 'processes.json'), JSON.stringify(metadata, null, 2));
-    leaveReview = true; runtime.unref(); next.unref();
+    leaveReview = true; runtime.unref(); next.unref(); gateway.unref();
     console.log('REVIEW_READY ' + origin + ' backendPid=' + runtime.pid + ' frontendPid=' + next.pid + ' databasePort=' + metadata.databasePort);
   } else if (demoOnly) {
     await startNext();
@@ -336,11 +366,12 @@ try {
     await page.goto(origin + '/records'); await page.getByText('ڈیمو موڈ میں سرگرمی اور رقم کے اکاؤنٹس کا پیش منظر دستیاب نہیں۔', {exact:true}).waitFor(); assert.deepEqual(privateRequests, []);
     await page.getByRole('button', {name:'Switch interface language'}).click(); await page.getByText('Activity and money accounts preview is not available in demo mode.', {exact:true}).waitFor(); assert.deepEqual(privateRequests, []);
     assert.equal(await page.getByRole('button', {name:'Add record',exact:true}).count(),0);
+    await page.goto(origin+'/records?view=review');await page.getByText('Activity and money accounts preview is not available in demo mode.',{exact:true}).waitFor();assert.deepEqual(privateRequests,[]);
     mark('demo browser accounts/transactions/Records English/Urdu preview unavailable; zero private API requests');
     await context.close();
   } else {
   const expectedAccountReadHash=accountReadClassFreshness();
-  await free(8180); await free(3180);
+  await free(backendPort); await free(nextPort); await free(gatewayPort);
   const manifestValue = classpath.split(';').filter(Boolean).map(entry => pathToFileURL(entry).href + (statSync(entry).isDirectory() ? '/' : '')).join(' ');
   const lines = ('Class-Path: ' + manifestValue).match(/.{1,70}/g);
   writeFileSync(path.join(temporary, 'MANIFEST.MF'), 'Manifest-Version: 1.0\r\n' + lines.map((line, index) => (index ? ' ' : '') + line).join('\r\n') + '\r\n\r\n');
@@ -349,12 +380,19 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=20/);
+  assert.match(runtimeText, /schema=21/);
+  assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
-  mark('real disposable PostgreSQL migrations through V20 and Spring on reserved port 8180');
+  mark('real disposable PostgreSQL V21; verified syntax-fix Spring '+backendPort+', gateway '+gatewayPort+', production Next '+nextPort);
   await startNext();
-  if(parityOnly) {
+  if(draftSyntaxOnly){
+    const owner=await identity('syntax-parity@example.test');
+    const b=await api(owner.context,'/businesses','POST',{businessName:'SYNTAX PARITY isolated business',businessType:'retail',languagePreference:'en',whatsappOptIn:false});assert.equal(b.status(),201);const businessId=(await b.json()).businessId;await api(owner.context,'/businesses/active','POST',{businessId});
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const a=await accountPost(owner.context,{accountName:'SYNTAX PARITY bank',accountType:'BANK',currency:'PKR',openingBalance:'0.00',openingDate:today});assert.equal(a.status(),201);
+    await verifyReplaySyntax({api,owner,accountId:(await a.json()).id,today,txCounts,mark,requestFactory:request});
+  } else if(parityOnly) {
     const owner=await identity('parity-owner@example.test');
     const b=await api(owner.context,'/businesses','POST',{businessName:'PARITY — disposable synthetic business',businessType:'retail',languagePreference:'en',whatsappOptIn:false});assert.equal(b.status(),201);
     await api(owner.context,'/businesses/active','POST',{businessId:(await b.json()).businessId});
@@ -822,6 +860,7 @@ try {
   for (const member of [viewer,manager]) {const c=await browser.newContext(),p=await c.newPage();await signin(p,member.email);await p.goto(origin+'/records');await p.getByRole('note').waitFor();assert.equal(await p.getByRole('button',{name:'Add record',exact:true}).count(),0);await c.close();}
   mark('Browser Records: historical access, preserved/cancelled inline account creation, natural/grouped/Urdu HALF_UP amounts, real summary drilldowns, URL periods/details/OCR return and RTL/mobile');
   mark('HTTP Records summary: independent 1500.00 + 1500.50 + 1500.56 = 4501.06 across complete matching dataset; refreshed bank balance 5501.62');
+  await verifyRecordDrafts({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,accountId:mainAccount,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await control('SNAPSHOT RECORDS', 'LIVE_SNAPSHOT_RECORDS:');assert.equal(runtimeText.match(/LIVE_SNAPSHOT_RECORDS:([^\r\n]+)/)[1],beforeFinancial);
   mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by accounts, transactions and Records entry');
   await page.goto(origin + '/finance/accounts');await page.getByText('Live PKR Bank',{exact:true}).waitFor();
@@ -853,7 +892,9 @@ try {
   const expiryTransactions = await context.newPage(); await expiryTransactions.goto(origin + '/finance/transactions'); let expiryTxFetched = false;
   await expiryTransactions.route(txRoute, async route => { if (!isTransactionPost(route.request())) { await route.continue(); return; } const response = await route.fetch(); expiryTxFetched = true; await new Promise(resolve => setTimeout(resolve, 1500)); try { await route.fulfill({ response }); } catch { /* session expired */ } });
   txForm = await fillTransaction(expiryTransactions, tx(ids.other, '0.01')); await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await waitFor(() => expiryTxFetched, 'Actual transaction before expiry');
+  const expiryDraft=await context.newPage();await expiryDraft.goto(origin+'/records?view=review');await expiryDraft.getByRole('button',{name:'Start an unfinished entry',exact:true}).click();await expiryDraft.getByRole('dialog').getByLabel('Description',{exact:true}).fill('Private draft before expiry');
   await control('EXPIRE', 'LIVE_EXPIRED'); await page.reload(); await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+  await expiryDraft.reload();await expiryDraft.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();assert.equal(await expiryDraft.getByText('Private draft before expiry',{exact:true}).count(),0);await expiryDraft.close();
   await expiryTransactions.reload(); await expiryTransactions.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor(); await expiryTransactions.close();
   await page.waitForTimeout(1700); await page.unroute(postRoute);
   assert.equal(await page.getByText('UI Stale Session Creation', { exact: true }).count(), 0);
@@ -891,7 +932,7 @@ try {
     if (reviewOnly) { writeFileSync(path.join(temporary, 'review.stop'), 'stop'); } else runtime.stdin.write('STOP\n');
     await waitFor(() => exited(runtime), 'Task-owned PostgreSQL/Spring shutdown', 15000).catch(() => { runtime.kill(); process.exitCode = 1; });
   }
-  if (!reviewOnly) writeFileSync(path.join(out, parityOnly ? (captureOldParity ? 'parity-before-results.json' : 'parity-after-results.json') : demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, backendClass: runtimeText.match(/LIVE_ACCOUNT_READ_CLASS:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && !parityOnly && blockers.length === 0 }, null, 2));
+  if (!reviewOnly) writeFileSync(path.join(out, draftSyntaxOnly ? 'draft-syntax-results.json' : parityOnly ? (captureOldParity ? 'parity-before-results.json' : 'parity-after-results.json') : demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, draftBackendClass: runtimeText.match(/LIVE_DRAFT_CLASS:([^\r\n]+)/)?.[1] ?? null, backendClass: runtimeText.match(/LIVE_ACCOUNT_READ_CLASS:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && !parityOnly && !draftSyntaxOnly && blockers.length === 0 }, null, 2));
   if (blockers.length) {
     for (const blocker of blockers) console.error('BLOCKER ' + blocker);
     process.exitCode = 1;

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
 const directory = mkdtempSync(path.join(tmpdir(), 'finsight-transactions-'));
-for (const name of ['lib/api/client', 'lib/utils/decimal-display', 'lib/utils/amount-input', 'lib/api/dev-a/account-contracts', 'lib/api/dev-a/transaction-contracts', 'lib/api/dev-a/transactions', 'lib/api/dev-a/accounts', 'components/finance/transactions/transaction-input', 'components/finance/transactions/transaction-copy', 'components/finance/transactions/transaction-submission', 'components/finance/transactions/transaction-accounts']) {
+for (const name of ['lib/api/dev-a/drafts','components/records/draft-copy','lib/api/client', 'lib/utils/decimal-display', 'lib/utils/amount-input', 'lib/api/dev-a/account-contracts', 'lib/api/dev-a/transaction-contracts', 'lib/api/dev-a/transactions', 'lib/api/dev-a/accounts', 'components/finance/transactions/transaction-input', 'components/finance/transactions/transaction-copy', 'components/finance/transactions/transaction-submission', 'components/finance/transactions/transaction-accounts']) {
   const target = path.join(directory, name + '.js'); mkdirSync(path.dirname(target), { recursive: true });
   const source = readFileSync(new URL('../src/' + name + '.ts', import.meta.url), 'utf8');
   writeFileSync(target, ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText);
@@ -23,7 +23,7 @@ const account = { id: '11111111-1111-4111-8111-111111111111', status: 'ACTIVE', 
 const draft = () => ({ selectedAccount: account.id, event: 'DIRECT_SALE_RECEIPT', amountText: '1.00', dateText: '2026-10-14', descriptionText: '', confirmed: true });
 test('positive exact PKR input preserves capacity boundaries without rounding', () => {
   for (const value of ['0.01', '1.00', '999999999999.99']) assert.equal(input.isPositivePostingAmount(value), true);
-  for (const value of ['0.00', '-0.00', '-1.00', '1', '1.0', '1.001', '+1.00', '01.00', '1e5', '1,000.00', '۱.۰۰', '1000000000000.00', 1, null]) assert.equal(input.isPositivePostingAmount(value), false, String(value));
+  for (const value of ['0.00', '-0.00', '-1.00', '1', '1.0', '1.001', '+1.00', '01.00', '1e5', '1,000.00', 'Û±.Û°Û°', '1000000000000.00', 1, null]) assert.equal(input.isPositivePostingAmount(value), false, String(value));
 });
 test('posting dates use the actual Karachi calendar boundary', () => {
   assert.equal(input.karachiToday(new Date('2026-10-14T18:59:59Z')), '2026-10-14');
@@ -209,6 +209,7 @@ test('actual bilingual form uses labelled exact text input, confirmation and loc
     if (name === '@/components/auth/SessionProvider' || name === '@/lib/i18n/context') return {};
     if (name.startsWith('@/lib/api/') || (name === '@/lib/utils/decimal-display' || name === '@/lib/utils/amount-input')) return require(path.join(directory, name.slice(2) + '.js'));
     if (name.startsWith('./transaction-')) return require(path.join(directory, 'components/finance/transactions', name.slice(2) + '.js'));
+    if (name === '../../records/draft-copy') return require(path.join(directory,'components/records/draft-copy.js'));
     if (name === '../accounts/CreateAccountForm') return {CreateAccountForm() {}};
     if (!name.startsWith('@/')) return require(name);
     if (cache.has(name)) return cache.get(name);

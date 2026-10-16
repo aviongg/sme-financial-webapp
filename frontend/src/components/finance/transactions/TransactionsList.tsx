@@ -1,4 +1,5 @@
 "use client";
+import { draftEn, draftUr } from '../../records/draft-copy';
 import { transactionQueryFromURL, transactionSearch, periodFromURL } from '../../records/record-query';
 import { useSearchParams, usePathname } from 'next/navigation';
 import { periodDates, type RecordPeriod } from '../../records/record-period';
@@ -39,6 +40,7 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     const search = transactionSearch(new URLSearchParams(window.location.search),update,embedded,selectedPeriod);
     window.history.replaceState(null, '', pathname + '?' + search.toString());
   };
+  const [draftSaved,setDraftSaved]=useState<string|null>(null);
   const [refresh, setRefresh] = useState(0), [posting, setPosting] = useState<string | null>(null), [selected, setSelected] = useState<string | null>(null);
   const [posted, setPosted] = useState<{ context: string; transaction: TransactionDetailData } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null), close = useCallback(() => setSelected(null), []);
@@ -85,7 +87,8 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     <Card className="border-2 border-[var(--color-brand-primary)]"><p role="note" className="font-semibold">{copy.notice}</p></Card>
     {!embedded && <Link href="/finance/accounts" className="inline-block underline rounded focus-visible:outline-2 focus-visible:outline-offset-2">{moneyCopy.title}</Link>}
     {accountLoading ? <p role="status">{copy.accountLoading}</p> : accountState?.error || accountsResource.error ? <Card><p role="alert">{accountState?.error ? copy[accountState.error] : copy.failed}</p><Button variant="secondary" onClick={accountsResource.retry}>{copy.retry}</Button></Card> : null}
-    {posting === context && accountState?.accounts && <PostTransactionForm key={context} accounts={accounts} onClose={() => { restoreFocus.current = true; setPosting(null); }} onPosted={transaction => {
+    {draftSaved===context&&<Card><p role="status">{locale==='ur'?draftUr.savedNotice:draftEn.savedNotice}</p><Link href="/records?view=review" className="underline">{locale==='ur'?draftUr.toReview:draftEn.toReview}</Link></Card>}
+    {posting === context && accountState?.accounts && <PostTransactionForm key={context} accounts={accounts} onDraftSaved={()=>{setDraftSaved(context);setPosting(null);restoreFocus.current=true;}} onClose={() => { restoreFocus.current = true; setPosting(null); }} onPosted={transaction => {
       close(); restoreFocus.current = true; setPosted({ context, transaction }); setPosting(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
     }} />}
     {activePosted && <Card className="space-y-3"><p role="status">{copy.posted}</p><p className="break-words [overflow-wrap:anywhere]">{activePosted.accountName} · <bdi dir="ltr">{activePosted.id}</bdi></p>
