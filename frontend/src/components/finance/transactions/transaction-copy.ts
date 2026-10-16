@@ -33,6 +33,10 @@ export const transactionEn = {
   actor: 'Recorded by user reference', movement: 'Movement reference', INCREASE: 'Increase', DECREASE: 'Decrease',
   availableOnly: 'Posting is limited to active PKR accounts with an available balance. Other currencies remain readable in Accounts.',
   invalidFilters: 'Use valid filter dates with the start no later than the end.',
+  INTERNAL_TRANSFER: 'Internal transfer',
+  fromAccount: 'From account',
+  toAccount: 'To account',
+  moveMoney: 'Move money',
 };
 export type TransactionCopy = { [K in keyof typeof transactionEn]: string };
 export const transactionUr: TransactionCopy = {
@@ -68,6 +72,10 @@ export const transactionUr: TransactionCopy = {
   actor: 'اندراج کرنے والے صارف کا حوالہ', movement: 'رقم کی حرکت کا حوالہ', INCREASE: 'اضافہ', DECREASE: 'کمی',
   availableOnly: 'اندراج صرف فعال PKR اکاؤنٹس میں دستیاب بیلنس کے ساتھ ممکن ہے۔ دوسری کرنسیاں اکاؤنٹس میں دیکھی جا سکتی ہیں۔',
   invalidFilters: 'درست تاریخیں منتخب کریں۔ ابتدائی تاریخ آخری تاریخ کے بعد نہ ہو۔',
+  INTERNAL_TRANSFER: 'اندرونی منتقلی',
+  fromAccount: 'اس اکاؤنٹ سے',
+  toAccount: 'اس اکاؤنٹ میں',
+  moveMoney: 'رقم منتقل کریں',
 };
 export function transactionErrorKey(error: unknown): keyof TransactionCopy {
   if (error instanceof InvalidTransactionResponse) return 'invalid';

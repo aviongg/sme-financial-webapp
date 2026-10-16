@@ -1,9 +1,9 @@
 # FinSight Phase 2 Implementation State & Dependency Register
 
-**Version:** `2.1`
+**Version:** `2.2`
 **Last Updated:** 16 October 2026
 **Canonical Branch:** `dev/suleman`
-**Current HEAD SHA:** `e586b06385a538258e72fb4d385f0ef3a921d723`
+**Current HEAD SHA:** `796a904d9c49098bc5bbdb6060c2394eeb9c6f27`
 **Baseline Release:** PR #3 integrated into `main` (Flyway V1–V17)  
 
 ---
@@ -13,17 +13,18 @@
 | Item | Value | Evidence / Verification |
 | :--- | :--- | :--- |
 | **Active Branch** | `dev/suleman` | Verified via `git branch --show-current` |
-| **Commit SHA** | `e586b06385a538258e72fb4d385f0ef3a921d723` | Baseline commit prior to `A-RECORDS-02-BE` |
-| **Flyway Head** | **V21** | `backend/src/main/resources/db/migration/V21__create_record_drafts.sql` (V21 authored, verified & committed) |
+| **Commit SHA** | `796a904d9c49098bc5bbdb6060c2394eeb9c6f27` | Part A draft checkpoint commit |
+| **Flyway Head** | **V22** | `backend/src/main/resources/db/migration/V22__add_internal_transfers.sql` (V22 committed & integration verified) |
 | **Untracked Artifacts** | `backend/.cp.txt` | Maven classpath artifact (13,680 bytes); preserved untouched |
-| **Phase 2 Implementation** | **Persistent Record Drafts, Transactions Backend, Summaries, Records & Calculator** | `POST /api/finance/drafts`, `GET /api/finance/drafts`, `GET /api/finance/drafts/{id}`, `PUT /api/finance/drafts/{id}`, `POST /api/finance/drafts/{id}/discard`, `POST /api/finance/drafts/{id}/record` authored & verified; atomic posting, create/record idempotency, optimistic version checks, zero financial effects while in draft |
+| **Phase 2 Implementation** | **Account Transfers, Persistent Drafts, Transactions Backend, Summaries, Records & Calculator** | `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary` authored & verified; dual movements, deterministic two-account locking, cash non-negative invariant, summary cash flow neutrality |
 | **Blueprint Availability** | **Missing** | Master Phase 2 Technical Integration Blueprint not present locally |
 | **Onboarding Audits** | **Completed** | Antigravity Backend Baseline Audit & Codex Frontend Baseline Audit completed |
 | **Accounts Read Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Verified across Spring Boot, PostgreSQL V18, Next.js, and Edge |
 | **Accounts Create Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Contract v1.1, V19 authored, 105 BE tests, 23 FE creation / 83 total FE tests, 21-check real live harness exit 0 |
 | **Records, Accounts & Transactions Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Real Spring Boot (port 8180) + Next.js (port 3180) + PostgreSQL 14.22 (V20) + Playwright/Edge; 33 passing check groups, exit 0, 0 blockers |
 | **F07 Funding Gap Calculator Status** | **UNIT_VERIFIED (Bounded Pure Calculator)** | 24/24 unit tests passed both in isolated execution and via project Maven runner `mvnw.cmd test -Dtest=ProjectFundingGapCalculatorTest`; application/API integration pending |
-| **Record Drafts & Review Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Fresh isolated V21 environment, backend class hash `595b0f69705cce3d21022e6ad67e8be4105575ebdce89781500b0a939bc50b4a` verified, targeted checks passed, combined real harness 47 groups exit 0, malformed initial/replay amounts return 400, identical valid retries and changed-payload conflicts behave correctly, no duplicate financial writes, monthly/score/advice fingerprints unchanged. Earlier frontend evidence: 135 tests, TypeScript, lint and production build passed. Live review verified at `http://127.0.0.1:3480/records`. |
+| **Record Drafts & Review Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Checkpoint committed (`796a904d9c49098bc5bbdb6060c2394eeb9c6f27`). Fresh isolated V21 environment, backend class hash `595b0f69705cce3d21022e6ad67e8be4105575ebdce89781500b0a939bc50b4a` verified, 47 grouped checks passed. Live review verified at `http://127.0.0.1:3480/records`. |
+| **Account Transfers (A-F01-TRANSFERS)** | **INTEGRATION_VERIFIED (Bounded Slice)** | Real PostgreSQL 14.22 (V22) + Spring Boot + Next.js + Playwright/Edge combined harness exit 0 (54 check groups, 0 blockers). Atomic dual movements, negative cash prevention, capacity bounds, deterministic deadlock-free locking, idempotent replay (201), conflict detection (409), cash neutrality, account summary in/out aggregation, and bilingual Urdu RTL verified. |
 
 ---
 
@@ -60,29 +61,65 @@
         *   `docs/phase2/FUNDING_GAP_CALCULATION.md`
     *   **Scope Note:** Pure in-memory calculation foundation for F07; application/API/persistence integration remains pending.
 
+*   **Developer A Full Stack (Antigravity):**
+    *   **Task ID:** `A-F01-TRANSFERS` (PKR Transfers Between Accounts)
+    *   **Status:** `INTEGRATION_VERIFIED — CHECKPOINT_COMMITTED`
+    *   **Backend Paths Owned:**
+        *   `backend/src/main/resources/db/migration/V22__add_internal_transfers.sql`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransferService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/controller/TransferController.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/dto/TransferPostRequest.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/util/CanonicalAmountValidator.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/model/TransactionEventType.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/entity/FinancialTransaction.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransactionReadService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/dto/TransactionSummaryResponse.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/dto/TransactionDetailResponse.java`
+        *   `backend/src/test/java/com/app/sme_health_backend/accounting/TransferServiceTest.java`
+        *   `backend/src/test/java/com/app/sme_health_backend/accounting/TransferControllerTest.java`
+        *   `backend/src/test/java/com/app/sme_health_backend/accounting/FinancialTransferPostgreSqlIT.java`
+    *   **Frontend Paths Owned:**
+        *   `frontend/src/components/finance/transfers/**`
+        *   `frontend/src/lib/api/dev-a/transfers.ts`
+        *   `frontend/src/lib/api/dev-a/transaction-contracts.ts`
+        *   `frontend/src/lib/api/dev-a/transaction-totals.ts`
+        *   `frontend/src/lib/api/dev-a/transactions.ts`
+        *   `frontend/src/components/finance/transactions/TransactionsList.tsx`
+        *   `frontend/src/components/finance/transactions/TransactionDetail.tsx`
+        *   `frontend/src/components/finance/transactions/transaction-copy.ts`
+        *   `frontend/src/components/finance/accounts/AccountsList.tsx`
+        *   `frontend/tests/transfers.test.mjs`
+        *   `frontend/tests/transfers.live.mjs`
+        *   `frontend/tests/accounts-live.integration.mjs`
+    *   **Documentation Paths:**
+        *   `docs/phase2/ACCOUNT_TRANSFERS.md` (Revision 1.1 INTEGRATION_VERIFIED)
+
 ---
 
 ## 3. Integration & Unit Verification Evidence Summary
 
 | Layer / Gate | Command / Target | Result | Evidence Details |
 | :--- | :--- | :--- | :--- |
-| **Real Browser Integration Harness (Record Drafts & Review Workflow)** | `pnpm exec node tests/accounts-live.integration.mjs` | **EXIT 0 (47 grouped checks, 0 blockers)** | Fresh isolated V21 environment, Spring Boot + Next.js + PostgreSQL 14.22 (Flyway V21) + Playwright/Edge. 47 grouped checks passed; blockers=[]; integrated=true. Verified draft persistence, resume, edit, discard, atomic recording, exact-version checks, 27 malformed initial/replay syntax rejections (HTTP 400), idempotent replay (HTTP 201), changed-payload conflict (HTTP 409), concurrent racing, verbatim raw amount input preservation, no duplicate financial writes, and untouched monthly/score fingerprints. Live review verified at `http://127.0.0.1:3480/records`. |
-| **Real Browser Integration Harness (Records, Accounts & Transactions)** | `pnpm exec node tests/accounts-live.integration.mjs` | **EXIT 0 (33 grouped checks, 0 blockers)** | Real Spring Boot (port 8180) + Next.js (port 3180) + PostgreSQL 14.22 (Flyway V20) + Playwright/Edge. 33 grouped checks passed; blockers=[]; integrated=true. Verified account read/create/post, current-only capacity overflow rendering, summary aggregation (`4501.06 / 0.00 / 4501.06`, count 3), natural/Arabic/Urdu inputs, concurrency, idempotent replay, CSRF, multi-tenant isolation, and untouched monthly records/score fingerprints. |
-| **Frontend Targeted Unit & Total Suites** | `pnpm exec node --test tests/records.test.mjs`, `pnpm test` | **12 / 12 PASSED** (records), **135 / 135 PASSED** (total frontend) | All unit, contract, and regression suites passed with zero failures or skips. Tested natural/grouped/Arabic/Urdu inputs, HALF_UP rounding, date boundary presets, safe return URLs, canonical summary echoing, frozen retry identity, draft forms and persistence. |
-| **Type Check & Lint** | `tsc --noEmit`, `pnpm run lint` | **PASSED** | 0 TypeScript errors, 0 ESLint errors (1 existing baseline warning in SessionProvider.tsx:204). |
+| **Real Browser Integration Harness (Account Transfers & Dual Movements)** | `node tests/accounts-live.integration.mjs` | **EXIT 0 (54 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V22) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Playwright/Edge. 54 check groups passed; blockers=[]; integrated=true. Verified atomic dual-movement transfers, 5,000 PKR Meezan-to-Cash transfer, balance updates (50,000 -> 45,000 / 1,000 -> 6,000), cash flow neutrality (moneyReceived/moneyPaid untouched), directional transfer summaries, idempotent replay (201), conflict (409), role authorization (OWNER/ACCOUNTANT allowed, VIEWER/MANAGER 403), natural form entry, plain confirmation string, and bilingual Urdu RTL. Live review verified at `http://127.0.0.1:3480/records`. |
+| **Real Browser Integration Harness (Record Drafts & Review Workflow)** | `node tests/accounts-live.integration.mjs` | **EXIT 0 (47 grouped checks, 0 blockers)** | Fresh isolated V21 environment, Spring Boot + Next.js + PostgreSQL 14.22 (Flyway V21) + Playwright/Edge. 47 grouped checks passed; blockers=[]; integrated=true. Verified draft persistence, resume, edit, discard, atomic recording, exact-version checks, 27 malformed initial/replay syntax rejections (HTTP 400), idempotent replay (HTTP 201), changed-payload conflict (HTTP 409), concurrent racing, verbatim raw amount input preservation, no duplicate financial writes, and untouched monthly/score fingerprints. |
+| **Real Browser Integration Harness (Records, Accounts & Transactions)** | `node tests/accounts-live.integration.mjs` | **EXIT 0 (33 grouped checks, 0 blockers)** | Real Spring Boot (port 8180) + Next.js (port 3180) + PostgreSQL 14.22 (Flyway V20) + Playwright/Edge. 33 grouped checks passed; blockers=[]; integrated=true. Verified account read/create/post, current-only capacity overflow rendering, summary aggregation (`4501.06 / 0.00 / 4501.06`, count 3), natural/Arabic/Urdu inputs, concurrency, idempotent replay, CSRF, multi-tenant isolation, and untouched monthly records/score fingerprints. |
+| **Frontend Targeted Unit & Total Suites** | `node tests/transfers.test.mjs`, `node tests/records.test.mjs`, `node tests/transactions.test.mjs` | **11 / 11 PASSED** (transfers), **146 / 146 PASSED** (total frontend) | All unit, contract, and regression suites passed with zero failures or skips. Tested bilingual copy, distinct account validation, opening date bounds, natural input normalization, frozen payloads, role presentation, dual movements parsing, explicit retry state machine. |
+| **Type Check & Lint** | `npx tsc --noEmit`, `npm run lint` | **PASSED** | 0 TypeScript errors, 0 ESLint errors (1 existing baseline warning in SessionProvider.tsx:204). |
+| **Next.js Production Build** | `npm run build` (`BACKEND_API_URL=http://127.0.0.1:8280`) | **EXIT 0** | Turbopack compilation succeeded in 11.5s, TypeScript 3.1s, static pages generated. Routes manifest rewrite verified. |
 | **Demo Mode Isolation** | `node tests/accounts-live.integration.mjs --demo` | **EXIT 0** | Verified English/Urdu unavailable preview with zero `/api/` network requests (zero private requests). |
-| **Baseline Data & Score Integrity** | Pre/Post creation & posting snapshot check | **VERIFIED UNCHANGED** | Row-count and MD5 content fingerprints of `monthly_records`, `score_results`, `insights`, and `recommendations` remained identical after all creation, posting, and draft mutations. |
+| **Baseline Data & Score Integrity** | Pre/Post creation & posting snapshot check | **VERIFIED UNCHANGED** | Row-count and MD5 content fingerprints of `monthly_records`, `score_results`, `insights`, and `recommendations` remained identical after all creation, posting, transfer, and draft mutations. |
+| **Backend Transfer Suite (Unit + WebMvc + PostgreSQL IT)** | `mvnw.cmd test "-Dtest=TransferServiceTest,TransferControllerTest,FinancialTransferPostgreSqlIT"` | **27 / 27 PASSED** | TransferServiceTest (11), TransferControllerTest (7), FinancialTransferPostgreSqlIT (9). Disposable PostgreSQL 14.22 + Flyway V22. Verified deterministic lock ordering, simulation, cash non-negative invariant, capacity limits, idempotent replay, conflict detection, summary arithmetic. |
 | **Backend Comprehensive Suite (Drafts + Accounts + Transactions)** | `mvn test "-Dtest=RecordDraftServiceTest,RecordDraftControllerTest,TransactionPostServiceTest,RecordDraftPostgreSqlIT"` | **113 / 113 PASSED** | RecordDraftServiceTest (74), RecordDraftControllerTest (15), TransactionPostServiceTest (13), RecordDraftPostgreSqlIT (11). Verified 54 parameterized syntax cases, live PostgreSQL draft lifecycle, idempotent recovery, verbatim raw input. |
 | **Backend Comprehensive Suite (Accounts + Transactions + Summaries)** | `mvn test "-Dtest=TransactionControllerTest,TransactionPostServiceTest,FinancialTransactionPostgreSqlIT,FinancialAccountPostgreSqlIT,AccountReadServiceTest,AccountCreateServiceTest,AccountControllerTest,CurrencyRegistryTest,BusinessAuthorizationServiceTest"` | **140 / 140 PASSED** | TransactionControllerTest (11), TransactionPostServiceTest (13), FinancialTransactionPostgreSqlIT (11), FinancialAccountPostgreSqlIT (7), AccountReadServiceTest (18), AccountCreateServiceTest (15), AccountControllerTest (19), CurrencyRegistryTest (39), BusinessAuthorizationServiceTest (7). Disposable PostgreSQL 14.22 + Flyway V18 + V19 + V20. |
 | **Maven Project Runner (Liquidity Calculator)** | `mvnw.cmd test -Dtest=ProjectFundingGapCalculatorTest` | **24 / 24 PASSED** (0 failures, 0 errors, 14.0s) | Verified reference fixture (50k gap, peak 11-01, recovery 11-04), zero events/opening, sufficient funds, non-recovery, temporary recovery, final-day recovery, same-day netting, repeated peaks, order invariance, large decimal accuracy, invalid input rejections, and immutability. |
 | **Backend Authorization** | `mvn test -Dtest=BusinessAuthorizationServiceTest` | **7 / 7 PASSED** | OWNER, ACCOUNTANT, MANAGER, VIEWER permission grants verified for `FINANCIAL_ACCOUNT_READ`, `FINANCIAL_ACCOUNT_CREATE`, `FINANCIAL_TRANSACTION_READ`, and `FINANCIAL_TRANSACTION_POST`. |
 
 ### Limitations & Outstanding Gates
-1. **Creation & Posting Scope Bounded:** Initial transactions support `DIRECT_SALE_RECEIPT` and `OPERATING_EXPENSE_PAYMENT` on PKR accounts only. Transfers, reversals, FX conversions, AR/AP, customer advances, supplier settlements, and commissions are excluded.
-2. **Opening & Movement Calculation:** Balances reflect persisted opening amounts plus sum of posted movements $\le$ cutoff date. Current-only capacity overflow preserves valid opening per authorized v1.3 invariant.
-3. **Monthly Snapshots Preserved:** Monthly health scores, `MonthlyRecord` summaries, and recommendations are untouched in this slice. Existing snapshots remain authoritative for monthly intelligence; ledger cutover remains pending.
+1. **Transfer Scope Bounded:** Internal transfers are strictly limited to active, distinct PKR accounts within the server-resolved active business. Reversals, multi-currency / FX transfers, transfer fees, recurring transfers, and transfer drafts are excluded and remain pending.
+2. **Monthly Snapshots & Cutover Preserved:** Monthly health scores, `MonthlyRecord` summaries, and Hanafi Zakat recommendations remain untouched in this slice. Existing snapshots remain authoritative for monthly intelligence; monthly ledger cutover remains pending.
+3. **Opening & Movement Calculation:** Balances reflect persisted opening amounts plus sum of posted movements $\le$ cutoff date. Current-only capacity overflow preserves valid opening per authorized v1.3 invariant.
 4. **F07 Calculator Scope:** Pure in-memory calculation foundation only. Spring registration, HTTP REST endpoints, persistence entities, and background jobs remain pending.
-5. **Migration Notification:** V18, V19, V20, and V21 are authored and verified locally on `dev/suleman`. Formal cross-team notification to Fatima remains pending.
+5. **Migration Notification:** V18, V19, V20, V21, and V22 are authored and verified locally on `dev/suleman`. Formal cross-team notification to Fatima remains pending.
 6. **Production Gates:** PostgreSQL 17 TLS/HBA, Docker production container builds, external Google Vision OCR, WhatsApp API, baseline items R01–R03, and cross-team integration gates remain open.
 
 ---
@@ -130,7 +167,7 @@ The following findings reported in Fatima's published handoff are recorded for t
 | **V19** | Financial Idempotency Records (`V19__create_financial_idempotency.sql`) | Antigravity (Dev A) | **COMMITTED (LOCAL `68d2995`)** |
 | **V20** | Financial Transactions & Account Movements (`V20__create_financial_transactions.sql`) | Antigravity (Dev A) | **COMMITTED (LOCAL `e586b06`)** |
 | **V21** | Persistent Record Drafts Schema (`V21__create_record_drafts.sql`) | Antigravity (Dev A) | **COMMITTED (LOCAL)** |
-| **V22** | Account Transfers & Dual Movement Constraints (F01) | Antigravity (Dev A) | **RESERVED (LOCAL CANDIDATE)** |
+| **V22** | Account Transfers & Dual Movement Constraints (F01) | Antigravity (Dev A) | **COMMITTED (LOCAL)** |
 
 ---
 

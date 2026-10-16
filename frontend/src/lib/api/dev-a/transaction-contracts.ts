@@ -4,17 +4,23 @@ import { postingChoices, isPositivePostingAmount, type PostingChoice, type Posti
 
 export const descriptionLimit = 255;
 export type MovementDirection = 'INCREASE' | 'DECREASE';
+export const transactionEventTypes = ['DIRECT_SALE_RECEIPT', 'OPERATING_EXPENSE_PAYMENT', 'INTERNAL_TRANSFER'] as const;
+export type TransactionEventType = typeof transactionEventTypes[number];
 export interface TransactionSummary {
   id: string; businessId: string; accountId: string; accountName: string; accountType: AccountType;
-  eventType: PostingChoice; movementDirection: MovementDirection; amount: string; currency: 'PKR';
+  eventType: TransactionEventType; movementDirection: MovementDirection; amount: string; currency: 'PKR';
   baseAmountPkr: string; effectiveDate: string; description: string | null; resultingBalance: string;
   createdByUserId: string; createdAt: string;
+  sourceAccountId?: string | null;
+  sourceAccountName?: string | null;
+  destinationAccountId?: string | null;
+  destinationAccountName?: string | null;
 }
 export interface TransactionMovement {
   id: string; accountId: string; movementDirection: MovementDirection; amount: string; currency: 'PKR'; effectiveDate: string; createdAt: string;
 }
 export interface TransactionDetailData extends TransactionSummary { movements: TransactionMovement[] }
-export interface TransactionQuery { accountId?: string; eventType?: PostingChoice; startDate?: string; endDate?: string; page?: number; size?: number }
+export interface TransactionQuery { accountId?: string; eventType?: TransactionEventType; startDate?: string; endDate?: string; page?: number; size?: number }
 export interface TransactionPage { content: TransactionSummary[]; page: number; size: number; totalElements: number; totalPages: number; effectiveCutoffDate: string; observationAt: string }
 export interface TransactionPost { accountId: string; eventType: PostingChoice; amount: string; effectiveDate: string; description?: string }
 export class InvalidTransactionResponse extends Error { constructor() { super('Invalid transaction response.'); this.name = 'InvalidTransactionResponse'; } }
@@ -32,27 +38,63 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
   for (const key of ['id', 'businessId', 'accountId', 'createdByUserId']) ensure(uuid(t[key]));
   ensure(!expectedBusiness || (t.businessId as string).toLowerCase() === expectedBusiness.toLowerCase());
   ensure(typeof t.accountName === 'string' && t.accountName.length >= 1 && t.accountName.length <= 100 && t.accountName.trim() === t.accountName);
-  ensure(accountTypes.includes(t.accountType as AccountType) && postingChoices.includes(t.eventType as PostingChoice));
-  ensure(t.movementDirection === (t.eventType === 'DIRECT_SALE_RECEIPT' ? 'INCREASE' : 'DECREASE'));
+  ensure(accountTypes.includes(t.accountType as AccountType) && transactionEventTypes.includes(t.eventType as TransactionEventType));
+  if (t.eventType === 'DIRECT_SALE_RECEIPT') {
+    ensure(t.movementDirection === 'INCREASE');
+  } else if (t.eventType === 'OPERATING_EXPENSE_PAYMENT') {
+    ensure(t.movementDirection === 'DECREASE');
+  } else if (t.eventType === 'INTERNAL_TRANSFER') {
+    ensure(t.movementDirection === 'INCREASE' || t.movementDirection === 'DECREASE');
+  } else {
+    ensure(false);
+  }
   ensure(t.currency === 'PKR' && isPositivePostingAmount(t.amount) && t.baseAmountPkr === t.amount);
   ensure(validCurrencyAmount(t.resultingBalance, 'PKR', 2));
   ensure(t.accountType !== 'CASH' || !(t.resultingBalance as string).startsWith('-'));
   ensure(isCalendarDate(t.effectiveDate) && isTransactionTimestamp(t.createdAt));
   ensure(t.description === null || typeof t.description === 'string' && t.description.length >= 1 && t.description.length <= descriptionLimit && t.description.trim() === t.description);
+  if (t.sourceAccountId !== undefined && t.sourceAccountId !== null) ensure(uuid(t.sourceAccountId));
+  if (t.sourceAccountName !== undefined && t.sourceAccountName !== null) ensure(typeof t.sourceAccountName === 'string');
+  if (t.destinationAccountId !== undefined && t.destinationAccountId !== null) ensure(uuid(t.destinationAccountId));
+  if (t.destinationAccountName !== undefined && t.destinationAccountName !== null) ensure(typeof t.destinationAccountName === 'string');
   return { id: t.id, businessId: t.businessId, accountId: t.accountId, accountName: t.accountName, accountType: t.accountType,
     eventType: t.eventType, movementDirection: t.movementDirection, amount: t.amount, currency: t.currency, baseAmountPkr: t.baseAmountPkr,
     effectiveDate: t.effectiveDate, description: t.description, resultingBalance: t.resultingBalance,
-    createdByUserId: t.createdByUserId, createdAt: t.createdAt } as TransactionSummary;
+    createdByUserId: t.createdByUserId, createdAt: t.createdAt,
+    ...(t.sourceAccountId !== undefined ? { sourceAccountId: t.sourceAccountId as string | null } : {}),
+    ...(t.sourceAccountName !== undefined ? { sourceAccountName: t.sourceAccountName as string | null } : {}),
+    ...(t.destinationAccountId !== undefined ? { destinationAccountId: t.destinationAccountId as string | null } : {}),
+    ...(t.destinationAccountName !== undefined ? { destinationAccountName: t.destinationAccountName as string | null } : {}) } as TransactionSummary;
 }
 export function parseTransactionDetail(value: unknown, expectedBusiness?: string, expectedId?: string): TransactionDetailData {
   const raw = object(value), t = parseTransaction(raw, expectedBusiness);
   ensure(!expectedId || t.id.toLowerCase() === expectedId.toLowerCase());
-  ensure(Array.isArray(raw.movements) && raw.movements.length === 1);
-  const m = object(raw.movements[0]);
-  ensure(uuid(m.id) && typeof m.accountId === 'string' && m.accountId.toLowerCase() === t.accountId.toLowerCase());
-  ensure(m.movementDirection === t.movementDirection && m.amount === t.amount && m.currency === t.currency && m.effectiveDate === t.effectiveDate && isTransactionTimestamp(m.createdAt));
-  const movement = { id: m.id, accountId: m.accountId, movementDirection: m.movementDirection, amount: m.amount, currency: m.currency, effectiveDate: m.effectiveDate, createdAt: m.createdAt } as TransactionMovement;
-  return { ...t, movements: [movement] };
+  ensure(Array.isArray(raw.movements) && (t.eventType === 'INTERNAL_TRANSFER' ? raw.movements.length === 2 : raw.movements.length === 1));
+  const movements: TransactionMovement[] = raw.movements.map((item: unknown) => {
+    const m = object(item);
+    ensure(uuid(m.id) && typeof m.accountId === 'string' && isAccountId(m.accountId));
+    ensure((m.movementDirection === 'INCREASE' || m.movementDirection === 'DECREASE')
+      && m.amount === t.amount && m.currency === t.currency && m.effectiveDate === t.effectiveDate && isTransactionTimestamp(m.createdAt));
+    return {
+      id: m.id as string,
+      accountId: m.accountId as string,
+      movementDirection: m.movementDirection as MovementDirection,
+      amount: m.amount as string,
+      currency: m.currency as 'PKR',
+      effectiveDate: m.effectiveDate as string,
+      createdAt: m.createdAt as string
+    };
+  });
+  if (t.eventType === 'INTERNAL_TRANSFER') {
+    const decreaseMov = movements.find(m => m.movementDirection === 'DECREASE');
+    const increaseMov = movements.find(m => m.movementDirection === 'INCREASE');
+    ensure(decreaseMov && increaseMov);
+    if (t.sourceAccountId) ensure(decreaseMov.accountId.toLowerCase() === t.sourceAccountId.toLowerCase());
+    if (t.destinationAccountId) ensure(increaseMov.accountId.toLowerCase() === t.destinationAccountId.toLowerCase());
+  } else {
+    ensure(movements[0].accountId.toLowerCase() === t.accountId.toLowerCase() && movements[0].movementDirection === t.movementDirection);
+  }
+  return { ...t, movements };
 }
 export function parseTransactionPage(value: unknown, query: TransactionQuery, expectedBusiness?: string): TransactionPage {
   const raw = object(value);
@@ -67,7 +109,7 @@ export function parseTransactionPage(value: unknown, query: TransactionQuery, ex
   ensure(content.length === (page >= pages ? 0 : Math.min(size, count - page * size)) && new Set(content.map(t => t.id.toLowerCase())).size === content.length);
   for (let i = 0; i < content.length; i++) {
     const t = content[i], previous = content[i - 1];
-    ensure(!query.accountId || t.accountId.toLowerCase() === query.accountId.toLowerCase());
+    ensure(!query.accountId || t.accountId.toLowerCase() === query.accountId.toLowerCase() || (t.destinationAccountId && t.destinationAccountId.toLowerCase() === query.accountId.toLowerCase()) || (t.sourceAccountId && t.sourceAccountId.toLowerCase() === query.accountId.toLowerCase()));
     ensure(!query.eventType || t.eventType === query.eventType);
     ensure((!query.startDate || t.effectiveDate >= query.startDate) && (!query.endDate || t.effectiveDate <= query.endDate) && t.effectiveDate <= raw.effectiveCutoffDate);
     ensure(!previous || previous.businessId === t.businessId && (previous.effectiveDate > t.effectiveDate

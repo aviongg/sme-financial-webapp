@@ -6,6 +6,7 @@ export interface PeriodTotals {
  currency: 'PKR'; startDate: string | null; endDate: string | null; accountId: string | null;
  eventType: TransactionQuery['eventType'] | null; transactionCount: number;
  moneyReceived: string; moneyPaid: string; netCashMovement: string; observationAt: string;
+ transferIn: string; transferOut: string; netAccountMovement: string;
 }
 export function summaryQuery(query: TransactionQuery): TransactionQuery {
  return { ...(query.accountId ? {accountId: query.accountId} : {}), ...(query.eventType ? {eventType: query.eventType} : {}),
@@ -20,11 +21,12 @@ export function parsePeriodTotals(value: unknown, query: TransactionQuery): Peri
  if (t.accountId !== null && (typeof t.accountId !== 'string' || !isAccountId(t.accountId))) return bad();
  for (const key of ['startDate','endDate'] as const) if (t[key] !== null && !isCalendarDate(t[key])) return bad();
  // Summary contract has no per-account 12-digit capacity: sums are independent server values.
- for (const key of ['moneyReceived','moneyPaid','netCashMovement']) {
-  const amount = t[key]; if (typeof amount !== 'string' || !/^-?(0|[1-9][0-9]*)\.[0-9]{2}$/.test(amount) || amount === '-0.00' || key !== 'netCashMovement' && amount.startsWith('-')) return bad();
+ for (const key of ['moneyReceived','moneyPaid','netCashMovement','transferIn','transferOut','netAccountMovement']) {
+  const amount = t[key]; if (typeof amount !== 'string' || !/^-?(0|[1-9][0-9]*)\.[0-9]{2}$/.test(amount) || amount === '-0.00' || (!['netCashMovement','netAccountMovement'].includes(key) && amount.startsWith('-'))) return bad();
  }
  return { currency: 'PKR', startDate: t.startDate, endDate: t.endDate, accountId: t.accountId, eventType: t.eventType,
- transactionCount: t.transactionCount, moneyReceived: t.moneyReceived, moneyPaid: t.moneyPaid, netCashMovement: t.netCashMovement, observationAt: t.observationAt } as PeriodTotals;
+ transactionCount: t.transactionCount, moneyReceived: t.moneyReceived, moneyPaid: t.moneyPaid, netCashMovement: t.netCashMovement, observationAt: t.observationAt,
+ transferIn: t.transferIn, transferOut: t.transferOut, netAccountMovement: t.netAccountMovement } as PeriodTotals;
 }
 export async function loadPeriodTotals(query: TransactionQuery, signal?: AbortSignal): Promise<PeriodTotals> {
  const q = summaryQuery(query); return parsePeriodTotals(await apiClient<unknown>('/finance/transactions/summary' + transactionQueryString(q), {signal}), q);

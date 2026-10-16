@@ -1,11 +1,12 @@
 import { verifyRecordDrafts, verifyReplaySyntax } from './record-drafts.live.mjs';
+import { verifyTransfers } from './transfers.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
 // installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, statSync, openSync, closeSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, statSync, openSync, closeSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -28,10 +29,10 @@ const property = name => {
 };
 const javaHome = property('java.home');
 const classpath = property('surefire.test.class.path');
-const playwrightPath = process.env.PLAYWRIGHT_MODULE;
+const playwrightPath = process.env.PLAYWRIGHT_MODULE || (existsSync('C:/Users/PC/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright') ? 'C:/Users/PC/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright' : 'playwright');
 const { chromium, request } = require(playwrightPath || 'playwright');
 const temporary = mkdtempSync(path.join(tmpdir(), 'finsight-accounts-live-'));
-const backendPort=8580,nextPort=3481,gatewayPort=3480;
+const backendPort = Number(process.env.TEST_BACKEND_PORT || 8680), nextPort = Number(process.env.TEST_NEXT_PORT || 3581), gatewayPort = Number(process.env.TEST_GATEWAY_PORT || 3580);
 const expectedDraftHash='595b0f69705cce3d21022e6ad67e8be4105575ebdce89781500b0a939bc50b4a';
 const origin = 'http://127.0.0.1:'+gatewayPort;
 // Parallel acceptance preserves the existing 3180/8280 review app and its data.
@@ -153,7 +154,7 @@ public class AccountsLiveRuntime {
 function accountReadClassFreshness() {
   const base='com/app/sme_health_backend/accounting/';
   assert.equal(createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes',base+'draft/RecordDraftService.class'))).digest('hex'),expectedDraftHash,'Expected replay-syntax class is not compiled');
-  for(const name of ['service/AccountReadService','service/TransactionPostService','service/TransactionReadService','controller/AccountController','controller/TransactionController','dto/AccountListItemResponse','dto/AccountDetailResponse','draft/RecordDraftService','draft/RecordDraftController','draft/DraftDetailResponse']) {
+  for(const name of ['service/AccountReadService','service/TransactionPostService','service/TransactionReadService','controller/AccountController','controller/TransactionController','dto/AccountListItemResponse','dto/AccountDetailResponse','draft/RecordDraftService','draft/RecordDraftController','draft/DraftDetailResponse','service/TransferService','controller/TransferController','dto/TransferPostRequest']) {
     const source=path.join(root,'backend/src/main/java',base+name+'.java'),compiled=path.join(root,'backend/target/classes',base+name+'.class');
     assert.ok(statSync(compiled).mtimeMs>=statSync(source).mtimeMs,'Backend compilation is stale: '+name);
   }
@@ -301,7 +302,7 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=21/);
+    assert.match(runtimeText, /schema=(?:21|22)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
@@ -345,7 +346,7 @@ try {
     await reviewBrowserContext.close();
     console.log('REVIEW_BROWSER_PASS loaded EN/UR mobile Records and natural amount preview; no smoke-test posting');
     writeFileSync(path.join(reviewDirectory, 'credentials.txt'), 'Local isolated review only\nEmail: ' + owner.email + '\nPassword: ' + password + '\nSign in through the normal app. Complete any security/MFA prompts.\n');
-    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: 21, backendPort, nextPort, gatewayPort, gatewayPid: gateway.pid, gatewayCommandPath: path.join(temporary,'gateway.mjs'), draftClassSha256: createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex'), backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
+    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: Number(runtimeText.match(/schema=(\d+)/)?.[1] || 22), backendPort, nextPort, gatewayPort, gatewayPid: gateway.pid, gatewayCommandPath: path.join(temporary,'gateway.mjs'), draftClassSha256: createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex'), backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
     writeFileSync(path.join(reviewDirectory, 'processes.json'), JSON.stringify(metadata, null, 2));
     leaveReview = true; runtime.unref(); next.unref(); gateway.unref();
     console.log('REVIEW_READY ' + origin + ' backendPid=' + runtime.pid + ' frontendPid=' + next.pid + ' databasePort=' + metadata.databasePort);
@@ -380,11 +381,11 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=21/);
+  assert.match(runtimeText, /schema=(?:21|22)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
-  mark('real disposable PostgreSQL V21; verified syntax-fix Spring '+backendPort+', gateway '+gatewayPort+', production Next '+nextPort);
+  mark('real disposable PostgreSQL ' + (runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)?.[1] ? 'V' + runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)[1] : 'V22') + '; verified syntax-fix Spring '+backendPort+', gateway '+gatewayPort+', production Next '+nextPort);
   await startNext();
   if(draftSyntaxOnly){
     const owner=await identity('syntax-parity@example.test');
@@ -861,6 +862,7 @@ try {
   mark('Browser Records: historical access, preserved/cancelled inline account creation, natural/grouped/Urdu HALF_UP amounts, real summary drilldowns, URL periods/details/OCR return and RTL/mobile');
   mark('HTTP Records summary: independent 1500.00 + 1500.50 + 1500.56 = 4501.06 across complete matching dataset; refreshed bank balance 5501.62');
   await verifyRecordDrafts({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,accountId:mainAccount,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
+  await verifyTransfers({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await control('SNAPSHOT RECORDS', 'LIVE_SNAPSHOT_RECORDS:');assert.equal(runtimeText.match(/LIVE_SNAPSHOT_RECORDS:([^\r\n]+)/)[1],beforeFinancial);
   mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by accounts, transactions and Records entry');
   await page.goto(origin + '/finance/accounts');await page.getByText('Live PKR Bank',{exact:true}).waitFor();

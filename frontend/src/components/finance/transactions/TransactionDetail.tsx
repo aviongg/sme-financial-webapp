@@ -54,7 +54,20 @@ export function TransactionDetail({ id, onClose }: { id: string; onClose: () => 
       {row(copy.date, <bdi dir="ltr">{t.effectiveDate}</bdi>)}{row(copy.postedAt, <bdi dir="ltr">{t.createdAt}</bdi>)}
       {t.description !== null && row(copy.description, t.description)}
       {row(copy.actor, <bdi dir="ltr">{t.createdByUserId}</bdi>)}
-      {row(copy.movement, <bdi dir="ltr">{t.movements[0].id}</bdi>)}
+      {t.eventType === 'INTERNAL_TRANSFER' ? (
+        <>
+          {t.sourceAccountName && row(copy.fromAccount, t.sourceAccountName)}
+          {t.destinationAccountName && row(copy.toAccount, t.destinationAccountName)}
+          {t.movements.map(m => (
+            <div key={m.id} className="space-y-1 min-w-0">
+              <dt className="text-sm text-[var(--color-text-muted)]">{copy.movement} ({copy[m.movementDirection]}):</dt>
+              <dd className="[overflow-wrap:anywhere]"><bdi dir="ltr">{m.id}</bdi></dd>
+            </div>
+          ))}
+        </>
+      ) : (
+        t.movements[0] && row(copy.movement, <bdi dir="ltr">{t.movements[0].id}</bdi>)
+      )}
     </dl>}
   </Sheet></div>;
 }

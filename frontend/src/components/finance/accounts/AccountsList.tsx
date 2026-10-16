@@ -19,6 +19,9 @@ import { AccountMoneyValue } from './AccountMoneyValue';
 import { accountEn, accountUr, accountCreateEn, accountCreateUr, accountErrorKey } from './account-copy';
 import { CreateAccountForm } from './CreateAccountForm';
 
+import { PostTransferForm } from '../transfers/PostTransferForm';
+import type { TransactionDetailData } from '@/lib/api/dev-a/transaction-contracts';
+
 const EmbeddedFrame = ({ children }: { children?: React.ReactNode; title?: string }) => <>{children}</>;
 
 export function AccountsList({ embedded = false, activityHref = '/finance/transactions' }: { embedded?: boolean; activityHref?: string }) {
@@ -28,14 +31,16 @@ export function AccountsList({ embedded = false, activityHref = '/finance/transa
   const session = useSession();
   const contextKey = JSON.stringify([session.epoch, session.user?.id, session.business?.businessId, session.business?.role, session.business?.membershipStatus, session.status]);
   const [creating, setCreating] = useState<string | null>(null);
+  const [transferring, setTransferring] = useState<string | null>(null);
   const [created, setCreated] = useState<{ context: string; account: AccountDetailData } | null>(null);
+  const [transferred, setTransferred] = useState<{ context: string; transaction: TransactionDetailData } | null>(null);
   const [refresh, setRefresh] = useState(0);
   const addRef = useRef<HTMLButtonElement>(null);
   const previousCreating = useRef<string | null>(null);
   useEffect(() => {
-    if (previousCreating.current !== null && creating === null) addRef.current?.focus();
+    if (previousCreating.current !== null && creating === null && transferring === null) addRef.current?.focus();
     previousCreating.current = creating;
-  }, [creating]);
+  }, [creating, transferring]);
   const params = useSearchParams(), pathname = usePathname();
   const query = useMemo(() => accountQueryFromURL(new URLSearchParams(params.toString()), embedded), [params, embedded]);
   const setQuery = (update: AccountQuery | ((previous: AccountQuery) => AccountQuery)) => {
@@ -61,12 +66,29 @@ export function AccountsList({ embedded = false, activityHref = '/finance/transa
   return <Frame title={copy.title}><div dir={direction} className="space-y-5 min-w-0">
     <p className="text-sm text-[var(--color-text-muted)]">{copy.readOnly}</p>
     <Link href={activityHref} className="inline-block underline rounded focus-visible:outline-2 focus-visible:outline-offset-2">{copy.transactions}</Link>
-    {session.status === 'authenticated' && canPresentAccountCreate(session.business) && <Button ref={addRef} aria-expanded={creating === contextKey} disabled={creating === contextKey} onClick={() => { close(); setCreated(null); setCreating(contextKey); }}>{createCopy.add}</Button>}
+    <div className="flex flex-wrap items-center gap-3">
+      {session.status === 'authenticated' && canPresentAccountCreate(session.business) && <Button ref={addRef} aria-expanded={creating === contextKey} disabled={creating === contextKey || transferring === contextKey} onClick={() => { close(); setCreated(null); setTransferred(null); setCreating(contextKey); setTransferring(null); }}>{createCopy.add}</Button>}
+      {session.status === 'authenticated' && canPresentAccountCreate(session.business) && <Button variant="secondary" aria-expanded={transferring === contextKey} disabled={transferring === contextKey || creating === contextKey} onClick={() => { close(); setCreated(null); setTransferred(null); setTransferring(contextKey); setCreating(null); }}>{locale === 'ur' ? 'رقم منتقل کریں' : 'Move money'}</Button>}
+    </div>
     {creating === contextKey && <CreateAccountForm key={contextKey} onClose={() => { setCreating(null); requestAnimationFrame(() => addRef.current?.focus()); }} onCreated={account => {
       setCreated({ context: contextKey, account }); setCreating(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
       requestAnimationFrame(() => addRef.current?.focus());
     }} />}
+    {transferring === contextKey && page && (
+      <PostTransferForm
+        key={'transfer:' + contextKey}
+        accounts={page.items}
+        onClose={() => setTransferring(null)}
+        onTransferred={transaction => {
+          close();
+          setTransferred({ context: contextKey, transaction });
+          setTransferring(null);
+          setRefresh(previous => previous + 1);
+        }}
+      />
+    )}
     {created?.context === contextKey && <p role="status" className="text-sm">{createCopy.created} <span className="font-semibold [overflow-wrap:anywhere]">{created.account.accountName}</span></p>}
+    {transferred?.context === contextKey && <p role="status" className="text-sm">{locale === 'ur' ? 'رقم کامیابی سے منتقل ہو گئی۔' : 'Transfer recorded successfully.'}</p>}
     <Card className="min-w-0"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Select label={copy.status} value={query.status} onChange={event => filter({ status: event.target.value as AccountStatus })} options={accountStatuses.map(value => ({ value, label: copy[value] }))} />
       <Select label={copy.type} value={query.accountType ?? ''} onChange={event => filter({ accountType: event.target.value ? event.target.value as AccountType : undefined })} options={[{ value: '', label: copy.allTypes }, ...accountTypes.map(value => ({ value, label: copy[value] }))]} />

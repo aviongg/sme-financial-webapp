@@ -1,12 +1,12 @@
 import { apiClient } from '../client';
 import { isAccountId, isCalendarDate } from './account-contracts';
-import { parseTransactionDetail, parseTransactionPage, transactionPostPayload, InvalidTransactionResponse, type TransactionQuery, type TransactionPost } from './transaction-contracts';
-import { postingChoices, type PostingDraft } from '../../../components/finance/transactions/transaction-input';
+import { parseTransactionDetail, parseTransactionPage, transactionPostPayload, transactionEventTypes, InvalidTransactionResponse, type TransactionQuery, type TransactionPost } from './transaction-contracts';
+import type { PostingDraft } from '../../../components/finance/transactions/transaction-input';
 
 export function transactionQueryString(query: TransactionQuery = {}): string {
   const params = new URLSearchParams();
   if (query.accountId !== undefined) { if (!isAccountId(query.accountId)) throw new Error('Invalid account filter.'); params.set('accountId', query.accountId); }
-  if (query.eventType !== undefined) { if (!postingChoices.includes(query.eventType)) throw new Error('Invalid event filter.'); params.set('eventType', query.eventType); }
+  if (query.eventType !== undefined) { if (!transactionEventTypes.includes(query.eventType)) throw new Error('Invalid event filter.'); params.set('eventType', query.eventType); }
   for (const key of ['startDate', 'endDate'] as const) if (query[key] !== undefined) { if (!isCalendarDate(query[key])) throw new Error('Invalid date filter.'); params.set(key, query[key]); }
   if (query.startDate && query.endDate && query.startDate > query.endDate) throw new Error('Invalid date range.');
   for (const key of ['page', 'size'] as const) if (query[key] !== undefined) {

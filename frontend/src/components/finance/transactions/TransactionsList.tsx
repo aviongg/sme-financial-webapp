@@ -20,11 +20,12 @@ import { Input } from '@/components/ui/Input';
 import { AccountMoneyValue } from '../accounts/AccountMoneyValue';
 import { accountEn, accountUr } from '../accounts/account-copy';
 import { transactionEn, transactionUr, transactionErrorKey } from './transaction-copy';
-import { postingChoices } from './transaction-input';
 import { canPresentPosting } from './transaction-submission';
 import { loadTransactionAccounts } from './transaction-accounts';
 import { PostTransactionForm } from './PostTransactionForm';
+import { PostTransferForm } from '../transfers/PostTransferForm';
 import { TransactionDetail } from './TransactionDetail';
+import { transactionEventTypes } from '@/lib/api/dev-a/transaction-contracts';
 
 const EmbeddedFrame = ({ children }: { children?: React.ReactNode; title?: string }) => <>{children}</>;
 
@@ -41,7 +42,7 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     window.history.replaceState(null, '', pathname + '?' + search.toString());
   };
   const [draftSaved,setDraftSaved]=useState<string|null>(null);
-  const [refresh, setRefresh] = useState(0), [posting, setPosting] = useState<string | null>(null), [selected, setSelected] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0), [posting, setPosting] = useState<string | null>(null), [transferring, setTransferring] = useState<string | null>(null), [selected, setSelected] = useState<string | null>(null);
   const [posted, setPosted] = useState<{ context: string; transaction: TransactionDetailData } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null), close = useCallback(() => setSelected(null), []);
   const restoreFocus = useRef(false);
@@ -76,12 +77,13 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     }
   }, [params, canPost, accountLoading, context]);
   useEffect(() => {
-    if (restoreFocus.current && !accountLoading && canPost && posting !== context && addRef.current) { addRef.current.focus(); restoreFocus.current = false; }
-  }, [accountLoading, canPost, posting, context]);
+    if (restoreFocus.current && !accountLoading && canPost && posting !== context && transferring !== context && addRef.current) { addRef.current.focus(); restoreFocus.current = false; }
+  }, [accountLoading, canPost, posting, transferring, context]);
   const Frame = embedded ? EmbeddedFrame : LivePage;
   return <Frame title={copy.title}><div dir={direction} className="space-y-5 min-w-0">
     <div className="flex flex-wrap items-center gap-3">
-      {canPost && <Button ref={addRef} disabled={accountLoading || !accountState?.accounts || posting === context} aria-expanded={posting === context} onClick={() => {close();setPosted(null);setPosting(context);}}>{copy.add}</Button>}
+      {canPost && <Button ref={addRef} disabled={accountLoading || !accountState?.accounts || posting === context || transferring === context} aria-expanded={posting === context} onClick={() => {close();setPosted(null);setPosting(context);setTransferring(null);}}>{copy.add}</Button>}
+      {canPost && <Button variant="secondary" disabled={accountLoading || !accountState?.accounts || transferring === context || posting === context} aria-expanded={transferring === context} onClick={() => {close();setPosted(null);setTransferring(context);setPosting(null);}}>{copy.moveMoney}</Button>}
       {scanHref && <Link id="records-scan" href={scanHref} className="inline-block rounded border border-[var(--color-brand-primary)] px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2">{recordsCopy.scan}</Link>}
     </div>
     <Card className="border-2 border-[var(--color-brand-primary)]"><p role="note" className="font-semibold">{copy.notice}</p></Card>
@@ -91,7 +93,10 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     {posting === context && accountState?.accounts && <PostTransactionForm key={context} accounts={accounts} onDraftSaved={()=>{setDraftSaved(context);setPosting(null);restoreFocus.current=true;}} onClose={() => { restoreFocus.current = true; setPosting(null); }} onPosted={transaction => {
       close(); restoreFocus.current = true; setPosted({ context, transaction }); setPosting(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
     }} />}
-    {activePosted && <Card className="space-y-3"><p role="status">{copy.posted}</p><p className="break-words [overflow-wrap:anywhere]">{activePosted.accountName} · <bdi dir="ltr">{activePosted.id}</bdi></p>
+    {transferring === context && accountState?.accounts && <PostTransferForm key={'transfer:' + context} accounts={accounts} onClose={() => { restoreFocus.current = true; setTransferring(null); }} onTransferred={transaction => {
+      close(); restoreFocus.current = true; setPosted({ context, transaction }); setSelected(transaction.id); setTransferring(null); setQuery(previous => ({ ...previous, page: 0 })); setRefresh(previous => previous + 1);
+    }} />}
+    {activePosted && <Card className="space-y-3"><p role="status">{activePosted.eventType === 'INTERNAL_TRANSFER' ? (locale === 'ur' ? 'رقم کامیابی سے منتقل ہو گئی۔' : 'Transfer recorded successfully.') : copy.posted}</p><p className="break-words [overflow-wrap:anywhere]">{activePosted.accountName} · <bdi dir="ltr">{activePosted.id}</bdi></p>
       {accountLoading ? <p role="status">{copy.accountLoading}</p> : refreshedAccount && <div><p>{copy.balances}: {refreshedAccount.accountName}</p><AccountMoneyValue value={refreshedAccount.currentBalance} currency={refreshedAccount.currency} scale={refreshedAccount.currencyDecimals} copy={moneyCopy} /><p className="text-sm">{moneyCopy.observed}: <bdi dir="ltr">{refreshedAccount.observationAt}</bdi></p></div>}
     </Card>}
     <Card className="space-y-3"><p>{recordsCopy.cashNotice}</p>
@@ -104,7 +109,7 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     }} /><p className="text-sm">{recordsCopy.boundary}</p></Card>
     <Card className="min-w-0"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Select label={copy.account} value={query.accountId ?? ''} options={[{ value: '', label: copy.allAccounts }, ...accounts.map(a => ({ value: a.id, label: a.accountName }))]} onChange={event => filter({ accountId: event.target.value || undefined })} />
-      <Select label={copy.event} value={query.eventType ?? ''} options={[{ value: '', label: copy.allEvents }, ...postingChoices.map(value => ({ value, label: copy[value] }))]} onChange={event => filter({ eventType: event.target.value ? event.target.value as TransactionQuery['eventType'] : undefined })} />
+      <Select label={copy.event} value={query.eventType ?? ''} options={[{ value: '', label: copy.allEvents }, ...transactionEventTypes.map(value => ({ value, label: copy[value] }))]} onChange={event => filter({ eventType: event.target.value ? event.target.value as TransactionQuery['eventType'] : undefined })} />
       <Select label={copy.size} value={String(query.size)} options={[10, 20, 50, 100].map(value => ({ value: String(value), label: String(value) }))} onChange={event => filter({ size: Number(event.target.value) })} />
       <Input label={copy.from} type="date" dir="ltr" value={query.startDate ?? ''} onChange={event => setQuery(previous => ({...previous, startDate: event.target.value || undefined, page: 0}), 'custom')} />
       <Input label={copy.through} type="date" dir="ltr" value={query.endDate ?? ''} onChange={event => setQuery(previous => ({...previous, endDate: event.target.value || undefined, page: 0}), 'custom')} />
@@ -113,6 +118,11 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
       <p role="status">{copy.count}: <bdi dir="ltr">{page.totalElements}</bdi></p>
       {page.content.length === 0 ? <Card><p>{page.totalElements === 0 ? copy.empty : copy.outOfRange}</p>{page.page > 0 && <Button variant="secondary" onClick={() => setQuery(previous => ({ ...previous, page: 0 }))}>{copy.first}</Button>}</Card> : <ul className="grid gap-4 md:grid-cols-2" aria-label={copy.title}>{page.content.map(t => <li key={t.id} className="min-w-0"><Card className="space-y-3 h-full min-w-0">
         <h2 className="font-semibold [overflow-wrap:anywhere]">{t.accountName}</h2><p>{copy[t.eventType]} · {copy[t.movementDirection]}</p>
+        {t.eventType === 'INTERNAL_TRANSFER' && t.sourceAccountName && t.destinationAccountName && (
+          <p className="text-xs text-[var(--color-text-muted)] font-medium">
+            {t.sourceAccountName} &rarr; {t.destinationAccountName}
+          </p>
+        )}
         <AccountMoneyValue value={t.amount} currency={t.currency} scale={2} copy={moneyCopy} />
         <p>{copy.date}: <bdi dir="ltr">{t.effectiveDate}</bdi></p>
         <Button variant="secondary" aria-label={copy.details + ': ' + t.id} onClick={() => setSelected(t.id)}>{copy.details}</Button>

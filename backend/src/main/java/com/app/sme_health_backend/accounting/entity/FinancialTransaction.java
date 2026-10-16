@@ -24,6 +24,9 @@ public class FinancialTransaction {
     @Column(name = "account_id", nullable = false, updatable = false)
     private UUID accountId;
 
+    @Column(name = "destination_account_id", updatable = false)
+    private UUID destinationAccountId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 64, updatable = false)
     private TransactionEventType eventType;
@@ -80,6 +83,23 @@ public class FinancialTransaction {
         this.createdAt = Instant.now();
     }
 
+    public FinancialTransaction(
+            UUID businessId,
+            UUID accountId,
+            UUID destinationAccountId,
+            TransactionEventType eventType,
+            MovementDirection movementDirection,
+            BigDecimal amount,
+            String currency,
+            BigDecimal baseAmountPkr,
+            LocalDate effectiveDate,
+            String description,
+            UUID createdByUserId
+    ) {
+        this(businessId, accountId, eventType, movementDirection, amount, currency, baseAmountPkr, effectiveDate, description, createdByUserId);
+        this.destinationAccountId = destinationAccountId;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -102,6 +122,14 @@ public class FinancialTransaction {
 
     public void setAccountId(UUID accountId) {
         this.accountId = accountId;
+    }
+
+    public UUID getDestinationAccountId() {
+        return destinationAccountId;
+    }
+
+    public void setDestinationAccountId(UUID destinationAccountId) {
+        this.destinationAccountId = destinationAccountId;
     }
 
     public TransactionEventType getEventType() {

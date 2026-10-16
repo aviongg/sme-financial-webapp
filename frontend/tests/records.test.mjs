@@ -54,7 +54,8 @@ test('document return accepts only Records context and rejects external/control-
  for(const raw of ['https://example.com','//example.com','/records/new','/records\\evil','/records?x=1\n',null]) assert.equal(safeRecordsReturn(raw),'/records');
 });
 const totals=()=>({currency:'PKR',startDate:null,endDate:null,accountId:null,eventType:null,transactionCount:123,
- moneyReceived:'10000000000000.00',moneyPaid:'100.00',netCashMovement:'-5.00',observationAt:'2026-10-14T12:00:00Z'});
+ moneyReceived:'10000000000000.00',moneyPaid:'100.00',netCashMovement:'-5.00',observationAt:'2026-10-14T12:00:00Z',
+ transferIn:'0.00',transferOut:'0.00',netAccountMovement:'-5.00'});
 test('summary consumes authoritative complete-dataset strings without page aggregation or account capacity clamp',()=>{
  assert.deepEqual(summaryQuery({page:4,size:10,startDate:'2026-10-01'}),{startDate:'2026-10-01'});
  assert.deepEqual(parsePeriodTotals(totals(),{}),totals());
@@ -63,7 +64,7 @@ test('summary consumes authoritative complete-dataset strings without page aggre
 });
 test('summary requires every field, filter echo, canonical sign/scale and genuine null semantics',()=>{
  for(const key of Object.keys(totals())){const raw=totals();delete raw[key];assert.throws(()=>parsePeriodTotals(raw,{}));}
- for(const patch of [{moneyPaid:'-1.00'},{moneyReceived:'1e2'},{netCashMovement:'-0.00'},{moneyReceived:0},{currency:'USD'},{transactionCount:-1},{observationAt:'2026-10-14T12:00:00.1Z'},{startDate:'2026-10-01'}]) assert.throws(()=>parsePeriodTotals({...totals(),...patch},{}));
+ for(const patch of [{moneyPaid:'-1.00'},{moneyReceived:'1e2'},{netCashMovement:'-0.00'},{transferIn:'-1.00'},{transferOut:'-1.00'},{netAccountMovement:'-0.00'},{moneyReceived:0},{currency:'USD'},{transactionCount:-1},{observationAt:'2026-10-14T12:00:00.1Z'},{startDate:'2026-10-01'}]) assert.throws(()=>parsePeriodTotals({...totals(),...patch},{}));
 });
 test('real summary adapter drops pagination/tenant, propagates abort and never falls back on errors',async()=>{
  const calls=[];let release;

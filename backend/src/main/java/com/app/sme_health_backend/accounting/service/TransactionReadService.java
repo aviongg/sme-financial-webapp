@@ -74,6 +74,21 @@ public class TransactionReadService {
         List<AccountMovement> movements = movementRepository.findByTransactionIdOrderByCreatedAtAscIdAsc(tx.getId());
         String resultingBalance = computeCurrentBalanceString(account, today);
 
+        UUID sourceAccountId = null;
+        String sourceAccountName = null;
+        UUID destinationAccountId = null;
+        String destinationAccountName = null;
+
+        if (tx.getEventType() == TransactionEventType.INTERNAL_TRANSFER) {
+            sourceAccountId = tx.getAccountId();
+            sourceAccountName = account.getAccountName();
+            destinationAccountId = tx.getDestinationAccountId();
+            if (destinationAccountId != null) {
+                FinancialAccount destAccount = accountRepository.findByIdAndBusinessId(destinationAccountId, businessId).orElse(null);
+                destinationAccountName = destAccount != null ? destAccount.getAccountName() : null;
+            }
+        }
+
         List<MovementDetailResponse> movementDtos = movements.stream()
                 .map(m -> new MovementDetailResponse(
                         m.getId(),
@@ -102,7 +117,11 @@ public class TransactionReadService {
                 resultingBalance,
                 movementDtos,
                 tx.getCreatedByUserId(),
-                ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS))
+                ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS)),
+                sourceAccountId,
+                sourceAccountName,
+                destinationAccountId,
+                destinationAccountName
         );
     }
 
@@ -168,7 +187,10 @@ public class TransactionReadService {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("businessId"), businessId));
             if (accountId != null) {
-                predicates.add(cb.equal(root.get("accountId"), accountId));
+                predicates.add(cb.or(
+                        cb.equal(root.get("accountId"), accountId),
+                        cb.equal(root.get("destinationAccountId"), accountId)
+                ));
             }
             if (finalEventType != null) {
                 predicates.add(cb.equal(root.get("eventType"), finalEventType));
@@ -188,9 +210,13 @@ public class TransactionReadService {
         String observationAt = ISO_INSTANT_FORMATTER.format(Instant.now().truncatedTo(ChronoUnit.SECONDS));
 
         // Batch fetch accounts
-        Set<UUID> accountIds = txPage.getContent().stream()
-                .map(FinancialTransaction::getAccountId)
-                .collect(Collectors.toSet());
+        Set<UUID> accountIds = new HashSet<>();
+        for (FinancialTransaction tx : txPage.getContent()) {
+            accountIds.add(tx.getAccountId());
+            if (tx.getDestinationAccountId() != null) {
+                accountIds.add(tx.getDestinationAccountId());
+            }
+        }
 
         Map<UUID, FinancialAccount> accountsMap = accountRepository.findAllById(accountIds).stream()
                 .filter(a -> a.getBusinessId().equals(businessId))
@@ -209,31 +235,76 @@ public class TransactionReadService {
         }
 
         List<TransactionDetailResponse> content = txPage.getContent().stream().map(tx -> {
-            FinancialAccount account = accountsMap.get(tx.getAccountId());
-            String accountName = account != null ? account.getAccountName() : "Unknown";
-            String accountType = account != null ? account.getAccountType().name() : "BANK";
+            UUID rowAccountId;
+            String rowAccountName;
+            String rowAccountType;
+            String rowMovementDirection;
+            String rowResultingBalance;
+            UUID srcId = null;
+            String srcName = null;
+            UUID dstId = null;
+            String dstName = null;
 
-            BigDecimal opening = account != null ? account.getOpeningBalance() : BigDecimal.ZERO;
-            BigDecimal net = netMovementsByAccount.getOrDefault(tx.getAccountId(), BigDecimal.ZERO);
-            String resultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+            if (tx.getEventType() == TransactionEventType.INTERNAL_TRANSFER) {
+                srcId = tx.getAccountId();
+                dstId = tx.getDestinationAccountId();
+                FinancialAccount srcAcc = accountsMap.get(srcId);
+                FinancialAccount dstAcc = dstId != null ? accountsMap.get(dstId) : null;
+                srcName = srcAcc != null ? srcAcc.getAccountName() : "Unknown";
+                dstName = dstAcc != null ? dstAcc.getAccountName() : "Unknown";
+
+                if (accountId != null && accountId.equals(dstId)) {
+                    rowAccountId = dstId;
+                    rowAccountName = dstName;
+                    rowAccountType = dstAcc != null ? dstAcc.getAccountType().name() : "BANK";
+                    rowMovementDirection = MovementDirection.INCREASE.name();
+
+                    BigDecimal opening = dstAcc != null ? dstAcc.getOpeningBalance() : BigDecimal.ZERO;
+                    BigDecimal net = netMovementsByAccount.getOrDefault(dstId, BigDecimal.ZERO);
+                    rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                } else {
+                    rowAccountId = srcId;
+                    rowAccountName = srcName;
+                    rowAccountType = srcAcc != null ? srcAcc.getAccountType().name() : "BANK";
+                    rowMovementDirection = MovementDirection.DECREASE.name();
+
+                    BigDecimal opening = srcAcc != null ? srcAcc.getOpeningBalance() : BigDecimal.ZERO;
+                    BigDecimal net = netMovementsByAccount.getOrDefault(srcId, BigDecimal.ZERO);
+                    rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                }
+            } else {
+                FinancialAccount account = accountsMap.get(tx.getAccountId());
+                rowAccountId = tx.getAccountId();
+                rowAccountName = account != null ? account.getAccountName() : "Unknown";
+                rowAccountType = account != null ? account.getAccountType().name() : "BANK";
+                rowMovementDirection = tx.getMovementDirection().name();
+
+                BigDecimal opening = account != null ? account.getOpeningBalance() : BigDecimal.ZERO;
+                BigDecimal net = netMovementsByAccount.getOrDefault(tx.getAccountId(), BigDecimal.ZERO);
+                rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+            }
 
             return new TransactionDetailResponse(
                     tx.getId(),
                     tx.getBusinessId(),
-                    tx.getAccountId(),
-                    accountName,
-                    accountType,
+                    rowAccountId,
+                    rowAccountName,
+                    rowAccountType,
                     tx.getEventType().name(),
-                    tx.getMovementDirection().name(),
+                    rowMovementDirection,
                     tx.getAmount().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
                     tx.getCurrency(),
                     tx.getBaseAmountPkr().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
                     tx.getEffectiveDate(),
                     tx.getDescription(),
-                    resultingBalance,
+                    rowResultingBalance,
                     Collections.emptyList(), // Content list omits nested movements for payload efficiency
                     tx.getCreatedByUserId(),
-                    ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS))
+                    ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS)),
+                    srcId,
+                    srcName,
+                    dstId,
+                    dstName
             );
         }).toList();
 
@@ -264,7 +335,7 @@ public class TransactionReadService {
             try {
                 eventType = TransactionEventType.valueOf(eventTypeStr.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException e) {
-                throw new TransactionValidationException("eventType", "Invalid eventType: " + eventTypeStr + ". Supported types: DIRECT_SALE_RECEIPT, OPERATING_EXPENSE_PAYMENT");
+                throw new TransactionValidationException("eventType", "Invalid eventType: " + eventTypeStr + ". Supported types: DIRECT_SALE_RECEIPT, OPERATING_EXPENSE_PAYMENT, INTERNAL_TRANSFER");
             }
         }
 
@@ -297,7 +368,10 @@ public class TransactionReadService {
         List<Predicate> predicates = new ArrayList<>();
         predicates.add(cb.equal(root.get("businessId"), businessId));
         if (accountId != null) {
-            predicates.add(cb.equal(root.get("accountId"), accountId));
+            predicates.add(cb.or(
+                    cb.equal(root.get("accountId"), accountId),
+                    cb.equal(root.get("destinationAccountId"), accountId)
+            ));
         }
         if (eventType != null) {
             predicates.add(cb.equal(root.get("eventType"), eventType));
@@ -309,36 +383,104 @@ public class TransactionReadService {
             predicates.add(cb.lessThanOrEqualTo(root.get("effectiveDate"), endDate));
         }
 
-        cq.multiselect(
-                cb.count(root),
-                cb.sum(
-                        cb.<BigDecimal>selectCase()
-                                .when(cb.equal(root.get("movementDirection"), MovementDirection.INCREASE), root.get("amount"))
-                                .otherwise(BigDecimal.ZERO)
-                ),
-                cb.sum(
-                        cb.<BigDecimal>selectCase()
-                                .when(cb.equal(root.get("movementDirection"), MovementDirection.DECREASE), root.get("amount"))
-                                .otherwise(BigDecimal.ZERO)
-                )
-        ).where(predicates.toArray(new Predicate[0]));
+        if (accountId != null) {
+            cq.multiselect(
+                    cb.count(root),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("movementDirection"), MovementDirection.INCREASE),
+                                            cb.equal(root.get("accountId"), accountId)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("movementDirection"), MovementDirection.DECREASE),
+                                            cb.equal(root.get("accountId"), accountId)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("destinationAccountId"), accountId)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("accountId"), accountId)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    )
+            ).where(predicates.toArray(new Predicate[0]));
+        } else {
+            cq.multiselect(
+                    cb.count(root),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("movementDirection"), MovementDirection.INCREASE)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.and(
+                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("movementDirection"), MovementDirection.DECREASE)
+                                    ), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    ),
+                    cb.sum(
+                            cb.<BigDecimal>selectCase()
+                                    .when(cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER), root.get("amount"))
+                                    .otherwise(BigDecimal.ZERO)
+                    )
+            ).where(predicates.toArray(new Predicate[0]));
+        }
 
         Tuple result = entityManager.createQuery(cq).getSingleResult();
 
         Long countVal = result.get(0, Long.class);
         Number receivedNum = (Number) result.get(1);
         Number paidNum = (Number) result.get(2);
+        Number transferInNum = (Number) result.get(3);
+        Number transferOutNum = (Number) result.get(4);
 
         long count = countVal != null ? countVal : 0L;
         BigDecimal moneyReceivedDec = receivedNum != null ? new BigDecimal(receivedNum.toString()) : BigDecimal.ZERO;
         BigDecimal moneyPaidDec = paidNum != null ? new BigDecimal(paidNum.toString()) : BigDecimal.ZERO;
-        BigDecimal netDec = moneyReceivedDec.subtract(moneyPaidDec);
+        BigDecimal transferInDec = transferInNum != null ? new BigDecimal(transferInNum.toString()) : BigDecimal.ZERO;
+        BigDecimal transferOutDec = transferOutNum != null ? new BigDecimal(transferOutNum.toString()) : BigDecimal.ZERO;
+
+        BigDecimal netCashDec = moneyReceivedDec.subtract(moneyPaidDec);
+        BigDecimal netAccountDec = moneyReceivedDec.add(transferInDec).subtract(moneyPaidDec).subtract(transferOutDec);
 
         String moneyReceived = moneyReceivedDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
         String moneyPaid = moneyPaidDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
-        String netCashMovement = (netDec.signum() == 0)
+        String netCashMovement = (netCashDec.signum() == 0)
                 ? "0.00"
-                : netDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                : netCashDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+
+        String transferIn = transferInDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+        String transferOut = transferOutDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+        String netAccountMovement = (netAccountDec.signum() == 0)
+                ? "0.00"
+                : netAccountDec.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
 
         String observationAt = ISO_INSTANT_FORMATTER.format(Instant.now().truncatedTo(ChronoUnit.SECONDS));
 
@@ -352,6 +494,9 @@ public class TransactionReadService {
                 moneyReceived,
                 moneyPaid,
                 netCashMovement,
+                transferIn,
+                transferOut,
+                netAccountMovement,
                 observationAt
         );
     }
