@@ -79,4 +79,16 @@ class WorkspaceResolverTests {
         assertTrue(resolved.stream().anyMatch(p -> p.key().equals("health-score") && !p.hidden()));
         assertTrue(resolved.stream().noneMatch(p -> p.key().equals("retired-widget")));
     }
+    @Test void temporarilyDisabledDocumentOverrideKeepsVisibilityWidthAndStoredPosition() {
+        var document = new Preference("document-workflow", false, 3, "wide");
+        var disabled = resolver.catalog(owner, configuration(OperatingProfile.SERVICES, List.of("core_finance", "ai")), enabled);
+        var current = resolver.resolve("services", List.of(document), disabled);
+        var edited = current.stream().map(p -> p.key().equals("next-step") ? new Preference(p.key(), true, p.order(), p.size()) : p).toList();
+        var saved = resolver.validateAndDiff("services", edited, List.of(document), disabled);
+        assertTrue(saved.contains(document));
+        var restored = resolver.resolve("services", saved, catalog());
+        var value = restored.stream().filter(p -> p.key().equals("document-workflow")).findFirst().orElseThrow();
+        assertFalse(value.hidden()); assertEquals("wide", value.size());
+        assertEquals(restored, resolver.resolve("services", saved, catalog()));
+    }
 }

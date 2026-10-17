@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-17",
+  "timezone": "Asia/Karachi",
+  "repository": "aviongg/sme-financial-webapp",
+  "branch": "dev/fatima",
+  "baselineCommit": "9f5b2b46bf9aaa8bacc462c7217a45db46b0fc77",
+  "backendMilestoneCommit": "8ec373c1a600a2a480a1c9813512b2302a403319",
+  "frontendMilestoneCommit": "277eb00945475ae51ab0e23e754bc635ba64fc3e",
+  "mainUnchanged": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
+  "sulemanUnchanged": "f2ed9bda671404598bd73729563c6e0ceb2b08d1",
+  "testedSource": "Final F13 product source in frontendMilestoneCommit plus the two strengthened workspace tests and real browser harness in the containing acceptance commit. Resolve the latter with git log -1 --format=%H -- docs/phase2/verification/2026-10-17-f13.json; verify live remote separately.",
+  "status": "PARTIAL_VERIFIED: requested development complete; reciprocal C03/C10/C12/P09 review pending; production separate",
+  "scope": "Four F02 presets and complete personal dashboard journey using existing financial services. Synthetic accounts/data; actual local Spring/PostgreSQL/browser checks and separately labeled fixtures. No paid AI, production deployment, role-grant or financial methodology change.",
+  "runtime": {
+    "java": "26.0.1 compiling release 21; production Java21 runtime not accepted",
+    "maven": "3.9.16",
+    "mavenExecutable": "C:/Users/Hp/.m2/wrapper/dists/apache-maven-3.9.16/0daed3be3ebd1c706f0e69e8b07c6b73f5cc4ea3dfce72a8d0ec2e849ca2ddb0/bin/mvn.cmd",
+    "commonMavenArgs": ["-Dmaven.repo.local=C:/Users/Hp/.m2/repository", "-o", "-B"],
+    "postgres": "14.22 real disposable embedded PostgreSQL; production PostgreSQL17/TLS not accepted",
+    "node": "24.19.0",
+    "nodeExecutable": "C:/Users/Hp/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe",
+    "playwrightModule": "C:/Users/Hp/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright",
+    "next": "16.3.8",
+    "browser": "Microsoft Edge through Playwright; loopback frontend3100 and sequential backend/fixture8080"
+  },
+  "checks": {
+    "fullLocalBackendVerify": {
+      "date": "2026-10-16",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Ppostgres-it", "-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT", "verify"],
+      "result": "PASS",
+      "defaultSuite": {"tests": 931, "passed": 930, "failures": 0, "errors": 0, "skipped": 1},
+      "integrationSuite": {"tests": 113, "passed": 113, "failures": 0, "errors": 0, "skipped": 0},
+      "skip": "Existing Windows storage symlink capability skip",
+      "productionCasesExcluded": 19,
+      "r01": "DocumentSecurityPostgreSqlIT passed this run. Historical intermittent recovery failure remains open; no source/assertion change or claimed fix.",
+      "sourceQualification": "Before final preset width/order polish; affected workspace suites and real browser journeys rerun on final source below.",
+      "log": "tmp/f13/backend-full-verify.log"
+    },
+    "finalWorkspaceVerify": {
+      "date": "2026-10-17",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Ppostgres-it", "-Dtest=Workspace*Tests", "-Dit.test=WorkspacePostgreSqlIT,WorkspaceMigrationPostgreSqlIT", "verify"],
+      "result": "PASS",
+      "defaultSuite": {"tests": 12, "passed": 12, "failures": 0, "errors": 0, "skipped": 0},
+      "integrationSuite": {"tests": 9, "passed": 9, "failures": 0, "errors": 0, "skipped": 0},
+      "coverage": ["all four F02 presets", "permission/module precedence", "exact canonical source parity and sparse calendar windows", "real login/JDBC sessions/CSRF", "actor and business isolation", "closed input validation", "monotonic reset and stale registry/configuration/preferences", "first-insert concurrency", "inactive choices retained", "V18-to-V19 source preservation and runtime/backup grants"],
+      "log": "tmp/f13/backend-layout-verify.log"
+    },
+    "frontend": {
+      "date": "2026-10-17",
+      "cwd": "frontend",
+      "tests": {"command": "node --test tests/*.test.mjs", "result": "PASS", "tests": 64, "passed": 64, "failed": 0, "skipped": 0, "log": "tmp/f13/frontend-tests-final.log"},
+      "types": {"command": "node node_modules/typescript/bin/tsc --noEmit --incremental false", "result": "PASS", "log": "tmp/f13/frontend-types.log", "qualification": "Standalone check on 16 October; final 17 October production build also passed TypeScript after visual refinements."},
+      "lint": {"command": "node node_modules/eslint/bin/eslint.js", "result": "PASS", "errors": 0, "warnings": 1, "warning": "Existing SessionProvider.tsx:204 cleanup-ref warning", "log": "tmp/f13/frontend-lint-final.log"},
+      "build": {"command": "node node_modules/next/dist/bin/next build --webpack", "environment": {"BACKEND_API_URL": "http://127.0.0.1:8080", "NEXT_PUBLIC_DATA_MODE": "live"}, "result": "PASS", "warning": "Existing middleware convention deprecation", "log": "tmp/f13/frontend-build-final.log"},
+      "dependencyChanges": false
+    },
+    "realF13Browser": {
+      "date": "2026-10-17",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Dtest=F13BrowserAcceptance", "test"],
+      "environment": "FINSIGHT_BROWSER_NODE and PLAYWRIGHT_MODULE use runtime paths above; BROWSER_ARTIFACT_DIR points to tmp/f13/real-browser-first. Production Next already running on3100.",
+      "result": "PASS",
+      "junitCases": 1,
+      "semanticChecks": 16,
+      "runtimeCspHydrationErrors": [],
+      "externalBrowserRequests": [],
+      "scope": "Real Spring, disposable PostgreSQL, session/CSRF, owner/viewer and two-tab concurrency. Synthetic accounts; simulated AI only.",
+      "coverage": ["empty data", "all four profile presets", "exact score/cash/projection/monthly evidence and nulls", "single financial batch", "read-only preset and draft preview", "keyboard reorder/add/hide/resize/save/cancel", "reload and logout/login persistence", "two-tab409 draft preservation", "module disable/re-enable and stale configuration", "permission-forged keys", "business switching", "reset confirmation/current preset", "English/Urdu RTL390px", "actual session ended and private state cleared", "unchanged source records"],
+      "results": "tmp/f13/real-browser-first/results.json",
+      "log": "tmp/f13/real-browser-first.log"
+    },
+    "realF02AiRegression": {
+      "date": "2026-10-17",
+      "cwd": "backend",
+      "argsAfterCommon": ["-Dtest=F02AiBrowserAcceptance", "test"],
+      "result": "PASS",
+      "junitCases": 1,
+      "semanticChecks": 11,
+      "scope": "Separate real Spring/PostgreSQL/browser run on final frontend; synthetic accounts and simulated AI; no external-network/browser errors",
+      "results": "tmp/f13/f02-ai-regression/results.json",
+      "log": "tmp/f13/f02-ai-regression.log"
+    },
+    "syntheticBrowserRegression": {
+      "date": "2026-10-17",
+      "cwd": "frontend",
+      "result": "PASS",
+      "commands": ["node tests/browser.integration.mjs", "node tests/browser-extra.integration.mjs", "node tests/browser-phase-two.integration.mjs"],
+      "checks": [22, 10, 19],
+      "total": 51,
+      "scope": "Production Next plus synthetic API on8080, sequential suites; zero runtime/CSP/hydration errors. Not real backend/provider acceptance.",
+      "logs": ["tmp/f13/synthetic-main-final.log", "tmp/f13/synthetic-extra-final.log", "tmp/f13/synthetic-phase-two-final.log"]
+    },
+    "visualReview": {
+      "result": "PASS",
+      "screenshotsInspected": ["tmp/f13/real-browser-first/preset-services.png", "tmp/f13/real-browser-first/preset-retail-trade.png", "tmp/f13/real-browser-first/empty-workspace.png", "tmp/f13/real-browser-first/workspace-urdu-mobile.png"],
+      "notes": "Evidence/components use full default width; empty state has one clear first-record action; exact monetary values fit narrow cards. Mobile page overflow is also asserted in browser acceptance. Independent pending-diff review found no blocking issue."
+    },
+    "integrity": {
+      "result": "PASS",
+      "scope": ["18 existing migrations unchanged from baseline", "authoritative financial services and role grants unchanged", "AI global defaults unchanged", "dependency manifests and lockfiles unchanged", "Markdown relative file links and JSON parse", "git diff whitespace", "explicit staged paths reviewed", "Gitleaks staged scans, zero findings"],
+      "logs": ["tmp/f13/integrity.log", "tmp/f13/frontend-staged-gitleaks.json", "tmp/f13/acceptance-staged-gitleaks.json"]
+    }
+  },
+  "intermediateFailuresAndLimits": [
+    "Sandbox JVM startup stalled and was stopped; authorized execution completed normally.",
+    "Bundled pnpm launcher attempted a store operation and hit sandbox symlink permissions; direct installed binaries passed without dependency changes.",
+    "Initial sandbox Next build failed Google Fonts network access (tmp/f13-frontend-build.log).",
+    "Network-enabled default Turbopack build failed starting a CSS worker (tmp/f13/frontend-build-network.log); supported webpack build passed. Default builder failure is not relabeled as passing.",
+    "Initial sandbox Edge launch failed before browser assertions (tmp/f13/synthetic-main/sandbox-launch-failure.log); authorized final suites passed.",
+    "Intermediate new-fixture lint findings were corrected; final lint has only the existing SessionProvider warning.",
+    "next start on the existing output:standalone configuration emitted its compatibility warning; it served the validated production build. No deployment acceptance inferred."
+  ],
+  "notAccepted": ["reciprocal C03/C10/C12/P09 approval", "existing AI P12 review and real-model quality/billing compatibility", "nineteen production-target cases", "production Java21/PostgreSQL17 TLS/HBA/grants/Docker/ingress", "deployed restore or real SMTP/OCR/WhatsApp providers", "future unavailable financial producers"],
+  "preservedUnrelatedFiles": ["docs/Phase_1_Backend_Remaining_Work.docx", "tmp/"],
+  "cleanup": "Task-owned loopback frontend stopped after final browser acceptance; test harnesses closed their own temporary backend/database/browser. No permanent service or database provisioned.",
+  "nextCandidate": "Bounded F06 manual estimate/costing planning after a new explicit request and applicable category/pricing/rounding reviews. Full F06 conversion still requires actual F05; no invented A ledger, inventory or FX producer."
+}

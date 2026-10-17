@@ -14,6 +14,8 @@ User-required invariants: deterministic backend calculations; one owner per auth
 
 ## Decisions requiring review before dependent code
 
+**16 October F13 implementation note:** the subsequent explicit F13 request authorizes independent personal layout functionality using current F02 modules, existing role permissions and canonical MVP financial services. [F13 actual behavior](F13_IMPLEMENTATION.md) records P09 precedence, inactive preference retention and monotonic reset for review. No recognition, valuation, rounding, score methodology or role grant is changed; reciprocal C10/P09 approval remains pending.
+
 All entries below are **OPEN**, with no owner/reviewer approval recorded. Owner drafts; reviewer must explicitly agree before financial semantics are implemented. Capability-only F02 work does not require resolving unrelated inventory or FX choices. Freeze the smallest coherent policy subset required by the requested feature.
 
 | ID | Decision / draft owner / reviewer | Proposed direction and unresolved choices | Blocks / required acceptance evidence |

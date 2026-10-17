@@ -121,6 +121,19 @@ $env:BROWSER_ARTIFACT_DIR = '<absolute task-local evidence directory>'
 
 This opt-in class is intentionally excluded from default test naming. It launches `scripts/test_f02_ai_browser.mjs`, creates synthetic owner/viewer accounts and businesses, exercises onboarding/settings/AI through real session/CSRF APIs and the UI, then tears down its own browser and disposable database. It requires no OpenAI key and makes no paid requests. Inspect screenshots as well as assertions. Stop only the task's Next server when done. Do not substitute a developer/customer database or run concurrently with another service on 8080. [Activation runbook](AI_ACTIVATION_RUNBOOK.md) covers the separate later paid-provider milestone.
 
+## F13 workspace acceptance
+
+The regular default and local PostgreSQL suites include the workspace registry, persistence and migration tests. The opt-in real browser harness requires the same production Next server on 3100 and free Spring port 8080 as F02:
+
+```powershell
+# From backend, with FINSIGHT_BROWSER_NODE, PLAYWRIGHT_MODULE and BROWSER_ARTIFACT_DIR set as above
+.\mvnw.cmd '-Dtest=F13BrowserAcceptance' test
+```
+
+It launches `scripts/test_f13_browser.mjs` against actual Spring sessions, CSRF and disposable PostgreSQL with synthetic accounts/data and explicitly simulated AI. It is not a deployed or real-provider acceptance test. The three existing synthetic browser suites remain separate regressions and must run sequentially because each owns port 8080. See [F13 contract](F13_IMPLEMENTATION.md) and the current [test results](IMPLEMENTATION_STATE.md).
+
+On this Windows host, the bundled pnpm launcher attempted an unnecessary store operation and hit a sandbox symlink restriction. The installed, unchanged dependencies can be invoked directly: `node --test tests/*.test.mjs`, `node node_modules/typescript/bin/tsc --noEmit --incremental false`, and `node node_modules/eslint/bin/eslint.js`. Google Fonts needs network access. When Turbopack's local CSS worker failed, `node node_modules/next/dist/bin/next build --webpack` produced the validated production build without a source/configuration or dependency change. Record the actual builder and warnings; do not relabel a failed default build as passed.
+
 ## Documentation and publication checks (onboarding baseline)
 
 Review Markdown relative links, all fourteen feature entries, twelve contract owners, unresolved policies and truthful test status. Check source/migration invariants against the audited SHA:

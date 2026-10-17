@@ -128,6 +128,8 @@ Synthetic receivable example: USD 100 carrying PKR 28000; gross receipt PKR 2850
 
 ## C10 Dashboard workspace
 
+**16 October 2026 implementation:** the explicitly requested MVP subset is implemented under the existing `/api/workspace` convention. [F13 actual contract](F13_IMPLEMENTATION.md) records the wire shapes, permissions, snapshot source adapter, version/reset behavior and extension rules. The `/api/v2` examples below remain broader design proposals. C03/C10/C12/P09 reciprocal review is pending; implementation is not a fabricated contract freeze.
+
 **Interface:** B `dashboard.workspace.WorkspaceQueryService`, `WorkspaceResolver` and `WorkspacePreferenceService`; `GET /api/v2/workspace`, `PUT /api/v2/workspace/preferences`, `POST /api/v2/workspace/reset`. Reuse `DashboardService`/score/evidence providers; C11 can expose existing authoritative metrics incrementally.
 
 `WorkspacePreferences`: `presetKey:string`, `widgets:{key:string,order:int,size:SMALL|MEDIUM|LARGE,hidden:boolean}[]`, `version:int`, `registryVersion:string`. Tenant/user IDs are server-derived; unique `(business_id,user_id)`. `WorkspaceResponse`: permitted registry entries (`key`, supported sizes, localized title key, capability/module requirements), effective layout, summary map of evidence-wrapped DTOs, `preferencesVersion`, `presetVersion`. Registry providers batch queries; never one financial request per widget or client-side arithmetic.

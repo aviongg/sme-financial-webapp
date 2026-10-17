@@ -151,6 +151,20 @@ class WorkspacePostgreSqlIT extends com.app.sme_health_backend.testsupport.Dispo
         select(session, first.businessId);
         mvc.perform(get("/api/workspace").cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.preferenceVersion").value(1));
     }
+    @Test void malformedLayoutsNestedInjectedFieldsAndRegistryConflictsDoNotWrite() throws Exception {
+        var f = fixture(); var session = login(f);
+        String valid = "{\"version\":0,\"registryVersion\":\"f13-v1\",\"configurationVersion\":0,\"widgets\":[{\"key\":\"cash-flow\",\"hidden\":false,\"order\":0,\"size\":\"wide\"}]}";
+        for (String invalid : List.of(valid.replace("\"wide\"", "\"unsupported\""),
+                valid.replace("\"order\":0", "\"order\":-1"), valid.replace("\"hidden\":false", "\"hidden\":null"),
+                valid.replace("\"size\":\"wide\"", "\"size\":\"wide\",\"query\":\"arbitrary\""),
+                valid.replace("cash-flow", "health-score").replace("\"hidden\":false", "\"hidden\":true"))) {
+            mvc.perform(put("/api/workspace/preferences").cookie(session).with(csrf(session)).contentType("application/json").content(invalid))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("layout_invalid"));
+        }
+        mvc.perform(put("/api/workspace/preferences").cookie(session).with(csrf(session)).contentType("application/json").content(valid.replace("f13-v1", "old-registry")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("stale_registry"));
+        assertEquals(0, preferences.find(f.businessId, f.user.getId()).version());
+    }
     @Test void moduleDisableReenableAndProfileChangesPreserveOverridesAndRejectStaleConfiguration() {
         var f = fixture(); var before = workspace.get(f.actor());
         assertTrue(before.aiStatus().available());
