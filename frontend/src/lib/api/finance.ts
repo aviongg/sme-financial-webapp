@@ -54,10 +54,10 @@ export interface Dashboard {
     topRecommendation: Advice | null;
     cashFlowHistory: {
         month: string;
-        inflow: number;
-        outflow: number;
-        net: number;
-        runningBalance: number;
+        inflow: number | null;
+        outflow: number | null;
+        net: number | null;
+        runningBalance: number | null;
     }[];
     trendProjection: Projection | null;
     hasHistory: boolean;

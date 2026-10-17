@@ -1,5 +1,10 @@
 # Current Phase 2 implementation state
 
+## F13 client-pilot remediation — 18 October 2026 (Asia/Karachi, isolated branch `f13-client-pilot-remediation`)
+
+Bounded fixes on base `13c2851c916f6a35968841bfccc8a404708b299a`; not pushed to `dev/fatima` and not merged. Scope: F13 order normalization (`WorkspaceResolver` baseline now filters unavailable widgets before seeding), live recommendation text/status/actions with read-only preview, 409 reload that rebases the unsaved draft onto the latest server layout, language switch that no longer remounts an open draft (non-boundary session revalidation), neutral cash-flow presentation for unknown net using the authoritative `netCashFlow` field, V18/V19 role-privilege test coverage, and first/last keyboard focus retention. No migration, `health-score-v1`, `CashFlowService` or accounting change. `DatabaseRolePrivilegesPostgreSqlIT` is production-target and was updated but not executed locally; `DisposableDatabaseRolesIT` covers the same privileges on disposable PostgreSQL.
+
+
 ## F13 development completion — 17 October 2026 (Asia/Karachi)
 
 The user's explicit F13 implementation request authorizes the complete independent MVP workspace journey. Fetched `HEAD=origin/dev/fatima=9f5b2b46bf9aaa8bacc462c7217a45db46b0fc77`; origin/main remains `b51e27696cccc59b94aa9d9c9388ad0faa5b4176`. Existing untracked document and tmp files are preserved. C03/C10/C12/P09 reciprocal review is pending; no approval or financial policy change is implied.

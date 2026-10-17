@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { FinancialValue } from "@/components/ui/FinancialValue";
 import { useLanguage } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils/cn";
+import { cashNetDirection, resolveRecordNet } from "@/lib/workspace/layout";
 import type { MonthlyRecordResponse } from "@/types/financial";
 
 export interface RecentRecordsProps {
@@ -77,8 +78,8 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
           </thead>
           <tbody className="divide-y divide-[var(--color-border-subtle)]">
             {recent.map((rec) => {
-              const net = rec.cashInflow - rec.cashOutflow;
-              const isSurplus = net >= 0;
+              const net = resolveRecordNet(rec);
+              const netDirection = cashNetDirection(net);
               const recordId = rec.id || rec.month;
               return (
                 <tr
@@ -96,12 +97,17 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
                   </td>
                   <td className="py-3.5 px-2 text-end tabular-nums whitespace-nowrap">
                     <div className="inline-flex items-center gap-1 justify-end">
-                      {isSurplus ? (
+                      {netDirection === "surplus" ? (
                         <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-health-strong)] shrink-0" />
-                      ) : (
+                      ) : netDirection === "deficit" ? (
                         <ArrowDownRight className="w-3.5 h-3.5 text-[var(--color-health-risk)] shrink-0" />
-                      )}
-                      <FinancialValue value={net} size="sm" colorIntent="semantic" showSign />
+                      ) : null}
+                      <FinancialValue
+                        value={net}
+                        size="sm"
+                        colorIntent={netDirection === "unavailable" ? "neutral" : "semantic"}
+                        showSign={netDirection !== "unavailable"}
+                      />
                     </div>
                   </td>
                   <td className="py-3.5 px-2 text-end tabular-nums font-semibold">
@@ -135,8 +141,8 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
       {/* Mobile Stacked List */}
       <div className="block md:hidden divide-y divide-[var(--color-border-subtle)]">
         {recent.map((rec) => {
-          const net = rec.cashInflow - rec.cashOutflow;
-          const isSurplus = net >= 0;
+          const net = resolveRecordNet(rec);
+          const netDirection = cashNetDirection(net);
           const recordId = rec.id || rec.month;
           return (
             <div key={recordId} className="py-3.5 space-y-2">
@@ -179,12 +185,17 @@ export function RecentRecords({ records, className }: RecentRecordsProps) {
                     {t.dashboard.netCol}
                   </span>
                   <div className="inline-flex items-center gap-1">
-                    {isSurplus ? (
+                    {netDirection === "surplus" ? (
                       <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-health-strong)] shrink-0" />
-                    ) : (
+                    ) : netDirection === "deficit" ? (
                       <ArrowDownRight className="w-3.5 h-3.5 text-[var(--color-health-risk)] shrink-0" />
-                    )}
-                    <FinancialValue value={net} size="sm" colorIntent="semantic" showSign />
+                    ) : null}
+                    <FinancialValue
+                      value={net}
+                      size="sm"
+                      colorIntent={netDirection === "unavailable" ? "neutral" : "semantic"}
+                      showSign={netDirection !== "unavailable"}
+                    />
                   </div>
                 </div>
 

@@ -26,6 +26,7 @@ import { phaseOneApi } from "@/lib/api/phase-one";
 import { useSession } from "@/components/auth/SessionProvider";
 import { cn } from "@/lib/utils/cn";
 import { formatPKR } from "@/lib/utils/currency";
+import { cashNetDirection, resolveRecordNet } from "@/lib/workspace/layout";
 import type { MonthlyRecordResponse } from "@/types/financial";
 
 export default function RecordsListPage() {
@@ -153,8 +154,8 @@ export default function RecordsListPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-subtle)]">
                   {records.map((rec) => {
-                    const netMovement = rec.cashInflow - rec.cashOutflow;
-                    const isPositive = netMovement >= 0;
+                    const netMovement = resolveRecordNet(rec);
+                    const netDirection = cashNetDirection(netMovement);
 
                     return (
                       <tr
@@ -173,8 +174,14 @@ export default function RecordsListPage() {
                           {formatPKR(rec.cashOutflow, { locale })}
                         </td>
                         <td className="py-3.5 px-4 text-[13px] font-medium">
-                          <span className={cn(isPositive ? "text-[var(--color-status-success)]" : "text-[var(--color-status-error)]")}>
-                            {isPositive ? "+" : ""}{formatPKR(netMovement, { locale })}
+                          <span className={cn(
+                            netDirection === "surplus"
+                              ? "text-[var(--color-status-success)]"
+                              : netDirection === "deficit"
+                              ? "text-[var(--color-status-error)]"
+                              : "text-[var(--color-text-muted)]"
+                          )}>
+                            {netDirection === "surplus" ? "+" : ""}{formatPKR(netMovement, { locale })}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-[13px] font-semibold text-[var(--color-text-primary)]">

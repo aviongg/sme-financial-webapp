@@ -41,6 +41,7 @@ export interface MonthlyRecordResponse extends MonthlyRecordRequest {
   id: string;
   userId?: string;
   businessId?: string;
+  netCashFlow?: number | null;
   updatedAt: string;
 }
 

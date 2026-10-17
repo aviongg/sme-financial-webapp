@@ -10,7 +10,7 @@ const files = { client: '../src/lib/api/client.ts', workspace: '../src/lib/api/w
 for (const [name, file] of Object.entries(files)) writeFileSync(path.join(directory, `${name}.js`), ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText);
 const require = createRequire(import.meta.url), client = require(path.join(directory, 'client.js'));
 const { workspaceApi, presetKeys } = require(path.join(directory, 'workspace.js'));
-const { editableLayout, moveWidget, changeWidget, implementedWidgetKeys } = require(path.join(directory, 'layout.js'));
+const { editableLayout, moveWidget, changeWidget, implementedWidgetKeys, rebaseDraft, cashNetDirection, resolveRecordNet } = require(path.join(directory, 'layout.js'));
 const { workspaceEn, workspaceUr, widgetTitle } = require(path.join(directory, 'copy.js'));
 let calls = [];
 const versions = { version: 4, registryVersion: 'f13-v1', configurationVersion: 2 };
@@ -76,6 +76,58 @@ test('required, restricted and unsupported sizes cannot be selected by customiza
   assert.equal(changeWidget(widgets, { ...health, available: false }, { hidden: false }), widgets);
   const cash = { key: 'cash-flow', available: true, required: false, sizes: ['compact', 'wide'] };
   assert.equal(changeWidget(widgets, cash, { hidden: false })[1].hidden, false); assert.equal(widgets[1].hidden, true);
+});
+test('conflict reload rebases valid draft changes onto latest server workspace and drops newly unavailable widgets', () => {
+  const catalog = [
+    { key: 'health-score', available: true, required: true, sizes: ['wide'] },
+    { key: 'cash-flow', available: true, required: false, sizes: ['compact', 'wide'] },
+    { key: 'next-step', available: true, required: false, sizes: ['compact', 'wide'] },
+    { key: 'ai-explanation', available: true, required: false, sizes: ['compact', 'wide'] },
+  ];
+  const previous = {
+    catalog,
+    preferences: [
+      { key: 'health-score', hidden: false, order: 0, size: 'wide' },
+      { key: 'cash-flow', hidden: false, order: 1, size: 'wide' },
+      { key: 'next-step', hidden: false, order: 2, size: 'compact' },
+      { key: 'ai-explanation', hidden: false, order: 3, size: 'wide' },
+    ],
+  };
+  // User draft hid cash-flow and resized ai-explanation, leaving next-step untouched.
+  const draft = [
+    { key: 'health-score', hidden: false, order: 0, size: 'wide' },
+    { key: 'cash-flow', hidden: true, order: 1, size: 'wide' },
+    { key: 'next-step', hidden: false, order: 2, size: 'compact' },
+    { key: 'ai-explanation', hidden: false, order: 3, size: 'compact' },
+  ];
+  // Concurrent server state resized next-step to wide and disabled ai-explanation.
+  const latest = {
+    catalog: catalog.map(item => item.key === 'ai-explanation' ? { ...item, available: false, reason: 'AI_UNAVAILABLE' } : item),
+    preferences: [
+      { key: 'health-score', hidden: false, order: 0, size: 'wide' },
+      { key: 'cash-flow', hidden: false, order: 1, size: 'wide' },
+      { key: 'next-step', hidden: false, order: 2, size: 'wide' },
+    ],
+  };
+  const rebased = rebaseDraft(previous, draft, latest);
+  assert.deepEqual(rebased, [
+    { key: 'health-score', hidden: false, order: 0, size: 'wide' },
+    { key: 'cash-flow', hidden: true, order: 1, size: 'wide' },
+    { key: 'next-step', hidden: false, order: 2, size: 'wide' },
+  ]);
+});
+test('cash-flow null semantics consume authoritative net and classify unknown net as unavailable rather than deficit', () => {
+  assert.equal(cashNetDirection(null), 'unavailable');
+  assert.equal(cashNetDirection(undefined), 'unavailable');
+  assert.equal(cashNetDirection(Number.NaN), 'unavailable');
+  assert.equal(cashNetDirection(0), 'surplus');
+  assert.equal(cashNetDirection(250.5), 'surplus');
+  assert.equal(cashNetDirection(-0.01), 'deficit');
+  assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: 500, cashOutflow: 100 }, [{ month: '2026-09', net: 400.25 }]), 400.25);
+  assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: 500, cashOutflow: 100 }, [{ month: '2026-09', net: null }]), null);
+  assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: 500, cashOutflow: 100, netCashFlow: null }), null);
+  assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: null, cashOutflow: 100 }), null);
+  assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: 500, cashOutflow: null }), null);
 });
 test('English and Urdu cover the complete current and unavailable future registry with matching copy', () => {
   function verify(en, ur) { assert.deepEqual(Object.keys(en).sort(), Object.keys(ur).sort()); for (const key of Object.keys(en)) { if (typeof en[key] === 'object') verify(en[key], ur[key]); else assert.ok(typeof ur[key] === 'string' && ur[key].trim(), key); } }

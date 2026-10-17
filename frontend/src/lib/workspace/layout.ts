@@ -28,3 +28,51 @@ export function changeWidget(layout: WidgetPreference[], metadata: WidgetMetadat
 }
 /** A local renderer is an explicit allowlist, never a server-supplied component path. */
 export const implementedWidgetKeys = new Set(['health-score', 'health-components', 'score-completeness', 'cash-flow', 'cash-projection', 'financial-evidence', 'next-step', 'recommendation', 'financial-summary', 'ai-explanation', 'document-workflow']);
+
+/** Rebase an unsaved customization draft onto the latest server workspace without overwriting untouched server changes or retaining unavailable widgets. */
+export function rebaseDraft(previous: DashboardWorkspaceResponse, draft: WidgetPreference[], latest: DashboardWorkspaceResponse): WidgetPreference[] {
+  const base = editableLayout(previous);
+  const latestBase = editableLayout(latest);
+  const baseByKey = new Map(base.map(widget => [widget.key, widget]));
+  const latestByKey = new Map(latestBase.map(widget => [widget.key, widget]));
+  const catalogByKey = new Map(latest.catalog.map(widget => [widget.key, widget]));
+  const sortedDraft = [...draft].sort((a, b) => a.order - b.order);
+  const draftByKey = new Map(sortedDraft.map(widget => [widget.key, widget]));
+  const isPermitted = (key: string) => Boolean(catalogByKey.get(key)?.available && latestByKey.has(key));
+  const baseCommonOrder = base.map(widget => widget.key).filter(key => draftByKey.has(key) && isPermitted(key));
+  const draftCommonOrder = sortedDraft.map(widget => widget.key).filter(key => baseByKey.has(key) && isPermitted(key));
+  const reorderedInDraft = baseCommonOrder.length !== draftCommonOrder.length || baseCommonOrder.some((key, index) => key !== draftCommonOrder[index]);
+  const orderedKeys = reorderedInDraft
+    ? [...sortedDraft.map(widget => widget.key).filter(isPermitted), ...latestBase.map(widget => widget.key).filter(key => isPermitted(key) && !draftByKey.has(key))]
+    : latestBase.map(widget => widget.key).filter(isPermitted);
+
+  return orderedKeys.map((key, order) => {
+    const meta = catalogByKey.get(key)!;
+    const latestItem = latestByKey.get(key)!;
+    const baseItem = baseByKey.get(key);
+    const draftItem = draftByKey.get(key);
+    if (!draftItem) return { ...latestItem, order };
+    const hiddenChanged = !baseItem || draftItem.hidden !== baseItem.hidden;
+    const sizeChanged = !baseItem || draftItem.size !== baseItem.size;
+    const hidden = meta.required ? false : hiddenChanged ? draftItem.hidden : latestItem.hidden;
+    const size = sizeChanged && meta.sizes.includes(draftItem.size) ? draftItem.size : latestItem.size;
+    return { key, hidden, order, size };
+  });
+}
+
+export function cashNetDirection(net: number | null | undefined): 'surplus' | 'deficit' | 'unavailable' {
+  if (net == null || Number.isNaN(net)) return 'unavailable';
+  return net >= 0 ? 'surplus' : 'deficit';
+}
+
+export function resolveRecordNet(
+  record: { month: string; cashInflow?: number | null; cashOutflow?: number | null; netCashFlow?: number | null },
+  history?: { month: string; net: number | null }[]
+): number | null {
+  if (history) {
+    const point = history.find(entry => entry.month === record.month);
+    return point ? point.net ?? null : null;
+  }
+  if (record.netCashFlow !== undefined) return record.netCashFlow;
+  return record.cashInflow != null && record.cashOutflow != null ? record.cashInflow - record.cashOutflow : null;
+}

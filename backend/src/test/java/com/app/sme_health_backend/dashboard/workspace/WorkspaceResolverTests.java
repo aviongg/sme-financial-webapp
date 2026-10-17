@@ -91,4 +91,35 @@ class WorkspaceResolverTests {
         assertFalse(value.hidden()); assertEquals("wide", value.size());
         assertEquals(restored, resolver.resolve("services", saved, catalog()));
     }
+    @ParameterizedTest @EnumSource(OperatingProfile.class)
+    void exactSubmittedNormalizedOrderSurvivesSaveWhenAiIsUnavailableAndPostAiWidgetsShift(OperatingProfile profile) {
+        var disabledAi = new AiTypes.Status(false, false, "disabled", "ai_disabled", null, 1000, 8);
+        var configured = configuration(profile, ModuleRegistry.LEGACY_DEFAULTS);
+        var unavailableAiCatalog = resolver.catalog(owner, configured, disabledAi);
+        var inactiveAiOverride = new Preference("ai-explanation", true, 2, "wide");
+        var initial = resolver.resolve(profile.presetKey(), List.of(inactiveAiOverride), unavailableAiCatalog);
+        assertTrue(initial.stream().noneMatch(p -> p.key().equals("ai-explanation")));
+        // Unhide an optional hidden widget and hide/reorder an earlier visible widget to the end so post-AI widgets sit adjacent to moved items.
+        String unhideKey = initial.stream().filter(Preference::hidden).findFirst().orElseThrow().key();
+        List<Preference> reordered = new ArrayList<>();
+        Preference moved = null;
+        for (var p : initial) {
+            if (p.key().equals("cash-flow")) {
+                moved = new Preference(p.key(), true, initial.size() - 1, p.size());
+            } else if (p.key().equals(unhideKey)) {
+                reordered.add(new Preference(p.key(), false, reordered.size(), p.size()));
+            } else {
+                reordered.add(new Preference(p.key(), p.hidden(), reordered.size(), p.size()));
+            }
+        }
+        assertNotNull(moved);
+        reordered.add(new Preference(moved.key(), moved.hidden(), reordered.size(), moved.size()));
+        var savedOverrides = resolver.validateAndDiff(profile.presetKey(), reordered, List.of(inactiveAiOverride), unavailableAiCatalog);
+        assertTrue(savedOverrides.contains(inactiveAiOverride));
+        var resolvedAfterSave = resolver.resolve(profile.presetKey(), savedOverrides, unavailableAiCatalog);
+        assertEquals(reordered, resolvedAfterSave);
+        assertTrue(resolvedAfterSave.stream().noneMatch(p -> p.key().equals("ai-explanation")));
+        assertEquals("health-score", resolvedAfterSave.getFirst().key());
+        assertFalse(resolvedAfterSave.getFirst().hidden());
+    }
 }

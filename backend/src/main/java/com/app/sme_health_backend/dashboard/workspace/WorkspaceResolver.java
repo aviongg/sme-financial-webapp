@@ -27,17 +27,18 @@ public class WorkspaceResolver {
         }).toList();
     }
     public List<Preference> resolve(String preset, List<Preference> overrides, List<Metadata> catalog) {
+        Set<String> allowed = new HashSet<>();
+        catalog.stream().filter(Metadata::available).forEach(m -> allowed.add(m.key()));
         Map<String, Preference> effective = new LinkedHashMap<>();
-        presets.defaults(preset, registry).forEach(p -> effective.put(p.key(), p));
+        presets.defaults(preset, registry).stream().filter(p -> allowed.contains(p.key()))
+                .forEach(p -> effective.put(p.key(), new Preference(p.key(), p.hidden(), effective.size(), p.size())));
         for (Preference override : overrides) {
             var definition = registry.find(override.key());
             // A removed registry key stays persisted but is never rendered or queried.
-            if (definition.isEmpty() || !definition.get().sizes().contains(override.size())) continue;
+            if (definition.isEmpty() || !allowed.contains(override.key()) || !definition.get().sizes().contains(override.size())) continue;
             effective.put(override.key(), new Preference(override.key(), definition.get().required() ? false : override.hidden(), override.order(), override.size()));
         }
-        Set<String> allowed = new HashSet<>();
-        catalog.stream().filter(Metadata::available).forEach(m -> allowed.add(m.key()));
-        var sorted = effective.values().stream().filter(p -> allowed.contains(p.key()))
+        var sorted = effective.values().stream()
                 .sorted(Comparator.comparing(Preference::order).thenComparing(Preference::key)).toList();
         List<Preference> resolved = new ArrayList<>();
         for (int i = 0; i < sorted.size(); i++) {
@@ -60,10 +61,19 @@ public class WorkspaceResolver {
         }
         Map<String, Preference> baseline = new HashMap<>();
         resolve(preset, List.of(), catalog).forEach(p -> baseline.put(p.key(), p));
+        List<Preference> candidates = input;
+        if (input.size() == baseline.size()) {
+            var sorted = input.stream().sorted(Comparator.comparing(Preference::order).thenComparing(Preference::key)).toList();
+            List<Preference> normalized = new ArrayList<>();
+            for (int i = 0; i < sorted.size(); i++) {
+                var p = sorted.get(i); normalized.add(new Preference(p.key(), p.hidden(), i, p.size()));
+            }
+            candidates = normalized;
+        }
         List<Preference> result = new ArrayList<>();
         // Preserve temporarily disabled/restricted/retired overrides without exposing them to the caller.
         previous.stream().filter(p -> !metadata.containsKey(p.key()) || !metadata.get(p.key()).available()).forEach(result::add);
-        for (Preference p : input) if (!p.equals(baseline.get(p.key()))) result.add(p);
+        for (Preference p : candidates) if (!p.equals(baseline.get(p.key()))) result.add(p);
         return List.copyOf(result);
     }
     private WorkspaceException invalid(String message) { return new WorkspaceException("layout_invalid", 400, message); }

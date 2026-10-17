@@ -15,7 +15,7 @@ export function LanguageControl() {
             await phaseOneApi.updateLanguage(next);
         setLocale(next);
         if (!isDemoMode)
-            await session.refresh();
+            await session.revalidate();
     }
     catch {
         toast(t.live.languageError, 'error');

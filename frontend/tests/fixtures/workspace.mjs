@@ -29,12 +29,12 @@ export function workspaceFixture({ dashboard, records = [], configuration = conf
   });
   const selected = presets[presetKey];
   if (!selected) throw new Error(`Unknown synthetic workspace preset ${presetKey}`);
-  const ordered = [...selected, ...implemented.filter(key => !selected.includes(key))];
+  const ordered = [...selected, ...implemented.filter(key => !selected.includes(key))]
+    .filter(key => catalog.find(entry => entry.key === key)?.available);
   const preferences = ordered.map((key, order) => ({ key, order, hidden: !selected.includes(key),
     size: ['health-score', 'cash-flow', 'health-components', 'financial-evidence', 'ai-explanation'].includes(key)
       || (key === 'financial-summary' && presetKey !== 'project-order') ? 'wide' : 'compact',
     ...overrides.find(item => item.key === key) }))
-    .filter(item => catalog.find(entry => entry.key === item.key).available)
     .sort((left, right) => left.order - right.order || left.key.localeCompare(right.key))
     .map((item, order) => ({ ...item, order }));
   const cashHistory = [...records].sort((a, b) => a.month.localeCompare(b.month)).map(record => ({ month: record.month,

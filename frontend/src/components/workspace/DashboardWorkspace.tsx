@@ -12,7 +12,7 @@ import { workspaceCopy, widgetTitle } from '@/lib/i18n/translations/workspace';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { ApiError } from '@/lib/api/client';
 import { workspaceApi, type DashboardWorkspaceResponse, type PresetKey, type WidgetMetadata, type WidgetPreference, type WidgetSize } from '@/lib/api/workspace';
-import { changeWidget, editableLayout, implementedWidgetKeys, moveWidget } from '@/lib/workspace/layout';
+import { changeWidget, editableLayout, implementedWidgetKeys, moveWidget, rebaseDraft } from '@/lib/workspace/layout';
 import { WidgetRenderer } from './WidgetRenderer';
 import { WidgetControls } from './CustomizeDashboard';
 import { WidgetPicker } from './WidgetPicker';
@@ -28,14 +28,27 @@ export function DashboardWorkspace({ initial, retry }: { initial: DashboardWorks
   const [draftPreview, setDraftPreview] = useState(false), [presetKey, setPresetKey] = useState<PresetKey | null>(null), [presetData, setPresetData] = useState<DashboardWorkspaceResponse | null>(null);
   const [busy, setBusy] = useState(false), [resetConfirm, setResetConfirm] = useState(false), [conflict, setConflict] = useState(false);
   const [error, setError] = useState(''), [message, setMessage] = useState<'saved' | 'resetDone' | 'moved' | 'changed' | ''>('');
-  const request = useRef<AbortController | null>(null), editTitle = useRef<HTMLHeadingElement | null>(null);
+  const request = useRef<AbortController | null>(null), editTitle = useRef<HTMLHeadingElement | null>(null), pendingFocus = useRef<string | null>(null);
   const editing = draft !== null;
+  // Adopt a refreshed server workspace only when no draft is open; the draft is never discarded by a background refresh.
+  const [seenInitial, setSeenInitial] = useState(initial);
+  if (initial !== seenInitial) { setSeenInitial(initial); if (!editing) setSaved(initial); }
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => { if (editing) editTitle.current?.focus({ preventScroll: true }); }, [editing]);
-  // Re-resolve newly accepted F02 settings. An open draft stays intact for an explicit conflict/reload.
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const testId = pendingFocus.current;
+    pendingFocus.current = null;
+    const element = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+    if (element && !element.hasAttribute('disabled')) element.focus({ preventScroll: true });
+  }, [draft]);
+  // Re-resolve newly accepted F02 settings or persisted language changes when not editing. An open draft stays intact.
   useEffect(() => {
     if (!editing && !presetKey && configuration?.data && configuration.data.version > saved.configurationVersion) retry();
   }, [configuration?.data, editing, presetKey, saved.configurationVersion, retry]);
+  useEffect(() => {
+    if (!editing && !presetKey && can('BUSINESS_SETTINGS_MANAGE') && saved.dashboard.profile?.languagePreference && saved.dashboard.profile.languagePreference !== locale && business?.languagePreference === locale) retry();
+  }, [business?.languagePreference, can, editing, locale, presetKey, retry, saved.dashboard.profile?.languagePreference]);
 
   const current = presetData || saved;
   const currentKey = presetKey || saved.presetKey;
@@ -50,12 +63,32 @@ export function DashboardWorkspace({ initial, retry }: { initial: DashboardWorks
   const startEditing = () => { setDraft(editableLayout(saved)); setDraftPreview(false); setError(''); setMessage(''); setConflict(false); setResetConfirm(false); };
   const cancel = () => { setDraft(null); setDraftPreview(false); setError(''); setMessage(''); setConflict(false); };
   const change = (metadata: WidgetMetadata, values: { hidden?: boolean; size?: WidgetSize }) => { if (!draft || busy || conflict) return; setDraft(changeWidget(draft, metadata, values)); setMessage('changed'); };
-  const move = (key: string, direction: -1 | 1) => { if (!draft || busy || conflict) return; setDraft(moveWidget(draft, key, direction)); setMessage('moved'); };
+  const move = (key: string, direction: -1 | 1) => {
+    if (!draft || busy || conflict) return;
+    const next = moveWidget(draft, key, direction);
+    const nextVisible = next.filter(widget => !widget.hidden && catalog.get(widget.key)?.available && implementedWidgetKeys.has(widget.key)).sort((a, b) => a.order - b.order);
+    const index = nextVisible.findIndex(widget => widget.key === key);
+    const targetControl = direction === -1 && index === 0 ? 'down' : direction === 1 && index === nextVisible.length - 1 ? 'up' : direction === -1 ? 'up' : 'down';
+    pendingFocus.current = `workspace-${targetControl}-${key}`;
+    setDraft(next);
+    setMessage('moved');
+  };
   const handleFailure = (failure: unknown) => {
     if (failure instanceof Error && failure.name === 'AbortError') return;
     const stale = failure instanceof ApiError && failure.status === 409;
     setConflict(stale);
     setError(stale ? copy.conflict : failure instanceof ApiError && [400, 403].includes(failure.status) ? copy.invalid : localizedError(failure, t));
+  };
+  const reload = async () => {
+    if (busy) return;
+    const controller = new AbortController(); request.current?.abort(); request.current = controller;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const latest = await workspaceApi.get(controller.signal);
+      setDraft(currentDraft => currentDraft ? rebaseDraft(saved, currentDraft, latest) : null);
+      setSaved(latest); setConflict(false);
+    } catch (failure) { handleFailure(failure); }
+    finally { if (!controller.signal.aborted) setBusy(false); }
   };
   const persist = async (reset: boolean) => {
     if (busy || conflict || (!reset && !draft)) return;
@@ -93,7 +126,7 @@ export function DashboardWorkspace({ initial, retry }: { initial: DashboardWorks
       <div className="flex flex-wrap items-center gap-2"><Button data-testid="workspace-save" size="sm" disabled={busy || conflict} isLoading={busy} onClick={() => void persist(false)} leftIcon={<Check/>}>{busy ? copy.saving : copy.save}</Button><Button data-testid={draftPreview ? 'workspace-edit-layout' : 'workspace-preview-changes'} size="sm" variant="secondary" disabled={busy} onClick={() => setDraftPreview(value => !value)} leftIcon={<Eye/>}>{draftPreview ? copy.editLayout : copy.previewChanges}</Button><Button data-testid="workspace-cancel" size="sm" variant="ghost" disabled={busy} onClick={cancel}>{copy.cancel}</Button></div>
       {!draftPreview && <p className="text-xs text-[var(--color-text-muted)]">{copy.mobileHelp}</p>}
     </section>}
-    {error && <div className="rounded-lg border border-red-200 bg-red-50 text-red-950 p-4 space-y-3"><p role="alert">{error}</p>{conflict && <Button size="sm" variant="secondary" onClick={retry}>{copy.reload}</Button>}</div>}
+    {error && <div className="rounded-lg border border-red-200 bg-red-50 text-red-950 p-4 space-y-3"><p role="alert">{error}</p>{conflict && <Button data-testid="workspace-reload" size="sm" variant="secondary" disabled={busy} onClick={() => void reload()}>{copy.reload}</Button>}</div>}
     <p role="status" aria-live="polite" data-testid="workspace-status" className={message ? 'text-sm text-[var(--color-brand-primary)]' : 'sr-only'}>{message ? copy[message] : ''}</p>
 
     {empty ? <Card data-testid="workspace-empty" padding="lg" className="flex flex-col sm:flex-row items-start gap-5">

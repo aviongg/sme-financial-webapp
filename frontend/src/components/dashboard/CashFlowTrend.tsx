@@ -9,12 +9,13 @@ import { formatPKR } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import type { MonthlyRecordResponse } from "@/types/financial";
 import type { CashSummaryByPeriod } from "@/lib/api/workspace";
+import { cashNetDirection, resolveRecordNet } from "@/lib/workspace/layout";
 
 export interface CashFlowTrendProps {
   records: MonthlyRecordResponse[];
   className?: string;
   /** Live workspace amounts come from the existing authoritative backend services. */
-  authoritative?: { summaryByPeriod: CashSummaryByPeriod; history: { month: string; net: number }[] };
+  authoritative?: { summaryByPeriod: CashSummaryByPeriod; history: { month: string; net: number | null }[] };
 }
 
 /**
@@ -51,15 +52,27 @@ export function CashFlowTrend({ records, className, authoritative }: CashFlowTre
   // Latest month record for summary cards
   const latest = sortedRecords[sortedRecords.length - 1];
   const summary = authoritative?.summaryByPeriod[period as keyof CashSummaryByPeriod];
-  const totalInflow = authoritative ? summary?.totalInflow : sortedRecords.reduce((total, record) => total + record.cashInflow, 0);
-  const totalOutflow = authoritative ? summary?.totalOutflow : sortedRecords.reduce((total, record) => total + record.cashOutflow, 0);
-  const netLatest = authoritative ? summary?.net : (totalInflow ?? 0) - (totalOutflow ?? 0);
-  const isSurplus = netLatest != null && netLatest >= 0;
-  const monthlyNet = (record: MonthlyRecordResponse) => authoritative ? authoritative.history.find(point => point.month === record.month)?.net : record.cashInflow - record.cashOutflow;
+  const totalInflow = authoritative
+    ? summary?.totalInflow ?? null
+    : sortedRecords.every((record) => record.cashInflow != null)
+    ? sortedRecords.reduce((total, record) => total + record.cashInflow, 0)
+    : null;
+  const totalOutflow = authoritative
+    ? summary?.totalOutflow ?? null
+    : sortedRecords.every((record) => record.cashOutflow != null)
+    ? sortedRecords.reduce((total, record) => total + record.cashOutflow, 0)
+    : null;
+  const netLatest = authoritative
+    ? summary?.net ?? null
+    : totalInflow != null && totalOutflow != null
+    ? totalInflow - totalOutflow
+    : null;
+  const netDirection = cashNetDirection(netLatest);
+  const monthlyNet = (record: MonthlyRecordResponse) => resolveRecordNet(record, authoritative?.history);
 
   // Calculate scaling for SVG chart
   const maxVal = Math.max(
-    ...sortedRecords.map((r) => Math.max(r.cashInflow, r.cashOutflow)),
+    ...sortedRecords.map((r) => Math.max(r.cashInflow ?? 0, r.cashOutflow ?? 0)),
     1
   );
   // Scale to the supplied values, including small and zero-only records.
@@ -147,15 +160,24 @@ export function CashFlowTrend({ records, className, authoritative }: CashFlowTre
         {/* Net Movement */}
         <div className="p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)]">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1">
-            {isSurplus ? t.dashboard.netSurplus : t.dashboard.netDeficit}
+            {netDirection === "surplus"
+              ? t.dashboard.netSurplus
+              : netDirection === "deficit"
+              ? t.dashboard.netDeficit
+              : t.dashboard.netMovement}
           </span>
           <div className="flex items-center gap-1.5">
-            {isSurplus ? (
+            {netDirection === "surplus" ? (
               <ArrowUpRight className="w-4 h-4 text-[var(--color-health-strong)] shrink-0" />
-            ) : (
+            ) : netDirection === "deficit" ? (
               <ArrowDownRight className="w-4 h-4 text-[var(--color-health-risk)] shrink-0" />
-            )}
-            <FinancialValue value={netLatest} size="md" colorIntent="semantic" showSign />
+            ) : null}
+            <FinancialValue
+              value={netLatest}
+              size="md"
+              colorIntent={netDirection === "unavailable" ? "neutral" : "semantic"}
+              showSign={netDirection !== "unavailable"}
+            />
           </div>
         </div>
 
@@ -213,8 +235,8 @@ export function CashFlowTrend({ records, className, authoritative }: CashFlowTre
             {/* Monthly Bar Groups */}
             {sortedRecords.map((r, i) => {
               const groupCenterX = padLeft + (monthNumber(r.month) - monthNumber(sortedRecords[0].month)) * groupWidth + groupWidth / 2;
-              const inflowH = (r.cashInflow / ceiling) * plotHeight;
-              const outflowH = (r.cashOutflow / ceiling) * plotHeight;
+              const inflowH = ((r.cashInflow ?? 0) / ceiling) * plotHeight;
+              const outflowH = ((r.cashOutflow ?? 0) / ceiling) * plotHeight;
               const inflowY = padTop + plotHeight - inflowH;
               const outflowY = padTop + plotHeight - outflowH;
               const isHovered = hoveredIndex === i;
@@ -287,41 +309,50 @@ export function CashFlowTrend({ records, className, authoritative }: CashFlowTre
       </div>
 
       {/* Active Month Detail Tooltip / Indicator */}
-      {hoveredIndex !== null && sortedRecords[hoveredIndex] && (
-        <div className="mb-4 p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3 text-[12px]">
-          <span className="font-semibold text-[var(--color-text-primary)]">
-            {sortedRecords[hoveredIndex].month}
-          </span>
-          <div className="flex items-center gap-4">
-            <span className="text-[var(--color-brand-primary)] font-medium">
-              {t.dashboard.inflowCol}:{" "}
-              <FinancialValue value={sortedRecords[hoveredIndex].cashInflow} size="sm" />
+      {hoveredIndex !== null && sortedRecords[hoveredIndex] && (() => {
+        const hoveredRecord = sortedRecords[hoveredIndex];
+        const hoveredNet = monthlyNet(hoveredRecord);
+        const hoveredDirection = cashNetDirection(hoveredNet);
+        return (
+          <div className="mb-4 p-3 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] border border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3 text-[12px]">
+            <span className="font-semibold text-[var(--color-text-primary)]">
+              {hoveredRecord.month}
             </span>
-            <span className="text-[var(--color-text-secondary)] font-medium">
-              {t.dashboard.outflowCol}:{" "}
-              <FinancialValue value={sortedRecords[hoveredIndex].cashOutflow} size="sm" />
-            </span>
-            <span
-              className={cn(
-                "font-semibold",
-                sortedRecords[hoveredIndex].cashInflow >= sortedRecords[hoveredIndex].cashOutflow
-                  ? "text-[var(--color-health-strong)]"
-                  : "text-[var(--color-health-risk)]"
-              )}
-            >
-              {sortedRecords[hoveredIndex].cashInflow >= sortedRecords[hoveredIndex].cashOutflow
-                ? t.dashboard.netSurplus
-                : t.dashboard.netDeficit}
-              :{" "}
-              <FinancialValue
-                value={monthlyNet(sortedRecords[hoveredIndex])}
-                size="sm"
-                colorIntent="semantic"
-              />
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-[var(--color-brand-primary)] font-medium">
+                {t.dashboard.inflowCol}:{" "}
+                <FinancialValue value={hoveredRecord.cashInflow} size="sm" />
+              </span>
+              <span className="text-[var(--color-text-secondary)] font-medium">
+                {t.dashboard.outflowCol}:{" "}
+                <FinancialValue value={hoveredRecord.cashOutflow} size="sm" />
+              </span>
+              <span
+                className={cn(
+                  "font-semibold",
+                  hoveredDirection === "surplus"
+                    ? "text-[var(--color-health-strong)]"
+                    : hoveredDirection === "deficit"
+                    ? "text-[var(--color-health-risk)]"
+                    : "text-[var(--color-text-muted)]"
+                )}
+              >
+                {hoveredDirection === "surplus"
+                  ? t.dashboard.netSurplus
+                  : hoveredDirection === "deficit"
+                  ? t.dashboard.netDeficit
+                  : t.dashboard.netMovement}
+                :{" "}
+                <FinancialValue
+                  value={hoveredNet}
+                  size="sm"
+                  colorIntent={hoveredDirection === "unavailable" ? "neutral" : "semantic"}
+                />
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
         <div className="overflow-x-auto">
           <table className="w-full text-start text-sm">

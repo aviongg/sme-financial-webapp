@@ -15,6 +15,7 @@ interface State {
 }
 interface Session extends State {
     refresh: () => Promise<void>;
+    revalidate: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     acceptUser: (user: AuthUser) => Promise<void>;
     logout: () => Promise<void>;
@@ -72,8 +73,8 @@ export function SessionProvider({ children }: {
         }
     }, [block, load]);
     const checkingFocus = useRef(false);
-    // A routine focus check must not unmount a form or discard unsaved inputs.
-    // Clear the private tree only if the server context changed or cannot be verified.
+    // A routine focus or language check must not unmount a form or discard unsaved drafts/inputs.
+    // Remount the private tree only if the auth/business/role security boundary changed or cannot be verified.
     const revalidate = useCallback(async () => {
         const snapshot = stateRef.current;
         if (snapshot.status !== 'authenticated' || checkingFocus.current)
@@ -92,8 +93,33 @@ export function SessionProvider({ children }: {
             }
             if (ticket !== revision.current)
                 return;
-            if (JSON.stringify(user) !== JSON.stringify(snapshot.user) || JSON.stringify(business) !== JSON.stringify(snapshot.business)) {
+            const sameUserBoundary = Boolean(
+                snapshot.user &&
+                user.id === snapshot.user.id &&
+                user.authStage === snapshot.user.authStage &&
+                user.accountStatus === snapshot.user.accountStatus &&
+                user.mustChangePassword === snapshot.user.mustChangePassword &&
+                user.platformRole === snapshot.user.platformRole
+            );
+            const sameBusinessBoundary =
+                (snapshot.business === null && business === null) ||
+                Boolean(
+                    snapshot.business &&
+                    business &&
+                    business.businessId === snapshot.business.businessId &&
+                    business.role === snapshot.business.role &&
+                    business.membershipStatus === snapshot.business.membershipStatus &&
+                    business.businessType === snapshot.business.businessType &&
+                    business.active === snapshot.business.active
+                );
+            if (!sameUserBoundary || !sameBusinessBoundary) {
                 await refresh();
+                return;
+            }
+            if (JSON.stringify(user) !== JSON.stringify(snapshot.user) || JSON.stringify(business) !== JSON.stringify(snapshot.business)) {
+                const businesses = await apiClient<BusinessSummary[]>('/businesses');
+                if (ticket === revision.current)
+                    setState(s => ({ ...s, user, business, businesses }));
             }
         }
         catch (e) {
@@ -203,7 +229,7 @@ export function SessionProvider({ children }: {
         }
         return () => { revision.current++; invalidatePrivateRequests(); window.removeEventListener('finsight-business-changed', initialize); window.removeEventListener('finsight-session-expired', expired); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', pageShow); channel.current?.close(); channel.current = null; };
     }, [refresh, block, revalidate]);
-    return <Context.Provider value={{ ...state, refresh, login, acceptUser, logout, switchBusiness: id => changeBusiness('/businesses/active', { businessId: id }), createBusiness: input => changeBusiness('/businesses', input), can: p => hasPermission(state.business, p) }}>{children}</Context.Provider>;
+    return <Context.Provider value={{ ...state, refresh, revalidate, login, acceptUser, logout, switchBusiness: id => changeBusiness('/businesses/active', { businessId: id }), createBusiness: input => changeBusiness('/businesses', input), can: p => hasPermission(state.business, p) }}>{children}</Context.Provider>;
 }
 export function useSession() {
     const session = useContext(Context);

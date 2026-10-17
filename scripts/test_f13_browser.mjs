@@ -110,28 +110,50 @@ try {
   assert.ok(!batchRequests.some(request => ['/api/dashboard', '/api/records/monthly', '/api/ai/explain'].includes(request.url)));
   mark('Dashboard loads one batched financial endpoint and never generates an AI explanation automatically');
   const beforePreview = await getWorkspace();
+  assert.ok(beforePreview.dashboard.topRecommendation?.text);
+  const liveRec = page.getByTestId('workspace-widget-recommendation');
+  await liveRec.getByText(beforePreview.dashboard.topRecommendation.text, { exact: true }).waitFor();
+  await liveRec.getByText('New', { exact: true }).waitFor();
+  assert.equal(await liveRec.getByRole('button', { name: 'Mark done', exact: true }).count(), 1);
   await page.getByTestId('workspace-preset-preview').click();
   const presetReply = page.waitForResponse(r => r.url().endsWith('/api/workspace/presets/retail-trade'));
   await page.getByTestId('workspace-preset-select').selectOption('retail-trade');
   assert.equal((await (await presetReply).json()).presetKey, 'retail-trade');
+  await liveRec.getByText(beforePreview.dashboard.topRecommendation.text, { exact: true }).waitFor();
+  await liveRec.getByText('New', { exact: true }).waitFor();
+  assert.equal(await liveRec.getByRole('button', { name: 'Mark done', exact: true }).count(), 0);
   await page.getByTestId('workspace-close-preview').waitFor();
   await page.getByTestId('workspace-close-preview').click();
   assert.deepEqual((await getWorkspace()).preferences, beforePreview.preferences);
   await page.getByTestId('workspace-customize').click();
+  await liveRec.getByText(beforePreview.dashboard.topRecommendation.text, { exact: true }).waitFor();
+  assert.equal(await liveRec.getByRole('button', { name: 'Mark done', exact: true }).count(), 0);
   await page.getByTestId('workspace-hide-cash-flow').click();
   await page.getByTestId('workspace-preview-changes').click();
   assert.equal(await page.getByTestId('workspace-widget-cash-flow').count(), 0);
   assert.equal((await getWorkspace()).preferenceVersion, beforePreview.preferenceVersion);
   await page.getByTestId('workspace-cancel').click();
   await page.getByTestId('workspace-widget-cash-flow').waitFor();
-  mark('Preset preview and draft preview never save; Cancel restores the saved dashboard');
+  mark('Live recommendation widget renders text/status/actions while preset and draft previews hide mutation buttons and Cancel restores saved dashboard');
 
   await page.getByTestId('workspace-customize').click();
+  // Move second widget into first position via keyboard and verify focus stays on its active move button.
+  await page.getByTestId('workspace-up-cash-flow').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'workspace-down-cash-flow');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'workspace-down-cash-flow');
   await page.getByTestId('workspace-hide-cash-projection').click();
   const addDocuments = page.getByTestId('workspace-add-document-workflow');
   if (await addDocuments.count()) await addDocuments.click();
   await page.getByTestId('workspace-size-document-workflow').selectOption('wide');
   const orderBeforeMove = await page.locator('[data-testid^="workspace-widget-"]').evaluateAll(elements => elements.map(element => element.dataset.testid));
+  // Move penultimate widget down into last position via keyboard and verify focus moves to its up button.
+  const penultimateKey = orderBeforeMove.at(-2).replace('workspace-widget-', '');
+  await page.getByTestId(`workspace-down-${penultimateKey}`).focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), `workspace-up-${penultimateKey}`);
+  await page.keyboard.press('Enter');
   await page.getByTestId('workspace-up-document-workflow').focus();
   await page.keyboard.press('Enter');
   await page.getByTestId('workspace-preview-changes').click();
@@ -149,26 +171,46 @@ try {
   await page.reload(); await page.getByTestId('dashboard-workspace').waitFor();
   assert.deepEqual((await getWorkspace()).widgets, personalLayout);
   assert.equal(await page.getByTestId('workspace-widget-cash-projection').count(), 0);
-  mark('Keyboard reorder, add, hide, resize, preview and Save persist through real PostgreSQL and reload');
+  mark('Keyboard reorder (preserving first/last focus), add, hide, resize, preview and Save persist through real PostgreSQL and reload');
 
   await page.goto(`${base}/settings`); await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
   await login(); assert.deepEqual((await getWorkspace()).widgets, personalLayout);
   mark('Personal dashboard survives actual logout and login');
 
-  // A second real browser tab saves concurrently. The original draft must survive the 409.
+  // A second real browser tab saves concurrently. Clicking Reload latest dashboard must rebase the draft and allow saving.
   await page.getByTestId('workspace-customize').click();
   await page.getByTestId('workspace-hide-cash-flow').click();
   const tab = await context.newPage(); await tab.goto(base); await tab.getByTestId('workspace-customize').click();
+  await tab.getByTestId('workspace-size-next-step').selectOption('wide');
   await tab.getByTestId('workspace-save').click(); await tab.getByTestId('workspace-customize').waitFor();
   const conflict = page.waitForResponse(r => r.url().endsWith('/api/workspace/preferences') && r.request().method() === 'PUT');
   await page.getByTestId('workspace-save').click(); assert.equal((await conflict).status(), 409);
   await page.getByRole('alert').filter({ hasText: 'changed in another session' }).waitFor();
   assert.equal(await page.getByTestId('workspace-save').isDisabled(), true);
   assert.equal(await page.getByTestId('workspace-add-cash-flow').count(), 1);
-  await tab.close(); await page.getByTestId('workspace-cancel').click();
+  await tab.close();
+  const reloadReply = page.waitForResponse(r => r.url().endsWith('/api/workspace') && r.request().method() === 'GET');
+  await page.getByTestId('workspace-reload').click();
+  assert.equal((await reloadReply).status(), 200);
+  await page.waitForFunction(() => !document.querySelector('[data-testid="workspace-save"]')?.disabled);
+  // Next's empty route announcer is also role=alert, so only visible alert text is considered.
+  const alertsAfterReload = await page.getByRole('alert').allInnerTexts();
+  assert.equal(await page.getByRole('alert').filter({ hasText: 'changed in another session' }).count(), 0);
+  assert.equal(alertsAfterReload.filter(text => text.trim()).length, 0, `Unexpected visible alert: ${JSON.stringify(alertsAfterReload)}`);
+  assert.equal(await page.getByTestId('workspace-add-cash-flow').count(), 1);
+  assert.equal(await page.getByTestId('workspace-size-next-step').inputValue(), 'wide');
+  const saveAfterReload = page.waitForResponse(r => r.url().endsWith('/api/workspace/preferences') && r.request().method() === 'PUT');
+  await page.getByTestId('workspace-save').click();
+  assert.equal((await saveAfterReload).status(), 200);
+  await page.getByTestId('workspace-customize').waitFor();
+  workspace = await getWorkspace();
+  assert.ok(!workspace.widgets.some(w => w.key === 'cash-flow'));
+  assert.equal(workspace.widgets.find(w => w.key === 'next-step').size, 'wide');
+  // Restore cash-flow and next-step to personalLayout baseline for subsequent assertions.
+  workspace = await save(workspace, layout(workspace).map(w => w.key === 'cash-flow' ? { ...w, hidden: false } : w.key === 'next-step' ? { ...w, size: 'compact' } : w));
   await page.reload(); await page.getByTestId('dashboard-workspace').waitFor();
-  mark('Two browser tabs receive a visible optimistic conflict without replaying or losing the draft');
+  mark('Two browser tabs receive a visible 409 conflict and Reload latest dashboard rebases the draft onto the newer server layout and saves');
 
   configuration = await api(context.request, '/api/business-configuration');
   const enabledModules = configuration.requestedModules;
@@ -225,12 +267,24 @@ try {
   mark('Actual business switching clears another tenant’s financial data and restores only that user’s saved layout');
 
   await page.getByTestId('workspace-customize').click();
+  await page.getByTestId('workspace-size-ai-explanation').selectOption('compact');
+  await page.getByTestId('workspace-hide-next-step').click();
   configuration = await api(context.request, '/api/business-configuration');
-  configuration = await api(context.request, '/api/business-configuration', { method: 'PUT', data: { ...configBody(configuration), operatingProfile: 'SERVICES' } });
+  const fullModules = configuration.requestedModules;
+  configuration = await api(context.request, '/api/business-configuration', { method: 'PUT', data: { ...configBody(configuration), operatingProfile: 'SERVICES', requestedModules: fullModules.filter(key => key !== 'ai') } });
   const staleConfiguration = page.waitForResponse(r => r.url().endsWith('/api/workspace/preferences') && r.request().method() === 'PUT');
   await page.getByTestId('workspace-save').click(); assert.equal((await staleConfiguration).status(), 409);
   await page.getByRole('alert').filter({ hasText: 'changed in another session' }).waitFor();
-  await page.getByTestId('workspace-cancel').click(); await page.reload(); await page.getByTestId('dashboard-workspace').waitFor();
+  await page.getByTestId('workspace-reload').click();
+  await page.waitForFunction(() => !document.querySelector('[data-testid="workspace-save"]')?.disabled);
+  assert.equal(await page.getByTestId('workspace-widget-ai-explanation').count(), 0);
+  assert.equal(await page.getByTestId('workspace-unavailable-ai-explanation').count(), 1);
+  assert.equal(await page.getByTestId('workspace-add-next-step').count(), 1);
+  await page.getByTestId('workspace-save').click();
+  await page.getByTestId('workspace-customize').waitFor();
+  assert.ok(!(await getWorkspace()).widgets.some(w => w.key === 'next-step' || w.key === 'ai-explanation'));
+  configuration = await api(context.request, '/api/business-configuration', { method: 'PUT', data: { ...configBody(configuration), operatingProfile: 'SERVICES', requestedModules: fullModules } });
+  await page.reload(); await page.getByTestId('dashboard-workspace').waitFor();
   await page.getByTestId('workspace-reset').click(); await page.getByTestId('workspace-cancel-reset').click();
   assert.equal((await getWorkspace()).personalized, true);
   await page.getByTestId('workspace-reset').click();
@@ -240,20 +294,33 @@ try {
   await page.getByTestId('workspace-customize').waitFor();
   workspace = await getWorkspace(); assert.equal(workspace.personalized, false); assert.equal(workspace.presetKey, 'services');
   assert.deepEqual(workspace.widgets, (await api(context.request, '/api/workspace/presets/services')).widgets);
-  mark('Configuration conflicts are visible; Cancel reset does nothing and confirmed reset uses current F02 services preset');
+  mark('Configuration conflict reload drops newly unavailable widgets while preserving valid draft changes; confirmed reset restores services preset');
 
+  // Customize -> modify layout -> switch to Urdu -> verify draft still exists and can be saved.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'اردو', exact: true }).first().click();
-  await page.waitForFunction(() => document.documentElement.dir === 'rtl');
   await page.getByTestId('workspace-customize').click();
+  await page.getByTestId('workspace-hide-next-step').click();
   await page.getByTestId('workspace-down-cash-flow').focus(); await page.keyboard.press('Enter');
+  const languageUpdate = page.waitForResponse(r => r.url().endsWith('/api/profile/language') && r.request().method() === 'PATCH');
+  await page.getByRole('button', { name: 'اردو', exact: true }).first().click();
+  assert.equal((await languageUpdate).status(), 200);
+  await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  assert.equal(await page.getByTestId('workspace-save').count(), 1);
+  assert.equal(await page.getByTestId('workspace-add-next-step').count(), 1);
   await page.getByTestId('workspace-preview-changes').click();
+  assert.equal(await page.getByTestId('workspace-widget-next-step').count(), 0);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
   await page.screenshot({ path: resolve(out, 'workspace-urdu-mobile-preview.png'), fullPage: true });
-  await page.getByTestId('workspace-save').click(); await page.getByTestId('workspace-customize').waitFor();
+  const urduSave = page.waitForResponse(r => r.url().endsWith('/api/workspace/preferences') && r.request().method() === 'PUT');
+  await page.getByTestId('workspace-save').click(); assert.equal((await urduSave).status(), 200);
+  await page.getByTestId('workspace-customize').waitFor();
+  workspace = await getWorkspace();
+  assert.equal(workspace.personalized, true);
+  assert.ok(!workspace.widgets.some(w => w.key === 'next-step'));
+  assert.equal((await api(context.request, '/api/profile')).languagePreference, 'ur');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
   await page.screenshot({ path: resolve(out, 'workspace-urdu-mobile.png'), fullPage: true });
-  mark('Urdu RTL mobile preview, keyboard ordering and Save work without horizontal page overflow');
+  mark('Switching to Urdu during customization preserves the active draft, renders RTL mobile preview without overflow, and saves');
 
   // End the actual server session while an edit is open; focus revalidation must clear private state.
   await page.getByTestId('workspace-customize').click();

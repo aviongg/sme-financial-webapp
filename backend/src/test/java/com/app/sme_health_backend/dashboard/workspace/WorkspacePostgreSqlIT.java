@@ -181,6 +181,29 @@ class WorkspacePostgreSqlIT extends com.app.sme_health_backend.testsupport.Dispo
         var reset = workspace.reset(f.actor(), new ResetRequest(restored.preferenceVersion(), restored.registryVersion(), restored.configurationVersion()));
         assertEquals("project-order", reset.presetKey()); assertFalse(reset.personalized());
         assertTrue(reset.widgets().stream().anyMatch(p -> p.key().equals("ai-explanation")));
+        long configVersion = reset.configurationVersion();
+        for (var profile : List.of(OperatingProfile.SERVICES, OperatingProfile.PROJECT_ORDER)) {
+            configuration.update(f.actor(), new ConfigurationRequest(profile, Map.of(), List.of("core_finance", "documents"), configVersion++));
+            var aiOff = workspace.get(f.actor());
+            assertFalse(aiOff.aiStatus().available());
+            String unhideKey = aiOff.preferences().stream().filter(Preference::hidden).findFirst().orElseThrow().key();
+            List<Preference> submitted = new ArrayList<>();
+            Preference moved = null;
+            for (var p : aiOff.preferences()) {
+                if (p.key().equals("cash-flow")) {
+                    moved = new Preference(p.key(), true, aiOff.preferences().size() - 1, p.size());
+                } else if (p.key().equals(unhideKey)) {
+                    submitted.add(new Preference(p.key(), false, submitted.size(), p.size()));
+                } else {
+                    submitted.add(new Preference(p.key(), p.hidden(), submitted.size(), p.size()));
+                }
+            }
+            assertNotNull(moved);
+            submitted.add(new Preference(moved.key(), moved.hidden(), submitted.size(), moved.size()));
+            var savedLayout = workspace.save(f.actor(), new SaveRequest(aiOff.preferenceVersion(), aiOff.registryVersion(), aiOff.configurationVersion(), submitted));
+            assertEquals(submitted, savedLayout.preferences());
+            assertEquals(submitted, workspace.get(f.actor()).preferences());
+        }
     }
     @Test void concurrentFirstSavesHaveExactlyOneWinnerAndNeverDuplicateRows() throws Exception {
         var f = fixture(); var request = saveRequest(workspace.get(f.actor()), "cash-flow");
