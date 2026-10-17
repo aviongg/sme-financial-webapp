@@ -1,4 +1,5 @@
 import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
+import { workspaceFixture } from './fixtures/workspace.mjs';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -55,7 +56,9 @@ const handler=async(req,res)=>{
  if(url==='/api/records/monthly/query'){const r=records.get(active).find(r=>r.month===payload.month);return json(res,r||{message:'Record not found'},r?200:404);}
  const latest=records.get(active).at(-1);
  const score=latest?{id:'saved-score',businessId:active,month:latest.month,compositeScore:72.5,band:'Stable',componentScores:{cashflow:80,profitability:null,repayment:75,trend:null,compliance:60},weakestComponent:'compliance',dataCompleteness:.6,computedAt:'2026-09-27',methodologyVersion:'health-score-v1',explanation}:null;
- if(url==='/api/dashboard')return json(res,{businessId:active,profile:profile(),score,topInsight:null,topRecommendation:null,cashFlowHistory:[],trendProjection:{projectedNetCashFlow:null,message:'Need at least 3 months of data for a trend',historicalMonthsCount:latest?1:0},hasHistory:!!latest});
+ const dashboard={businessId:active,profile:profile(),score,topInsight:null,topRecommendation:null,cashFlowHistory:[],trendProjection:{projectedNetCashFlow:null,message:'Need at least 3 months of data for a trend',historicalMonthsCount:latest?1:0},hasHistory:!!latest};
+ if(url==='/api/dashboard')return json(res,dashboard);
+ if(url==='/api/workspace')return json(res,workspaceFixture({dashboard,records:records.get(active),role:businesses().find(b=>b.businessId===active)?.role}));
  if(url==='/api/scores/history')return json(res,score?[score]:[]);
  if(url==='/api/scores/query')return score?json(res,{...score,month:payload.month}):json(res,{message:'No score'},404);
  if(url==='/api/insights/query')return json(res,[]);

@@ -8,10 +8,13 @@ import { useLanguage } from "@/lib/i18n/context";
 import { formatPKR } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import type { MonthlyRecordResponse } from "@/types/financial";
+import type { CashSummaryByPeriod } from "@/lib/api/workspace";
 
 export interface CashFlowTrendProps {
   records: MonthlyRecordResponse[];
   className?: string;
+  /** Live workspace amounts come from the existing authoritative backend services. */
+  authoritative?: { summaryByPeriod: CashSummaryByPeriod; history: { month: string; net: number }[] };
 }
 
 /**
@@ -22,7 +25,7 @@ export interface CashFlowTrendProps {
  * - Inflow vs Outflow paired bars.
  * - Summary metrics: Inflow, Outflow, Net Surplus/Deficit, Ending Cash.
  */
-export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
+export function CashFlowTrend({ records, className, authoritative }: CashFlowTrendProps) {
   const { t, locale } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [period, setPeriod] = useState("6");
@@ -47,10 +50,12 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
 
   // Latest month record for summary cards
   const latest = sortedRecords[sortedRecords.length - 1];
-  const totalInflow = sortedRecords.reduce((total, record) => total + record.cashInflow, 0);
-  const totalOutflow = sortedRecords.reduce((total, record) => total + record.cashOutflow, 0);
-  const netLatest = totalInflow - totalOutflow;
-  const isSurplus = netLatest >= 0;
+  const summary = authoritative?.summaryByPeriod[period as keyof CashSummaryByPeriod];
+  const totalInflow = authoritative ? summary?.totalInflow : sortedRecords.reduce((total, record) => total + record.cashInflow, 0);
+  const totalOutflow = authoritative ? summary?.totalOutflow : sortedRecords.reduce((total, record) => total + record.cashOutflow, 0);
+  const netLatest = authoritative ? summary?.net : (totalInflow ?? 0) - (totalOutflow ?? 0);
+  const isSurplus = netLatest != null && netLatest >= 0;
+  const monthlyNet = (record: MonthlyRecordResponse) => authoritative ? authoritative.history.find(point => point.month === record.month)?.net : record.cashInflow - record.cashOutflow;
 
   // Calculate scaling for SVG chart
   const maxVal = Math.max(
@@ -159,7 +164,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
           <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-brand-navy)] block mb-1">
             {t.dashboard.endingCashBalance}
           </span>
-          <FinancialValue value={latest.cashBalanceEom} size="md" className="text-[var(--color-brand-primary)]" />
+          <FinancialValue value={authoritative ? summary?.endingCash : latest.cashBalanceEom} size="md" className="text-[var(--color-brand-primary)]" />
         </div>
       </div>
       <button type="button" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)} className="mt-4 w-full flex items-center justify-center gap-2 rounded-md border border-[var(--color-border-default)] px-4 py-2 text-sm font-semibold text-[var(--color-brand-primary)] hover:bg-[var(--color-surface-hover)]">
@@ -309,10 +314,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
                 : t.dashboard.netDeficit}
               :{" "}
               <FinancialValue
-                value={
-                  sortedRecords[hoveredIndex].cashInflow -
-                  sortedRecords[hoveredIndex].cashOutflow
-                }
+                value={monthlyNet(sortedRecords[hoveredIndex])}
                 size="sm"
                 colorIntent="semantic"
               />
@@ -329,7 +331,7 @@ export function CashFlowTrend({ records, className }: CashFlowTrendProps) {
             </tr></thead>
             <tbody>{sortedRecords.map((record) => <tr key={record.month} className="border-b border-[var(--color-border-subtle)]">
               <th scope="row" className="p-2 text-start font-medium" dir="ltr">{record.month}</th>
-              {[record.cashInflow, record.cashOutflow, record.cashInflow - record.cashOutflow, record.cashBalanceEom].map((value, index) => <td key={index} className="p-2 whitespace-nowrap">{formatPKR(value, { locale })}</td>)}
+              {[record.cashInflow, record.cashOutflow, monthlyNet(record), record.cashBalanceEom].map((value, index) => <td key={index} className="p-2 whitespace-nowrap">{formatPKR(value, { locale })}</td>)}
             </tr>)}</tbody>
           </table>
         </div>

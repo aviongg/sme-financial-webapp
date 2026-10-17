@@ -1,4 +1,5 @@
 import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
+import { workspaceFixture } from './fixtures/workspace.mjs';
 // Production frontend browser checks using a synthetic API contract fixture.
 // This does not test the deployed Spring service, PostgreSQL, email or OCR providers.
 // Requires the current production Next build serving http://127.0.0.1:3100.
@@ -114,9 +115,11 @@ const handler = async (req, res) => {
   }
   if (url === '/api/records/monthly') return json(res, records);
   if (url === '/api/records/monthly/query') return json(res, records[0]);
-  if (url === '/api/dashboard') return json(res, {businessId, profile, score: null, topInsight: null,
+  const dashboard = {businessId, profile, score: null, topInsight: null,
     topRecommendation: null, cashFlowHistory: [], hasHistory: true,
-    trendProjection: {projectedNetCashFlow: null, message: 'Need at least 3 months', historicalMonthsCount: 1}});
+    trendProjection: {projectedNetCashFlow: null, message: 'Need at least 3 months', historicalMonthsCount: 1}};
+  if (url === '/api/dashboard') return json(res, dashboard);
+  if (url === '/api/workspace') return json(res, workspaceFixture({dashboard, records}));
   if (url === '/api/zakat/monthly/preview' || url === '/api/zakat/preview')
     return json(res, {calculationStatus: 'INCOMPLETE_HAUL_CONFIRMATION_REQUIRED', zakatDue: null,
       nisabValue: 61236, netZakatableAssets: null, grossZakatableAssets: null, deductibleLiabilities: null,

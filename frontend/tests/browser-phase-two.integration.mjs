@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
+import { workspaceFixture } from './fixtures/workspace.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const origin = process.env.FRONTEND_TEST_ORIGIN || 'http://127.0.0.1:3100';
@@ -30,7 +31,10 @@ const server = http.createServer(async (req, res) => {
   if (url === '/api/profile/language') { language = body.languagePreference; return respond(res, profile()); }
   if (url === '/api/whatsapp/deliveries' || url === '/api/memberships' || url === '/api/invitations' || url === '/api/records/monthly') return respond(res, []);
   if (url === '/api/documents') return respond(res, [{ id: '33333333-3333-4333-8333-333333333333', originalFilename: 'Preserved historical fixture.pdf', processingStatus: 'confirmed', linkedMonth: '2026-09' }]);
-  if (url === '/api/dashboard') return respond(res, { businessId: active, profile: profile(), score: null, topInsight: null, topRecommendation: null, cashFlowHistory: [], trendProjection: null });
+  const dashboard = { businessId: active, profile: profile(), score: null, topInsight: null, topRecommendation: null, cashFlowHistory: [], trendProjection: null, hasHistory: false };
+  if (url === '/api/dashboard') return respond(res, dashboard);
+  if (url === '/api/workspace') return respond(res, workspaceFixture({ dashboard, configuration: configurationFixture({ ...configs.get(active), role }), aiStatus: aiStatusFixture(mode), role }));
+  if (url.startsWith('/api/workspace/presets/')) return respond(res, workspaceFixture({ dashboard, configuration: configurationFixture({ ...configs.get(active), role }), aiStatus: aiStatusFixture(mode), role, presetKey: url.split('/').at(-1) }));
   if (url === '/api/business-configuration' || url === '/api/business-configuration/preview') {
     if (method === 'GET') return respond(res, configurationFixture({ ...configs.get(active), role }));
     if (role !== 'OWNER') return respond(res, { error: 'access_denied' }, 403);
@@ -58,7 +62,22 @@ try {
   browser = await chromium.launch({ headless: true, channel: 'msedge' }); const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } }); const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error' && /Content Security Policy|Refused to|Hydration/.test(message.text())) errors.push(message.text()); });
   await page.goto(origin); await page.getByLabel(/^Email/).fill('owner@example.test'); await page.getByLabel(/^Password/).fill('test-password-123'); await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await page.getByTestId('ai-dashboard').getByText('AI explanations are not activated.', { exact: false }).waitFor();
+  await page.getByTestId('workspace-empty').waitFor();
+  assert.equal(await page.locator('[data-testid^="workspace-widget-"]').count(), 0);
+  assert.equal(await page.getByTestId('ai-dashboard').count(), 0);
+  await page.screenshot({ path: `${out}/empty-workspace-desktop.png`, fullPage: true });
+  await page.getByTestId('workspace-preset-preview').click();
+  await page.getByTestId('workspace-preset-select').selectOption('services');
+  await page.getByTestId('workspace-widget-financial-evidence').waitFor();
+  assert.equal(await page.getByTestId('dashboard-workspace').getAttribute('data-preset'), 'services');
+  await page.getByTestId('workspace-close-preview').click();
+  await page.getByTestId('workspace-empty').waitFor();
+  assert.equal(configs.get(first).operatingProfile, 'RETAIL_TRADE');
+  assert.equal(events.filter(event => event.url.startsWith('/api/workspace') && event.method !== 'GET').length, 0);
+  mark('empty business shows one useful starting point while preset previews remain available without saving');
+  await page.getByTestId('workspace-customize').click();
+  await page.getByTestId('workspace-widget-health-score').waitFor();
+  await page.getByTestId('workspace-unavailable-ai-explanation').waitFor();
   assert.equal(events.filter(event => event.url === '/api/ai/explain').length, 0); assert.equal(await page.getByRole('link', { name: 'Ask FinSight', exact: true }).count(), 0); mark('disabled AI leaves deterministic dashboard usable and never requests explanations');
   await page.goto(`${origin}/settings`); await page.getByTestId('operating-profile').waitFor(); assert.equal(await page.getByTestId('operating-profile').inputValue(), 'RETAIL_TRADE'); assert.ok(await page.getByTestId('module-inventory').isDisabled()); assert.ok(await page.getByTestId('module-core_finance').isDisabled()); mark('existing business gets compatible defaults and future/required modules cannot be toggled');
   await page.getByTestId('operating-profile').selectOption('PROJECT_ORDER'); await page.getByTestId('operating-tracksProjects').check(); await page.getByRole('button', { name: 'Preview setup', exact: true }).click(); await page.getByTestId('configuration-preview').getByText('Project revenue', { exact: false }).waitFor(); assert.equal(configs.get(first).operatingProfile, 'RETAIL_TRADE'); mark('server preview adapts terminology without persisting');
