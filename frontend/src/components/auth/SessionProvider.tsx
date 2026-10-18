@@ -92,8 +92,17 @@ export function SessionProvider({ children }: {
             }
             if (ticket !== revision.current)
                 return;
-            if (JSON.stringify(user) !== JSON.stringify(snapshot.user) || JSON.stringify(business) !== JSON.stringify(snapshot.business)) {
+            const contextChanged = user.id !== snapshot.user?.id ||
+                user.authStage !== snapshot.user?.authStage ||
+                user.accountStatus !== snapshot.user?.accountStatus ||
+                business?.businessId !== snapshot.business?.businessId ||
+                business?.role !== snapshot.business?.role ||
+                business?.membershipStatus !== snapshot.business?.membershipStatus ||
+                business?.active !== snapshot.business?.active;
+            if (contextChanged) {
                 await refresh();
+            } else if (JSON.stringify(user) !== JSON.stringify(snapshot.user) || JSON.stringify(business) !== JSON.stringify(snapshot.business)) {
+                setState(s => ({ ...s, user, business }));
             }
         }
         catch (e) {

@@ -14,8 +14,6 @@ export function LanguageControl() {
         if (!isDemoMode && session.can('BUSINESS_SETTINGS_MANAGE'))
             await phaseOneApi.updateLanguage(next);
         setLocale(next);
-        if (!isDemoMode)
-            await session.refresh();
     }
     catch {
         toast(t.live.languageError, 'error');
