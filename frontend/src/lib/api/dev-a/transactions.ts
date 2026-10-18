@@ -30,4 +30,24 @@ export const transactionsApi = {
       || data.effectiveDate !== body.effectiveDate || data.description !== (body.description ?? null)) throw new InvalidTransactionResponse();
     return data;
   },
+  reverse: async (id: string, reason: string, key: string, signal?: AbortSignal, expectedBusiness?: string) => {
+    if (!isAccountId(id)) throw new Error('Invalid transaction ID.');
+    if (!key.trim() || key.length > 100) throw new Error('Invalid idempotency key.');
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < 5 || trimmedReason.length > 255) throw new Error('Reason must be between 5 and 255 characters.');
+    const body = { reason: trimmedReason };
+    const data = parseTransactionDetail(
+      await apiClient<unknown>('/finance/transactions/' + id + '/reverse', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: JSON.stringify(body),
+        signal
+      }),
+      expectedBusiness
+    );
+    if (!data.isReversal || data.reversedTransactionId?.toLowerCase() !== id.toLowerCase()) {
+      throw new InvalidTransactionResponse();
+    }
+    return data;
+  },
 };

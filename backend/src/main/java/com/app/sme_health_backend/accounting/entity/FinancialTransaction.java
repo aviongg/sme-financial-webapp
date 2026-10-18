@@ -27,6 +27,12 @@ public class FinancialTransaction {
     @Column(name = "destination_account_id", updatable = false)
     private UUID destinationAccountId;
 
+    @Column(name = "reversed_transaction_id", updatable = false)
+    private UUID reversedTransactionId;
+
+    @Column(name = "reversal_reason", length = 255, updatable = false)
+    private String reversalReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 64, updatable = false)
     private TransactionEventType eventType;
@@ -202,6 +208,22 @@ public class FinancialTransaction {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public UUID getReversedTransactionId() {
+        return reversedTransactionId;
+    }
+
+    public void setReversedTransactionId(UUID reversedTransactionId) {
+        this.reversedTransactionId = reversedTransactionId;
+    }
+
+    public String getReversalReason() {
+        return reversalReason;
+    }
+
+    public void setReversalReason(String reversalReason) {
+        this.reversalReason = reversalReason;
     }
 
     @Override

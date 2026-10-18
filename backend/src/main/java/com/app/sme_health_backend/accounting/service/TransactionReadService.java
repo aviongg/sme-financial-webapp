@@ -101,6 +101,23 @@ public class TransactionReadService {
                 ))
                 .toList();
 
+        boolean isReversal = tx.getReversedTransactionId() != null;
+        UUID reversedTxId = tx.getReversedTransactionId();
+        boolean isReversed = false;
+        UUID reversedByTxId = null;
+        String reversalReason = null;
+
+        if (isReversal) {
+            reversalReason = tx.getReversalReason();
+        } else {
+            Optional<FinancialTransaction> revOpt = transactionRepository.findByReversedTransactionIdAndBusinessId(tx.getId(), businessId);
+            if (revOpt.isPresent()) {
+                isReversed = true;
+                reversedByTxId = revOpt.get().getId();
+                reversalReason = revOpt.get().getReversalReason();
+            }
+        }
+
         return new TransactionDetailResponse(
                 tx.getId(),
                 tx.getBusinessId(),
@@ -121,7 +138,12 @@ public class TransactionReadService {
                 sourceAccountId,
                 sourceAccountName,
                 destinationAccountId,
-                destinationAccountName
+                destinationAccountName,
+                isReversal,
+                reversedTxId,
+                isReversed,
+                reversedByTxId,
+                reversalReason
         );
     }
 
@@ -234,6 +256,11 @@ public class TransactionReadService {
             }
         }
 
+        List<UUID> pageTxIds = txPage.getContent().stream().map(FinancialTransaction::getId).toList();
+        Map<UUID, FinancialTransaction> reversalsMap = pageTxIds.isEmpty() ? Collections.emptyMap() :
+                transactionRepository.findByBusinessIdAndReversedTransactionIdIn(businessId, pageTxIds).stream()
+                        .collect(Collectors.toMap(FinancialTransaction::getReversedTransactionId, t -> t, (a, b) -> a));
+
         List<TransactionDetailResponse> content = txPage.getContent().stream().map(tx -> {
             UUID rowAccountId;
             String rowAccountName;
@@ -244,6 +271,13 @@ public class TransactionReadService {
             String srcName = null;
             UUID dstId = null;
             String dstName = null;
+
+            boolean isReversal = tx.getReversedTransactionId() != null;
+            UUID reversedTxId = tx.getReversedTransactionId();
+            FinancialTransaction rev = reversalsMap.get(tx.getId());
+            boolean isReversed = rev != null;
+            UUID reversedByTxId = isReversed ? rev.getId() : null;
+            String reversalReason = isReversal ? tx.getReversalReason() : (isReversed ? rev.getReversalReason() : null);
 
             if (tx.getEventType() == TransactionEventType.INTERNAL_TRANSFER) {
                 srcId = tx.getAccountId();
@@ -257,7 +291,7 @@ public class TransactionReadService {
                     rowAccountId = dstId;
                     rowAccountName = dstName;
                     rowAccountType = dstAcc != null ? dstAcc.getAccountType().name() : "BANK";
-                    rowMovementDirection = MovementDirection.INCREASE.name();
+                    rowMovementDirection = isReversal ? MovementDirection.DECREASE.name() : MovementDirection.INCREASE.name();
 
                     BigDecimal opening = dstAcc != null ? dstAcc.getOpeningBalance() : BigDecimal.ZERO;
                     BigDecimal net = netMovementsByAccount.getOrDefault(dstId, BigDecimal.ZERO);
@@ -266,7 +300,7 @@ public class TransactionReadService {
                     rowAccountId = srcId;
                     rowAccountName = srcName;
                     rowAccountType = srcAcc != null ? srcAcc.getAccountType().name() : "BANK";
-                    rowMovementDirection = MovementDirection.DECREASE.name();
+                    rowMovementDirection = isReversal ? MovementDirection.INCREASE.name() : MovementDirection.DECREASE.name();
 
                     BigDecimal opening = srcAcc != null ? srcAcc.getOpeningBalance() : BigDecimal.ZERO;
                     BigDecimal net = netMovementsByAccount.getOrDefault(srcId, BigDecimal.ZERO);
@@ -304,7 +338,12 @@ public class TransactionReadService {
                     srcId,
                     srcName,
                     dstId,
-                    dstName
+                    dstName,
+                    isReversal,
+                    reversedTxId,
+                    isReversed,
+                    reversedByTxId,
+                    reversalReason
             );
         }).toList();
 
@@ -389,35 +428,57 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("movementDirection"), MovementDirection.INCREASE),
-                                            cb.equal(root.get("accountId"), accountId)
+                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("movementDirection"), MovementDirection.DECREASE),
-                                            cb.equal(root.get("accountId"), accountId)
+                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
                                             cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("destinationAccountId"), accountId)
+                                            cb.equal(root.get("destinationAccountId"), accountId),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("destinationAccountId"), accountId),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
                                             cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("accountId"), accountId)
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.equal(root.get("accountId"), accountId),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     )
             ).where(predicates.toArray(new Predicate[0]));
@@ -427,27 +488,49 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("movementDirection"), MovementDirection.INCREASE)
+                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.notEqual(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
-                                            cb.equal(root.get("movementDirection"), MovementDirection.DECREASE)
+                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
-                                    .when(cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.isNull(root.get("reversedTransactionId"))
+                                    ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     ),
                     cb.sum(
                             cb.<BigDecimal>selectCase()
-                                    .when(cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.isNull(root.get("reversedTransactionId"))
+                                    ), root.get("amount"))
+                                    .when(cb.and(
+                                            cb.equal(root.get("eventType"), TransactionEventType.INTERNAL_TRANSFER),
+                                            cb.isNotNull(root.get("reversedTransactionId"))
+                                    ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
                     )
             ).where(predicates.toArray(new Predicate[0]));

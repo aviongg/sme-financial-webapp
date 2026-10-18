@@ -8,6 +8,7 @@ import com.app.sme_health_backend.accounting.dto.TransactionPostRequest;
 import com.app.sme_health_backend.accounting.exception.TransactionValidationException;
 import com.app.sme_health_backend.accounting.service.TransactionPostService;
 import com.app.sme_health_backend.accounting.service.TransactionReadService;
+import com.app.sme_health_backend.accounting.service.TransactionReverseService;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.model.BusinessPermission;
 import com.app.sme_health_backend.identity.model.MembershipRole;
@@ -49,6 +50,9 @@ class TransactionControllerTest {
 
     @MockitoBean
     private TransactionReadService transactionReadService;
+
+    @MockitoBean
+    private TransactionReverseService transactionReverseService;
 
     @MockitoBean
     private BusinessAuthorizationService authService;
@@ -353,5 +357,117 @@ class TransactionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currency").value("PKR"))
                 .andExpect(jsonPath("$.transactionCount").value(0));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/transactions/{id}/reverse returns 201 Created for OWNER with valid reason")
+    void reverseTransaction_ownerSuccess() throws Exception {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_TRANSACTION_POST))).thenReturn(context);
+
+        TransactionDetailResponse response = new TransactionDetailResponse(
+                UUID.randomUUID(),
+                businessId,
+                accountId,
+                "Meezan Bank",
+                "BANK",
+                "DIRECT_SALE_RECEIPT",
+                "DECREASE",
+                "2000.00",
+                "PKR",
+                "2000.00",
+                LocalDate.of(2026, 10, 15),
+                "Customer invoice entered twice",
+                "10000.00",
+                Collections.emptyList(),
+                userId,
+                "2026-10-17T09:00:00Z",
+                null,
+                null,
+                null,
+                null,
+                true,
+                txId,
+                false,
+                null,
+                "Customer invoice entered twice"
+        );
+
+        when(transactionReverseService.postReversal(any(), eq("rev-key-1"), eq(txId), any()))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/finance/transactions/" + txId + "/reverse")
+                        .header("Idempotency-Key", "rev-key-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Customer invoice entered twice\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.isReversal").value(true))
+                .andExpect(jsonPath("$.reversedTransactionId").value(txId.toString()))
+                .andExpect(jsonPath("$.reversalReason").value("Customer invoice entered twice"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/transactions/{id}/reverse returns 403 Forbidden for MANAGER")
+    void reverseTransaction_managerForbidden() throws Exception {
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_TRANSACTION_POST)))
+                .thenThrow(new AccessDeniedException("Access denied"));
+
+        mockMvc.perform(post("/api/finance/transactions/" + txId + "/reverse")
+                        .header("Idempotency-Key", "rev-key-2")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Valid correction note\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/transactions/{id}/reverse returns 400 Bad Request when reason is missing or short")
+    void reverseTransaction_invalidReason() throws Exception {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.ACCOUNTANT);
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_TRANSACTION_POST))).thenReturn(context);
+
+        when(transactionReverseService.postReversal(any(), eq("rev-key-3"), eq(txId), any()))
+                .thenThrow(new TransactionValidationException("reason", "Reason must be between 5 and 255 characters"));
+
+        mockMvc.perform(post("/api/finance/transactions/" + txId + "/reverse")
+                        .header("Idempotency-Key", "rev-key-3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"no\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.reason").value("Reason must be between 5 and 255 characters"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/transactions/{id}/reverse returns 409 Conflict when already reversed")
+    void reverseTransaction_alreadyReversedConflict() throws Exception {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_TRANSACTION_POST))).thenReturn(context);
+
+        when(transactionReverseService.postReversal(any(), eq("rev-key-4"), eq(txId), any()))
+                .thenThrow(new DuplicateResourceException("Transaction has already been reversed"));
+
+        mockMvc.perform(post("/api/finance/transactions/" + txId + "/reverse")
+                        .header("Idempotency-Key", "rev-key-4")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Valid correction note\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Transaction has already been reversed"));
+    }
+
+    @Test
+    @DisplayName("POST /api/finance/transactions/{id}/reverse returns 404 Not Found when transaction does not exist")
+    void reverseTransaction_notFound() throws Exception {
+        BusinessAccessContext context = new BusinessAccessContext(userId, businessId, MembershipRole.OWNER);
+        when(authService.requirePermission(any(), eq(BusinessPermission.FINANCIAL_TRANSACTION_POST))).thenReturn(context);
+
+        when(transactionReverseService.postReversal(any(), eq("rev-key-5"), eq(txId), any()))
+                .thenThrow(new ResourceNotFoundException("Financial transaction not found"));
+
+        mockMvc.perform(post("/api/finance/transactions/" + txId + "/reverse")
+                        .header("Idempotency-Key", "rev-key-5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Valid correction note\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Financial transaction not found"));
     }
 }

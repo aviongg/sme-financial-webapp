@@ -3,9 +3,11 @@ package com.app.sme_health_backend.accounting.controller;
 import com.app.sme_health_backend.accounting.dto.TransactionDetailResponse;
 import com.app.sme_health_backend.accounting.dto.TransactionListResponse;
 import com.app.sme_health_backend.accounting.dto.TransactionPostRequest;
+import com.app.sme_health_backend.accounting.dto.TransactionReverseRequest;
 import com.app.sme_health_backend.accounting.dto.TransactionSummaryResponse;
 import com.app.sme_health_backend.accounting.service.TransactionPostService;
 import com.app.sme_health_backend.accounting.service.TransactionReadService;
+import com.app.sme_health_backend.accounting.service.TransactionReverseService;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.model.BusinessPermission;
 import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
@@ -22,15 +24,18 @@ public class TransactionController {
 
     private final TransactionPostService transactionPostService;
     private final TransactionReadService transactionReadService;
+    private final TransactionReverseService transactionReverseService;
     private final BusinessAuthorizationService authService;
 
     public TransactionController(
             TransactionPostService transactionPostService,
             TransactionReadService transactionReadService,
+            TransactionReverseService transactionReverseService,
             BusinessAuthorizationService authService
     ) {
         this.transactionPostService = transactionPostService;
         this.transactionReadService = transactionReadService;
+        this.transactionReverseService = transactionReverseService;
         this.authService = authService;
     }
 
@@ -46,6 +51,23 @@ public class TransactionController {
 
         TransactionDetailResponse response = transactionPostService.postTransaction(
                 context, idempotencyKey, requestDto
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{id:[0-9a-fA-F\\-]{36}}/reverse")
+    public ResponseEntity<TransactionDetailResponse> reverseTransaction(
+            @PathVariable("id") UUID id,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) TransactionReverseRequest requestDto,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(
+                request, BusinessPermission.FINANCIAL_TRANSACTION_POST
+        );
+
+        TransactionDetailResponse response = transactionReverseService.postReversal(
+                context, idempotencyKey, id, requestDto
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

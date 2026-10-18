@@ -1,5 +1,6 @@
 import { verifyRecordDrafts, verifyReplaySyntax } from './record-drafts.live.mjs';
 import { verifyTransfers } from './transfers.live.mjs';
+import { verifyReversals } from './reversals.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
 // installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
@@ -302,7 +303,7 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=(?:21|22)/);
+    assert.match(runtimeText, /schema=(?:21|22|23)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
@@ -346,7 +347,7 @@ try {
     await reviewBrowserContext.close();
     console.log('REVIEW_BROWSER_PASS loaded EN/UR mobile Records and natural amount preview; no smoke-test posting');
     writeFileSync(path.join(reviewDirectory, 'credentials.txt'), 'Local isolated review only\nEmail: ' + owner.email + '\nPassword: ' + password + '\nSign in through the normal app. Complete any security/MFA prompts.\n');
-    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: Number(runtimeText.match(/schema=(\d+)/)?.[1] || 22), backendPort, nextPort, gatewayPort, gatewayPid: gateway.pid, gatewayCommandPath: path.join(temporary,'gateway.mjs'), draftClassSha256: createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex'), backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
+    const metadata = { frontendUrl: origin, frontendPid: next.pid, backendPid: runtime.pid, databasePort: Number(runtimeText.match(/LIVE_DB_PORT:(\d+)/)[1]), migration: Number(runtimeText.match(/schema=(\d+)/)?.[1] || 23), backendPort, nextPort, gatewayPort, gatewayPid: gateway.pid, gatewayCommandPath: path.join(temporary,'gateway.mjs'), draftClassSha256: createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex'), backendClassSha256: expectedReviewClassHash, stopFile, runtimeDirectory: temporary, frontendCommandPath: path.join(frontend, 'node_modules/next/dist/bin/next'), javaSource: path.join(temporary, 'AccountsLiveRuntime.java') };
     writeFileSync(path.join(reviewDirectory, 'processes.json'), JSON.stringify(metadata, null, 2));
     leaveReview = true; runtime.unref(); next.unref(); gateway.unref();
     console.log('REVIEW_READY ' + origin + ' backendPid=' + runtime.pid + ' frontendPid=' + next.pid + ' databasePort=' + metadata.databasePort);
@@ -381,11 +382,11 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=(?:21|22)/);
+  assert.match(runtimeText, /schema=(?:21|22|23)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
-  mark('real disposable PostgreSQL ' + (runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)?.[1] ? 'V' + runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)[1] : 'V22') + '; verified syntax-fix Spring '+backendPort+', gateway '+gatewayPort+', production Next '+nextPort);
+  mark('real disposable PostgreSQL ' + (runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)?.[1] ? 'V' + runtimeText.match(/LIVE_ENV:[^;]+;schema=(\d+)/)[1] : 'V23') + '; verified syntax-fix Spring '+backendPort+', gateway '+gatewayPort+', production Next '+nextPort);
   await startNext();
   if(draftSyntaxOnly){
     const owner=await identity('syntax-parity@example.test');
@@ -863,6 +864,7 @@ try {
   mark('HTTP Records summary: independent 1500.00 + 1500.50 + 1500.56 = 4501.06 across complete matching dataset; refreshed bank balance 5501.62');
   await verifyRecordDrafts({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,accountId:mainAccount,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await verifyTransfers({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
+  await verifyReversals({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await control('SNAPSHOT RECORDS', 'LIVE_SNAPSHOT_RECORDS:');assert.equal(runtimeText.match(/LIVE_SNAPSHOT_RECORDS:([^\r\n]+)/)[1],beforeFinancial);
   mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by accounts, transactions and Records entry');
   await page.goto(origin + '/finance/accounts');await page.getByText('Live PKR Bank',{exact:true}).waitFor();

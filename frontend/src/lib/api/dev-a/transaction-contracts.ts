@@ -15,6 +15,11 @@ export interface TransactionSummary {
   sourceAccountName?: string | null;
   destinationAccountId?: string | null;
   destinationAccountName?: string | null;
+  isReversal?: boolean;
+  reversedTransactionId?: string | null;
+  isReversed?: boolean;
+  reversedByTransactionId?: string | null;
+  reversalReason?: string | null;
 }
 export interface TransactionMovement {
   id: string; accountId: string; movementDirection: MovementDirection; amount: string; currency: 'PKR'; effectiveDate: string; createdAt: string;
@@ -39,10 +44,11 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
   ensure(!expectedBusiness || (t.businessId as string).toLowerCase() === expectedBusiness.toLowerCase());
   ensure(typeof t.accountName === 'string' && t.accountName.length >= 1 && t.accountName.length <= 100 && t.accountName.trim() === t.accountName);
   ensure(accountTypes.includes(t.accountType as AccountType) && transactionEventTypes.includes(t.eventType as TransactionEventType));
+  const isRev = Boolean(t.isReversal);
   if (t.eventType === 'DIRECT_SALE_RECEIPT') {
-    ensure(t.movementDirection === 'INCREASE');
+    ensure(t.movementDirection === (isRev ? 'DECREASE' : 'INCREASE'));
   } else if (t.eventType === 'OPERATING_EXPENSE_PAYMENT') {
-    ensure(t.movementDirection === 'DECREASE');
+    ensure(t.movementDirection === (isRev ? 'INCREASE' : 'DECREASE'));
   } else if (t.eventType === 'INTERNAL_TRANSFER') {
     ensure(t.movementDirection === 'INCREASE' || t.movementDirection === 'DECREASE');
   } else {
@@ -57,6 +63,13 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
   if (t.sourceAccountName !== undefined && t.sourceAccountName !== null) ensure(typeof t.sourceAccountName === 'string');
   if (t.destinationAccountId !== undefined && t.destinationAccountId !== null) ensure(uuid(t.destinationAccountId));
   if (t.destinationAccountName !== undefined && t.destinationAccountName !== null) ensure(typeof t.destinationAccountName === 'string');
+  if (t.isReversal !== undefined) ensure(typeof t.isReversal === 'boolean');
+  if (t.reversedTransactionId !== undefined && t.reversedTransactionId !== null) ensure(uuid(t.reversedTransactionId));
+  if (t.isReversed !== undefined) ensure(typeof t.isReversed === 'boolean');
+  if (t.reversedByTransactionId !== undefined && t.reversedByTransactionId !== null) ensure(uuid(t.reversedByTransactionId));
+  if (t.reversalReason !== undefined && t.reversalReason !== null) {
+    ensure(typeof t.reversalReason === 'string' && t.reversalReason.length >= 1 && t.reversalReason.length <= descriptionLimit && t.reversalReason.trim() === t.reversalReason);
+  }
   return { id: t.id, businessId: t.businessId, accountId: t.accountId, accountName: t.accountName, accountType: t.accountType,
     eventType: t.eventType, movementDirection: t.movementDirection, amount: t.amount, currency: t.currency, baseAmountPkr: t.baseAmountPkr,
     effectiveDate: t.effectiveDate, description: t.description, resultingBalance: t.resultingBalance,
@@ -64,7 +77,12 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
     ...(t.sourceAccountId !== undefined ? { sourceAccountId: t.sourceAccountId as string | null } : {}),
     ...(t.sourceAccountName !== undefined ? { sourceAccountName: t.sourceAccountName as string | null } : {}),
     ...(t.destinationAccountId !== undefined ? { destinationAccountId: t.destinationAccountId as string | null } : {}),
-    ...(t.destinationAccountName !== undefined ? { destinationAccountName: t.destinationAccountName as string | null } : {}) } as TransactionSummary;
+    ...(t.destinationAccountName !== undefined ? { destinationAccountName: t.destinationAccountName as string | null } : {}),
+    ...(t.isReversal !== undefined ? { isReversal: isRev } : {}),
+    ...(t.reversedTransactionId !== undefined ? { reversedTransactionId: t.reversedTransactionId as string | null } : {}),
+    ...(t.isReversed !== undefined ? { isReversed: Boolean(t.isReversed) } : {}),
+    ...(t.reversedByTransactionId !== undefined ? { reversedByTransactionId: t.reversedByTransactionId as string | null } : {}),
+    ...(t.reversalReason !== undefined ? { reversalReason: t.reversalReason as string | null } : {}) } as TransactionSummary;
 }
 export function parseTransactionDetail(value: unknown, expectedBusiness?: string, expectedId?: string): TransactionDetailData {
   const raw = object(value), t = parseTransaction(raw, expectedBusiness);
@@ -89,8 +107,13 @@ export function parseTransactionDetail(value: unknown, expectedBusiness?: string
     const decreaseMov = movements.find(m => m.movementDirection === 'DECREASE');
     const increaseMov = movements.find(m => m.movementDirection === 'INCREASE');
     ensure(decreaseMov && increaseMov);
-    if (t.sourceAccountId) ensure(decreaseMov.accountId.toLowerCase() === t.sourceAccountId.toLowerCase());
-    if (t.destinationAccountId) ensure(increaseMov.accountId.toLowerCase() === t.destinationAccountId.toLowerCase());
+    if (t.isReversal) {
+      if (t.sourceAccountId) ensure(increaseMov.accountId.toLowerCase() === t.sourceAccountId.toLowerCase());
+      if (t.destinationAccountId) ensure(decreaseMov.accountId.toLowerCase() === t.destinationAccountId.toLowerCase());
+    } else {
+      if (t.sourceAccountId) ensure(decreaseMov.accountId.toLowerCase() === t.sourceAccountId.toLowerCase());
+      if (t.destinationAccountId) ensure(increaseMov.accountId.toLowerCase() === t.destinationAccountId.toLowerCase());
+    }
   } else {
     ensure(movements[0].accountId.toLowerCase() === t.accountId.toLowerCase() && movements[0].movementDirection === t.movementDirection);
   }

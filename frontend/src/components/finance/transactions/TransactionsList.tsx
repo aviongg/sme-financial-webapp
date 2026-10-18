@@ -117,19 +117,42 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
     {loading ? <p role="status">{copy.loading}</p> : state?.error || history.error ? <Card><p role="alert">{state?.error ? copy[state.error] : copy.failed}</p><Button variant="secondary" onClick={history.retry}>{copy.retry}</Button></Card> : page && <>
       <p role="status">{copy.count}: <bdi dir="ltr">{page.totalElements}</bdi></p>
       {page.content.length === 0 ? <Card><p>{page.totalElements === 0 ? copy.empty : copy.outOfRange}</p>{page.page > 0 && <Button variant="secondary" onClick={() => setQuery(previous => ({ ...previous, page: 0 }))}>{copy.first}</Button>}</Card> : <ul className="grid gap-4 md:grid-cols-2" aria-label={copy.title}>{page.content.map(t => <li key={t.id} className="min-w-0"><Card className="space-y-3 h-full min-w-0">
-        <h2 className="font-semibold [overflow-wrap:anywhere]">{t.accountName}</h2><p>{copy[t.eventType]} · {copy[t.movementDirection]}</p>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="font-semibold [overflow-wrap:anywhere]">{t.accountName}</h2>
+          {t.isReversed ? (
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">{copy.reversedBadge}</span>
+          ) : t.isReversal ? (
+            <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">{copy.reversalBadge}</span>
+          ) : null}
+        </div>
+        <p>{copy[t.eventType]} · {copy[t.movementDirection]}</p>
         {t.eventType === 'INTERNAL_TRANSFER' && t.sourceAccountName && t.destinationAccountName && (
           <p className="text-xs text-[var(--color-text-muted)] font-medium">
             {t.sourceAccountName} &rarr; {t.destinationAccountName}
           </p>
         )}
-        <AccountMoneyValue value={t.amount} currency={t.currency} scale={2} copy={moneyCopy} />
+        <div className={t.isReversed ? 'line-through opacity-70' : ''}>
+          <AccountMoneyValue value={t.amount} currency={t.currency} scale={2} copy={moneyCopy} />
+        </div>
         <p>{copy.date}: <bdi dir="ltr">{t.effectiveDate}</bdi></p>
         <Button variant="secondary" aria-label={copy.details + ': ' + t.id} onClick={() => setSelected(t.id)}>{copy.details}</Button>
       </Card></li>)}</ul>}
       {page.totalPages > 0 && <nav aria-label={copy.page} className="flex flex-wrap items-center gap-3"><Button variant="secondary" disabled={page.page === 0} onClick={() => { close(); setQuery(previous => ({ ...previous, page: Math.max(0, (previous.page ?? 0) - 1) })); }}>{copy.previous}</Button><span>{copy.page} <bdi dir="ltr">{page.page + 1}</bdi> {copy.of} <bdi dir="ltr">{page.totalPages}</bdi></span><Button variant="secondary" disabled={page.page + 1 >= page.totalPages} onClick={() => { close(); setQuery(previous => ({ ...previous, page: (previous.page ?? 0) + 1 })); }}>{copy.next}</Button></nav>}
       <p className="text-sm">{moneyCopy.cutoff}: <bdi dir="ltr">{page.effectiveCutoffDate}</bdi> · {moneyCopy.observed}: <bdi dir="ltr">{page.observationAt}</bdi></p>
     </>}
-    {selected && <TransactionDetail key={context + ':' + selected} id={selected} onClose={close} />}
+    {selected && (
+      <TransactionDetail
+        key={context + ':' + selected}
+        id={selected}
+        onClose={close}
+        onNavigate={targetId => setSelected(targetId)}
+        onReversed={() => {
+          setRefresh(r => r + 1);
+          history.retry();
+          totals.retry();
+          accountsResource.retry();
+        }}
+      />
+    )}
   </div></Frame>;
 }
