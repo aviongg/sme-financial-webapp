@@ -1,6 +1,7 @@
 import { verifyRecordDrafts, verifyReplaySyntax } from './record-drafts.live.mjs';
 import { verifyTransfers } from './transfers.live.mjs';
 import { verifyReversals } from './reversals.live.mjs';
+import { verifyImportDrafts } from './import-drafts.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
 // installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
@@ -46,6 +47,7 @@ const reviewOnly = process.argv.includes('--review');
 const parityOnly = process.argv.includes('--parity');
 const draftSyntaxOnly=process.argv.includes('--draft-syntax');
 const captureOldParity = process.argv.includes('--capture-old-parity');
+const importOnly = process.argv.includes('--import-only');
 let leaveReview = false;
 let runtime, next, browser, gateway;
 let gatewayText = "";
@@ -144,6 +146,70 @@ public class AccountsLiveRuntime {
             UUID.fromString(parts[1]);
             try(var q=c.prepareStatement("UPDATE financial_accounts SET opening_balance=999999999999.99 WHERE id=?::uuid")){q.setString(1,parts[1]);if(q.executeUpdate()!=1)throw new IllegalStateException("Missing isolated integrity fixture");}
             System.out.println("LIVE_CORRUPT_OPENING");
+          }
+          else if(parts[0].equals("ZERO_MUTATION_CHECK")) {
+            StringBuilder sb=new StringBuilder();
+            for(String table:List.of("financial_transactions","account_movements","monthly_records","score_results","record_drafts","import_batches","import_batch_rows")) {
+              try(var q=c.createStatement(); var r=q.executeQuery("SELECT count(*) FROM "+table)) {
+                r.next();
+                sb.append(table).append("=").append(r.getLong(1)).append(";");
+              }
+            }
+            System.out.println("LIVE_MUTATION_"+parts[1]+":"+sb);
+          }
+          else if(parts[0].equals("CONCURRENT_IMPORT_ROW_RACE")) {
+            String bId=parts[1], batchId=parts[2], sRowId=parts[3], hash=parts[4], tag=parts[5], uId=parts[6];
+            String d1=UUID.randomUUID().toString(), d2=UUID.randomUUID().toString();
+            try(var ps=c.prepareStatement("INSERT INTO record_drafts (id,business_id,created_by_id,updated_by_id,status,version,created_at,updated_at) VALUES (?::uuid,?::uuid,?::uuid,?::uuid,'DRAFT',0,now(),now())")) {
+              ps.setString(1,d1); ps.setString(2,bId); ps.setString(3,uId); ps.setString(4,uId); ps.executeUpdate();
+              ps.setString(1,d2); ps.setString(2,bId); ps.setString(3,uId); ps.setString(4,uId); ps.executeUpdate();
+            }
+            var succ=new java.util.concurrent.atomic.AtomicInteger();
+            var conf=new java.util.concurrent.atomic.AtomicInteger();
+            Thread t1=new Thread(()->{
+              try(Connection conn=pg.getPostgresDatabase().getConnection();
+                  PreparedStatement ps=conn.prepareStatement("INSERT INTO import_batch_rows (id,business_id,batch_id,source_row_id,source_row_number,draft_id,payload_hash,created_at) VALUES (gen_random_uuid(),?::uuid,?::uuid,?,1,?::uuid,?,now())")) {
+                ps.setString(1,bId); ps.setString(2,batchId); ps.setString(3,sRowId); ps.setString(4,d1); ps.setString(5,hash);
+                ps.executeUpdate(); succ.incrementAndGet();
+              } catch(Exception e) { conf.incrementAndGet(); }
+            });
+            Thread t2=new Thread(()->{
+              try(Connection conn=pg.getPostgresDatabase().getConnection();
+                  PreparedStatement ps=conn.prepareStatement("INSERT INTO import_batch_rows (id,business_id,batch_id,source_row_id,source_row_number,draft_id,payload_hash,created_at) VALUES (gen_random_uuid(),?::uuid,?::uuid,?,1,?::uuid,?,now())")) {
+                ps.setString(1,bId); ps.setString(2,batchId); ps.setString(3,sRowId); ps.setString(4,d2); ps.setString(5,hash);
+                ps.executeUpdate(); succ.incrementAndGet();
+              } catch(Exception e) { conf.incrementAndGet(); }
+            });
+            t1.start(); t2.start();
+            try { t1.join(); t2.join(); } catch(Exception ignored){}
+            System.out.println("LIVE_RACE_"+tag+":succ="+succ.get()+";conf="+conf.get());
+          }
+          else if(parts[0].equals("VERIFY_DRAFT_RAW")) {
+            String draftId=parts[1], tag=parts[2];
+            try(var q=c.prepareStatement("SELECT amount_input FROM record_drafts WHERE id=?::uuid")) {
+              q.setString(1,draftId);
+              try(var r=q.executeQuery()){
+                if(r.next()) System.out.println("LIVE_DRAFT_RAW_"+tag+":"+r.getString(1));
+                else System.out.println("LIVE_DRAFT_RAW_"+tag+":NOT_FOUND");
+              }
+            }
+          }
+          else if(parts[0].equals("COUNT_IMPORT_ROWS")) {
+            String batchId=parts[1], tag=parts[2];
+            try(var q=c.prepareStatement("SELECT count(*) FROM import_batch_rows WHERE batch_id=?::uuid")) {
+              q.setString(1,batchId);
+              try(var r=q.executeQuery()){ r.next(); System.out.println("LIVE_COUNT_IMPORT_ROWS_"+tag+":"+r.getLong(1)); }
+            }
+          }
+          else if(parts[0].equals("VERIFY_RECORDED_TX")) {
+            String draftId=parts[1], tag=parts[2];
+            try(var q=c.prepareStatement("SELECT rd.recorded_transaction_id, ft.id, ft.amount, ft.event_type, (SELECT count(*) FROM account_movements WHERE transaction_id = ft.id) FROM record_drafts rd LEFT JOIN financial_transactions ft ON rd.recorded_transaction_id = ft.id WHERE rd.id = ?::uuid")) {
+              q.setString(1,draftId);
+              try(var r=q.executeQuery()){
+                if(r.next()) System.out.println("LIVE_VERIFY_TX_"+tag+":recId="+r.getString(1)+";txId="+r.getString(2)+";amount="+r.getString(3)+";type="+r.getString(4)+";movements="+r.getLong(5));
+                else System.out.println("LIVE_VERIFY_TX_"+tag+":NOT_FOUND");
+              }
+            }
           }
           else if(parts[0].equals("EXPIRE")) { try(var s=c.createStatement()) { s.executeUpdate("DELETE FROM spring_session"); } System.out.println("LIVE_EXPIRED"); }
         }
@@ -303,7 +369,7 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=(?:21|22|23)/);
+    assert.match(runtimeText, /schema=(?:21|22|23|24)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
@@ -369,7 +435,8 @@ try {
     await page.getByRole('button', {name:'Switch interface language'}).click(); await page.getByText('Activity and money accounts preview is not available in demo mode.', {exact:true}).waitFor(); assert.deepEqual(privateRequests, []);
     assert.equal(await page.getByRole('button', {name:'Add record',exact:true}).count(),0);
     await page.goto(origin+'/records?view=review');await page.getByText('Activity and money accounts preview is not available in demo mode.',{exact:true}).waitFor();assert.deepEqual(privateRequests,[]);
-    mark('demo browser accounts/transactions/Records English/Urdu preview unavailable; zero private API requests');
+    await page.goto(origin+'/records/import');await page.getByText('Local preview in demo: private accounts are not requested.',{exact:false}).waitFor();assert.deepEqual(privateRequests,[]);
+    mark('demo browser accounts/transactions/Records/Import English/Urdu preview unavailable; zero private API requests');
     await context.close();
   } else {
   const expectedAccountReadHash=accountReadClassFreshness();
@@ -382,7 +449,7 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=(?:21|22|23)/);
+  assert.match(runtimeText, /schema=(?:21|22|23|24)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
@@ -442,10 +509,18 @@ try {
   const invalid = await api(owner.context, '/finance/accounts?page=abc'); assert.equal(invalid.status(), 400); assert.equal((await invalid.json()).error, 'Validation Failed');
   mark('real cookies/CSRF, opening-only values, Viewer/Manager read grants and cross-business detail 404');
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  console.log('BROWSER_VERSION: ' + browser.version());
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage(); const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await signin(page, owner.email);
+  const mainAccount = ids.pkr;
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  if (importOnly) {
+    await verifyImportDrafts({ api, owner, viewer, manager, accountant, page, context, browser, signin, origin, accountId: mainAccount, today, txCounts, control, getRuntimeText: () => runtimeText, blockers, mark, businessA, businessB, requestFactory: request, temporary, out });
+    await context.close();
+    mark('IMPORT DRAFTS ACCEPTANCE COMPLETED IN ISOLATION');
+  } else {
   await page.getByText('PKR - 2,500.50', { exact: true }).waitFor();
   await page.getByText('JPY 999,999,999,999', { exact: true }).waitFor();
   await page.getByText('BHD 1,250.375', { exact: true }).waitFor();
@@ -865,6 +940,7 @@ try {
   await verifyRecordDrafts({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,accountId:mainAccount,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await verifyTransfers({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
   await verifyReversals({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,today,txCounts,blockers,mark,businessA,businessB,requestFactory:request});
+  await verifyImportDrafts({api,owner,viewer,manager,accountant,page,context,browser,signin,origin,accountId:mainAccount,today,txCounts,control,getRuntimeText:()=>runtimeText,blockers,mark,businessA,businessB,requestFactory:request,temporary,out});
   await control('SNAPSHOT RECORDS', 'LIVE_SNAPSHOT_RECORDS:');assert.equal(runtimeText.match(/LIVE_SNAPSHOT_RECORDS:([^\r\n]+)/)[1],beforeFinancial);
   mark('HTTP/DB: nonempty monthly records, scores, insights and recommendations unchanged by accounts, transactions and Records entry');
   await page.goto(origin + '/finance/accounts');await page.getByText('Live PKR Bank',{exact:true}).waitFor();
@@ -917,6 +993,7 @@ try {
   mark('stopped task-owned Spring produces visible failure, never mock or empty financial data');
   assert.deepEqual(errors, []);
   await context.close();
+  }
   }
   }
 } catch (error) {

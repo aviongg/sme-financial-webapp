@@ -29,6 +29,8 @@ export interface StoredPreviewSession {
  overrides: Record<number, Classification>;
  issuesOnly: boolean;
  page: number;
+ batchId?: string;
+ savedDrafts?: Record<number, { draftId: string; status: 'SAVED' | 'REPLAYED'; draftStatus: string; readyToRecord: boolean }>;
 }
 
 let activeStoreKey: string | null = null;

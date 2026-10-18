@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { recordsEn, recordsUr } from '@/components/records/records-copy';
 function Workspace() {
  const params = useSearchParams(), {locale, direction} = useLanguage(), copy = locale === 'ur' ? recordsUr : recordsEn;
- const view = params.get('view') === 'accounts' ? 'accounts' : params.get('view') === 'review' ? 'review' : 'activity';
+ const view = params.get('view') === 'accounts' ? 'accounts' : (params.get('view') === 'review' || params.has('draftId')) ? 'review' : 'activity';
  const link = (tab: string) => { const next = new URLSearchParams(params.toString()); next.set('view',tab); return '/records?' + next; };
  const currentContext = '/records' + (params.size ? '?' + params.toString() : '');
  const returnParams = new URLSearchParams(params.toString()); returnParams.set('focus','scan');

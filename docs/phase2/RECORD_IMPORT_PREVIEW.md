@@ -1,6 +1,6 @@
 # A-F12A-IMPORT-PREVIEW
 
-Status: FRONTEND_PREVIEW_VERIFIED — isolated tests, whole-application gates, language-switch preview retention, and actual Edge browser evidence complete (18 October 2026). Local preview only; no financial writes or persistence.
+Status: FRONTEND_PREVIEW_VERIFIED & DRAFTS_CONTRACT_READY — preview complete; persistent import-to-draft integration active under V24. Local preview only for unpersisted rows; persistent drafts created via POST /api/finance/drafts/import.
 
 Starting branch: dev/suleman. Actual starting HEAD: c99d193e6eb6ccced11f6df27c2a939b9596bf02.
 Root/frontend AGENTS.md v1.1 read. Task-specific feature-local bilingual copy overrides central translation registration for this isolated slice. Existing paths checked absent before creation. Backend/.cp.txt preserved.
@@ -179,4 +179,341 @@ No backend import contract, persistence, draft creation, recording operation, ba
      9. Reset / abandonment: confirmed "Start again" resets in-memory preview state.
    - Network audit: **Zero non-GET private requests** during preview, mapping, review, and language switches.
 
-**FRONTEND_PREVIEW_VERIFIED** — preview usability complete across language switches; review stack active. **PAUSED.**
+---
+
+## Normative Contract: Persistent Import-to-Draft (Revision 2.0)
+
+**Feature ID:** `A-F12A-IMPORT-DRAFTS` (Persistent Spreadsheet Import to Record Drafts)
+**Author:** Antigravity (Developer A Backend Coordinator)
+**Target:** Codex (Developer A Frontend)
+**Allocated Migration:** `V24__create_import_draft_provenance.sql`
+**Status:** **CONTRACT_READY**
+
+### 1. Architectural Boundaries & Non-Interference Invariants
+1. **Zero Financial Mutation:** Saving imported rows creates ordinary persistent drafts in `record_drafts` and records provenance in `import_batches` and `import_batch_rows`. It **never posts financial transactions**, generates account movements, alters account balances, creates transaction summaries, or modifies monthly health scores, insights, recommendations, or Zakat.
+2. **Reuse Existing Draft Lifecycle:** Saved drafts adhere strictly to the `RECORD_DRAFTS.md` specification. They appear under the central Records workspace (`/records`) under "To review", where they can be individually inspected, updated, recorded, or discarded.
+3. **No Batch Financial Posting:** This slice provides persistent import-to-draft saving and recovery. Batch financial posting, automated ledger reconciliation, AI classification, OCR, and multi-currency conversions remain completely excluded.
+4. **Tenant Isolation:** All operations resolve the active business context server-side (`ActiveBusinessContext`). Supplying foreign batch IDs, account IDs, or draft IDs yields a non-disclosing 404 response.
+
+---
+
+### 2. Permission Matrix
+Reuses established financial transaction permissions:
+| Operation | HTTP Method / Path | Required Permission | Allowed Roles | Denied Roles |
+| :--- | :--- | :--- | :--- | :--- |
+| **Save Batch Rows** | `POST /api/finance/drafts/import` | `FINANCIAL_TRANSACTION_POST` | `OWNER`, `ACCOUNTANT` | `MANAGER`, `VIEWER` (403) |
+| **Recover / Detail Batch** | `GET /api/finance/drafts/import/{batchId}` | `FINANCIAL_TRANSACTION_READ` | `OWNER`, `ACCOUNTANT`, `MANAGER`, `VIEWER` | Denied (403) |
+| **List Batches** | `GET /api/finance/drafts/import` | `FINANCIAL_TRANSACTION_READ` | `OWNER`, `ACCOUNTANT`, `MANAGER`, `VIEWER` | Denied (403) |
+
+---
+
+### 3. Endpoints Specification
+
+#### 3.1 Save Import Drafts (Chunked): `POST /api/finance/drafts/import`
+Persists a chunk of up to 100 reviewed spreadsheet rows as ordinary drafts with durable provenance.
+
+- **Headers:**
+  - `Content-Type: application/json`
+  - `X-XSRF-TOKEN: <csrf-token>`
+  - `Idempotency-Key: <string>` (optional, 1..100 chars)
+- **Request Body Limits:**
+  - `batchId`: UUID string (RFC 4122), stable identifier for the import session.
+  - `sourceLabel`: String, 1..255 characters (e.g. filename or `"Pasted spreadsheet"`).
+  - `rows`: Array of row items ($1 \le \text{count} \le 100$).
+- **Row Item Schema:**
+  | Field | Type | Required | Constraints & Semantics |
+  | :--- | :--- | :--- | :--- |
+  | `sourceRowId` | String | Yes | 1..100 characters. Stable unique identifier within the batch (e.g. string of source line number `"2"`). |
+  | `sourceRowNumber` | Integer | Yes | $\ge 1$. Original physical spreadsheet row number. |
+  | `accountId` | UUID | Yes | Active PKR account in active business (`status = ACTIVE`, `balanceStatus = AVAILABLE`, `currency = PKR`). |
+  | `eventType` | String | No | Nullable. If present: `"DIRECT_SALE_RECEIPT"` or `"OPERATING_EXPENSE_PAYMENT"`. Never inferred from direction. |
+  | `effectiveDate` | String | No | Nullable ISO date `YYYY-MM-DD`. Valid calendar date. If malformed, rejected with 400 (never silently defaulted). |
+  | `amountInput` | String | No | Nullable text up to 100 characters. Verbatim original source amount (no trimming, truncation, or rounding). |
+  | `description` | String | No | Nullable text up to 255 characters. |
+  | `sourceReference` | String | No | Nullable text up to 255 characters. Optional source reference token. |
+
+- **Request Example:**
+```json
+{
+  "batchId": "a1b2c3d4-e5f6-4701-abcd-0123456789ab",
+  "sourceLabel": "bank_statement.csv",
+  "rows": [
+    {
+      "sourceRowId": "2",
+      "sourceRowNumber": 2,
+      "accountId": "f1e2d3c4-b5a6-4901-89ab-0123456789ef",
+      "eventType": "DIRECT_SALE_RECEIPT",
+      "effectiveDate": "2026-10-15",
+      "amountInput": " 1,500.555 ",
+      "description": "Invoice payment from customer",
+      "sourceReference": "INV-1001"
+    },
+    {
+      "sourceRowId": "3",
+      "sourceRowNumber": 3,
+      "accountId": "f1e2d3c4-b5a6-4901-89ab-0123456789ef",
+      "eventType": null,
+      "effectiveDate": "2026-10-16",
+      "amountInput": "250.00",
+      "description": "Office supplies",
+      "sourceReference": null
+    }
+  ]
+}
+```
+
+- **Response Schema (`201 Created` or `200 OK` on replay):**
+```json
+{
+  "batchId": "a1b2c3d4-e5f6-4701-abcd-0123456789ab",
+  "sourceLabel": "bank_statement.csv",
+  "savedCount": 2,
+  "replayedCount": 0,
+  "totalRowsInBatch": 2,
+  "rows": [
+    {
+      "sourceRowId": "2",
+      "sourceRowNumber": 2,
+      "sourceReference": "INV-1001",
+      "draftId": "b1b2b3b4-c5c6-4701-abcd-ef0123456789",
+      "status": "SAVED",
+      "draftStatus": "DRAFT",
+      "readyToRecord": true,
+      "version": 0,
+      "recordedTransactionId": null
+    },
+    {
+      "sourceRowId": "3",
+      "sourceRowNumber": 3,
+      "sourceReference": null,
+      "draftId": "c1c2c3c4-d5d6-4701-abcd-ef0123456789",
+      "status": "SAVED",
+      "draftStatus": "DRAFT",
+      "readyToRecord": false,
+      "version": 0,
+      "recordedTransactionId": null
+    }
+  ]
+}
+```
+
+---
+
+#### 3.2 Get Batch Detail & Recovery: `GET /api/finance/drafts/import/{batchId}`
+Retrieves the persisted batch and current draft statuses for all associated rows to allow recovery after browser reload or navigation.
+
+- **Headers:** `Accept: application/json`
+- **Response Example (`200 OK`):**
+```json
+{
+  "batchId": "a1b2c3d4-e5f6-4701-abcd-0123456789ab",
+  "sourceLabel": "bank_statement.csv",
+  "totalRows": 2,
+  "createdAt": "2026-10-18T10:00:00Z",
+  "updatedAt": "2026-10-18T10:00:00Z",
+  "rows": [
+    {
+      "sourceRowId": "2",
+      "sourceRowNumber": 2,
+      "sourceReference": "INV-1001",
+      "draftId": "b1b2b3b4-c5c6-4701-abcd-ef0123456789",
+      "status": "SAVED",
+      "draftStatus": "DRAFT",
+      "readyToRecord": true,
+      "version": 0,
+      "recordedTransactionId": null
+    },
+    {
+      "sourceRowId": "3",
+      "sourceRowNumber": 3,
+      "sourceReference": null,
+      "draftId": "c1c2c3c4-d5d6-4701-abcd-ef0123456789",
+      "status": "SAVED",
+      "draftStatus": "RECORDED",
+      "readyToRecord": false,
+      "version": 1,
+      "recordedTransactionId": "f1f2f3f4-0000-4701-abcd-0123456789ab"
+    }
+  ]
+}
+```
+
+---
+
+#### 3.3 List Batches: `GET /api/finance/drafts/import`
+- **Query Parameters:** `page` (default 0), `size` (default 20, max 100).
+- **Response Example (`200 OK`):**
+```json
+{
+  "items": [
+    {
+      "batchId": "a1b2c3d4-e5f6-4701-abcd-0123456789ab",
+      "sourceLabel": "bank_statement.csv",
+      "totalRows": 2,
+      "createdAt": "2026-10-18T10:00:00Z",
+      "updatedAt": "2026-10-18T10:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+---
+
+### 4. Identity, Atomicity & Recovery Invariants
+
+1. **Durable Uniqueness:** Uniqueness is enforced at the database level across `(business_id, batch_id, source_row_id)`.
+2. **Payload Hash Check:**
+   - Canonical string: `accountId|eventType|effectiveDate|amountInput|description|sourceReference`.
+   - Hash: SHA-256 hex digest.
+   - **Matching Retry:** If `(business_id, batch_id, source_row_id)` exists with an identical payload hash, the server recognizes it as a valid replay, fetches the current linked draft, returns `status: "REPLAYED"`, and **never creates a new draft**.
+   - **Changed Conflict:** If `(business_id, batch_id, source_row_id)` exists with a differing payload hash, the server returns HTTP `409 Conflict`.
+3. **Draft Lifecycle Decoupling:** Once a draft is saved, subsequent edits use the standard `PUT /api/finance/drafts/{id}` or `POST /api/finance/drafts/{id}/record` or `discard`. If an import batch is re-queried or replayed after a draft is recorded or discarded, the server accurately reports `draftStatus: "RECORDED"` or `"DISCARDED"` and does not recreate it.
+4. **Atomicity:** Every request is executed inside an atomic transaction. Any validation failure or conflict causes a complete rollback. In chunked operations (e.g. 150 rows chunked into 100 + 50), chunk 1 remains safely committed even if chunk 2 fails.
+5. **Idempotency-Key Header:** Request-level idempotency uses `financial_idempotency_records` with operation `RECORD_DRAFT_IMPORT`. Replaying with identical key and request digest returns the cached response. Replaying with changed payload yields HTTP `409 Conflict`.
+
+---
+
+### 5. Error Schema (Compatible with `apiClient`)
+
+- **Validation Failure (`400 Bad Request`):**
+```json
+{
+  "timestamp": "2026-10-18T14:00:00",
+  "status": 400,
+  "error": "Validation Failed",
+  "message": "One or more import rows failed validation",
+  "errors": {
+    "rows[0].description": "Description must not exceed 255 characters",
+    "rows[1].effectiveDate": "Invalid date format. Expected YYYY-MM-DD"
+  }
+}
+```
+- **Conflict Failure (`409 Conflict`):**
+```json
+{
+  "timestamp": "2026-10-18T14:00:00",
+  "status": 409,
+  "error": "Conflict",
+  "message": "Source row '2' has already been saved with different content in batch 'a1b2c3d4-e5f6-4701-abcd-0123456789ab'"
+}
+```
+- **Forbidden Failure (`403 Forbidden`):**
+```json
+{
+  "timestamp": "2026-10-18T14:00:00",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "Access is denied"
+}
+```
+
+---
+
+## 6. Persistent Import-to-Draft Implementation & Verification Evidence — 18 October 2026
+
+**Feature ID:** `A-F12A-IMPORT-DRAFTS`
+**Engineer:** Antigravity (Developer A Backend Coordinator)
+**Status:** **VERIFIED & COMPLETE** (Backend, Frontend, Full Test Suites & Production Build)
+**Migration:** `V24__create_import_draft_provenance.sql`
+
+### 6.1 Database Schema & Migration V24
+- `V24__create_import_draft_provenance.sql`:
+  - Added unique constraint `uq_record_drafts_id_business UNIQUE (id, business_id)` on `record_drafts`.
+  - Created `import_batches` table with composite primary key/unique `(id, business_id)`, tracking `source_label`, `total_rows_imported`, `created_by_id`, `created_at`, `updated_at`.
+  - Created `import_batch_rows` table with unique constraint `uq_import_batch_rows_unique UNIQUE (business_id, batch_id, source_row_id)` and `uq_import_batch_rows_draft UNIQUE (business_id, draft_id)`.
+  - Foreign key constraints with tenant isolation matching:
+    - `(batch_id, business_id) REFERENCES import_batches (id, business_id)`
+    - `(draft_id, business_id) REFERENCES record_drafts (id, business_id)`
+  - Deterministic replay & conflict detection: SHA-256 payload hash stored in `payload_hash` (CHAR(64)) to detect conflicting content replays for the same `(business_id, batch_id, source_row_id)`.
+  - Non-destructive grants to `finsight_app` with safe `DO $$ ... $$` blocks.
+
+### 6.2 Backend Architecture & Components
+- **Entities & Repositories:**
+  - `ImportBatch.java` & `ImportBatchRepository.java`
+  - `ImportBatchRow.java` & `ImportBatchRowRepository.java`
+- **DTOs:**
+  - `ImportDraftRowItem.java`: Validates individual row input (mandatory `sourceRowId`, `sourceRowNumber`, optional `accountId`, `eventType`, `effectiveDate`, verbatim `amountInput`, `description`, `sourceReference`).
+  - `ImportDraftsRequest.java`: Bounded chunk request ($1 \le \text{count} \le 100$).
+  - `ImportDraftRowResult.java`: Row result mapping `draftId`, `status` (`SAVED` vs. `REPLAYED`), `draftStatus` (`DRAFT`), `readyToRecord`, and `recordedTransactionId`.
+  - `ImportDraftsResponse.java`, `ImportBatchDetailResponse.java`, `ImportBatchListResponse.java`.
+- **Domain Service:**
+  - `ImportDraftService.java`:
+    - Enforces max 100 rows per chunk.
+    - Pre-saves and flushes `ImportBatch` to satisfy composite foreign key constraints.
+    - Persists verbatim raw amount input into `record_drafts.amount_input` without truncation or rounding.
+    - Evaluates readiness via `RecordDraftService.isReadyToRecord`.
+    - Handles exact idempotent replays returning `status = "REPLAYED"` and rejects conflicting row content with HTTP 409 Conflict.
+    - Provides batch recovery via `GET /api/finance/drafts/import/{batchId}` and listing via `GET /api/finance/drafts/import`.
+- **REST Controller:**
+  - `ImportDraftController.java`:
+    - `POST /api/finance/drafts/import` (`FINANCIAL_TRANSACTION_POST`, OWNER & ACCOUNTANT)
+    - `GET /api/finance/drafts/import/{batchId}` (`FINANCIAL_TRANSACTION_READ`)
+    - `GET /api/finance/drafts/import` (`FINANCIAL_TRANSACTION_READ`)
+
+### 6.3 Frontend Integration
+- **API Adapter:**
+  - `frontend/src/lib/api/dev-a/import-drafts.ts`: Fully decoupled adapter validating responses strictly, declaring `ImportDraftEventType`, and providing `saveImportDrafts`, `getImportBatch`, and `listImportBatches`.
+- **In-Memory Lifetime Store:**
+  - `frontend/src/lib/imports/lifetime.ts`: Updated `StoredPreviewSession` to hold `batchId` and `savedDrafts` in transient JS memory. Zero localStorage usage for financial source data. Preserves preview state across language switches (EN $\leftrightarrow$ UR).
+- **Presentation & Review Components:**
+  - `frontend/src/components/records/import/ImportPreview.tsx`:
+    - Integrated "Save selected as drafts" button with chunking ($\le 100$ rows per chunk) and progress indicator (`Saving rows 1–100 of 150…`).
+    - Failure tolerance: preserves previously successful chunks if a later chunk fails.
+    - Blocking validation checks (e.g., malformed date, missing/invalid amount) disable saving with bilingual alerts; non-blocking warnings (missing financial purpose) allow saving incomplete drafts with clear informational notices.
+    - URL search param reflection (`?batchId=<UUID>`) enables reload recovery via `getImportBatch` without client-side persistence.
+    - Demo mode: simulates in-memory saving with zero private network calls.
+  - `frontend/src/components/records/import/ImportRows.tsx`:
+    - Displays `Draft saved` / `Draft already saved` provenance badges.
+    - Direct clickable links to `/records?view=review&draftId=...` opening the draft in the central review workspace.
+  - `frontend/src/components/records/DraftsWorkspace.tsx` & `frontend/src/app/records/page.tsx`:
+    - Updated to initialize and open the DraftEditor sheet directly when `draftId` query parameter is present.
+  - `frontend/src/components/records/import/import-copy.ts`:
+    - Complete typed English and Urdu bilingual copy parity.
+
+### 6.4 Verification Evidence
+
+1. **Backend Tests:**
+   - Command: `.\mvnw.cmd test "-Dtest=ImportDraftServiceTest,ImportDraftControllerTest,ImportDraftPostgreSqlIT"`
+   - Result: **26 / 26 passed** (0 failures, 0 errors, 0 skipped).
+     - `ImportDraftServiceTest`: 12 tests passed (validation, chunking, conflict detection, replay, verbatim amount preservation).
+     - `ImportDraftControllerTest`: 6 tests passed (security annotations, role permissions, 403 on denied roles, validation errors).
+     - `ImportDraftPostgreSqlIT`: 8 tests passed against real PostgreSQL 14.22 with Flyway V24 migration (atomicity, foreign keys, concurrent replays, tenant isolation).
+
+2. **Frontend Test Suite:**
+   - Command: `npm test`
+   - Result: **189 / 189 passed** (0 failures, 0 skipped).
+     - All 33 existing import tests passed.
+     - Added unit tests for:
+       - Bilingual copy parity and placeholder matching for all 22 new keys.
+       - Lifetime preview storage preserving `batchId` and `savedDrafts` across language toggles.
+       - API adapter response parser strict contract validation.
+
+3. **Whole Frontend Static & Quality Gates:**
+   - `npx tsc --noEmit`: **0 errors**.
+   - `npm run lint`: **0 errors** (1 pre-existing warning in `SessionProvider.tsx:213:33`).
+   - Production Build (`npm run build`): **Compiled successfully in 9.1s**, TypeScript finished in 3.6s, exit code 0.
+   - Dynamic and static routes including `/records/import` and `/records` generated cleanly.
+
+4. **Zero Financial Mutation & Atomic Recording Verification:**
+   - Saving reviewed rows creates ordinary persistent drafts in `record_drafts` and records provenance in `import_batches` and `import_batch_rows`.
+   - Never posts financial transactions, creates account movements, alters account balances, or modifies monthly health scores, insights, recommendations, or Zakat calculations.
+   - Exact database counts across lifecycle:
+     - **Baseline:** `financial_transactions=0`, `account_movements=0`, `monthly_records=0`, `score_results=0`, `record_drafts=0`, `import_batches=0`, `import_batch_rows=0`.
+     - **Post-Import:** After importing 105 large batch rows, 2 preview rows, 2 concurrency race drafts, and 1 accountant draft (112 drafts total in `record_drafts`, 3 `import_batches`, 111 `import_batch_rows`): `financial_transactions` remained 0 until exactly 1 draft was recorded via the verified draft-recording workflow, becoming `financial_transactions=1`, `account_movements=1`, `monthly_records=0`, `score_results=0`.
+     - **Post-Retry / Re-record:** Attempting to record the draft again with a new idempotency key returned HTTP 409 Conflict. Final database counts remained strictly `financial_transactions=1`, `account_movements=1`, `monthly_records=0`, `score_results=0` (zero duplicate transactions or movements).
+
+5. **Real Browser End-to-End Acceptance (Microsoft Edge 155.0.4283.62):**
+   - Command: `node tests/accounts-live.integration.mjs` / `node tests/accounts-live.integration.mjs --import-only`
+   - Test harness: Real Spring Boot (port 8680) + disposable PostgreSQL 14.22 (Flyway V24) + transparent gateway (port 3580) + production-built Next.js (port 3581) + Microsoft Edge.
+   - **All checks passed (Exit code 0, 0 blockers):**
+     - **Part A (Import preview):** Valid CSV upload parsed source and showed headings; abandon dialog properly confirmed reset; TSV paste parsed 3 records; column mapping (Date, Description, Amount, Direction, Reference) correctly mapped; batch account selected; amount normalization rendered formatted amounts (`3500.75 PKR`, `850.25 PKR`, `1500.50 PKR`); missing classifications remained unresolved ("Undecided — review financial purpose"); row exclusion/restoration worked smoothly; screenshot: `01-import-paste-mapped.png`.
+     - **Part B (Draft creation):** "Save selected as drafts" saved selected rows with success notice; URL updated with generated `batchId`; rows rendered "Draft saved" badges and deep-links; raw `amountInput` preserved verbatim in PostgreSQL (`record_drafts.amount_input = '1500.5'` and `'3,500.75'`); screenshot: `02-import-drafts-saved.png`.
+     - **Part C (Draft navigation & persistence):** Clicking generated draft link opened `/records?view=review&draftId=...` with the draft loaded inside the DraftEditor modal; updated description to "Updated imported draft via browser", saved draft, reloaded page and verified persistent description; screenshot: `03-drafts-workspace-deeplink.png`.
+     - **Part D (Browser reload recovery):** Fresh browser context navigating to `/records/import?batchId=<UUID>` recovered the persisted batch from backend with 2 saved draft badges without relying on localStorage; screenshot: `04-batch-reload-recovery.png`.
+     - **Part E (Language, RTL, mobile & session boundaries):** Preview retained in-memory state across EN $\leftrightarrow$ UR switch; RTL direction confirmed on `<html>`; mobile viewport (390x844) verified with zero horizontal overflow; switching active business to Business B returned 404 for Business A's batch; unauthenticated navigation to `/records/import` presented login screen and made zero private financial API calls; screenshot: `05-import-urdu-rtl-mobile.png`.
+     - **Section 4 (Large import & failure recovery):** Imported 105 rows chunked into 100 rows + 5 rows; verified Chunk 1 persisted 100 rows in DB; simulated failure on Chunk 2 verified atomic rollback leaving Chunk 1 intact; retried Chunk 2 successfully reaching 105 rows; replaying Chunk 1 returned status `REPLAYED` with 0 duplicate drafts; changing payload on existing sourceRowId produced HTTP 409 Conflict; distinct twins with separate sourceRowIds created distinct drafts.
+     - **Section 5 (Security & concurrency):** Concurrent thread race on identical `(business_id, batch_id, source_row_id)` yielded exactly 1 success and 1 unique constraint violation (`uq_import_batch_rows_unique`); cross-tenant account rejected with 400; VIEWER and MANAGER rejected with 403; ACCOUNTANT permitted with 201; replaying recorded or discarded drafts preserved immutable `RECORDED` / `DISCARDED` status without resurrection.

@@ -29,7 +29,7 @@ function DraftList({business,writable}:{business?:string;writable:boolean}) {
  const {locale,direction}=useLanguage(), copy=locale==='ur'?draftUr:draftEn;
  const params=useSearchParams(), rawPage=Number(params.get('draftPage')??0), page=Number.isSafeInteger(rawPage)&&rawPage>=0?rawPage:0;
  const rawStatus=params.get('draftStatus'), status:DraftStatus|'ALL'=rawStatus==='ALL'||rawStatus==='RECORDED'||rawStatus==='DISCARDED'?rawStatus:'DRAFT';
- const [selected,setSelected]=useState<string|null>(null),[transaction,setTransaction]=useState<string|null>(null);
+ const [selected,setSelected]=useState<string|null>(()=>params.get('draftId')),[transaction,setTransaction]=useState<string|null>(null);
  const list=useLiveResource(useCallback((signal:AbortSignal)=>draftsApi.list(page,status,signal),[page,status]));
  const accounts=useLiveResource(useCallback((signal:AbortSignal)=>loadTransactionAccounts(signal),[]));
  const change=(nextPage:number,nextStatus=status)=>{const next=new URLSearchParams(window.location.search);next.set('draftPage',String(nextPage));next.set('draftStatus',nextStatus);window.history.replaceState(null,'','/records?'+next);};

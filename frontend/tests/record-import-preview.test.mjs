@@ -259,3 +259,104 @@ test('in-memory preview preserves parsed data across language switch and clears 
  clearStoredPreview(key);
  assert.equal(getStoredPreview(key),null);
 });
+
+test('bilingual draft-saving copy has complete parity and matching placeholders',()=>{
+ const keys=[
+  'saveDrafts','savingDrafts','savingChunk','savedCountNotice','savedSuccess',
+  'chunkFailure','openToReview','savedBadge','replayedBadge','openDraft',
+  'unresolvedDraftNotice','validationBlockNotice','allSelectedSaved','noRowsSelected',
+  'recoverBatchTitle','recoverBatchHelp','recoverBatchTotal','recoverBatchEmpty',
+  'loadingBatch','loadBatchError','retryBatch','permissionDenied'
+ ];
+ for(const k of keys){
+  assert.ok(typeof importEn[k]==='string'&&importEn[k].length>0,`importEn missing ${k}`);
+  assert.ok(typeof importUr[k]==='string'&&importUr[k].length>0,`importUr missing ${k}`);
+ }
+ assert.ok(importEn.savingChunk.includes('{start}')&&importEn.savingChunk.includes('{end}')&&importEn.savingChunk.includes('{total}'));
+ assert.ok(importUr.savingChunk.includes('{start}')&&importUr.savingChunk.includes('{end}')&&importUr.savingChunk.includes('{total}'));
+});
+
+test('lifetime preview storage preserves batchId and savedDrafts across language switch',()=>{
+ const {getStoredPreview,saveStoredPreview,clearStoredPreview}=uiModule('lib/imports/lifetime');
+ const t=table('2026-10-01,Sale,1500,IN,001');
+ const key='synthetic-user:business-lifetime';
+ clearStoredPreview();
+ const batchId='a1b2c3d4-e5f6-4701-abcd-0123456789ab';
+ const savedDrafts={
+  2:{draftId:'b1b2b3b4-c5c6-4701-abcd-ef0123456789',status:'SAVED',draftStatus:'DRAFT',readyToRecord:true}
+ };
+ const sessionState={
+  source:{table:t,filename:'sales.csv'},
+  paste:'',
+  settings:options(),
+  step:'review',
+  accountId:'synthetic-account',
+  currency:'PKR',
+  excluded:new Set(),
+  selected:new Set([2]),
+  overrides:{},
+  issuesOnly:false,
+  page:0,
+  batchId,
+  savedDrafts,
+ };
+ saveStoredPreview(key,sessionState);
+ const retrieved=getStoredPreview(key);
+ assert.ok(retrieved);
+ assert.equal(retrieved.batchId,batchId);
+ assert.deepEqual(retrieved.savedDrafts,savedDrafts);
+ clearStoredPreview(key);
+ assert.equal(getStoredPreview(key),null);
+});
+
+test('import-drafts API parser validates row result and response contracts strictly',()=>{
+ const {parseImportDraftRowResult,parseImportDraftsResponse,parseImportBatchDetailResponse,InvalidImportDraftResponse}=uiModule('lib/api/dev-a/import-drafts');
+ const validRow={
+  sourceRowId:'row-1',
+  sourceRowNumber:1,
+  sourceReference:'REF-01',
+  draftId:'b1b2b3b4-c5c6-4701-abcd-ef0123456789',
+  status:'SAVED',
+  draftStatus:'DRAFT',
+  readyToRecord:true,
+  version:0,
+  recordedTransactionId:null
+ };
+ const parsedRow=parseImportDraftRowResult(validRow);
+ assert.equal(parsedRow.sourceRowId,'row-1');
+ assert.equal(parsedRow.draftId,'b1b2b3b4-c5c6-4701-abcd-ef0123456789');
+ assert.equal(parsedRow.status,'SAVED');
+ assert.equal(parsedRow.readyToRecord,true);
+
+ // Missing or invalid fields throw InvalidImportDraftResponse
+ assert.throws(()=>parseImportDraftRowResult({...validRow,draftId:'invalid-uuid'}),error=>error instanceof InvalidImportDraftResponse);
+ assert.throws(()=>parseImportDraftRowResult({...validRow,status:'UNKNOWN'}),error=>error instanceof InvalidImportDraftResponse);
+ assert.throws(()=>parseImportDraftRowResult({...validRow,sourceRowNumber:0}),error=>error instanceof InvalidImportDraftResponse);
+
+ const validBatchResponse={
+  batchId:'a1b2c3d4-e5f6-4701-abcd-0123456789ab',
+  sourceLabel:'test.csv',
+  savedCount:1,
+  replayedCount:0,
+  totalRowsInBatch:1,
+  rows:[validRow]
+ };
+ const parsedBatch=parseImportDraftsResponse(validBatchResponse);
+ assert.equal(parsedBatch.batchId,'a1b2c3d4-e5f6-4701-abcd-0123456789ab');
+ assert.equal(parsedBatch.savedCount,1);
+ assert.equal(parsedBatch.rows.length,1);
+
+ assert.throws(()=>parseImportDraftsResponse({...validBatchResponse,batchId:'not-a-uuid'}),error=>error instanceof InvalidImportDraftResponse);
+
+ const validDetailResponse={
+  batchId:'a1b2c3d4-e5f6-4701-abcd-0123456789ab',
+  sourceLabel:'test.csv',
+  totalRows:1,
+  createdAt:'2026-10-18T10:00:00Z',
+  updatedAt:'2026-10-18T10:00:00Z',
+  rows:[validRow]
+ };
+ const parsedDetail=parseImportBatchDetailResponse(validDetailResponse);
+ assert.equal(parsedDetail.totalRows,1);
+ assert.equal(parsedDetail.rows[0].sourceRowId,'row-1');
+});
