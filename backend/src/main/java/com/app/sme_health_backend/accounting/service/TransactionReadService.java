@@ -412,7 +412,7 @@ public class TransactionReadService {
             try {
                 eventType = TransactionEventType.valueOf(eventTypeStr.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException e) {
-                throw new TransactionValidationException("eventType", "Invalid eventType: " + eventTypeStr + ". Supported types: DIRECT_SALE_RECEIPT, OPERATING_EXPENSE_PAYMENT, INTERNAL_TRANSFER");
+                throw new TransactionValidationException("eventType", "Invalid eventType: " + eventTypeStr + ". Supported types: DIRECT_SALE_RECEIPT, OPERATING_EXPENSE_PAYMENT, INTERNAL_TRANSFER, RECEIVABLE_COLLECTION, PAYABLE_SETTLEMENT");
             }
         }
 
@@ -466,12 +466,18 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.RECEIVABLE_COLLECTION)
+                                            ),
                                             cb.equal(root.get("accountId"), accountId),
                                             cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.RECEIVABLE_COLLECTION)
+                                            ),
                                             cb.equal(root.get("accountId"), accountId),
                                             cb.isNotNull(root.get("reversedTransactionId"))
                                     ), cb.neg(root.get("amount")))
@@ -480,12 +486,18 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.PAYABLE_SETTLEMENT)
+                                            ),
                                             cb.equal(root.get("accountId"), accountId),
                                             cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.PAYABLE_SETTLEMENT)
+                                            ),
                                             cb.equal(root.get("accountId"), accountId),
                                             cb.isNotNull(root.get("reversedTransactionId"))
                                     ), cb.neg(root.get("amount")))
@@ -526,11 +538,17 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.RECEIVABLE_COLLECTION)
+                                            ),
                                             cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.DIRECT_SALE_RECEIPT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.RECEIVABLE_COLLECTION)
+                                            ),
                                             cb.isNotNull(root.get("reversedTransactionId"))
                                     ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)
@@ -538,11 +556,17 @@ public class TransactionReadService {
                     cb.sum(
                             cb.<BigDecimal>selectCase()
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.PAYABLE_SETTLEMENT)
+                                            ),
                                             cb.isNull(root.get("reversedTransactionId"))
                                     ), root.get("amount"))
                                     .when(cb.and(
-                                            cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                            cb.or(
+                                                    cb.equal(root.get("eventType"), TransactionEventType.OPERATING_EXPENSE_PAYMENT),
+                                                    cb.equal(root.get("eventType"), TransactionEventType.PAYABLE_SETTLEMENT)
+                                            ),
                                             cb.isNotNull(root.get("reversedTransactionId"))
                                     ), cb.neg(root.get("amount")))
                                     .otherwise(BigDecimal.ZERO)

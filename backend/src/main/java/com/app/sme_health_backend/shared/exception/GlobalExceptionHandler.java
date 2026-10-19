@@ -125,6 +125,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
+    @ExceptionHandler(com.app.sme_health_backend.obligation.ObligationValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleObligationValidationException(
+            com.app.sme_health_backend.obligation.ObligationValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST,
+                "Validation Failed",
+                exception.getMessage() != null ? exception.getMessage() : "One or more request parameters are invalid"
+        );
+        response.put("errors", exception.getErrors());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.obligation.ObligationConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleObligationConflictException(
+            com.app.sme_health_backend.obligation.ObligationConflictException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.CONFLICT,
+                "Conflict",
+                exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateResource(
             DuplicateResourceException exception) {

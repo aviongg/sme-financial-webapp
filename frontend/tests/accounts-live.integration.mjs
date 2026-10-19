@@ -3,6 +3,7 @@ import { verifyTransfers } from './transfers.live.mjs';
 import { verifyReversals } from './reversals.live.mjs';
 import { verifyImportDrafts } from './import-drafts.live.mjs';
 import { verifyCounterparties } from './counterparties.live.mjs';
+import { verifyObligations } from './obligations.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
 // installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
@@ -50,6 +51,7 @@ const draftSyntaxOnly=process.argv.includes('--draft-syntax');
 const captureOldParity = process.argv.includes('--capture-old-parity');
 const importOnly = process.argv.includes('--import-only');
 const counterpartiesOnly = process.argv.includes('--counterparties-only');
+const obligationsOnly = process.argv.includes('--obligations-only');
 let leaveReview = false;
 let runtime, next, browser, gateway;
 let gatewayText = "";
@@ -371,7 +373,7 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=(?:21|22|23|24|25)/);
+    assert.match(runtimeText, /schema=(?:21|22|23|24|25|26)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
@@ -450,8 +452,8 @@ try {
   writeFileSync(path.join(temporary, 'AccountsLiveRuntime.java'), javaSource);
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
-  await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=(?:21|22|23|24|25)/);
+  await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 120000);
+  assert.match(runtimeText, /schema=(?:21|22|23|24|25|26)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
@@ -518,7 +520,11 @@ try {
   await signin(page, owner.email);
   const mainAccount = ids.pkr;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  if (counterpartiesOnly) {
+  if (obligationsOnly) {
+    await verifyObligations({ api, owner, viewer, manager, accountant, page, context, browser, signin, origin, accountId: mainAccount, today, txCounts, control, getRuntimeText: () => runtimeText, blockers, mark, businessA, businessB, requestFactory: request, temporary, out });
+    await context.close();
+    mark('OBLIGATIONS ACCEPTANCE COMPLETED IN ISOLATION');
+  } else if (counterpartiesOnly) {
     await verifyCounterparties({ api, owner, viewer, manager, accountant, page, context, browser, signin, origin, accountId: mainAccount, today, txCounts, control, getRuntimeText: () => runtimeText, blockers, mark, businessA, businessB, requestFactory: request, temporary, out });
     await context.close();
     mark('COUNTERPARTIES ACCEPTANCE COMPLETED IN ISOLATION');

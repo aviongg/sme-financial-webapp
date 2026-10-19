@@ -1,9 +1,9 @@
 # FinSight Phase 2 Implementation State & Dependency Register
 
-**Version:** `2.5`
+**Version:** `2.6`
 **Last Updated:** 19 October 2026
 **Canonical Branch:** `dev/suleman`
-**Current HEAD SHA:** `2bef859692baadb79a9252a0dfa8c49168c2502e`
+**Current HEAD SHA:** `a19dd4d3d888dca75399fab10498020fb0e5be83`
 **Baseline Release:** PR #3 integrated into `main` (Flyway V1–V17)  
 
 ---
@@ -14,9 +14,9 @@
 | :--- | :--- | :--- |
 | **Active Branch** | `dev/suleman` | Verified via `git branch --show-current` |
 | **Commit SHA** | `2bef859692baadb79a9252a0dfa8c49168c2502e` | Import drafts checkpoint commit |
-| **Flyway Head** | **V25** | `backend/src/main/resources/db/migration/V25__create_counterparties.sql` (V25 authored & integration verified) |
+| **Flyway Head** | **V26** | `backend/src/main/resources/db/migration/V26__create_financial_obligations.sql` (V26 authored & integration verified) |
 | **Untracked Artifacts** | `backend/.cp.txt` | Maven classpath artifact (13,680 bytes); preserved untouched |
-| **Phase 2 Implementation** | **Counterparties Foundation, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
+| **Phase 2 Implementation** | **Obligations & Allocations, Counterparties, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET/PUT /api/finance/obligations/**`, `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
 | **Blueprint Availability** | **Missing** | Master Phase 2 Technical Integration Blueprint not present locally |
 | **Onboarding Audits** | **Completed** | Antigravity Backend Baseline Audit & Codex Frontend Baseline Audit completed |
 | **Accounts Read Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Verified across Spring Boot, PostgreSQL V18, Next.js, and Edge |
@@ -30,6 +30,7 @@
 | **Obligation Aging Calculator (A-F03-AGING-CALCULATOR)** | **UNIT_VERIFIED (Ready for Commit C)** | Pure Java calculator verified via project Maven test runner (`mvnw.cmd test "-Dtest=ObligationAgingCalculatorTest"`, 19/19 passed, 0 failures, 11.284s). 7 canonical buckets, exact reconciliation between total balance and bucket amounts, zero/active reconciliation, boundary dates, PKR-only currency validation, and multi-direction support. |
 | **Persistent Import-to-Draft (A-F12A-IMPORT-DRAFTS)** | **INTEGRATION_VERIFIED (Ready for Commit D)** | Flyway V24 authored (`V24__create_import_draft_provenance.sql`), composite tenant FKs, chunked save ($\le 100$ rows), idempotent replay & conflict detection (409), verbatim amount input preservation, reload recovery via URL `batchId`, 26 BE tests passing (unit, controller, PostgreSQL IT), 189 FE tests passing, tsc/lint exit 0, production build exit 0, zero financial mutations. |
 | **Counterparty Foundation (A-F03-COUNTERPARTIES)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V25 authored (`V25__create_counterparties.sql`), tenant isolation, composite FK `(counterparty_id, business_id) ON DELETE RESTRICT` on transactions and drafts, least-privilege DML (`DELETE` revoked from `finsight_app`), non-unique index `idx_counterparties_business_lower_name` allowing same-name entities, type compatibility (`CUSTOMER`/`SUPPLIER`/`BOTH`), active/archived state, search/filter/pagination, 33 BE tests passing (unit, controller, PostgreSQL IT), 198 FE tests passing (189 preceding + 9 counterparty unit/contract), tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–G passed cleanly (exit 0). |
+| **Receivables & Payables Obligations (A-F03-OBLIGATIONS-V1)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V26 authored (`V26__create_financial_obligations.sql`), canonical obligations (`RECEIVABLE`/`PAYABLE`), allocation engine, settlement cash posting (`RECEIVABLE_COLLECTION`/`PAYABLE_SETTLEMENT`), obligation aging (7 buckets), settlement reversals, multi-tenant isolation, 37 BE tests passing (unit, controller, PostgreSQL IT), 206 FE tests passing, tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–H passed cleanly on PostgreSQL V26 (exit 0). |
 
 ---
 
@@ -204,12 +205,38 @@
     *   **Documentation Paths:**
         *   `docs/phase2/COUNTERPARTIES.md` (Revision 1.0 INTEGRATION_VERIFIED)
 
+*   **Developer A Full Stack (Antigravity):**
+    *   **Task ID:** `A-F03-OBLIGATIONS-V1` (Canonical PKR Receivables and Payables Workflow)
+    *   **Status:** `INTEGRATION_VERIFIED — READY_FOR_COMMIT`
+    *   **Backend Paths Owned:**
+        *   `backend/src/main/resources/db/migration/V26__create_financial_obligations.sql`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/**`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/model/TransactionEventType.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransactionReadService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransactionReverseService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/shared/exception/GlobalExceptionHandler.java`
+        *   `backend/src/test/java/com/app/sme_health_backend/obligation/**`
+    *   **Frontend Paths Owned:**
+        *   `frontend/src/app/records/receivables/page.tsx`
+        *   `frontend/src/app/records/payables/page.tsx`
+        *   `frontend/src/app/records/page.tsx`
+        *   `frontend/src/components/records/obligations/**`
+        *   `frontend/src/lib/api/dev-a/obligations.ts`
+        *   `frontend/src/components/records/records-copy.ts`
+        *   `frontend/tests/obligations.test.mjs`
+        *   `frontend/tests/obligations.live.mjs`
+        *   `frontend/tests/accounts-live.integration.mjs`
+    *   **Documentation Paths:**
+        *   `docs/phase2/OBLIGATIONS_AND_ALLOCATIONS.md` (Revision 1.0 INTEGRATION_VERIFIED)
+
 ---
 
 ## 3. Integration & Unit Verification Evidence Summary
 
 | Layer / Gate | Command / Target | Result | Evidence Details |
 | :--- | :--- | :--- | :--- |
+| **Backend Obligations Suite (Unit + Controller + PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=FinancialObligationServiceTest,FinancialObligationControllerTest,FinancialObligationPostgreSqlIT"` | **38 / 38 PASSED** | FinancialObligationServiceTest (21), FinancialObligationControllerTest (9), FinancialObligationPostgreSqlIT (8). EmbeddedPostgres 14.22 with Flyway V26. Verifies canonical obligations creation/listing/details/voiding, partial & full settlement posting with deterministic lock ordering (Obligation -> Account), durable idempotency hash validation, allocation cancellation upon reversal, aging mapping, runtime least privilege (`DELETE` denied), multi-tenant isolation, and historical reversal as-of balance reconciliation (Jan 10, Jan 25, Feb 11). |
+| **Real Browser Integration Harness (Obligations Workflow)** | `node tests/accounts-live.integration.mjs --obligations-only` | **EXIT 0 (14 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V26) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge. 14 check groups passed; blockers=[]; integrated=true. Verified Journeys A–H: customer receivable creation, reload persistence, zero financial mutation; partial payment (+40k bank cash, 60k outstanding, 0 duplicate revenue); full settlement (100k paid, 0 outstanding, boundary protection); supplier payable (80k payable, 30k paid, 50k outstanding, cash -30k, 0 duplicate expense); aging 7-bucket display and allocation detail history; settlement reversal (cash reversed, 80k outstanding restored, allocation CANCELLED); viewer role enforcement and multi-tenant cross-business 404; bilingual Urdu RTL and mobile 390x844 responsive rendering. |
 | **Backend Counterparty Suite (Unit + Controller + PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=CounterpartyServiceTest,CounterpartyControllerTest,CounterpartyPostgreSqlIT"` | **33 / 33 PASSED** | CounterpartyServiceTest (16), CounterpartyControllerTest (9), CounterpartyPostgreSqlIT (8). EmbeddedPostgres 14.22 with Flyway V25. Verifies schema migration, runtime privilege revocation (`DELETE` denied with error 42501), multi-tenant isolation, composite foreign key `(counterparty_id, business_id) ON DELETE RESTRICT` on transactions and drafts, direct SQL cross-tenant rejection (`fk_record_drafts_counterparty`, `fk_fin_tx_counterparty`), same-name entity independence with separate UUIDs, and zero financial mutation guarantee. |
 | **Real Browser Integration Harness (Counterparties Foundation)** | `node tests/accounts-live.integration.mjs --counterparties-only` | **EXIT 0 (12 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V25) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge. 12 check groups passed; blockers=[]; integrated=true. Verified Journeys A–G: customer CRUD, same-name independence, supplier payment with counterparty linkage, customer receipt with idempotency, imported draft workflow with provenance & verbatim amount preservation, archive/restore visibility toggling with historical preservation, RBAC matrix (OWNER/ACCOUNTANT write, MANAGER/VIEWER read-only), multi-tenant cross-business rejection, Urdu RTL layout, mobile 390x844 responsive bounds, and zero unintended financial mutations. |
 | **Frontend Counterparty Suite & Total Suites** | `npm test` | **207 / 207 PASSED** | All 9 counterparty tests passed (`counterparties.test.mjs`: API adapter, parser, query string serialization, Urdu unicode, copy parity, transaction and draft contract shape preservation). Total frontend test suite: 198 global + 9 counterparty unit/contract tests passed, 0 failed, 0 skipped. |
@@ -295,6 +322,7 @@ The following findings reported in Fatima's published handoff are recorded for t
 | **V23** | Transaction Reversals & Constraints (F01) (`V23__add_transaction_reversals.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / READY_FOR_COMMIT)** |
 | **V24** | Import Draft Provenance Schema (`V24__create_import_draft_provenance.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / READY_FOR_COMMIT)** |
 | **V25** | Counterparty Schema & Integrations (`V25__create_counterparties.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
+| **V26** | Financial Obligations & Payment Allocations (`V26__create_financial_obligations.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 
 ---
 

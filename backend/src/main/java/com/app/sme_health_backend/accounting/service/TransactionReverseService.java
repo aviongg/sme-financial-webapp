@@ -52,7 +52,27 @@ public class TransactionReverseService {
     private final AccountMovementRepository movementRepository;
     private final FinancialIdempotencyRepository idempotencyRepository;
     private final SecurityAuditRepository securityAuditRepository;
+    private final com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository;
     private final ObjectMapper objectMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransactionReverseService(
+            FinancialAccountRepository accountRepository,
+            FinancialTransactionRepository transactionRepository,
+            AccountMovementRepository movementRepository,
+            FinancialIdempotencyRepository idempotencyRepository,
+            SecurityAuditRepository securityAuditRepository,
+            com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
+            ObjectMapper objectMapper
+    ) {
+        this.accountRepository = accountRepository;
+        this.transactionRepository = transactionRepository;
+        this.movementRepository = movementRepository;
+        this.idempotencyRepository = idempotencyRepository;
+        this.securityAuditRepository = securityAuditRepository;
+        this.allocationRepository = allocationRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public TransactionReverseService(
             FinancialAccountRepository accountRepository,
@@ -62,12 +82,7 @@ public class TransactionReverseService {
             SecurityAuditRepository securityAuditRepository,
             ObjectMapper objectMapper
     ) {
-        this.accountRepository = accountRepository;
-        this.transactionRepository = transactionRepository;
-        this.movementRepository = movementRepository;
-        this.idempotencyRepository = idempotencyRepository;
-        this.securityAuditRepository = securityAuditRepository;
-        this.objectMapper = objectMapper;
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, objectMapper);
     }
 
     @Transactional
@@ -315,7 +330,7 @@ public class TransactionReverseService {
                     context.userId()
             );
             reversalTx.setReversedTransactionId(original.getId());
-            reversalTx.setReversalReason(trimmedReason);
+            reversalTx.setCounterpartyId(original.getCounterpartyId());
             reversalTx = transactionRepository.saveAndFlush(reversalTx);
 
             AccountMovement mov = new AccountMovement(
@@ -329,6 +344,106 @@ public class TransactionReverseService {
             );
             mov = movementRepository.saveAndFlush(mov);
             createdMovements.add(mov);
+
+            resultingBalance = computeCurrentBalanceString(primaryAccount, today);
+
+        } else if (original.getEventType() == TransactionEventType.RECEIVABLE_COLLECTION) {
+            primaryAccount = accountRepository.findForUpdateByIdAndBusinessId(original.getAccountId(), context.businessId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Financial account not found"));
+
+            if (primaryAccount.getStatus() != AccountStatus.ACTIVE) {
+                errors.put("accountId", "Account is not active");
+            }
+            if (!"PKR".equals(primaryAccount.getCurrency())) {
+                errors.put("accountId", "Account must be a PKR account");
+            }
+            if (!errors.isEmpty()) {
+                throw new TransactionValidationException(errors);
+            }
+
+            // Original collection was INCREASE; reversal is DECREASE
+            validateChronologicalSequence(primaryAccount, MovementDirection.DECREASE, original.getAmount(), original.getEffectiveDate(), context.businessId(), "account");
+
+            reversalTx = new FinancialTransaction(
+                    context.businessId(),
+                    primaryAccount.getId(),
+                    TransactionEventType.RECEIVABLE_COLLECTION,
+                    MovementDirection.DECREASE,
+                    original.getAmount(),
+                    "PKR",
+                    original.getBaseAmountPkr(),
+                    original.getEffectiveDate(),
+                    trimmedReason,
+                    context.userId()
+            );
+            reversalTx.setReversedTransactionId(original.getId());
+            reversalTx.setReversalReason(trimmedReason);
+            reversalTx.setCounterpartyId(original.getCounterpartyId());
+            reversalTx = transactionRepository.saveAndFlush(reversalTx);
+
+            AccountMovement mov = new AccountMovement(
+                    context.businessId(),
+                    reversalTx.getId(),
+                    primaryAccount.getId(),
+                    MovementDirection.DECREASE,
+                    original.getAmount(),
+                    "PKR",
+                    original.getEffectiveDate()
+            );
+            mov = movementRepository.saveAndFlush(mov);
+            createdMovements.add(mov);
+
+            cancelAllocationForReversal(context.businessId(), original.getId(), reversalTx.getId(), trimmedReason);
+
+            resultingBalance = computeCurrentBalanceString(primaryAccount, today);
+
+        } else if (original.getEventType() == TransactionEventType.PAYABLE_SETTLEMENT) {
+            primaryAccount = accountRepository.findForUpdateByIdAndBusinessId(original.getAccountId(), context.businessId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Financial account not found"));
+
+            if (primaryAccount.getStatus() != AccountStatus.ACTIVE) {
+                errors.put("accountId", "Account is not active");
+            }
+            if (!"PKR".equals(primaryAccount.getCurrency())) {
+                errors.put("accountId", "Account must be a PKR account");
+            }
+            if (!errors.isEmpty()) {
+                throw new TransactionValidationException(errors);
+            }
+
+            // Original settlement was DECREASE; reversal is INCREASE
+            validateChronologicalSequence(primaryAccount, MovementDirection.INCREASE, original.getAmount(), original.getEffectiveDate(), context.businessId(), "account");
+
+            reversalTx = new FinancialTransaction(
+                    context.businessId(),
+                    primaryAccount.getId(),
+                    TransactionEventType.PAYABLE_SETTLEMENT,
+                    MovementDirection.INCREASE,
+                    original.getAmount(),
+                    "PKR",
+                    original.getBaseAmountPkr(),
+                    original.getEffectiveDate(),
+                    trimmedReason,
+                    context.userId()
+            );
+            reversalTx.setReversedTransactionId(original.getId());
+            reversalTx.setReversalReason(trimmedReason);
+            reversalTx.setCounterpartyId(original.getCounterpartyId());
+            reversalTx = transactionRepository.saveAndFlush(reversalTx);
+
+            AccountMovement mov = new AccountMovement(
+                    context.businessId(),
+                    reversalTx.getId(),
+                    primaryAccount.getId(),
+                    MovementDirection.INCREASE,
+                    original.getAmount(),
+                    "PKR",
+                    original.getEffectiveDate()
+            );
+            mov = movementRepository.saveAndFlush(mov);
+            createdMovements.add(mov);
+
+            cancelAllocationForReversal(context.businessId(), original.getId(), reversalTx.getId(), trimmedReason);
 
             resultingBalance = computeCurrentBalanceString(primaryAccount, today);
 
@@ -515,6 +630,19 @@ public class TransactionReverseService {
             return objectMapper.readValue(json, TransactionDetailResponse.class);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to deserialize transaction detail response", e);
+        }
+    }
+
+    private void cancelAllocationForReversal(UUID businessId, UUID originalTxId, UUID reversalTxId, String reason) {
+        if (allocationRepository != null) {
+            allocationRepository.findByBusinessIdAndFinancialTransactionId(businessId, originalTxId)
+                    .ifPresent(allocation -> {
+                        allocation.setStatus(com.app.sme_health_backend.obligation.AllocationStatus.CANCELLED);
+                        allocation.setCancelledAt(Instant.now());
+                        allocation.setCancellationReason(reason);
+                        allocation.setReversalTransactionId(reversalTxId);
+                        allocationRepository.saveAndFlush(allocation);
+                    });
         }
     }
 }
