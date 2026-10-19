@@ -126,6 +126,11 @@ export function TransactionsList({ embedded = false, scanHref }: { embedded?: bo
           ) : null}
         </div>
         <p>{copy[t.eventType]} · {copy[t.movementDirection]}</p>
+        {t.counterpartyName && (
+          <p className="text-xs font-semibold text-[var(--color-brand-primary)] [overflow-wrap:anywhere]">
+            {t.counterpartyName}
+          </p>
+        )}
         {t.eventType === 'INTERNAL_TRANSFER' && t.sourceAccountName && t.destinationAccountName && (
           <p className="text-xs text-[var(--color-text-muted)] font-medium">
             {t.sourceAccountName} &rarr; {t.destinationAccountName}

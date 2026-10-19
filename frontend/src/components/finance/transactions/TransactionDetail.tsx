@@ -133,6 +133,7 @@ export function TransactionDetail({
         {row(copy.postedAt, <bdi dir="ltr">{t.createdAt}</bdi>)}
         {t.description !== null && row(copy.description, t.description)}
         {row(copy.actor, <bdi dir="ltr">{t.createdByUserId}</bdi>)}
+        {t.counterpartyName && row(copy.counterparty, t.counterpartyName)}
         {t.reversalReason && row(copy.reversalReasonLabel, t.reversalReason)}
         {t.eventType === 'INTERNAL_TRANSFER' ? (
           <>

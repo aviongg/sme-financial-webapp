@@ -7,5 +7,16 @@ public record TransactionPostRequest(
         String eventType,
         String amount,
         String effectiveDate,
-        String description
-) {}
+        String description,
+        UUID counterpartyId
+) {
+    public TransactionPostRequest(
+            UUID accountId,
+            String eventType,
+            String amount,
+            String effectiveDate,
+            String description
+    ) {
+        this(accountId, eventType, amount, effectiveDate, description, null);
+    }
+}

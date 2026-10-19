@@ -18,12 +18,13 @@ import { transactionsApi } from '@/lib/api/dev-a/transactions';
 import { descriptionLimit, type TransactionDetailData } from '@/lib/api/dev-a/transaction-contracts';
 import { useSession } from '@/components/auth/SessionProvider';
 import { useLanguage } from '@/lib/i18n/context';
+import { CounterpartySelector } from '../../records/counterparties/CounterpartySelector';
 
 export function PostTransactionForm({ accounts, onPosted, onClose, onDraftSaved }: { accounts: Account[]; onPosted: (transaction: TransactionDetailData) => void; onClose: () => void; onDraftSaved?: () => void }) {
   const session = useSession(), { locale } = useLanguage(), copy = locale === 'ur' ? transactionUr : transactionEn;
   const context = JSON.stringify([session.epoch, session.user?.id, session.business?.businessId, session.business?.role, session.business?.membershipStatus, session.status]);
   const entryRef = useRef<{ key: string; submission: TransactionSubmission } | null>(null);
-  const [draft, setDraft] = useState<PostingDraft>({ selectedAccount: '', event: 'DIRECT_SALE_RECEIPT', amountText: '', dateText: karachiToday(), descriptionText: '', confirmed: false });
+  const [draft, setDraft] = useState<PostingDraft>({ selectedAccount: '', event: 'DIRECT_SALE_RECEIPT', amountText: '', dateText: karachiToday(), descriptionText: '', confirmed: false, counterpartyId: null });
   const [creating, setCreating] = useState(false);
   const [createdAccounts, setCreatedAccounts] = useState<Account[]>([]);
   const [accountRefreshError, setAccountRefreshError] = useState(false);
@@ -113,6 +114,13 @@ export function PostingFormView({ draft, accounts, descriptionLimit, errors, cop
       <Input label={copy.amount} required type="text" inputMode="decimal" dir="ltr" className="font-sans tabular-nums [unicode-bidi:isolate]" autoComplete="off" value={draft.amountText} helperText={copy.amountHelp} error={error('amountText')} onChange={event => onChange({ amountText: event.target.value, confirmed: false })} />
       <Input label={copy.date} required type="date" dir="ltr" className="font-sans [unicode-bidi:isolate]" min={selected?.openingDate} max={karachiToday()} value={draft.dateText} error={error('dateText')} onChange={event => onChange({ dateText: event.target.value, confirmed: false })} />
       <Input label={copy.description} maxLength={descriptionLimit} value={draft.descriptionText} error={error('descriptionText')} onChange={event => onChange({ descriptionText: event.target.value, confirmed: false })} />
+      <CounterpartySelector
+        value={draft.counterpartyId}
+        targetType={draft.event === 'DIRECT_SALE_RECEIPT' ? 'CUSTOMER' : 'SUPPLIER'}
+        label={copy.counterparty}
+        disabled={busy || locked}
+        onChange={(id) => onChange({ counterpartyId: id, confirmed: false })}
+      />
       <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 accent-[var(--color-brand-primary)]" checked={draft.confirmed} aria-invalid={!!errors.confirmed} aria-describedby={errors.confirmed ? id + '-confirm-error' : undefined} onChange={event => onChange({ confirmed: event.target.checked })} /><span>{copy.confirm}</span></label>
     </fieldset>
     {preview && <p role="status">{preview.rounded ? copy.rounded : copy.recordedAmount}: <bdi dir="ltr">{preview.canonical} PKR</bdi></p>}

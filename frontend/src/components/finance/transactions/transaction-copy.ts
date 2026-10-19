@@ -58,6 +58,8 @@ export const transactionEn = {
   reverseImpactReceipt: 'Account balance will decrease by this amount.',
   reverseImpactExpense: 'Account balance will increase by this amount.',
   reverseImpactTransfer: 'Source balance will increase and destination balance will decrease by this amount.',
+  counterparty: 'Customer / Supplier',
+  counterpartyHelp: 'Select the customer or supplier for this transaction (optional).',
 };
 export type TransactionCopy = { [K in keyof typeof transactionEn]: string };
 export const transactionUr: TransactionCopy = {
@@ -118,6 +120,8 @@ export const transactionUr: TransactionCopy = {
   reverseImpactReceipt: 'اکاؤنٹ کا بیلنس اس رقم سے کم ہو جائے گا۔',
   reverseImpactExpense: 'اکاؤنٹ کا بیلنس اس رقم سے بڑھ جائے گا۔',
   reverseImpactTransfer: 'منبع اکاؤنٹ کا بیلنس بڑھے گا اور منزل اکاؤنٹ کا بیلنس اس رقم سے کم ہو جائے گا۔',
+  counterparty: 'گاہک / فراہم کنندہ',
+  counterpartyHelp: 'اس لین دین کے لیے گاہک یا فراہم کنندہ منتخب کریں (اختیاری)۔',
 };
 export function transactionErrorKey(error: unknown): keyof TransactionCopy {
   if (error instanceof InvalidTransactionResponse) return 'invalid';

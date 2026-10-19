@@ -59,6 +59,9 @@ public class FinancialTransaction {
     @Column(name = "created_by_user_id", nullable = false, updatable = false)
     private UUID createdByUserId;
 
+    @Column(name = "counterparty_id")
+    private UUID counterpartyId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -104,6 +107,31 @@ public class FinancialTransaction {
     ) {
         this(businessId, accountId, eventType, movementDirection, amount, currency, baseAmountPkr, effectiveDate, description, createdByUserId);
         this.destinationAccountId = destinationAccountId;
+    }
+
+    public FinancialTransaction(
+            UUID businessId,
+            UUID accountId,
+            TransactionEventType eventType,
+            MovementDirection movementDirection,
+            BigDecimal amount,
+            String currency,
+            BigDecimal baseAmountPkr,
+            LocalDate effectiveDate,
+            String description,
+            UUID createdByUserId,
+            UUID counterpartyId
+    ) {
+        this(businessId, accountId, eventType, movementDirection, amount, currency, baseAmountPkr, effectiveDate, description, createdByUserId);
+        this.counterpartyId = counterpartyId;
+    }
+
+    public UUID getCounterpartyId() {
+        return counterpartyId;
+    }
+
+    public void setCounterpartyId(UUID counterpartyId) {
+        this.counterpartyId = counterpartyId;
     }
 
     public UUID getId() {

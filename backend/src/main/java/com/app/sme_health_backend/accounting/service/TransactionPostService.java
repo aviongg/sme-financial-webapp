@@ -57,6 +57,7 @@ public class TransactionPostService {
     private final AccountMovementRepository movementRepository;
     private final FinancialIdempotencyRepository idempotencyRepository;
     private final SecurityAuditRepository securityAuditRepository;
+    private final com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository;
     private final ObjectMapper objectMapper;
 
     public TransactionPostService(
@@ -67,11 +68,25 @@ public class TransactionPostService {
             SecurityAuditRepository securityAuditRepository,
             ObjectMapper objectMapper
     ) {
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, objectMapper);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransactionPostService(
+            FinancialAccountRepository accountRepository,
+            FinancialTransactionRepository transactionRepository,
+            AccountMovementRepository movementRepository,
+            FinancialIdempotencyRepository idempotencyRepository,
+            SecurityAuditRepository securityAuditRepository,
+            com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository,
+            ObjectMapper objectMapper
+    ) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.movementRepository = movementRepository;
         this.idempotencyRepository = idempotencyRepository;
         this.securityAuditRepository = securityAuditRepository;
+        this.counterpartyRepository = counterpartyRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -160,6 +175,26 @@ public class TransactionPostService {
             errors.put("description", "Description must not exceed 255 characters");
         }
 
+        // 6. Counterparty (optional)
+        com.app.sme_health_backend.counterparty.Counterparty counterparty = null;
+        if (request.counterpartyId() != null) {
+            java.util.Optional<com.app.sme_health_backend.counterparty.Counterparty> cpOpt = counterpartyRepository != null
+                    ? counterpartyRepository.findByIdAndBusinessId(request.counterpartyId(), context.businessId())
+                    : java.util.Optional.empty();
+            if (cpOpt.isEmpty()) {
+                errors.put("counterpartyId", "Counterparty not found");
+            } else {
+                counterparty = cpOpt.get();
+                if (counterparty.getStatus() != com.app.sme_health_backend.counterparty.CounterpartyStatus.ACTIVE) {
+                    errors.put("counterpartyId", "Selected counterparty is archived and cannot be newly assigned");
+                } else if (eventType == TransactionEventType.DIRECT_SALE_RECEIPT && !counterparty.getType().isCustomerCompatible()) {
+                    errors.put("counterpartyId", "Counterparty must be a CUSTOMER or BOTH for a direct sale receipt");
+                } else if (eventType == TransactionEventType.OPERATING_EXPENSE_PAYMENT && !counterparty.getType().isSupplierCompatible()) {
+                    errors.put("counterpartyId", "Counterparty must be a SUPPLIER or BOTH for an operating expense payment");
+                }
+            }
+        }
+
         if (!errors.isEmpty()) {
             throw new TransactionValidationException(errors);
         }
@@ -188,7 +223,8 @@ public class TransactionPostService {
                 eventType,
                 amount,
                 effectiveDate,
-                trimmedDescription
+                trimmedDescription,
+                request.counterpartyId()
         );
 
         // Check durable idempotency
@@ -271,7 +307,8 @@ public class TransactionPostService {
                     amount, // baseAmountPkr = amount for PKR
                     effectiveDate,
                     trimmedDescription,
-                    context.userId()
+                    context.userId(),
+                    request.counterpartyId()
             );
             tx = transactionRepository.saveAndFlush(tx);
 
@@ -327,7 +364,19 @@ public class TransactionPostService {
                     resultingBalance,
                     Collections.singletonList(movementDto),
                     tx.getCreatedByUserId(),
-                    ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS))
+                    ISO_INSTANT_FORMATTER.format(tx.getCreatedAt().truncatedTo(ChronoUnit.SECONDS)),
+                    null,
+                    null,
+                    null,
+                    null,
+                    false,
+                    null,
+                    false,
+                    null,
+                    null,
+                    counterparty != null ? counterparty.getId() : null,
+                    counterparty != null ? counterparty.getDisplayName() : null,
+                    counterparty != null ? counterparty.getType().name() : null
             );
 
             // 4. Save mandatory SecurityAuditEvent atomically
@@ -383,12 +432,24 @@ public class TransactionPostService {
             LocalDate effectiveDate,
             String description
     ) {
+        return computePayloadHash(accountId, eventType, amount, effectiveDate, description, null);
+    }
+
+    public static String computePayloadHash(
+            UUID accountId,
+            TransactionEventType eventType,
+            BigDecimal amount,
+            LocalDate effectiveDate,
+            String description,
+            UUID counterpartyId
+    ) {
         String canonicalAmount = amount.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
         String canonicalPayload = "accountId=" + accountId
                 + "&eventType=" + eventType.name()
                 + "&amount=" + canonicalAmount
                 + "&effectiveDate=" + effectiveDate
-                + "&description=" + (description != null ? description : "");
+                + "&description=" + (description != null ? description : "")
+                + (counterpartyId != null ? "&counterpartyId=" + counterpartyId : "");
 
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

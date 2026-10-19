@@ -7,6 +7,7 @@ export const postingChoices = ['DIRECT_SALE_RECEIPT', 'OPERATING_EXPENSE_PAYMENT
 export type PostingChoice = typeof postingChoices[number];
 export interface PostingDraft {
   selectedAccount: string; event: PostingChoice; amountText: string; dateText: string; descriptionText: string; confirmed: boolean;
+  counterpartyId?: string | null;
 }
 export type PostingInputErrors = Partial<Record<keyof PostingDraft, 'chooseAccount' | 'chooseEvent' | 'positiveAmount' | 'validDate' | 'descriptionLimit' | 'confirmRequired' | 'accountRejected' | 'cashFailure' | 'validation'>>;
 export function karachiToday(now = new Date()): string {

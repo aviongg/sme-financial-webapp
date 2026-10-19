@@ -1,5 +1,5 @@
 export const recordsEn = {
- add: 'Add record', title: 'Records', activity: 'Activity', accounts: 'Money accounts', historical: 'Historical summaries',
+ add: 'Add record', title: 'Records', activity: 'Activity', accounts: 'Money accounts', review: 'Review drafts', contacts: 'Customers & Suppliers', historical: 'Historical summaries',
  scan: 'Scan/upload', back: 'Back to Records', today: 'Today', week: 'This week', month: 'This month', custom: 'Custom range',
  period: 'Period', boundary: 'Asia/Karachi calendar dates · weeks start Monday.',
  received: 'Money received', paid: 'Money paid', net: 'Net cash movement', cashNotice: 'Cash movement, not profit. Totals cover all matching records, not just this page.',
@@ -9,7 +9,7 @@ export const recordsEn = {
 };
 export type RecordsCopy = typeof recordsEn;
 export const recordsUr: RecordsCopy = {
- add: 'ریکارڈ شامل کریں', title: 'ریکارڈز', activity: 'سرگرمی', accounts: 'رقم کے اکاؤنٹس', historical: 'تاریخی خلاصے',
+ add: 'ریکارڈ شامل کریں', title: 'ریکارڈز', activity: 'سرگرمی', accounts: 'رقم کے اکاؤنٹس', review: 'مسودات کا جائزہ', contacts: 'گاہک اور فراہم کنندگان', historical: 'تاریخی خلاصے',
  scan: 'اسکین/اپ لوڈ', back: 'ریکارڈز پر واپس', today: 'آج', week: 'اس ہفتے', month: 'اس مہینے', custom: 'منتخب تاریخیں',
  period: 'مدت', boundary: 'ایشیا/کراچی کی تاریخیں · ہفتہ پیر سے شروع ہوتا ہے۔',
  received: 'موصول رقم', paid: 'ادا شدہ رقم', net: 'رقم کی خالص نقل و حرکت', cashNotice: 'یہ رقم کی نقل و حرکت ہے، منافع نہیں۔ کل رقم تمام متعلقہ ریکارڈز کی ہے، صرف اس صفحے کی نہیں۔',

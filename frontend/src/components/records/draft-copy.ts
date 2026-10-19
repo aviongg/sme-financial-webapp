@@ -10,6 +10,7 @@ export const draftEn = {
   unsaved: 'You have unsaved edits.', discardEdits: 'Discard unsaved edits', keepEditing: 'Continue editing',
   conflict: 'A newer version exists. Your unsaved text has been kept. Compare it before reloading.',
   reload: 'Reload newer version', saveFailed: 'Draft could not be saved. Your entry is still here. Try again.',
+  counterparty: 'Customer / Supplier',
 } as const;
 export type DraftCopy = { [K in keyof typeof draftEn]: string };
 export const draftUr: DraftCopy = {
@@ -24,4 +25,5 @@ export const draftUr: DraftCopy = {
   unsaved: 'آپ کی ترامیم ابھی محفوظ نہیں ہوئیں۔', discardEdits: 'غیر محفوظ ترامیم چھوڑ دیں', keepEditing: 'ترمیم جاری رکھیں',
   conflict: 'نیا نسخہ موجود ہے۔ آپ کا غیر محفوظ متن برقرار ہے۔ دوبارہ لوڈ کرنے سے پہلے موازنہ کریں۔',
   reload: 'نیا نسخہ دوبارہ لوڈ کریں', saveFailed: 'مسودہ محفوظ نہیں ہو سکا۔ اندراج برقرار ہے۔ دوبارہ کوشش کریں۔',
+  counterparty: 'گاہک / فراہم کنندہ',
 };

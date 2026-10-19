@@ -33,6 +33,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,8 +42,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Service managing the lifecycle, optimistic concurrency, and safe recording
@@ -62,6 +66,7 @@ public class RecordDraftService {
     private final FinancialAccountRepository accountRepository;
     private final TransactionPostService transactionPostService;
     private final FinancialIdempotencyRepository idempotencyRepository;
+    private final com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository;
     private final ObjectMapper objectMapper;
 
     public RecordDraftService(
@@ -71,10 +76,23 @@ public class RecordDraftService {
             FinancialIdempotencyRepository idempotencyRepository,
             ObjectMapper objectMapper
     ) {
+        this(draftRepository, accountRepository, transactionPostService, idempotencyRepository, null, objectMapper);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecordDraftService(
+            RecordDraftRepository draftRepository,
+            FinancialAccountRepository accountRepository,
+            TransactionPostService transactionPostService,
+            FinancialIdempotencyRepository idempotencyRepository,
+            com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository,
+            ObjectMapper objectMapper
+    ) {
         this.draftRepository = draftRepository;
         this.accountRepository = accountRepository;
         this.transactionPostService = transactionPostService;
         this.idempotencyRepository = idempotencyRepository;
+        this.counterpartyRepository = counterpartyRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -143,6 +161,18 @@ public class RecordDraftService {
             errors.put("description", "Description must not exceed 255 characters");
         }
 
+        // Validate counterparty if supplied
+        if (request.counterpartyId() != null) {
+            Optional<com.app.sme_health_backend.counterparty.Counterparty> cpOpt = counterpartyRepository != null
+                    ? counterpartyRepository.findByIdAndBusinessId(request.counterpartyId(), context.businessId())
+                    : Optional.empty();
+            if (cpOpt.isEmpty()) {
+                errors.put("counterpartyId", "Counterparty not found");
+            } else if (cpOpt.get().getStatus() != com.app.sme_health_backend.counterparty.CounterpartyStatus.ACTIVE) {
+                errors.put("counterpartyId", "Selected counterparty is archived and cannot be newly assigned");
+            }
+        }
+
         if (!errors.isEmpty()) {
             throw new DraftValidationException(errors);
         }
@@ -155,7 +185,8 @@ public class RecordDraftService {
                     eventType != null ? eventType.name() : null,
                     effectiveDate != null ? effectiveDate.toString() : null,
                     amountInput,
-                    description
+                    description,
+                    request.counterpartyId()
             );
 
             Optional<FinancialIdempotencyRecord> existingOpt = idempotencyRepository.findByBusinessIdAndOperationAndIdempotencyKey(
@@ -183,7 +214,8 @@ public class RecordDraftService {
                 effectiveDate,
                 amountInput,
                 description,
-                context.userId()
+                context.userId(),
+                request.counterpartyId()
         );
 
         draft = draftRepository.saveAndFlush(draft);
@@ -269,8 +301,20 @@ public class RecordDraftService {
         );
 
         Page<RecordDraft> page = draftRepository.findAll(spec, sortedPageable);
+
+        Set<UUID> cpIds = new HashSet<>();
+        for (RecordDraft d : page.getContent()) {
+            if (d.getCounterpartyId() != null) {
+                cpIds.add(d.getCounterpartyId());
+            }
+        }
+        Map<UUID, com.app.sme_health_backend.counterparty.Counterparty> cpMap = (cpIds.isEmpty() || counterpartyRepository == null) ? Collections.emptyMap() :
+                counterpartyRepository.findAllById(cpIds).stream()
+                        .filter(c -> c.getBusinessId().equals(context.businessId()))
+                        .collect(Collectors.toMap(com.app.sme_health_backend.counterparty.Counterparty::getId, c -> c));
+
         List<DraftSummaryItem> items = page.getContent().stream()
-                .map(this::toSummaryItem)
+                .map(d -> toSummaryItem(d, d.getCounterpartyId() != null ? cpMap.get(d.getCounterpartyId()) : null))
                 .toList();
 
         return new DraftListResponse(
@@ -355,6 +399,18 @@ public class RecordDraftService {
             errors.put("description", "Description must not exceed 255 characters");
         }
 
+        // Validate counterparty if supplied
+        if (request.counterpartyId() != null) {
+            Optional<com.app.sme_health_backend.counterparty.Counterparty> cpOpt = counterpartyRepository != null
+                    ? counterpartyRepository.findByIdAndBusinessId(request.counterpartyId(), context.businessId())
+                    : Optional.empty();
+            if (cpOpt.isEmpty()) {
+                errors.put("counterpartyId", "Counterparty not found");
+            } else if (cpOpt.get().getStatus() != com.app.sme_health_backend.counterparty.CounterpartyStatus.ACTIVE) {
+                errors.put("counterpartyId", "Selected counterparty is archived and cannot be newly assigned");
+            }
+        }
+
         if (!errors.isEmpty()) {
             throw new DraftValidationException(errors);
         }
@@ -364,6 +420,7 @@ public class RecordDraftService {
         draft.setEffectiveDate(effectiveDate);
         draft.setAmountInput(amountInput);
         draft.setDescription(description);
+        draft.setCounterpartyId(request.counterpartyId());
         draft.setUpdatedById(context.userId());
         draft.setUpdatedAt(Instant.now());
 
@@ -502,7 +559,8 @@ public class RecordDraftService {
                         eventType,
                         amount,
                         effectiveDate,
-                        trimmedDescription
+                        trimmedDescription,
+                        request.counterpartyId() != null ? request.counterpartyId() : draft.getCounterpartyId()
                 );
 
                 if (!existing.getRequestHash().equals(currentPayloadHash)) {
@@ -537,6 +595,7 @@ public class RecordDraftService {
         String effectiveDateStr = request.effectiveDate() != null ? request.effectiveDate()
                 : (draft.getEffectiveDate() != null ? draft.getEffectiveDate().toString() : null);
         String effectiveDescription = request.description() != null ? request.description() : draft.getDescription();
+        UUID effectiveCounterpartyId = request.counterpartyId() != null ? request.counterpartyId() : draft.getCounterpartyId();
 
         Map<String, String> errors = new LinkedHashMap<>();
         if (effectiveAccountId == null) {
@@ -547,6 +606,24 @@ public class RecordDraftService {
         }
         if (effectiveDateStr == null || effectiveDateStr.trim().isEmpty()) {
             errors.put("effectiveDate", "Effective date is required to record draft");
+        }
+
+        if (effectiveCounterpartyId != null) {
+            Optional<com.app.sme_health_backend.counterparty.Counterparty> cpOpt = counterpartyRepository != null
+                    ? counterpartyRepository.findByIdAndBusinessId(effectiveCounterpartyId, context.businessId())
+                    : Optional.empty();
+            if (cpOpt.isEmpty()) {
+                errors.put("counterpartyId", "Counterparty not found");
+            } else {
+                com.app.sme_health_backend.counterparty.Counterparty cp = cpOpt.get();
+                if (cp.getStatus() != com.app.sme_health_backend.counterparty.CounterpartyStatus.ACTIVE) {
+                    errors.put("counterpartyId", "Selected counterparty is archived and cannot be newly assigned");
+                } else if ("DIRECT_SALE_RECEIPT".equals(effectiveEventTypeStr) && !cp.getType().isCustomerCompatible()) {
+                    errors.put("counterpartyId", "Counterparty must be a CUSTOMER or BOTH for a direct sale receipt");
+                } else if ("OPERATING_EXPENSE_PAYMENT".equals(effectiveEventTypeStr) && !cp.getType().isSupplierCompatible()) {
+                    errors.put("counterpartyId", "Counterparty must be a SUPPLIER or BOTH for an operating expense payment");
+                }
+            }
         }
 
         if (!errors.isEmpty()) {
@@ -562,7 +639,7 @@ public class RecordDraftService {
         if (existingKeyOpt.isPresent()) {
             throw new DuplicateResourceException(
                     "Idempotency key '" + trimmedKey + "' has already been used with a different request payload"
-            );
+                    );
         }
 
         // Delegate to canonical TransactionPostService
@@ -571,7 +648,8 @@ public class RecordDraftService {
                 effectiveEventTypeStr,
                 canonicalAmount,
                 effectiveDateStr,
-                effectiveDescription
+                effectiveDescription,
+                effectiveCounterpartyId
         );
 
         TransactionDetailResponse txDetail = transactionPostService.postTransaction(
@@ -583,6 +661,7 @@ public class RecordDraftService {
         // Mark draft RECORDED and link to resulting transaction
         draft.setStatus(DraftStatus.RECORDED);
         draft.setRecordedTransactionId(txDetail.id());
+        draft.setCounterpartyId(effectiveCounterpartyId);
         draft.setUpdatedById(context.userId());
         draft.setUpdatedAt(Instant.now());
 
@@ -652,10 +731,29 @@ public class RecordDraftService {
             return false;
         }
 
+        if (draft.getCounterpartyId() != null) {
+            Optional<com.app.sme_health_backend.counterparty.Counterparty> cpOpt = counterpartyRepository != null
+                    ? counterpartyRepository.findByIdAndBusinessId(draft.getCounterpartyId(), draft.getBusinessId())
+                    : Optional.empty();
+            if (cpOpt.isEmpty() || cpOpt.get().getStatus() != com.app.sme_health_backend.counterparty.CounterpartyStatus.ACTIVE) {
+                return false;
+            }
+            if (draft.getEventType() == TransactionEventType.DIRECT_SALE_RECEIPT && !cpOpt.get().getType().isCustomerCompatible()) {
+                return false;
+            }
+            if (draft.getEventType() == TransactionEventType.OPERATING_EXPENSE_PAYMENT && !cpOpt.get().getType().isSupplierCompatible()) {
+                return false;
+            }
+        }
+
         return true;
     }
 
     private DraftDetailResponse toDetailResponse(RecordDraft draft) {
+        com.app.sme_health_backend.counterparty.Counterparty cp = null;
+        if (draft.getCounterpartyId() != null && counterpartyRepository != null) {
+            cp = counterpartyRepository.findByIdAndBusinessId(draft.getCounterpartyId(), draft.getBusinessId()).orElse(null);
+        }
         return new DraftDetailResponse(
                 draft.getId(),
                 draft.getAccountId(),
@@ -670,11 +768,18 @@ public class RecordDraftService {
                 draft.getCreatedById(),
                 draft.getUpdatedById(),
                 draft.getCreatedAt(),
-                draft.getUpdatedAt()
+                draft.getUpdatedAt(),
+                cp != null ? cp.getId() : (draft.getCounterpartyId() != null ? draft.getCounterpartyId() : null),
+                cp != null ? cp.getDisplayName() : null,
+                cp != null ? cp.getType().name() : null
         );
     }
 
     private DraftSummaryItem toSummaryItem(RecordDraft draft) {
+        return toSummaryItem(draft, null);
+    }
+
+    private DraftSummaryItem toSummaryItem(RecordDraft draft, com.app.sme_health_backend.counterparty.Counterparty cp) {
         return new DraftSummaryItem(
                 draft.getId(),
                 draft.getAccountId(),
@@ -689,7 +794,10 @@ public class RecordDraftService {
                 draft.getCreatedById(),
                 draft.getUpdatedById(),
                 draft.getCreatedAt(),
-                draft.getUpdatedAt()
+                draft.getUpdatedAt(),
+                cp != null ? cp.getId() : (draft.getCounterpartyId() != null ? draft.getCounterpartyId() : null),
+                cp != null ? cp.getDisplayName() : null,
+                cp != null ? cp.getType().name() : null
         );
     }
 
@@ -700,11 +808,23 @@ public class RecordDraftService {
             String amountInput,
             String description
     ) {
+        return computeDraftPayloadHash(accountId, eventType, effectiveDate, amountInput, description, null);
+    }
+
+    private String computeDraftPayloadHash(
+            UUID accountId,
+            String eventType,
+            String effectiveDate,
+            String amountInput,
+            String description,
+            UUID counterpartyId
+    ) {
         String canonical = (accountId != null ? accountId.toString() : "") + "|" +
                 (eventType != null ? eventType : "") + "|" +
                 (effectiveDate != null ? effectiveDate : "") + "|" +
                 (amountInput != null ? amountInput : "") + "|" +
-                (description != null ? description : "");
+                (description != null ? description : "") + "|" +
+                (counterpartyId != null ? counterpartyId.toString() : "");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(canonical.getBytes(StandardCharsets.UTF_8));

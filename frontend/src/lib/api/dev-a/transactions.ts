@@ -22,12 +22,12 @@ export const transactionsApi = {
   },
   post: async (payload: TransactionPost, key: string, signal?: AbortSignal, expectedBusiness?: string) => {
     if (!key.trim() || key.length > 100) throw new Error('Invalid idempotency key.');
-    // Validate and reconstruct a whitelist even when called outside the form.
     const body = transactionPostPayload({ selectedAccount: payload.accountId, event: payload.eventType, amountText: payload.amount,
-      dateText: payload.effectiveDate, descriptionText: payload.description ?? '', confirmed: true } as PostingDraft);
+      dateText: payload.effectiveDate, descriptionText: payload.description ?? '', confirmed: true, counterpartyId: payload.counterpartyId } as PostingDraft);
     const data = parseTransactionDetail(await apiClient<unknown>('/finance/transactions', { method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify(body), signal }), expectedBusiness);
     if (data.accountId.toLowerCase() !== body.accountId.toLowerCase() || data.eventType !== body.eventType || data.amount !== body.amount
-      || data.effectiveDate !== body.effectiveDate || data.description !== (body.description ?? null)) throw new InvalidTransactionResponse();
+      || data.effectiveDate !== body.effectiveDate || data.description !== (body.description ?? null)
+      || (body.counterpartyId && data.counterpartyId?.toLowerCase() !== body.counterpartyId.toLowerCase())) throw new InvalidTransactionResponse();
     return data;
   },
   reverse: async (id: string, reason: string, key: string, signal?: AbortSignal, expectedBusiness?: string) => {

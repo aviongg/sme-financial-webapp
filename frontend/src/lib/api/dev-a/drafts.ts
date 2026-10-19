@@ -8,6 +8,7 @@ export interface RecordDraft {
  id: string; accountId: string | null; eventType: DraftEntry['event'] | null; effectiveDate: string | null;
  amountInput: string | null; description: string | null; status: DraftStatus; readyToRecord: boolean; version: number;
  recordedTransactionId: string | null; createdById: string; updatedById: string; createdAt: string; updatedAt: string;
+ counterpartyId?: string | null; counterpartyName?: string | null;
 }
 export interface DraftPage { items: RecordDraft[]; page: number; size: number; totalElements: number; totalPages: number }
 export class InvalidDraftResponse extends Error { constructor() { super('Invalid draft response'); } }
@@ -26,12 +27,14 @@ export function parseDraft(value: unknown, expectedId?: string): RecordDraft {
  ensure(typeof d.readyToRecord === 'boolean' && Number.isSafeInteger(d.version) && (d.version as number) >= 0);
  ensure(d.status === 'RECORDED' ? uuid(d.recordedTransactionId) : d.recordedTransactionId === null);
  ensure(isTransactionTimestamp(d.createdAt) && isTransactionTimestamp(d.updatedAt));
+ if (d.counterpartyId !== undefined && d.counterpartyId !== null) ensure(uuid(d.counterpartyId));
+ if (d.counterpartyName !== undefined && d.counterpartyName !== null) ensure(typeof d.counterpartyName === 'string');
  return d as unknown as RecordDraft;
 }
-export function draftEntry(d: RecordDraft): DraftEntry { return { selectedAccount: d.accountId ?? '', event: d.eventType ?? '', dateText: d.effectiveDate ?? '', amountText: d.amountInput ?? '', descriptionText: d.description ?? '' }; }
+export function draftEntry(d: RecordDraft): DraftEntry { return { selectedAccount: d.accountId ?? '', event: d.eventType ?? '', dateText: d.effectiveDate ?? '', amountText: d.amountInput ?? '', descriptionText: d.description ?? '', counterpartyId: d.counterpartyId ?? null }; }
 export function draftPayload(entry: DraftEntry) {
  if (entry.selectedAccount && !isAccountId(entry.selectedAccount) || entry.event && !postingChoices.includes(entry.event) || entry.dateText && !isCalendarDate(entry.dateText) || entry.amountText.length > 100 || entry.descriptionText.length > 255) throw new Error('Invalid draft input');
- return Object.freeze({ accountId: entry.selectedAccount || null, eventType: entry.event || null, effectiveDate: entry.dateText || null, amountInput: entry.amountText || null, description: entry.descriptionText || null });
+ return Object.freeze({ accountId: entry.selectedAccount || null, eventType: entry.event || null, effectiveDate: entry.dateText || null, amountInput: entry.amountText || null, description: entry.descriptionText || null, ...(entry.counterpartyId ? { counterpartyId: entry.counterpartyId } : {}) });
 }
 export function parseDraftPage(value: unknown, page: number, status: DraftStatus | 'ALL'): DraftPage {
  const p = object(value); ensure(p.page === page && p.size === 20 && Array.isArray(p.items));
@@ -55,7 +58,7 @@ export const draftsApi = {
   const result=parseDraft(await apiClient<unknown>(saved ? path(saved.id) : '/finance/drafts',{
    method:saved?'PUT':'POST',signal,headers:saved?undefined:keyHeader(key),body:JSON.stringify({...payload,...(saved?versionBody(saved.version):{})}),
   }),saved?.id);
-  ensure(result.status==='DRAFT' && result.accountId===payload.accountId && result.eventType===payload.eventType && result.effectiveDate===payload.effectiveDate && result.amountInput===payload.amountInput);
+  ensure(result.status==='DRAFT' && result.accountId===payload.accountId && result.eventType===payload.eventType && result.effectiveDate===payload.effectiveDate && result.amountInput===payload.amountInput && (!payload.counterpartyId || result.counterpartyId === payload.counterpartyId));
   ensure(result.version===(saved?saved.version+1:0));
   return result;
  },

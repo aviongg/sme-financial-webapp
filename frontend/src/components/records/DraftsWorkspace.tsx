@@ -44,6 +44,7 @@ function DraftList({business,writable}:{business?:string;writable:boolean}) {
     <h2>{d.description|| (d.eventType==='DIRECT_SALE_RECEIPT'?copy.sale:d.eventType==='OPERATING_EXPENSE_PAYMENT'?copy.expense:copy.continueEntry)}</h2><p>{copy[d.status]}</p>
     <p>{copy.updated}: <bdi dir="ltr">{d.updatedAt}</bdi></p>
     {d.status==='DRAFT'&&missingEntryFields(draftEntry(d)).length>0&&<p>{copy.missing}: {missingEntryFields(draftEntry(d)).map(field=>({selectedAccount:copy.account,event:copy.event,amountText:copy.amount,dateText:copy.date}[field])).join(' · ')}</p>}
+    {d.counterpartyName&&<p>{copy.counterparty}: <strong>{d.counterpartyName}</strong></p>}
     {d.amountInput!==null&&<p>{copy.amount}: <bdi dir="ltr">{d.amountInput}</bdi></p>}
     <Button variant="secondary" onClick={()=>setSelected(d.id)}>{copy.continueEntry}</Button>
     {d.recordedTransactionId&&<Button variant="secondary" onClick={()=>setTransaction(d.recordedTransactionId)}>{copy.viewTransaction}</Button>}

@@ -5,6 +5,8 @@ import { useLanguage } from '@/lib/i18n/context';
 import { draftEn, draftUr } from './draft-copy';
 import { draftAmountPreview, type DraftEntry } from './draft-entry';
 
+import { CounterpartySelector } from './counterparties/CounterpartySelector';
+
 /** Contract-independent editing fields. Intentionally not mounted until persistence is ready. */
 export function DraftEntryFields({ entry, accounts, disabled = false, onChange }: {
   entry: DraftEntry; accounts: readonly { id: string; accountName: string }[];
@@ -22,6 +24,13 @@ export function DraftEntryFields({ entry, accounts, disabled = false, onChange }
     <Input label={copy.amount} maxLength={100} value={entry.amountText} type="text" inputMode="decimal" dir="ltr" autoComplete="off" className="font-sans tabular-nums [unicode-bidi:isolate]" helperText={copy.amountHelp} onChange={event => onChange({ amountText: event.target.value })} />
     <Input label={copy.date} value={entry.dateText} type="date" dir="ltr" onChange={event => onChange({ dateText: event.target.value })} />
     <Input label={copy.description} maxLength={255} value={entry.descriptionText} onChange={event => onChange({ descriptionText: event.target.value })} />
+    <CounterpartySelector
+      value={entry.counterpartyId}
+      targetType={entry.event === 'DIRECT_SALE_RECEIPT' ? 'CUSTOMER' : entry.event === 'OPERATING_EXPENSE_PAYMENT' ? 'SUPPLIER' : undefined}
+      label={copy.counterparty}
+      disabled={disabled}
+      onChange={(id) => onChange({ counterpartyId: id })}
+    />
     {preview ? <p role="status">{preview.rounded ? copy.rounded : copy.preview}: <bdi dir="ltr">{preview.canonical} PKR</bdi></p> : entry.amountText && <p role="status">{copy.invalidAmount}</p>}
   </fieldset>;
 }

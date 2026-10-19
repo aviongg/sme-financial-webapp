@@ -10,6 +10,16 @@ public record DraftCreateRequest(
         String eventType,
         String effectiveDate,
         String amountInput,
-        String description
+        String description,
+        UUID counterpartyId
 ) {
+    public DraftCreateRequest(
+            UUID accountId,
+            String eventType,
+            String effectiveDate,
+            String amountInput,
+            String description
+    ) {
+        this(accountId, eventType, effectiveDate, amountInput, description, null);
+    }
 }

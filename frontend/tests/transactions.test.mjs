@@ -211,6 +211,7 @@ test('actual bilingual form uses labelled exact text input, confirmation and loc
     if (name.startsWith('./transaction-')) return require(path.join(directory, 'components/finance/transactions', name.slice(2) + '.js'));
     if (name === '../../records/draft-copy') return require(path.join(directory,'components/records/draft-copy.js'));
     if (name === '../accounts/CreateAccountForm') return {CreateAccountForm() {}};
+    if (name === '../../records/counterparties/CounterpartySelector') return {CounterpartySelector() {}};
     if (!name.startsWith('@/')) return require(name);
     if (cache.has(name)) return cache.get(name);
     const ext = name === '@/lib/utils/cn' ? '.ts' : '.tsx';

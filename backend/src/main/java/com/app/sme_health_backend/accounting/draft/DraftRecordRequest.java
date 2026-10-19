@@ -11,6 +11,17 @@ public record DraftRecordRequest(
         UUID accountId,
         String eventType,
         String effectiveDate,
-        String description
+        String description,
+        UUID counterpartyId
 ) {
+    public DraftRecordRequest(
+            Long version,
+            String confirmedAmount,
+            UUID accountId,
+            String eventType,
+            String effectiveDate,
+            String description
+    ) {
+        this(version, confirmedAmount, accountId, eventType, effectiveDate, description, null);
+    }
 }

@@ -48,6 +48,7 @@ public class TransactionReadService {
     private final FinancialTransactionRepository transactionRepository;
     private final FinancialAccountRepository accountRepository;
     private final AccountMovementRepository movementRepository;
+    private final com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository;
     private final EntityManager entityManager;
 
     public TransactionReadService(
@@ -56,9 +57,21 @@ public class TransactionReadService {
             AccountMovementRepository movementRepository,
             EntityManager entityManager
     ) {
+        this(transactionRepository, accountRepository, movementRepository, null, entityManager);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransactionReadService(
+            FinancialTransactionRepository transactionRepository,
+            FinancialAccountRepository accountRepository,
+            AccountMovementRepository movementRepository,
+            com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository,
+            EntityManager entityManager
+    ) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.movementRepository = movementRepository;
+        this.counterpartyRepository = counterpartyRepository;
         this.entityManager = entityManager;
     }
 
@@ -118,6 +131,11 @@ public class TransactionReadService {
             }
         }
 
+        com.app.sme_health_backend.counterparty.Counterparty cp = null;
+        if (tx.getCounterpartyId() != null && counterpartyRepository != null) {
+            cp = counterpartyRepository.findByIdAndBusinessId(tx.getCounterpartyId(), businessId).orElse(null);
+        }
+
         return new TransactionDetailResponse(
                 tx.getId(),
                 tx.getBusinessId(),
@@ -143,7 +161,10 @@ public class TransactionReadService {
                 reversedTxId,
                 isReversed,
                 reversedByTxId,
-                reversalReason
+                reversalReason,
+                cp != null ? cp.getId() : (tx.getCounterpartyId() != null ? tx.getCounterpartyId() : null),
+                cp != null ? cp.getDisplayName() : null,
+                cp != null ? cp.getType().name() : null
         );
     }
 
@@ -261,6 +282,17 @@ public class TransactionReadService {
                 transactionRepository.findByBusinessIdAndReversedTransactionIdIn(businessId, pageTxIds).stream()
                         .collect(Collectors.toMap(FinancialTransaction::getReversedTransactionId, t -> t, (a, b) -> a));
 
+        Set<UUID> pageCounterpartyIds = new HashSet<>();
+        for (FinancialTransaction tx : txPage.getContent()) {
+            if (tx.getCounterpartyId() != null) {
+                pageCounterpartyIds.add(tx.getCounterpartyId());
+            }
+        }
+        Map<UUID, com.app.sme_health_backend.counterparty.Counterparty> counterpartiesMap = (pageCounterpartyIds.isEmpty() || counterpartyRepository == null) ? Collections.emptyMap() :
+                counterpartyRepository.findAllById(pageCounterpartyIds).stream()
+                        .filter(c -> c.getBusinessId().equals(businessId))
+                        .collect(Collectors.toMap(com.app.sme_health_backend.counterparty.Counterparty::getId, c -> c));
+
         List<TransactionDetailResponse> content = txPage.getContent().stream().map(tx -> {
             UUID rowAccountId;
             String rowAccountName;
@@ -318,6 +350,9 @@ public class TransactionReadService {
                 rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
             }
 
+            com.app.sme_health_backend.counterparty.Counterparty rowCp = tx.getCounterpartyId() != null
+                    ? counterpartiesMap.get(tx.getCounterpartyId()) : null;
+
             return new TransactionDetailResponse(
                     tx.getId(),
                     tx.getBusinessId(),
@@ -343,7 +378,10 @@ public class TransactionReadService {
                     reversedTxId,
                     isReversed,
                     reversedByTxId,
-                    reversalReason
+                    reversalReason,
+                    rowCp != null ? rowCp.getId() : (tx.getCounterpartyId() != null ? tx.getCounterpartyId() : null),
+                    rowCp != null ? rowCp.getDisplayName() : null,
+                    rowCp != null ? rowCp.getType().name() : null
             );
         }).toList();
 

@@ -20,6 +20,8 @@ export interface TransactionSummary {
   isReversed?: boolean;
   reversedByTransactionId?: string | null;
   reversalReason?: string | null;
+  counterpartyId?: string | null;
+  counterpartyName?: string | null;
 }
 export interface TransactionMovement {
   id: string; accountId: string; movementDirection: MovementDirection; amount: string; currency: 'PKR'; effectiveDate: string; createdAt: string;
@@ -27,7 +29,7 @@ export interface TransactionMovement {
 export interface TransactionDetailData extends TransactionSummary { movements: TransactionMovement[] }
 export interface TransactionQuery { accountId?: string; eventType?: TransactionEventType; startDate?: string; endDate?: string; page?: number; size?: number }
 export interface TransactionPage { content: TransactionSummary[]; page: number; size: number; totalElements: number; totalPages: number; effectiveCutoffDate: string; observationAt: string }
-export interface TransactionPost { accountId: string; eventType: PostingChoice; amount: string; effectiveDate: string; description?: string }
+export interface TransactionPost { accountId: string; eventType: PostingChoice; amount: string; effectiveDate: string; description?: string; counterpartyId?: string | null }
 export class InvalidTransactionResponse extends Error { constructor() { super('Invalid transaction response.'); this.name = 'InvalidTransactionResponse'; } }
 function ensure(value: unknown): asserts value { if (!value) throw new InvalidTransactionResponse(); }
 function object(value: unknown): Record<string, unknown> { ensure(value !== null && typeof value === 'object' && !Array.isArray(value)); return value as Record<string, unknown>; }
@@ -70,6 +72,8 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
   if (t.reversalReason !== undefined && t.reversalReason !== null) {
     ensure(typeof t.reversalReason === 'string' && t.reversalReason.length >= 1 && t.reversalReason.length <= descriptionLimit && t.reversalReason.trim() === t.reversalReason);
   }
+  if (t.counterpartyId !== undefined && t.counterpartyId !== null) ensure(uuid(t.counterpartyId));
+  if (t.counterpartyName !== undefined && t.counterpartyName !== null) ensure(typeof t.counterpartyName === 'string');
   return { id: t.id, businessId: t.businessId, accountId: t.accountId, accountName: t.accountName, accountType: t.accountType,
     eventType: t.eventType, movementDirection: t.movementDirection, amount: t.amount, currency: t.currency, baseAmountPkr: t.baseAmountPkr,
     effectiveDate: t.effectiveDate, description: t.description, resultingBalance: t.resultingBalance,
@@ -82,7 +86,9 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
     ...(t.reversedTransactionId !== undefined ? { reversedTransactionId: t.reversedTransactionId as string | null } : {}),
     ...(t.isReversed !== undefined ? { isReversed: Boolean(t.isReversed) } : {}),
     ...(t.reversedByTransactionId !== undefined ? { reversedByTransactionId: t.reversedByTransactionId as string | null } : {}),
-    ...(t.reversalReason !== undefined ? { reversalReason: t.reversalReason as string | null } : {}) } as TransactionSummary;
+    ...(t.reversalReason !== undefined ? { reversalReason: t.reversalReason as string | null } : {}),
+    ...(t.counterpartyId !== undefined ? { counterpartyId: t.counterpartyId as string | null } : {}),
+    ...(t.counterpartyName !== undefined ? { counterpartyName: t.counterpartyName as string | null } : {}) } as TransactionSummary;
 }
 export function parseTransactionDetail(value: unknown, expectedBusiness?: string, expectedId?: string): TransactionDetailData {
   const raw = object(value), t = parseTransaction(raw, expectedBusiness);
@@ -146,5 +152,6 @@ export function transactionPostPayload(draft: PostingDraft): TransactionPost {
     || !isCalendarDate(draft.dateText) || draft.descriptionText.length > descriptionLimit || !draft.confirmed) throw new Error('Invalid transaction input.');
   const description = draft.descriptionText.trim();
   return Object.freeze({ accountId: draft.selectedAccount, eventType: draft.event, amount: draft.amountText, effectiveDate: draft.dateText,
-    ...(description ? { description } : {}) });
+    ...(description ? { description } : {}),
+    ...(draft.counterpartyId ? { counterpartyId: draft.counterpartyId } : {}) });
 }

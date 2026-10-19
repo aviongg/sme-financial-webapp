@@ -58,6 +58,9 @@ public class RecordDraft {
     @Column(name = "recorded_transaction_id")
     private UUID recordedTransactionId;
 
+    @Column(name = "counterparty_id")
+    private UUID counterpartyId;
+
     @Column(name = "created_by_id", nullable = false)
     private UUID createdById;
 
@@ -94,6 +97,28 @@ public class RecordDraft {
         this.updatedById = createdById;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
+    }
+
+    public RecordDraft(
+            UUID businessId,
+            UUID accountId,
+            TransactionEventType eventType,
+            LocalDate effectiveDate,
+            String amountInput,
+            String description,
+            UUID createdById,
+            UUID counterpartyId
+    ) {
+        this(businessId, accountId, eventType, effectiveDate, amountInput, description, createdById);
+        this.counterpartyId = counterpartyId;
+    }
+
+    public UUID getCounterpartyId() {
+        return counterpartyId;
+    }
+
+    public void setCounterpartyId(UUID counterpartyId) {
+        this.counterpartyId = counterpartyId;
     }
 
     @PrePersist

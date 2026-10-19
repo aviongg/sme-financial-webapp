@@ -2,6 +2,7 @@ import { verifyRecordDrafts, verifyReplaySyntax } from './record-drafts.live.mjs
 import { verifyTransfers } from './transfers.live.mjs';
 import { verifyReversals } from './reversals.live.mjs';
 import { verifyImportDrafts } from './import-drafts.live.mjs';
+import { verifyCounterparties } from './counterparties.live.mjs';
 // Real Spring/PostgreSQL acceptance. No synthetic HTTP API and no silent skip.
 // Requires current backend target/classes/test-classes + Surefire classpath evidence,
 // installed JDK, pnpm, Playwright/Edge, and a live Next build targeting port 8280.
@@ -35,7 +36,7 @@ const playwrightPath = process.env.PLAYWRIGHT_MODULE || (existsSync('C:/Users/PC
 const { chromium, request } = require(playwrightPath || 'playwright');
 const temporary = mkdtempSync(path.join(tmpdir(), 'finsight-accounts-live-'));
 const backendPort = Number(process.env.TEST_BACKEND_PORT || 8680), nextPort = Number(process.env.TEST_NEXT_PORT || 3581), gatewayPort = Number(process.env.TEST_GATEWAY_PORT || 3580);
-const expectedDraftHash='595b0f69705cce3d21022e6ad67e8be4105575ebdce89781500b0a939bc50b4a';
+const expectedDraftHash='96b93a9f32754d54b8be4c3c47b4424e453ef3a29e3a6185406316321516de75';
 const origin = 'http://127.0.0.1:'+gatewayPort;
 // Parallel acceptance preserves the existing 3180/8280 review app and its data.
 // Transparent gateway routes real API traffic to fresh Spring 8380 and page/assets to production Next 3281.
@@ -48,6 +49,7 @@ const parityOnly = process.argv.includes('--parity');
 const draftSyntaxOnly=process.argv.includes('--draft-syntax');
 const captureOldParity = process.argv.includes('--capture-old-parity');
 const importOnly = process.argv.includes('--import-only');
+const counterpartiesOnly = process.argv.includes('--counterparties-only');
 let leaveReview = false;
 let runtime, next, browser, gateway;
 let gatewayText = "";
@@ -369,7 +371,7 @@ try {
     const backendFd = openSync(backendLog, 'w');
     runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java'), '--review', stopFile], { cwd: path.join(root, 'backend'), windowsHide: true, detached: true, stdio: ['ignore', backendFd, backendFd] }); closeSync(backendFd);
     await waitFor(() => { runtimeText = readFileSync(backendLog, 'utf8'); return runtimeText.includes('LIVE_READY'); }, 'Independent review backend');
-    assert.match(runtimeText, /schema=(?:21|22|23|24)/);
+    assert.match(runtimeText, /schema=(?:21|22|23|24|25)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
     assert.ok(runtimeText.includes(';sha256=' + expectedReviewClassHash), 'Review runtime class differs from verified current target/classes');
@@ -449,7 +451,7 @@ try {
   runtime = spawn(path.join(javaHome, 'bin/java.exe'), ['--class-path', path.join(temporary, 'classpath.jar'), path.join(temporary, 'AccountsLiveRuntime.java')], { cwd: path.join(root, 'backend'), windowsHide: true });
   runtime.stdout.on('data', data => runtimeText += data); runtime.stderr.on('data', data => runtimeText += data);
   await waitFor(() => runtimeText.includes('LIVE_READY'), 'Disposable Spring/PostgreSQL runtime', 60000);
-  assert.match(runtimeText, /schema=(?:21|22|23|24)/);
+  assert.match(runtimeText, /schema=(?:21|22|23|24|25)/);
   assert.ok(runtimeText.includes('LIVE_DRAFT_CLASS:') && runtimeText.includes(';sha256='+createHash('sha256').update(readFileSync(path.join(root,'backend/target/classes/com/app/sme_health_backend/accounting/draft/RecordDraftService.class'))).digest('hex')));
   assert.ok(runtimeText.includes(';sha256='+expectedAccountReadHash),'Running backend class differs from verified current target/classes');
   mark('fresh runtime loads verified current AccountReadService class bytes; source/class timestamps agree');
@@ -516,7 +518,11 @@ try {
   await signin(page, owner.email);
   const mainAccount = ids.pkr;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  if (importOnly) {
+  if (counterpartiesOnly) {
+    await verifyCounterparties({ api, owner, viewer, manager, accountant, page, context, browser, signin, origin, accountId: mainAccount, today, txCounts, control, getRuntimeText: () => runtimeText, blockers, mark, businessA, businessB, requestFactory: request, temporary, out });
+    await context.close();
+    mark('COUNTERPARTIES ACCEPTANCE COMPLETED IN ISOLATION');
+  } else if (importOnly) {
     await verifyImportDrafts({ api, owner, viewer, manager, accountant, page, context, browser, signin, origin, accountId: mainAccount, today, txCounts, control, getRuntimeText: () => runtimeText, blockers, mark, businessA, businessB, requestFactory: request, temporary, out });
     await context.close();
     mark('IMPORT DRAFTS ACCEPTANCE COMPLETED IN ISOLATION');
@@ -1013,7 +1019,7 @@ try {
     if (reviewOnly) { writeFileSync(path.join(temporary, 'review.stop'), 'stop'); } else runtime.stdin.write('STOP\n');
     await waitFor(() => exited(runtime), 'Task-owned PostgreSQL/Spring shutdown', 15000).catch(() => { runtime.kill(); process.exitCode = 1; });
   }
-  if (!reviewOnly) writeFileSync(path.join(out, draftSyntaxOnly ? 'draft-syntax-results.json' : parityOnly ? (captureOldParity ? 'parity-before-results.json' : 'parity-after-results.json') : demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, draftBackendClass: runtimeText.match(/LIVE_DRAFT_CLASS:([^\r\n]+)/)?.[1] ?? null, backendClass: runtimeText.match(/LIVE_ACCOUNT_READ_CLASS:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && !parityOnly && !draftSyntaxOnly && blockers.length === 0 }, null, 2));
+  if (!reviewOnly) writeFileSync(path.join(out, counterpartiesOnly ? 'counterparties-results.json' : draftSyntaxOnly ? 'draft-syntax-results.json' : parityOnly ? (captureOldParity ? 'parity-before-results.json' : 'parity-after-results.json') : demoOnly ? 'demo-results.json' : 'results.json'), JSON.stringify({ checks, blockers, environment: runtimeText.match(/LIVE_ENV:([^\r\n]+)/)?.[1] ?? null, draftBackendClass: runtimeText.match(/LIVE_DRAFT_CLASS:([^\r\n]+)/)?.[1] ?? null, backendClass: runtimeText.match(/LIVE_ACCOUNT_READ_CLASS:([^\r\n]+)/)?.[1] ?? null, integrated: !demoOnly && !parityOnly && !draftSyntaxOnly && blockers.length === 0 }, null, 2));
   if (blockers.length) {
     for (const blocker of blockers) console.error('BLOCKER ' + blocker);
     process.exitCode = 1;

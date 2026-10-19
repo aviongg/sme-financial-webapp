@@ -5,7 +5,7 @@ import type { PostingDraft } from '../finance/transactions/transaction-input';
 export type DraftEntry = Omit<PostingDraft, 'event' | 'confirmed'> & {
   event: PostingDraft['event'] | '';
 };
-export const emptyDraftEntry = (): DraftEntry => ({ selectedAccount: '', event: '', amountText: '', dateText: '', descriptionText: '' });
+export const emptyDraftEntry = (): DraftEntry => ({ selectedAccount: '', event: '', amountText: '', dateText: '', descriptionText: '', counterpartyId: null });
 export type MissingEntryField = 'selectedAccount' | 'event' | 'amountText' | 'dateText';
 export function missingEntryFields(entry: DraftEntry): MissingEntryField[] {
   return (['selectedAccount', 'event', 'amountText', 'dateText'] as const).filter(field => !entry[field].trim());
