@@ -1,5 +1,35 @@
 # Current Phase 2 implementation state
 
+## F06 bounded planning — 18–19 October 2026 (Asia/Karachi)
+
+Explicit user request authorizes only a stateless, non-posting cost/pricing preview and EN/UR/RTL user journey. Isolated branch `codex/f06-bounded-costing`, base `1f72c6e8500f4a94a103768f1d71f980395af143`, verified after fetching origin. No direct integration/push to dev/fatima; parallel R03 paths and existing untracked files are excluded.
+
+| Reserved scope | Sole editor | Status |
+|---|---|---|
+| New backend estimates package and its unit/endpoint tests | B / backend agent | Complete; editor released |
+| Frontend estimates page/components/API, navigation, EN/UR and unit tests | B / frontend agent | Complete; editor released |
+| New F06 real browser harness/script | B / browser agent | Complete; editor released |
+| F06 documentation/evidence, shared test commands and integrated review | B / root | Complete in containing commit |
+
+No migration reserved or authored; V1–V19 remain unchanged. The preview is a core-finance planning capability using existing permission/session/CSRF/business context, under current `/api` conventions. The future `costing` module and its `projects` dependency remain unchanged/unavailable; no C03/P09 availability semantics change or approval is asserted. P05/P10/P13 remain open; calculation precision is not settlement/accounting rounding. Persistence, approval/history, F05 conversion, tax, FX and all financial posting remain blocked/out of scope.
+
+**Requested bounded development slice complete; full F06 remains PARTIAL_VERIFIED / BLOCKED_DEPENDENCY for persistence and conversion.** [Actual scope and API](F06_IMPLEMENTATION.md), [dated verification](verification/2026-10-19-f06.json). All existing active roles already possess FINANCIAL_DATA_READ; suspended/removed/no-membership and missing-permission paths are tested without inventing a disallowed current role. BigDecimal exact cost arithmetic and explicitly labeled 24-place division calculation precision preserve null denominators; no accounting/settlement policy is approved. Required 800 / 20% fixtures yield 1000 for margin and 960 for markup.
+
+| Fresh F06 gate | Result / qualifications |
+|---|---|
+| Targeted backend | **33 unit + 8 real PostgreSQL endpoint cases passed**, zero failures/errors/skips |
+| Full local backend verify | **968 default cases: 967 passed, 1 existing Windows symlink skip; 122 PostgreSQL cases passed**, zero failures/errors. Includes relevant session/MFA/CSRF/tenant/security tests. Nineteen production-target cases explicitly excluded, not accepted. R01 did not recur; no R01 fix is claimed. |
+| Frontend | **81 tests passed**, including 15 F06 cases; TypeScript passed; ESLint zero errors and one existing SessionProvider ref-cleanup warning |
+| Production build | **Webpack build passed**, with framework middleware deprecation/Edge runtime warnings; no dependency or lockfile change |
+| Real F06 browser | **14 checks passed**, production Next + actual Spring/session/CSRF + disposable PostgreSQL; synthetic accounts/data, AI disabled. Zero browser/CSP/hydration errors or external browser requests. Final evidence capture reviewed in desktop and Urdu/mobile. |
+| Existing browser regressions | **24 + 10 + 19 = 53 checks passed** against separate controlled synthetic API fixtures on the production frontend; distinct from real backend evidence |
+| Financial/source integrity | Before/after full-row snapshots across nine financial/configuration tables and actual browser monthly/score equality pass. Financial/security/identity/configuration production source, V1–V19, and R01/R02/R03 source/tests unchanged. |
+
+Runtime: Java 26.0.1 compiling release 21, Maven 3.9.16, disposable PostgreSQL 14.22, Node 24.19.0, Next 16.3.8 and Edge. Local fixtures do not establish production Java21/PostgreSQL17/TLS or release acceptance. Initial sandbox dependency copy/JVM inspection stalled; frozen offline pnpm installation lacked policy metadata. Normal permitted frozen installation passed registry policy checks with unchanged manifests/lockfiles. Feature tests passed on first execution; a later browser rerun improves screenshot position only. Details and exact commands are in the verification record.
+
+One coherent local feature commit is intended; resolve its SHA with `git log -1 --format=%H -- docs/phase2/F06_IMPLEMENTATION.md` and the final handoff. No push, integration, merge, rebase, main/dev/suleman/dev/fatima direct change or next feature is performed. Rebase/revalidation against the later dev/fatima is deferred until R03 is reviewed/integrated.
+
+
 ## F13 client-pilot remediation — 18 October 2026 (Asia/Karachi, isolated branch `f13-client-pilot-remediation`)
 
 Bounded fixes on base `13c2851c916f6a35968841bfccc8a404708b299a`; not pushed to `dev/fatima` and not merged. Scope: F13 order normalization (`WorkspaceResolver` baseline now filters unavailable widgets before seeding), live recommendation text/status/actions with read-only preview, 409 reload that rebases the unsaved draft onto the latest server layout, language switch that no longer remounts an open draft (non-boundary session revalidation), neutral cash-flow presentation for unknown net using the authoritative `netCashFlow` field, V18/V19 role-privilege test coverage, and first/last keyboard focus retention. No migration, `health-score-v1`, `CashFlowService` or accounting change. `DatabaseRolePrivilegesPostgreSqlIT` is production-target and was updated but not executed locally; `DisposableDatabaseRolesIT` covers the same privileges on disposable PostgreSQL.
@@ -82,7 +112,7 @@ The direct user instruction to use dev/fatima supersedes the supplied work divis
 
 F02, F13 and AI-LAUNCH-01 are **PARTIAL_VERIFIED** in the register's formal review vocabulary. Their requested development journeys are complete: persistent profile/module settings, personalized dashboards, server capability enforcement, opt-in explanations, bounded Ask FinSight, EN/UR and session/tenant isolation. Remaining gates are reciprocal C03/C10/C12/P09/P12 review; R01 is historically intermittent and passed the 16 October full run without a source fix. There is no missing initial UI/API/DB journey or A implementation dependency for these authorized MVP slices. Real-provider compatibility, model quality and production/client acceptance remain separate and unperformed. No contract is FROZEN, no P01–P14 decision is signed, and no owner/reviewer signoff has been supplied.
 
-All other F01/F03/F04/F05/F06/F07/F08/F09/F10/F11/F12A/F12B and supporting packages remain **DRAFT, not implemented**, apart from explicitly reused MVP capabilities. A dependency cannot be considered ready merely because its proposed DTO appears in documentation. The current slice preserves financial recognition, valuation, rounding and `health-score-v1`.
+Apart from the separately recorded bounded F06 preview above, all other F01/F03/F04/F05/F07/F08/F09/F10/F11/F12A/F12B and supporting packages remain **DRAFT, not implemented**, apart from explicitly reused MVP capabilities. A dependency cannot be considered ready merely because its proposed DTO appears in documentation. The current slices preserve financial recognition, valuation, accounting rounding and `health-score-v1`.
 
 | Contract owner | IDs | Review / readiness |
 |---|---|---|

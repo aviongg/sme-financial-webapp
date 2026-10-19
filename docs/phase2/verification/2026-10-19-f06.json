@@ -1,0 +1,242 @@
+{
+  "date": "2026-10-19",
+  "timezone": "Asia/Karachi",
+  "feature": "F06 bounded stateless pre-order costing/pricing",
+  "repository": "aviongg/sme-financial-webapp",
+  "branch": "codex/f06-bounded-costing",
+  "baseSha": "1f72c6e8500f4a94a103768f1d71f980395af143",
+  "finalFetchedRemoteTips": {
+    "dev/fatima": "1f72c6e8500f4a94a103768f1d71f980395af143",
+    "main": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
+    "dev/suleman": "f2ed9bda671404598bd73729563c6e0ceb2b08d1"
+  },
+  "publication": "One local feature commit only; no push/integration/rebase. Resolve containing commit with git log -1 --format=%H -- docs/phase2/verification/2026-10-19-f06.json.",
+  "scope": {
+    "route": "/estimates",
+    "endpoint": "POST /api/estimates/preview",
+    "permission": "FINANCIAL_DATA_READ",
+    "module": "existing mandatory core_finance; future costing registry unchanged",
+    "currency": "PKR / APPLICATION_FIXED_PKR",
+    "persistence": false,
+    "financialPosting": false,
+    "conversion": false,
+    "migrations": false,
+    "policyApprovals": false
+  },
+  "runtime": {
+    "java": "26.0.1 (compile release 21)",
+    "maven": "3.9.16",
+    "mavenExecutable": "C:\\Users\\Hp\\.m2\\wrapper\\dists\\apache-maven-3.9.16\\0daed3be3ebd1c706f0e69e8b07c6b73f5cc4ea3dfce72a8d0ec2e849ca2ddb0\\bin\\mvn.cmd",
+    "postgres": "14.22 disposable",
+    "node": "24.19.0",
+    "next": "16.3.8",
+    "pnpm": "11.25.0",
+    "browser": "Microsoft Edge via Playwright"
+  },
+  "gates": [
+    {
+      "id": "f06_backend",
+      "command": "mvn -Dmaven.repo.local=C:\\Users\\Hp\\.m2\\repository -o -B -Dtest=PricingCalculatorTests,EstimatePreviewBoundaryTests -Ppostgres-it -Dit.test=EstimatePreviewPostgreSqlIT verify",
+      "result": "PASS",
+      "unit": {
+        "tests": 33,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0
+      },
+      "postgres": {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0
+      },
+      "log": "backend/target/f06-targeted.log"
+    },
+    {
+      "id": "full_local_backend",
+      "command": "mvn -Dmaven.repo.local=C:\\Users\\Hp\\.m2\\repository -o -B -Ppostgres-it -Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT verify",
+      "result": "PASS",
+      "default": {
+        "tests": 968,
+        "passed": 967,
+        "failures": 0,
+        "errors": 0,
+        "skips": 1
+      },
+      "postgres": {
+        "tests": 122,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0
+      },
+      "skip": "Existing LocalFileSystemStorageServiceTests Windows symlink case",
+      "excludedProductionCases": 19,
+      "excludedProductionSuites": [
+        "DatabaseRolePrivilegesPostgreSqlIT",
+        "PostgreSqlTlsConnectionIT"
+      ],
+      "log": "backend/target/f06-full-regression.log",
+      "R01": "Did not recur; historical intermittent defect remains open. No fix claimed."
+    },
+    {
+      "id": "f06_frontend",
+      "command": "node --test tests/estimates.test.mjs",
+      "cwd": "frontend",
+      "result": "PASS",
+      "tests": 15,
+      "failures": 0,
+      "skips": 0
+    },
+    {
+      "id": "frontend_all",
+      "command": "node --test tests/*.test.mjs",
+      "cwd": "frontend",
+      "result": "PASS",
+      "tests": 81,
+      "failures": 0,
+      "skips": 0
+    },
+    {
+      "id": "typescript",
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "cwd": "frontend",
+      "result": "PASS"
+    },
+    {
+      "id": "eslint",
+      "command": "node node_modules/eslint/bin/eslint.js",
+      "cwd": "frontend",
+      "result": "PASS",
+      "errors": 0,
+      "warnings": 1,
+      "warning": "Existing SessionProvider.tsx:230:33 ref-cleanup warning"
+    },
+    {
+      "id": "production_build",
+      "command": "node node_modules/next/dist/bin/next build --webpack",
+      "cwd": "frontend",
+      "environment": {
+        "BACKEND_API_URL": "http://127.0.0.1:8080",
+        "NEXT_PUBLIC_DATA_MODE": "live"
+      },
+      "result": "PASS",
+      "warnings": [
+        "Middleware-to-proxy convention deprecation",
+        "Next internal process.cwd usage in Edge Runtime"
+      ],
+      "log": "../f06-production-build.log"
+    },
+    {
+      "id": "real_f06_browser",
+      "command": "mvn -Dmaven.repo.local=C:\\Users\\Hp\\.m2\\repository -o -B -Dtest=F06BrowserAcceptance test",
+      "result": "PASS",
+      "checks": 14,
+      "errors": 0,
+      "externalBrowserRequests": 0,
+      "firstLog": "backend/target/f06-browser.log",
+      "finalLog": "backend/target/f06-browser-final.log",
+      "rerunReason": "Wait for focus and scroll to top before full-page screenshots; no production code change.",
+      "scope": "Production Next + actual Spring/session/CSRF + disposable PostgreSQL; synthetic accounts/financial fixtures; AI disabled",
+      "artifacts": "../f06-browser-final",
+      "visualReview": "Desktop English and mobile Urdu/RTL screenshots inspected; readable fields/results, no horizontal overflow. Fixed mobile navigation retains viewport placement in full-page capture."
+    },
+    {
+      "id": "existing_browser_regressions",
+      "commands": [
+        "node tests/browser.integration.mjs",
+        "node tests/browser-extra.integration.mjs",
+        "node tests/browser-phase-two.integration.mjs"
+      ],
+      "cwd": "frontend",
+      "result": "PASS",
+      "checks": [
+        24,
+        10,
+        19
+      ],
+      "totalChecks": 53,
+      "errors": 0,
+      "externalBrowserRequests": 0,
+      "scope": "Production Next with controlled synthetic API fixtures; separate from real backend evidence",
+      "artifacts": "../f06-regression"
+    }
+  ],
+  "calculation": {
+    "version": "f06-preview-v1",
+    "input": "Strict plain decimal strings, 1–12 whole and 1–12 fractional digits",
+    "lineLimit": 100,
+    "requestByteLimit": 65536,
+    "exactOperations": [
+      "quantity * unitCost",
+      "sum lines/groups",
+      "price - cost",
+      "cost * (1 + markup)"
+    ],
+    "divisionScale": 24,
+    "divisionRounding": "HALF_EVEN",
+    "accountingRoundingPolicy": null,
+    "nullDenominators": true,
+    "acceptance": {
+      "cost": "800.00",
+      "targetMargin": "0.20",
+      "marginPrice": "1000.00",
+      "targetMarkup": "0.20",
+      "markupPrice": "960.00",
+      "resultingMargin": "0.166666666666666666666667"
+    }
+  },
+  "invariants": {
+    "monthlyRecordsAndScores": "Full-row before/after SQL snapshots plus real browser API equality; unchanged",
+    "tablesCompared": [
+      "monthly_records",
+      "score_results",
+      "insights",
+      "recommendations",
+      "uploaded_documents",
+      "whatsapp_deliveries",
+      "business_profiles",
+      "business_configuration",
+      "dashboard_preferences"
+    ],
+    "productionPackagesUnchanged": [
+      "records",
+      "scoring",
+      "documents",
+      "whatsapp",
+      "identity",
+      "security",
+      "configuration"
+    ],
+    "migrations": "V1–V19 unchanged; no new migration",
+    "R01R02R03": "No remediation source or existing tests edited",
+    "protectedBranches": "main, dev/suleman, dev/fatima not directly modified by this task",
+    "protectedUserFiles": "Original checkout docs/Phase_1_Backend_Remaining_Work.docx and tmp/ preserved"
+  },
+  "setupAttempts": [
+    {
+      "action": "Sandbox copy of existing pnpm tree",
+      "result": "Stopped after access-denied directory operations; partial copy isolated under work/dependency-copy-attempt."
+    },
+    {
+      "action": "Sandbox JVM version inspection",
+      "result": "Stopped after stalled startup; permitted runtime inspection/tests succeeded."
+    },
+    {
+      "action": "Frozen offline pnpm install",
+      "result": "Failed ERR_PNPM_NO_OFFLINE_META for registry policy metadata."
+    },
+    {
+      "action": "Frozen regular pnpm install",
+      "result": "PASS; all436 lockfile entries passed supply-chain policies; manifests and lockfiles unchanged."
+    }
+  ],
+  "notAccepted": [
+    "Production Java21/PostgreSQL17/TLS/deployment",
+    "Reciprocal financial/contract approval",
+    "Full F06 persistence/version history/approval",
+    "F05/C05 conversion",
+    "Tax, FX, accounting or settlement rounding",
+    "Any R01/R02/R03 remediation"
+  ],
+  "finalHandoff": "outputs/F06_HANDOFF.md in the initiating chat workspace contains final commit SHA and exact changed-file list."
+}

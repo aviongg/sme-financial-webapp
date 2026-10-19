@@ -196,6 +196,8 @@ C05 signed by B/A; budget and actual source history remain separate; exact sourc
 
 ## F06 — Pre-Order Costing and Pricing
 
+**19 October 2026 bounded implementation note:** the later explicit user request authorizes a stateless, non-posting manual preview and EN/UR/RTL screen independently of unfinished platform engines. [F06 actual scope](../F06_IMPLEMENTATION.md) describes the implemented `/api/estimates/preview` contract, exact decimal boundary, calculation-only precision and unchanged future module availability. The full design below remains proposed; persistence, approval/version history and F05 conversion are not implemented or approved.
+
 ### 1. Ownership
 
 B owns estimate lines, cost buildup, price/margin scenarios and conversion to F05 budget; A reviews canonical cost meanings, currency/rounding and handoff to C06. Estimate pricing is a deterministic planning calculator, never a posting or financing calculator.

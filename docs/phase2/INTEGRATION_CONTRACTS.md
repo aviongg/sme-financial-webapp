@@ -148,6 +148,8 @@ Errors: unknown/unavailable tool, invalid argument, rate cap, stale evidence, pr
 
 ## C12 API and i18n conventions
 
+**19 October 2026 F06 subset:** [the explicitly requested stateless planning preview](F06_IMPLEMENTATION.md) uses the current `/api/estimates/preview` convention, strict decimal-string inputs/outputs and existing session/CSRF/business authority. Its bounded calculation precision is not a shared financial rounding policy. No broader C12 freeze or C05 conversion readiness is implied.
+
 **Owner B, reviewer A; each feature owner authors their own endpoints/translations.** Extend `frontend/src/lib/api/client.ts`, domain API modules, `contracts.ts`, `lib/i18n/errors.ts`, `labels.ts` and translation dictionaries. Preserve generation-based cancellation on business/session changes, `credentials:'same-origin'`, CSRF acquisition, non-replayed writes, explicit demo boundary and loading/error/empty/no-data states.
 
 New DTO fields follow the shared rules above. An API adapter translates legacy numeric money to presentation without changing stored values; no global search/replace migration to strings. `LocalizedMessage={key:string,args:Record<string,string>}` carries display substitutions, not translated enum keys. Validation field paths remain stable (`lines[0].quantity`); server error codes map to en/ur dictionaries with safe fallback. Domain keys/categories remain language invariant. Example 409 `{status:409,error:"stale_version",message:"This record changed. Reload it before saving."}` maps to the relevant locale and preserves unsaved edits; the client must not silently repost.

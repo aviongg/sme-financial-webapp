@@ -134,6 +134,26 @@ It launches `scripts/test_f13_browser.mjs` against actual Spring sessions, CSRF 
 
 On this Windows host, the bundled pnpm launcher attempted an unnecessary store operation and hit a sandbox symlink restriction. The installed, unchanged dependencies can be invoked directly: `node --test tests/*.test.mjs`, `node node_modules/typescript/bin/tsc --noEmit --incremental false`, and `node node_modules/eslint/bin/eslint.js`. Google Fonts needs network access. When Turbopack's local CSS worker failed, `node node_modules/next/dist/bin/next build --webpack` produced the validated production build without a source/configuration or dependency change. Record the actual builder and warnings; do not relabel a failed default build as passed.
 
+## F06 bounded planning acceptance
+
+The stateless `/api/estimates/preview` and `/estimates` screen use the existing identity/session/CSRF path. No schema or financial posting is added. Isolate its deterministic and real PostgreSQL checks with:
+
+```powershell
+# From backend; Maven cache fallback and runtime qualifications above still apply
+.\mvnw.cmd '-Dtest=PricingCalculatorTests,EstimatePreviewBoundaryTests' -Ppostgres-it '-Dit.test=EstimatePreviewPostgreSqlIT' verify
+# From frontend
+node --test tests/estimates.test.mjs
+```
+
+After building the live production Next frontend with the 8080 rewrite, start it on loopback 3100, verify 8080 is free, and set the existing `FINSIGHT_BROWSER_NODE`, `PLAYWRIGHT_MODULE`, and a task-local `BROWSER_ARTIFACT_DIR`. Run separately from other browser harnesses:
+
+```powershell
+# From backend
+.\mvnw.cmd '-Dtest=F06BrowserAcceptance' test
+```
+
+The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL with synthetic accounts and explicitly disabled AI. It verifies margin/markup, cost groups, zero/unknown values, strict decimal/request bounds, access/session/business isolation, English/Urdu/mobile/keyboard, and unchanged records/score. Screenshots require visual inspection. Never point it at a developer/customer database. Actual contract, calculation precision and deferred work are in [F06 implementation](F06_IMPLEMENTATION.md); this does not establish production or policy approval.
+
 ## Documentation and publication checks (onboarding baseline)
 
 Review Markdown relative links, all fourteen feature entries, twelve contract owners, unresolved policies and truthful test status. Check source/migration invariants against the audited SHA:
