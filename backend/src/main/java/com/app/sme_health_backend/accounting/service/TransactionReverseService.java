@@ -53,6 +53,7 @@ public class TransactionReverseService {
     private final FinancialIdempotencyRepository idempotencyRepository;
     private final SecurityAuditRepository securityAuditRepository;
     private final com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository;
+    private final com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository;
     private final ObjectMapper objectMapper;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -63,6 +64,7 @@ public class TransactionReverseService {
             FinancialIdempotencyRepository idempotencyRepository,
             SecurityAuditRepository securityAuditRepository,
             com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
+            com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository,
             ObjectMapper objectMapper
     ) {
         this.accountRepository = accountRepository;
@@ -71,7 +73,20 @@ public class TransactionReverseService {
         this.idempotencyRepository = idempotencyRepository;
         this.securityAuditRepository = securityAuditRepository;
         this.allocationRepository = allocationRepository;
+        this.advanceRepository = advanceRepository;
         this.objectMapper = objectMapper;
+    }
+
+    public TransactionReverseService(
+            FinancialAccountRepository accountRepository,
+            FinancialTransactionRepository transactionRepository,
+            AccountMovementRepository movementRepository,
+            FinancialIdempotencyRepository idempotencyRepository,
+            SecurityAuditRepository securityAuditRepository,
+            com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
+            ObjectMapper objectMapper
+    ) {
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, null, objectMapper);
     }
 
     public TransactionReverseService(
@@ -82,7 +97,7 @@ public class TransactionReverseService {
             SecurityAuditRepository securityAuditRepository,
             ObjectMapper objectMapper
     ) {
-        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, objectMapper);
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, null, objectMapper);
     }
 
     @Transactional
@@ -634,15 +649,35 @@ public class TransactionReverseService {
     }
 
     private void cancelAllocationForReversal(UUID businessId, UUID originalTxId, UUID reversalTxId, String reason) {
-        if (allocationRepository != null) {
-            allocationRepository.findByBusinessIdAndFinancialTransactionId(businessId, originalTxId)
-                    .ifPresent(allocation -> {
-                        allocation.setStatus(com.app.sme_health_backend.obligation.AllocationStatus.CANCELLED);
-                        allocation.setCancelledAt(Instant.now());
-                        allocation.setCancellationReason(reason);
-                        allocation.setReversalTransactionId(reversalTxId);
-                        allocationRepository.saveAndFlush(allocation);
+        if (advanceRepository != null) {
+            advanceRepository.findForUpdateByBusinessIdAndFinancialTransactionId(businessId, originalTxId)
+                    .ifPresent(advance -> {
+                        if (allocationRepository != null) {
+                            BigDecimal applied = allocationRepository.sumEffectiveAllocationsByAdvanceId(businessId, advance.getId());
+                            if (applied != null && applied.compareTo(BigDecimal.ZERO) > 0) {
+                                throw new TransactionValidationException(
+                                        "advance",
+                                        "Cannot reverse payment: unapplied advance has active downstream applications. Reverse applications first."
+                                );
+                            }
+                        }
+                        advance.setStatus(com.app.sme_health_backend.obligation.AdvanceStatus.CANCELLED);
+                        advance.setCancelledAt(Instant.now());
+                        advance.setCancellationReason(reason);
+                        advance.setReversalTransactionId(reversalTxId);
+                        advanceRepository.saveAndFlush(advance);
                     });
+        }
+        if (allocationRepository != null) {
+            List<com.app.sme_health_backend.obligation.ObligationPaymentAllocation> allocations =
+                    allocationRepository.findAllByBusinessIdAndFinancialTransactionId(businessId, originalTxId);
+            for (var allocation : allocations) {
+                allocation.setStatus(com.app.sme_health_backend.obligation.AllocationStatus.CANCELLED);
+                allocation.setCancelledAt(Instant.now());
+                allocation.setCancellationReason(reason);
+                allocation.setReversalTransactionId(reversalTxId);
+                allocationRepository.saveAndFlush(allocation);
+            }
         }
     }
 }

@@ -1,9 +1,9 @@
 # FinSight Phase 2 Implementation State & Dependency Register
 
-**Version:** `2.6`
-**Last Updated:** 19 October 2026
+**Version:** `2.8`
+**Last Updated:** 20 October 2026
 **Canonical Branch:** `dev/suleman`
-**Current HEAD SHA:** `a19dd4d3d888dca75399fab10498020fb0e5be83`
+**Current HEAD SHA:** `884c606857540cf5ab9bcd1a83c2689526c0ed9a`
 **Baseline Release:** PR #3 integrated into `main` (Flyway V1–V17)  
 
 ---
@@ -13,10 +13,10 @@
 | Item | Value | Evidence / Verification |
 | :--- | :--- | :--- |
 | **Active Branch** | `dev/suleman` | Verified via `git branch --show-current` |
-| **Commit SHA** | `2bef859692baadb79a9252a0dfa8c49168c2502e` | Import drafts checkpoint commit |
-| **Flyway Head** | **V26** | `backend/src/main/resources/db/migration/V26__create_financial_obligations.sql` (V26 authored & integration verified) |
+| **Commit SHA** | `884c606857540cf5ab9bcd1a83c2689526c0ed9a` | Obligations V1 checkpoint commit (`884c606`) |
+| **Flyway Head** | **V27** | `backend/src/main/resources/db/migration/V27__create_payment_cycles_and_advances.sql` (V27 authored & integration verified) |
 | **Untracked Artifacts** | `backend/.cp.txt` | Maven classpath artifact (13,680 bytes); preserved untouched |
-| **Phase 2 Implementation** | **Obligations & Allocations, Counterparties, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET/PUT /api/finance/obligations/**`, `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
+| **Phase 2 Implementation** | **Payment Cycles & Advances, Obligations & Allocations, Counterparties, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET /api/finance/payments/**`, `POST/GET /api/finance/advances/**`, `GET /api/finance/payment-calendar`, `POST/GET/PUT /api/finance/obligations/**`, `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
 | **Blueprint Availability** | **Missing** | Master Phase 2 Technical Integration Blueprint not present locally |
 | **Onboarding Audits** | **Completed** | Antigravity Backend Baseline Audit & Codex Frontend Baseline Audit completed |
 | **Accounts Read Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Verified across Spring Boot, PostgreSQL V18, Next.js, and Edge |
@@ -31,6 +31,7 @@
 | **Persistent Import-to-Draft (A-F12A-IMPORT-DRAFTS)** | **INTEGRATION_VERIFIED (Ready for Commit D)** | Flyway V24 authored (`V24__create_import_draft_provenance.sql`), composite tenant FKs, chunked save ($\le 100$ rows), idempotent replay & conflict detection (409), verbatim amount input preservation, reload recovery via URL `batchId`, 26 BE tests passing (unit, controller, PostgreSQL IT), 189 FE tests passing, tsc/lint exit 0, production build exit 0, zero financial mutations. |
 | **Counterparty Foundation (A-F03-COUNTERPARTIES)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V25 authored (`V25__create_counterparties.sql`), tenant isolation, composite FK `(counterparty_id, business_id) ON DELETE RESTRICT` on transactions and drafts, least-privilege DML (`DELETE` revoked from `finsight_app`), non-unique index `idx_counterparties_business_lower_name` allowing same-name entities, type compatibility (`CUSTOMER`/`SUPPLIER`/`BOTH`), active/archived state, search/filter/pagination, 33 BE tests passing (unit, controller, PostgreSQL IT), 198 FE tests passing (189 preceding + 9 counterparty unit/contract), tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–G passed cleanly (exit 0). |
 | **Receivables & Payables Obligations (A-F03-OBLIGATIONS-V1)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V26 authored (`V26__create_financial_obligations.sql`), canonical obligations (`RECEIVABLE`/`PAYABLE`), allocation engine, settlement cash posting (`RECEIVABLE_COLLECTION`/`PAYABLE_SETTLEMENT`), obligation aging (7 buckets), settlement reversals, multi-tenant isolation, 37 BE tests passing (unit, controller, PostgreSQL IT), 206 FE tests passing, tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–H passed cleanly on PostgreSQL V26 (exit 0). |
+| **Payment Cycles & Advances (A-F03-PAYMENT-CYCLES-V2)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V27 authored (`V27__create_payment_cycles_and_advances.sql`), multi-obligation payment allocation, customer/supplier advances lifecycle, derived unapplied balances, advance applications (0 cash movements), advance application reversals (0 cash movements), payment reversals with atomic allocation & advance cancellation, downstream application protection, non-posting installment schedules and payment calendar aggregation, 78 BE tests passing (unit, controller, PostgreSQL IT), 216 FE tests passing, tsc clean, lint 0, production build exit 0, real Microsoft Edge browser acceptance Journeys A–I passed cleanly on PostgreSQL V27 (exit 0). |
 
 ---
 
@@ -229,12 +230,54 @@
     *   **Documentation Paths:**
         *   `docs/phase2/OBLIGATIONS_AND_ALLOCATIONS.md` (Revision 1.0 INTEGRATION_VERIFIED)
 
+*   **Developer A Full Stack (Antigravity):**
+    *   **Task ID:** `A-F03-PAYMENT-CYCLES-V2` (Multi-Obligation Allocation, Advances, Unapplied Balances & Scheduling)
+    *   **Status:** `INTEGRATION_VERIFIED — READY_FOR_COMMIT`
+    *   **Backend Paths Owned:**
+        *   `backend/src/main/resources/db/migration/V27__create_payment_cycles_and_advances.sql`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/model/AllocationType.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/model/AdvanceStatus.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/model/ScheduleStatus.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/entity/CounterpartyAdvance.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/entity/ObligationPaymentSchedule.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/entity/ObligationPaymentAllocation.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/repository/CounterpartyAdvanceRepository.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/repository/ObligationPaymentScheduleRepository.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/repository/ObligationPaymentAllocationRepository.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/dto/**`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/service/PaymentAllocationService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/service/AdvanceService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/service/PaymentPlanService.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/controller/PaymentController.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/controller/AdvanceController.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/controller/PaymentCalendarController.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/obligation/controller/FinancialObligationController.java`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransactionReverseService.java`
+        *   `backend/src/test/java/com/app/sme_health_backend/obligation/PaymentCyclesPostgreSqlIT.java`
+    *   **Frontend Paths Owned:**
+        *   `frontend/src/lib/api/dev-a/payments.ts`
+        *   `frontend/src/lib/api/dev-a/advances.ts`
+        *   `frontend/src/lib/api/dev-a/payment-calendar.ts`
+        *   `frontend/src/components/records/payments/**`
+        *   `frontend/src/components/records/advances/**`
+        *   `frontend/src/components/records/calendar/**`
+        *   `frontend/src/app/records/page.tsx`
+        *   `frontend/src/components/records/records-copy.ts`
+        *   `frontend/tests/payment-cycles.test.mjs`
+    *   **Documentation Paths:**
+        *   `docs/phase2/PAYMENT_CYCLES_AND_ADVANCES.md` (Revision 1.0 INTEGRATION_VERIFIED)
+
 ---
 
 ## 3. Integration & Unit Verification Evidence Summary
 
 | Layer / Gate | Command / Target | Result | Evidence Details |
 | :--- | :--- | :--- | :--- |
+| **Real Browser Integration Harness (Payment Cycles & Advances)** | `node tests/accounts-live.integration.mjs --payment-cycles-only` | **EXIT 0 (14 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V27) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge 155.0.4283.62. 14 check groups passed; blockers=[]; integrated=true. Verified Journeys A–I: multi-receivable payment (1 tx, 1 movement, +100k, 0 duplicate revenue); multi-payable settlement (1 tx, 1 movement, -150k, 0 duplicate expense); customer advance (50k cash, 50k unapplied, 0 revenue); advance application (70k outstanding, 0 unapplied, 0 new tx, 0 new movements); supplier advance (30k cash, applied to 80k bill -> 50k outstanding, 0 extra movements); reversals (multi-allocation payment reversal with compensating tx and restored UNPAID obligations, advance application reversal restoring unapplied balance with 0 movements, downstream application protection HTTP 400); payment calendar & 3x 50k installment plan (0 tx, 0 double counting); authorization matrix (VIEWER read-only, MANAGER 403, cross-business 404, CSRF 403); and bilingual Urdu RTL (`dir="rtl"`) + mobile 390x844 responsive rendering with 0 horizontal overflow. |
+| **Backend Payment Cycles Suite (PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=PaymentCyclesPostgreSqlIT"` | **15 / 15 PASSED** | Disposable PostgreSQL 14.22 + Flyway V27. Verifies multi-obligation payment allocation (1 cash transaction, 2 allocations, accurate outstanding), unapplied residual advance retention, customer/supplier advances, advance applications (0 cash movements), advance application reversals (0 cash movements), payment reversals with atomic allocation & advance cancellation, downstream application protection, non-posting installment schedules and payment calendar aggregation, idempotent replay, and conflict detection. |
+| **Backend Full Obligations & Payments Suite** | `.\mvnw.cmd test "-Dtest=AdvanceControllerTest,PaymentCalendarControllerTest,PaymentControllerTest,FinancialObligationControllerTest,FinancialObligationServiceTest,ObligationAgingCalculatorTest,FinancialObligationPostgreSqlIT,PaymentCyclesPostgreSqlIT"` | **78 / 78 PASSED** | All 78 backend domain tests pass on PostgreSQL 14.22 + Flyway V27 (BUILD SUCCESS, 29.01s). |
+| **Frontend Payment Cycles Suite & Total Suites** | `npm test` | **216 / 216 PASSED** | 10 dedicated payment cycles unit/contract tests (`payment-cycles.test.mjs`: copy parity, arithmetic, residual calculation, exhaustion, coverage classification, double-submit prevention, typed API adapters) + 206 existing frontend unit/contract tests, 0 failed, 0 skipped. |
+| **Whole Frontend Static & Quality Gates (Payment Cycles)** | `npx tsc --noEmit`, `npm run lint`, `npm run build` | **PASSED (EXIT 0)** | 0 TypeScript errors, 0 ESLint errors (React 19 `set-state-in-effect` and pure function rules compliant). Next.js production build succeeded with Turbopack; static/dynamic pages compiled cleanly. |
 | **Backend Obligations Suite (Unit + Controller + PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=FinancialObligationServiceTest,FinancialObligationControllerTest,FinancialObligationPostgreSqlIT"` | **38 / 38 PASSED** | FinancialObligationServiceTest (21), FinancialObligationControllerTest (9), FinancialObligationPostgreSqlIT (8). EmbeddedPostgres 14.22 with Flyway V26. Verifies canonical obligations creation/listing/details/voiding, partial & full settlement posting with deterministic lock ordering (Obligation -> Account), durable idempotency hash validation, allocation cancellation upon reversal, aging mapping, runtime least privilege (`DELETE` denied), multi-tenant isolation, and historical reversal as-of balance reconciliation (Jan 10, Jan 25, Feb 11). |
 | **Real Browser Integration Harness (Obligations Workflow)** | `node tests/accounts-live.integration.mjs --obligations-only` | **EXIT 0 (14 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V26) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge. 14 check groups passed; blockers=[]; integrated=true. Verified Journeys A–H: customer receivable creation, reload persistence, zero financial mutation; partial payment (+40k bank cash, 60k outstanding, 0 duplicate revenue); full settlement (100k paid, 0 outstanding, boundary protection); supplier payable (80k payable, 30k paid, 50k outstanding, cash -30k, 0 duplicate expense); aging 7-bucket display and allocation detail history; settlement reversal (cash reversed, 80k outstanding restored, allocation CANCELLED); viewer role enforcement and multi-tenant cross-business 404; bilingual Urdu RTL and mobile 390x844 responsive rendering. |
 | **Backend Counterparty Suite (Unit + Controller + PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=CounterpartyServiceTest,CounterpartyControllerTest,CounterpartyPostgreSqlIT"` | **33 / 33 PASSED** | CounterpartyServiceTest (16), CounterpartyControllerTest (9), CounterpartyPostgreSqlIT (8). EmbeddedPostgres 14.22 with Flyway V25. Verifies schema migration, runtime privilege revocation (`DELETE` denied with error 42501), multi-tenant isolation, composite foreign key `(counterparty_id, business_id) ON DELETE RESTRICT` on transactions and drafts, direct SQL cross-tenant rejection (`fk_record_drafts_counterparty`, `fk_fin_tx_counterparty`), same-name entity independence with separate UUIDs, and zero financial mutation guarantee. |
@@ -323,6 +366,7 @@ The following findings reported in Fatima's published handoff are recorded for t
 | **V24** | Import Draft Provenance Schema (`V24__create_import_draft_provenance.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / READY_FOR_COMMIT)** |
 | **V25** | Counterparty Schema & Integrations (`V25__create_counterparties.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 | **V26** | Financial Obligations & Payment Allocations (`V26__create_financial_obligations.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
+| **V27** | Payment Cycles, Advances & Payment Schedules (`V27__create_payment_cycles_and_advances.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 
 ---
 

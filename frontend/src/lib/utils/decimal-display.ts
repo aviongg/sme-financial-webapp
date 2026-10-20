@@ -32,3 +32,10 @@ export function formatExactDecimal(value: string, currency: string, scale: numbe
   return (negative ? '- ' : '') + integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     + (fraction === undefined ? '' : '.' + fraction);
 }
+
+export function formatPkr(value: number | string | null | undefined): string {
+  if (value === undefined || value === null || value === '') return '0.00';
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return '0.00';
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

@@ -19,6 +19,8 @@ import { ObligationModal } from './ObligationModal';
 import { ObligationSettlementModal } from './ObligationSettlementModal';
 import { ObligationVoidModal } from './ObligationVoidModal';
 import { ObligationDetailSheet } from './ObligationDetailSheet';
+import { MultiPaymentModal } from '@/components/records/payments/MultiPaymentModal';
+import { PaymentPlanModal } from '@/components/records/calendar/PaymentPlanModal';
 import { obligationEn, obligationUr } from './obligation-copy';
 
 interface ObligationsWorkspaceProps {
@@ -55,6 +57,9 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [selectedObligation, setSelectedObligation] = useState<ObligationDetailResponse | null>(null);
+  const [isMultiPaymentOpen, setIsMultiPaymentOpen] = useState(false);
+  const [isPaymentPlanOpen, setIsPaymentPlanOpen] = useState(false);
+  const [planObligation, setPlanObligation] = useState<ObligationDetailResponse | null>(null);
 
   const canEdit = session.status === 'authenticated' && canPresentPosting(session.business);
 
@@ -161,14 +166,24 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
 
         <div className="flex items-center gap-3">
           {canEdit && (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="bg-teal-700 hover:bg-teal-800 text-white shadow-sm"
-            >
-              {isReceivable ? copy.addReceivable : copy.addPayable}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsMultiPaymentOpen(true)}
+                className="border-teal-700/30 text-teal-800 dark:text-teal-200"
+              >
+                Allocate Multi-Payment
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-teal-700 hover:bg-teal-800 text-white shadow-sm"
+              >
+                {isReceivable ? copy.addReceivable : copy.addPayable}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -461,8 +476,34 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
           setIsDetailSheetOpen(false);
           handleStartVoid(ob);
         }}
+        onManagePaymentPlan={ob => {
+          setIsDetailSheetOpen(false);
+          setPlanObligation(ob);
+          setIsPaymentPlanOpen(true);
+        }}
         canEdit={canEdit}
       />
+
+      <MultiPaymentModal
+        isOpen={isMultiPaymentOpen}
+        onClose={() => setIsMultiPaymentOpen(false)}
+        onSuccess={reload}
+        initialDirection={direction}
+      />
+
+      {planObligation && (
+        <PaymentPlanModal
+          isOpen={isPaymentPlanOpen}
+          onClose={() => {
+            setIsPaymentPlanOpen(false);
+            setPlanObligation(null);
+          }}
+          onSuccess={reload}
+          obligationId={planObligation.id}
+          obligationReference={planObligation.referenceNumber}
+          obligationOutstandingAmount={planObligation.outstandingAmount}
+        />
+      )}
     </div>
   );
 }

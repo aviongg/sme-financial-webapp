@@ -54,6 +54,9 @@ class FinancialObligationControllerTest {
     private FinancialObligationService obligationService;
 
     @MockitoBean
+    private PaymentPlanService paymentPlanService;
+
+    @MockitoBean
     private BusinessAuthorizationService authService;
 
     private UUID businessId;

@@ -20,6 +20,12 @@ public interface ObligationPaymentAllocationRepository extends JpaRepository<Obl
 
     Optional<ObligationPaymentAllocation> findByBusinessIdAndFinancialTransactionId(UUID businessId, UUID financialTransactionId);
 
+    List<ObligationPaymentAllocation> findAllByBusinessIdAndFinancialTransactionId(UUID businessId, UUID financialTransactionId);
+
+    List<ObligationPaymentAllocation> findByBusinessIdAndAdvanceIdOrderByEffectiveDateAscCreatedAtAsc(UUID businessId, UUID advanceId);
+
+    Optional<ObligationPaymentAllocation> findByIdAndBusinessId(UUID id, UUID businessId);
+
     @Query("SELECT COALESCE(SUM(a.amount), 0) FROM ObligationPaymentAllocation a " +
             "WHERE a.businessId = :businessId AND a.obligationId = :obligationId AND a.status = 'EFFECTIVE'")
     BigDecimal sumEffectiveAllocations(@Param("businessId") UUID businessId, @Param("obligationId") UUID obligationId);
@@ -28,6 +34,10 @@ public interface ObligationPaymentAllocationRepository extends JpaRepository<Obl
             "WHERE a.businessId = :businessId AND a.obligationId IN :obligationIds AND a.status = 'EFFECTIVE' " +
             "GROUP BY a.obligationId")
     List<Object[]> sumEffectiveAllocationsByObligationIds(@Param("businessId") UUID businessId, @Param("obligationIds") Collection<UUID> obligationIds);
+
+    @Query("SELECT COALESCE(SUM(a.amount), 0) FROM ObligationPaymentAllocation a " +
+            "WHERE a.businessId = :businessId AND a.advanceId = :advanceId AND a.status = 'EFFECTIVE'")
+    BigDecimal sumEffectiveAllocationsByAdvanceId(@Param("businessId") UUID businessId, @Param("advanceId") UUID advanceId);
 
     List<ObligationPaymentAllocation> findByBusinessId(UUID businessId);
 }

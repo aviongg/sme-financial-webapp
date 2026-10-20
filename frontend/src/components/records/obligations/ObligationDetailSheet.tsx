@@ -14,6 +14,7 @@ interface ObligationDetailSheetProps {
   obligation: ObligationDetailResponse | null;
   onRecordSettlement: (ob: ObligationDetailResponse) => void;
   onVoid: (ob: ObligationDetailResponse) => void;
+  onManagePaymentPlan?: (ob: ObligationDetailResponse) => void;
   canEdit: boolean;
 }
 
@@ -30,6 +31,7 @@ export function ObligationDetailSheet({
   obligation,
   onRecordSettlement,
   onVoid,
+  onManagePaymentPlan,
   canEdit,
 }: ObligationDetailSheetProps) {
   const { locale, direction: textDir } = useLanguage();
@@ -190,6 +192,16 @@ export function ObligationDetailSheet({
               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
             >
               {copy.voidObligation}
+            </Button>
+          )}
+
+          {isOpenStatus && onManagePaymentPlan && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onManagePaymentPlan(obligation)}
+            >
+              Payment Plan
             </Button>
           )}
 

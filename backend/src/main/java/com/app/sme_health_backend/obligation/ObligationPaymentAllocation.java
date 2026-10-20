@@ -12,6 +12,7 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_allocations_obligation", columnList = "obligation_id, status, effective_date"),
                 @Index(name = "idx_allocations_business_tx", columnList = "business_id, financial_transaction_id"),
+                @Index(name = "idx_allocations_business_advance", columnList = "business_id, advance_id"),
                 @Index(name = "idx_allocations_reversal_tx", columnList = "reversal_transaction_id")
         }
 )
@@ -27,8 +28,15 @@ public class ObligationPaymentAllocation {
     @Column(name = "obligation_id", nullable = false)
     private UUID obligationId;
 
-    @Column(name = "financial_transaction_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "allocation_type", nullable = false, length = 32)
+    private AllocationType allocationType = AllocationType.CASH;
+
+    @Column(name = "financial_transaction_id")
     private UUID financialTransactionId;
+
+    @Column(name = "advance_id")
+    private UUID advanceId;
 
     @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
@@ -72,12 +80,36 @@ public class ObligationPaymentAllocation {
     ) {
         this.businessId = businessId;
         this.obligationId = obligationId;
+        this.allocationType = AllocationType.CASH;
         this.financialTransactionId = financialTransactionId;
+        this.advanceId = null;
         this.amount = amount;
         this.effectiveDate = effectiveDate;
         this.createdByUserId = createdByUserId;
         this.status = AllocationStatus.EFFECTIVE;
         this.createdAt = Instant.now();
+    }
+
+    public static ObligationPaymentAllocation fromAdvance(
+            UUID businessId,
+            UUID obligationId,
+            UUID advanceId,
+            BigDecimal amount,
+            LocalDate effectiveDate,
+            UUID createdByUserId
+    ) {
+        ObligationPaymentAllocation alloc = new ObligationPaymentAllocation();
+        alloc.businessId = businessId;
+        alloc.obligationId = obligationId;
+        alloc.allocationType = AllocationType.ADVANCE;
+        alloc.financialTransactionId = null;
+        alloc.advanceId = advanceId;
+        alloc.amount = amount;
+        alloc.effectiveDate = effectiveDate;
+        alloc.createdByUserId = createdByUserId;
+        alloc.status = AllocationStatus.EFFECTIVE;
+        alloc.createdAt = Instant.now();
+        return alloc;
     }
 
     public UUID getId() {
@@ -104,12 +136,28 @@ public class ObligationPaymentAllocation {
         this.obligationId = obligationId;
     }
 
+    public AllocationType getAllocationType() {
+        return allocationType;
+    }
+
+    public void setAllocationType(AllocationType allocationType) {
+        this.allocationType = allocationType;
+    }
+
     public UUID getFinancialTransactionId() {
         return financialTransactionId;
     }
 
     public void setFinancialTransactionId(UUID financialTransactionId) {
         this.financialTransactionId = financialTransactionId;
+    }
+
+    public UUID getAdvanceId() {
+        return advanceId;
+    }
+
+    public void setAdvanceId(UUID advanceId) {
+        this.advanceId = advanceId;
     }
 
     public BigDecimal getAmount() {

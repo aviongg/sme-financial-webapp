@@ -20,13 +20,16 @@ import java.util.UUID;
 public class FinancialObligationController {
 
     private final FinancialObligationService obligationService;
+    private final PaymentPlanService paymentPlanService;
     private final BusinessAuthorizationService authService;
 
     public FinancialObligationController(
             FinancialObligationService obligationService,
+            PaymentPlanService paymentPlanService,
             BusinessAuthorizationService authService
     ) {
         this.obligationService = obligationService;
+        this.paymentPlanService = paymentPlanService;
         this.authService = authService;
     }
 
@@ -139,6 +142,32 @@ public class FinancialObligationController {
                 request, BusinessPermission.FINANCIAL_TRANSACTION_READ
         );
         ObligationAgingResult response = obligationService.getAging(context, asOfDate);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/payment-plan")
+    public ResponseEntity<PaymentPlanResponse> getPaymentPlan(
+            @PathVariable("id") UUID id,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(
+                request, BusinessPermission.FINANCIAL_TRANSACTION_READ
+        );
+        PaymentPlanResponse response = paymentPlanService.getPaymentPlan(context, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/payment-plan")
+    public ResponseEntity<PaymentPlanResponse> setPaymentPlan(
+            @PathVariable("id") UUID id,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) PaymentPlanRequest requestDto,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(
+                request, BusinessPermission.FINANCIAL_TRANSACTION_POST
+        );
+        PaymentPlanResponse response = paymentPlanService.setPaymentPlan(context, idempotencyKey, id, requestDto);
         return ResponseEntity.ok(response);
     }
 }

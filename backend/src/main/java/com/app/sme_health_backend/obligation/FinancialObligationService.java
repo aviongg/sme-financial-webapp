@@ -984,7 +984,10 @@ public class FinancialObligationService {
         ObligationSummaryResponse summary = toSummaryResponse(o, cp, paid, today);
 
         // Fetch transaction and account names for allocations
-        Set<UUID> txIds = allocations.stream().map(ObligationPaymentAllocation::getFinancialTransactionId).collect(Collectors.toSet());
+        Set<UUID> txIds = allocations.stream()
+                .map(ObligationPaymentAllocation::getFinancialTransactionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
         Map<UUID, FinancialTransaction> txMap = txIds.isEmpty() ? Collections.emptyMap() :
                 transactionRepository.findAllById(txIds).stream()
                         .filter(tx -> tx.getBusinessId().equals(o.getBusinessId()))
@@ -997,8 +1000,12 @@ public class FinancialObligationService {
                         .collect(Collectors.toMap(FinancialAccount::getId, acc -> acc));
 
         List<ObligationAllocationResponse> allocDtos = allocations.stream().map(a -> {
-            FinancialTransaction tx = txMap.get(a.getFinancialTransactionId());
+            FinancialTransaction tx = a.getFinancialTransactionId() != null ? txMap.get(a.getFinancialTransactionId()) : null;
             FinancialAccount acc = (tx != null) ? accMap.get(tx.getAccountId()) : null;
+            String desc = tx != null ? tx.getDescription() : (a.getAllocationType() == AllocationType.ADVANCE ? "Applied from Advance" : null);
+            String accountName = acc != null ? acc.getAccountName() : (a.getAllocationType() == AllocationType.ADVANCE ? "Advance Balance" : "Unknown Account");
+            UUID accountId = acc != null ? acc.getId() : null;
+
             return new ObligationAllocationResponse(
                     a.getId(),
                     a.getFinancialTransactionId(),
@@ -1009,9 +1016,11 @@ public class FinancialObligationService {
                     a.getCancellationReason(),
                     a.getReversalTransactionId(),
                     ISO_INSTANT_FORMATTER.format(a.getCreatedAt().truncatedTo(ChronoUnit.SECONDS)),
-                    tx != null ? tx.getDescription() : null,
-                    acc != null ? acc.getAccountName() : "Unknown Account",
-                    acc != null ? acc.getId() : null
+                    desc,
+                    accountName,
+                    accountId,
+                    a.getAllocationType() != null ? a.getAllocationType().name() : "CASH",
+                    a.getAdvanceId()
             );
         }).toList();
 

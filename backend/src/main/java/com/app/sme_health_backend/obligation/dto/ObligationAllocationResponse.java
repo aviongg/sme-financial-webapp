@@ -15,6 +15,24 @@ public record ObligationAllocationResponse(
         String createdAt,
         String transactionDescription,
         String accountName,
-        UUID accountId
+        UUID accountId,
+        String allocationType,
+        UUID advanceId
 ) {
+    public ObligationAllocationResponse(
+            UUID id,
+            UUID financialTransactionId,
+            String amount,
+            LocalDate effectiveDate,
+            String status,
+            String cancelledAt,
+            String cancellationReason,
+            UUID reversalTransactionId,
+            String createdAt,
+            String transactionDescription,
+            String accountName,
+            UUID accountId
+    ) {
+        this(id, financialTransactionId, amount, effectiveDate, status, cancelledAt, cancellationReason, reversalTransactionId, createdAt, transactionDescription, accountName, accountId, "CASH", null);
+    }
 }

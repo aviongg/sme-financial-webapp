@@ -22,6 +22,10 @@ public interface FinancialObligationRepository extends JpaRepository<FinancialOb
     @Query("SELECT o FROM FinancialObligation o WHERE o.id = :id AND o.businessId = :businessId")
     Optional<FinancialObligation> findByIdAndBusinessIdForUpdate(@Param("id") UUID id, @Param("businessId") UUID businessId);
 
+    default Optional<FinancialObligation> findForUpdateByIdAndBusinessId(UUID id, UUID businessId) {
+        return findByIdAndBusinessIdForUpdate(id, businessId);
+    }
+
     boolean existsByBusinessIdAndSourceTypeAndSourceId(UUID businessId, ObligationSourceType sourceType, String sourceId);
 
     List<FinancialObligation> findByBusinessId(UUID businessId);
