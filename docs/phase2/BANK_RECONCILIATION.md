@@ -291,12 +291,12 @@ Base path: `/api/finance/reconciliation`
 
 ## 9. Verification & Acceptance Evidence
 
-### Backend Unit & Integration Tests (34/34 Passing)
+### Backend Unit & Integration Tests (36/36 Passing)
 Executed via `mvnw.cmd test "-Dtest=BankStatementImportServiceTest,BankReconciliationServiceTest,BankReconciliationControllerTest,BankReconciliationPostgreSqlIT"`:
 - `BankStatementImportServiceTest`: 6/6 passed (import persistence, validation, duplicate detection, idempotency).
 - `BankReconciliationServiceTest`: 15/15 passed (candidate ranking, hard eligibility, matching, unmatching, draft creation, exclusions, summaries).
 - `BankReconciliationControllerTest`: 4/4 passed (MockMvc controller contracts, validation error responses, permissions).
-- `BankReconciliationPostgreSqlIT`: 9/9 passed on embedded PostgreSQL 14.22 with Flyway V28:
+- `BankReconciliationPostgreSqlIT`: 11/11 passed on embedded PostgreSQL 14.22 with Flyway V28:
   - `testSuccessfulStatementImportWithEntries`: imports external statement rows with correct running balance.
   - `testMatchEntryDirectAndCandidateRanking`: confirms 1-to-1 match link, status transition to MATCHED, and zero financial mutations.
   - `testUnmatchRevertsEntryAndCancelsMatch`: undoes confirmed match with mandatory audit reason; returns status to UNMATCHED.
@@ -306,16 +306,24 @@ Executed via `mvnw.cmd test "-Dtest=BankStatementImportServiceTest,BankReconcili
   - `testReconciliationNeverMutatesFinancialLedgerOrScores`: invariant fingerprint test confirming 0 mutations to transactions, movements, monthly records, or scores.
   - `testReconciliationInvalidatedWhenTransactionReversed`: verifies that reversing a transaction automatically cancels its active reconciliation match with audit history and reverts the statement entry to UNMATCHED.
   - `testCompleteUnmatchedEntryToDraftToPostingToMatchLifecycle`: verifies statement evidence $\to$ persistent draft with unresolved event type $\to$ explicit user classification & recording $\to$ exactly one new FinancialTransaction & AccountMovement $\to$ candidate match $\to$ confirmed reconciliation $\to$ zero extra financial mutations $\to$ idempotent replay and provenance retention.
+  - `testReadOnlyGetEndpointsNeverMutateDatabaseAcrossRoles`: verifies that GET endpoints across OWNER, ACCOUNTANT, MANAGER, and VIEWER roles perform zero database mutations, create zero audit rows, and present stale matches as unmatched without modifying underlying storage.
+  - `testBankToBankTransferDualLegReconciliation`: verifies internal funds transfer between two BANK accounts (HBL to Meezan), confirms cross-account matching is rejected with HTTP 400, confirms debit matching to Leg A and credit matching to Leg B coexist actively, confirms CASH accounts reject statement imports, and confirms zero duplicate income/expense postings.
 
-### 9.1 Transaction Reversal Policy & Integrity
+### 9.1 Transaction Reversal Policy & Pure Read-Safety
 FinSight enforces an automated invalidation policy when an underlying financial transaction is reversed:
-1. **Atomic Invalidation:** When `TransactionReverseService.postReversal` executes, it invokes `cancelReconciliationMatchesForReversal(...)`. Any active `BankReconciliationMatch` pointing to movements of the reversed transaction is set to `CANCELLED`, timestamped, stamped with the actor's user ID, and given the audit reason `"Automatically cancelled due to transaction reversal: <reversalTxId>"`.
+1. **Atomic Invalidation on Reversal:** When `TransactionReverseService.postReversal` executes, it invokes `cancelReconciliationMatchesForReversal(...)`. Any active `BankReconciliationMatch` pointing to movements of the reversed transaction is set to `CANCELLED`, timestamped, stamped with the actor's user ID, and given the audit reason `"Automatically cancelled due to transaction reversal: <reversalTxId>"`.
 2. **Statement Entry Restoration:** The linked `BankStatementEntry` is automatically reverted from `MATCHED` to `UNMATCHED`. Statement evidence is never deleted.
-3. **Defense-in-Depth on Read:** `BankReconciliationService.getEntryDetail` verifies whether the underlying transaction has been reversed. If an active match points to a reversed transaction, it cancels the match on read with audit trail and returns `UNMATCHED`.
+3. **Pure Read-Only HTTP Semantics (Zero GET Mutations):** `BankReconciliationService.getEntryDetail` performs strictly read-only inspection. If an active match points to a reversed transaction, it presents the entry in-memory as `UNMATCHED` with `matchId = null` in the response DTO. It **never** writes to the database, never alters match statuses during GET, and never creates audit events on read-only requests.
 4. **Candidate Exclusion:** Both reversed transactions and compensating reversal transactions are strictly excluded from candidate suggestions and unmatched movements listings.
 5. **No Double Reversal / Zero Accounting Drift:** Reversal cancellation creates zero additional account movements and performs no redundant reversals.
 
-### 9.2 Database-Level Tenant Isolation & Concurrent Matching Invariants
+### 9.2 Bank-to-Bank Dual-Leg Transfer Reconciliation
+1. **BANK-Only Restriction:** Statement imports are strictly restricted to `AccountType.BANK`. Attempts to import statements for `AccountType.CASH` are rejected with HTTP 400 (`ReconciliationValidationException: Reconciliation statement import is strictly supported for BANK accounts`).
+2. **Account Boundary Enforced:** Outgoing statement debits on Bank A cannot match Bank B account movements; incoming statement credits on Bank B cannot match Bank A movements. Cross-matching attempts fail validation with HTTP 400.
+3. **Coexistence of Matches:** The outgoing debit match on Bank A and the incoming credit match on Bank B coexist actively as two distinct 1-to-1 links in `bank_reconciliation_matches`.
+4. **Cash Flow Neutrality:** Matching internal transfer legs creates zero new financial transactions or account movements, preventing any duplicate revenue or expense recognition.
+
+### 9.3 Database-Level Tenant Isolation & Concurrent Matching Invariants
 1. **Composite Foreign Keys:** Flyway V28 enforces tenant boundaries at the database engine level via composite keys:
    - `fk_bank_stmt_imports_account (account_id, business_id) REFERENCES financial_accounts(id, business_id)`
    - `fk_bank_stmt_entries_import (import_id, business_id) REFERENCES bank_statement_imports(id, business_id)`

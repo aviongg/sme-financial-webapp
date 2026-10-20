@@ -118,6 +118,8 @@ public class BankReconciliationService {
         Integer confidenceScore = null;
         Instant matchedAt = null;
 
+        StatementEntryStatus effectiveStatus = entry.getStatus();
+
         if (activeMatch.isPresent()) {
             BankReconciliationMatch match = activeMatch.get();
             matchId = match.getId();
@@ -131,20 +133,14 @@ public class BankReconciliationService {
                 AccountMovement mov = movOpt.get();
                 Optional<FinancialTransaction> revTx = transactionRepository.findByReversedTransactionIdAndBusinessId(mov.getTransactionId(), context.businessId());
                 if (revTx.isPresent()) {
-                    match.setStatus(ReconciliationMatchStatus.CANCELLED);
-                    match.setUnmatchedAt(Instant.now());
-                    match.setUnmatchedByUserId(context.userId());
-                    match.setUnmatchReason("Automatically cancelled on access due to transaction reversal: " + revTx.get().getId());
-                    matchRepository.save(match);
-
-                    entry.setStatus(StatementEntryStatus.UNMATCHED);
-                    entryRepository.save(entry);
-
+                    // Under read-only HTTP GET semantics, do not mutate database rows or create audit records.
+                    // Instead, present the entry as unmatched with no active match.
                     matchId = null;
                     matchedAccountMovementId = null;
                     matchMethod = null;
                     confidenceScore = null;
                     matchedAt = null;
+                    effectiveStatus = StatementEntryStatus.UNMATCHED;
                 } else {
                     matchedTransactionId = mov.getTransactionId();
                 }
@@ -152,7 +148,7 @@ public class BankReconciliationService {
         }
 
         List<ReconciliationMatchCandidateResponse> candidates = Collections.emptyList();
-        if (entry.getStatus() == StatementEntryStatus.UNMATCHED) {
+        if (effectiveStatus == StatementEntryStatus.UNMATCHED) {
             candidates = findCandidatesForEntry(context, entry);
         }
 
@@ -172,7 +168,7 @@ public class BankReconciliationService {
                 entry.getBankReference(),
                 entry.getExternalTransactionId(),
                 entry.getRunningBalance(),
-                entry.getStatus(),
+                effectiveStatus,
                 entry.getExclusionReason(),
                 entry.getLinkedDraftId(),
                 duplicateWarning,

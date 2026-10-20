@@ -30,6 +30,8 @@ import com.app.sme_health_backend.reconciliation.dto.*;
 import com.app.sme_health_backend.reconciliation.entity.BankReconciliationMatch;
 import com.app.sme_health_backend.reconciliation.entity.BankStatementEntry;
 import com.app.sme_health_backend.reconciliation.exception.ReconciliationConflictException;
+import com.app.sme_health_backend.reconciliation.exception.ReconciliationValidationException;
+import org.springframework.data.domain.PageRequest;
 import com.app.sme_health_backend.reconciliation.model.ReconciliationMatchStatus;
 import com.app.sme_health_backend.reconciliation.model.StatementEntryStatus;
 import com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository;
@@ -628,5 +630,202 @@ class BankReconciliationPostgreSqlIT extends DisposablePostgres {
         // Verify no additional transactions or movements created by matching
         assertEquals(initialTxCount + 1, transactionRepository.count());
         assertEquals(initialMovCount + 1, movementRepository.count());
+    }
+
+    @Test
+    @DisplayName("Read-only GET endpoints never mutate database rows or create audit records across all roles")
+    void testReadOnlyGetEndpointsNeverMutateDatabaseAcrossRoles() {
+        // 1. Setup statement import with 2 entries
+        StatementImportRequest req = new StatementImportRequest(
+                bankAccountAId, "readonly_test.csv", null, null,
+                new BigDecimal("100000.00"), new BigDecimal("130000.00"),
+                List.of(
+                        new StatementEntryItemRequest(1, today.minusDays(3), null, MovementDirection.INCREASE,
+                                new BigDecimal("20000.00"), "Client deposit", "DEP-1", null, null),
+                        new StatementEntryItemRequest(2, today.minusDays(2), null, MovementDirection.DECREASE,
+                                new BigDecimal("5000.00"), "Office supply", "SUP-2", null, null)
+                )
+        );
+        StatementImportResponse imp = importService.importStatement(context, null, req);
+        List<BankStatementEntry> entries = entryRepository.findByBusinessIdAndImportIdOrderBySourceRowNumberAsc(businessId, imp.id());
+        UUID entry1Id = entries.get(0).getId();
+        UUID entry2Id = entries.get(1).getId();
+
+        // Also post a transaction and match entry 1 to test read of matched entry
+        TransactionPostRequest postReq = new TransactionPostRequest(
+                bankAccountAId, "DIRECT_SALE_RECEIPT", "20000.00", today.minusDays(3).toString(), "Client deposit"
+        );
+        TransactionDetailResponse tx = transactionPostService.postTransaction(context, "tx-ro-" + UUID.randomUUID(), postReq);
+        reconciliationService.matchEntry(context, entry1Id, new ReconciliationMatchRequest(tx.movements().get(0).id()));
+
+        // Snapshot table counts
+        String countSql = "SELECT " +
+                "(SELECT count(*) FROM bank_statement_imports) as imp_count, " +
+                "(SELECT count(*) FROM bank_statement_entries) as ent_count, " +
+                "(SELECT count(*) FROM bank_reconciliation_matches) as match_count, " +
+                "(SELECT count(*) FROM financial_transactions) as tx_count, " +
+                "(SELECT count(*) FROM account_movements) as mov_count, " +
+                "(SELECT count(*) FROM security_audit_events) as audit_count";
+
+        var baselineCounts = jdbcTemplate.queryForMap(countSql);
+
+        // Test all 4 roles: OWNER, ACCOUNTANT, MANAGER, VIEWER
+        for (MembershipRole role : List.of(MembershipRole.OWNER, MembershipRole.ACCOUNTANT, MembershipRole.MANAGER, MembershipRole.VIEWER)) {
+            BusinessAccessContext roleCtx = new BusinessAccessContext(context.userId(), businessId, role);
+
+            // Execute all read operations
+            var entriesPage = reconciliationService.listEntries(roleCtx, bankAccountAId, null, PageRequest.of(0, 50));
+            assertNotNull(entriesPage);
+            assertEquals(2, entriesPage.getTotalElements());
+
+            var detail1 = reconciliationService.getEntryDetail(roleCtx, entry1Id);
+            assertNotNull(detail1);
+            assertEquals(StatementEntryStatus.MATCHED, detail1.status());
+            assertNotNull(detail1.matchId());
+
+            var detail2 = reconciliationService.getEntryDetail(roleCtx, entry2Id);
+            assertNotNull(detail2);
+            assertEquals(StatementEntryStatus.UNMATCHED, detail2.status());
+
+            var candidates = reconciliationService.findCandidates(roleCtx, entry2Id);
+            assertNotNull(candidates);
+
+            var summary = reconciliationService.getAccountSummary(roleCtx, bankAccountAId);
+            assertNotNull(summary);
+            assertEquals(1, summary.matchedEntries());
+            assertEquals(1, summary.unmatchedEntries());
+
+            var unmatchedMovements = reconciliationService.getUnmatchedMovements(roleCtx, bankAccountAId);
+            assertNotNull(unmatchedMovements);
+
+            var imports = importService.listImports(roleCtx, bankAccountAId);
+            assertNotNull(imports);
+            assertFalse(imports.isEmpty());
+
+            var impDetail = importService.getImportDetail(roleCtx, imp.id());
+            assertNotNull(impDetail);
+
+            // Verify strict zero-mutation invariant: table counts remain 100% identical
+            var currentCounts = jdbcTemplate.queryForMap(countSql);
+            assertEquals(baselineCounts, currentCounts, "Role " + role + " read operation MUST NEVER mutate database tables or audit events");
+        }
+    }
+
+    @Test
+    @DisplayName("Bank-to-bank dual-leg transfer reconciliation: outgoing debit and incoming credit coexist with cross-matching blocked and zero extra postings")
+    void testBankToBankTransferDualLegReconciliation() {
+        // 1. BANK-only statement import restriction: CASH account rejects imports
+        FinancialAccount cashAccount = new FinancialAccount(
+                businessId,
+                "Office Cash Drawer",
+                AccountType.CASH,
+                "PKR",
+                2,
+                new BigDecimal("50000.00"),
+                today.minusDays(30),
+                AccountStatus.ACTIVE,
+                null,
+                null,
+                "Physical cash drawer"
+        );
+        cashAccount = accountRepository.saveAndFlush(cashAccount);
+        UUID cashAccountId = cashAccount.getId();
+
+        StatementImportRequest cashImportReq = new StatementImportRequest(
+                cashAccountId, "cash_stmt.csv", null, null, null, null,
+                List.of(new StatementEntryItemRequest(1, today, null, MovementDirection.INCREASE, new BigDecimal("1000.00"), "Cash entry", null, null, null))
+        );
+        var cashEx = assertThrows(ReconciliationValidationException.class, () ->
+                importService.importStatement(context, null, cashImportReq)
+        );
+        assertTrue(cashEx.getMessage().contains("strictly supported for BANK accounts"));
+
+        // 2. Post real internal transfer between two BANK accounts: Bank A (Habib Bank) to Bank B (Meezan)
+        // Amount: 75,000 PKR
+        long initialTxCount = transactionRepository.count();
+        long initialMovCount = movementRepository.count();
+
+        TransferPostRequest trfReq = new TransferPostRequest(
+                bankAccountAId,
+                bankAccountBId,
+                "75000.00",
+                today.minusDays(2).toString(),
+                "Inter-branch liquidity transfer"
+        );
+        TransactionDetailResponse trfTx = transferService.postTransfer(context, "trf-b2b-" + UUID.randomUUID(), trfReq);
+        assertNotNull(trfTx);
+        assertEquals(2, trfTx.movements().size());
+
+        // Find Leg A (Bank A DECREASE) and Leg B (Bank B INCREASE)
+        var movA = trfTx.movements().stream().filter(m -> m.accountId().equals(bankAccountAId)).findFirst().orElseThrow();
+        var movB = trfTx.movements().stream().filter(m -> m.accountId().equals(bankAccountBId)).findFirst().orElseThrow();
+        assertEquals("DECREASE", movA.movementDirection());
+        assertEquals("INCREASE", movB.movementDirection());
+        assertEquals(0, new BigDecimal("75000.00").compareTo(new BigDecimal(movA.amount())));
+        assertEquals(0, new BigDecimal("75000.00").compareTo(new BigDecimal(movB.amount())));
+
+        // 3. Import Bank A statement: debit of 75,000 PKR
+        StatementImportRequest impAReq = new StatementImportRequest(
+                bankAccountAId, "bank_a_statement.csv", null, null, null, null,
+                List.of(new StatementEntryItemRequest(1, today.minusDays(2), null, MovementDirection.DECREASE,
+                        new BigDecimal("75000.00"), "Transfer to Meezan Bank", "TRF-OUT-75", null, null))
+        );
+        var impA = importService.importStatement(context, null, impAReq);
+        var entryA = entryRepository.findByBusinessIdAndImportIdOrderBySourceRowNumberAsc(businessId, impA.id()).get(0);
+
+        // 4. Import Bank B statement: credit of 75,000 PKR
+        StatementImportRequest impBReq = new StatementImportRequest(
+                bankAccountBId, "bank_b_statement.csv", null, null, null, null,
+                List.of(new StatementEntryItemRequest(1, today.minusDays(2), null, MovementDirection.INCREASE,
+                        new BigDecimal("75000.00"), "Transfer from HBL Bank", "TRF-IN-75", null, null))
+        );
+        var impB = importService.importStatement(context, null, impBReq);
+        var entryB = entryRepository.findByBusinessIdAndImportIdOrderBySourceRowNumberAsc(businessId, impB.id()).get(0);
+
+        // 5. Verify cross-account matching is strictly blocked:
+        // Bank A statement cannot match Bank B movement (Mov B)
+        var crossEx1 = assertThrows(ReconciliationValidationException.class, () ->
+                reconciliationService.matchEntry(context, entryA.getId(), new ReconciliationMatchRequest(movB.id()))
+        );
+        assertTrue(crossEx1.getMessage().contains("different financial account") || crossEx1.getMessage().contains("direction"));
+
+        // Bank B statement cannot match Bank A movement (Mov A)
+        var crossEx2 = assertThrows(ReconciliationValidationException.class, () ->
+                reconciliationService.matchEntry(context, entryB.getId(), new ReconciliationMatchRequest(movA.id()))
+        );
+        assertTrue(crossEx2.getMessage().contains("different financial account") || crossEx2.getMessage().contains("direction"));
+
+        // 6. Match each leg to its legitimate account movement
+        var matchA = reconciliationService.matchEntry(context, entryA.getId(), new ReconciliationMatchRequest(movA.id()));
+        assertNotNull(matchA);
+        assertEquals(StatementEntryStatus.MATCHED, matchA.status());
+
+        var matchB = reconciliationService.matchEntry(context, entryB.getId(), new ReconciliationMatchRequest(movB.id()));
+        assertNotNull(matchB);
+        assertEquals(StatementEntryStatus.MATCHED, matchB.status());
+
+        // 7. Verify both matches coexist actively in database
+        var activeMatchA = matchRepository.findByBusinessIdAndStatementEntryIdAndStatus(businessId, entryA.getId(), ReconciliationMatchStatus.ACTIVE);
+        var activeMatchB = matchRepository.findByBusinessIdAndStatementEntryIdAndStatus(businessId, entryB.getId(), ReconciliationMatchStatus.ACTIVE);
+        assertTrue(activeMatchA.isPresent());
+        assertTrue(activeMatchB.isPresent());
+        assertEquals(movA.id(), activeMatchA.get().getAccountMovementId());
+        assertEquals(movB.id(), activeMatchB.get().getAccountMovementId());
+
+        // 8. Verify account summaries
+        var summaryA = reconciliationService.getAccountSummary(context, bankAccountAId);
+        assertEquals(1, summaryA.matchedEntries());
+        assertEquals(new BigDecimal("75000.00"), summaryA.importedDebitTotal());
+
+        var summaryB = reconciliationService.getAccountSummary(context, bankAccountBId);
+        assertEquals(1, summaryB.matchedEntries());
+        assertEquals(new BigDecimal("75000.00"), summaryB.importedCreditTotal());
+
+        // 9. Invariant: matching creates ZERO additional transactions or movements
+        assertEquals(initialTxCount + 1, transactionRepository.count(), "Reconciliation matching MUST NOT create transactions");
+        assertEquals(initialMovCount + 2, movementRepository.count(), "Reconciliation matching MUST NOT create movements");
+
+        // 10. Verify cash flow neutrality (zero revenue and zero expense)
+        assertEquals("INTERNAL_TRANSFER", trfTx.eventType());
     }
 }

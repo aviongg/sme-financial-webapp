@@ -278,6 +278,24 @@ export async function verifyReconciliation({
   // =========================================================================
   // JOURNEY F: Internal Transfer Dual Leg Reconciliation
   // =========================================================================
+  // 0. Verify BANK-only statement import restriction on CASH account
+  const cashAccRes = await api(owner.context, '/finance/accounts', 'POST', {
+    accountName: 'Cash Counter F',
+    accountType: 'CASH',
+    currency: 'PKR',
+    openingBalance: '5000.00',
+    openingDate: today,
+  }, { 'Idempotency-Key': 'cash-dual-leg-' + randomUUID() });
+  assert.equal(cashAccRes.status(), 201);
+  const cashAccount = await cashAccRes.json();
+
+  const cashImpRes = await api(owner.context, '/finance/reconciliation/imports', 'POST', {
+    accountId: cashAccount.id,
+    sourceFilename: 'cash_invalid.csv',
+    entries: [{ sourceRowNumber: 1, postedDate: today, amount: '500.00', direction: 'INCREASE', description: 'Invalid cash import' }],
+  });
+  assert.equal(cashImpRes.status(), 400);
+
   // 1. Create a second bank account "HBL Secondary Bank"
   const secAccRes = await api(owner.context, '/finance/accounts', 'POST', {
     accountName: 'HBL Secondary Bank',
@@ -344,11 +362,6 @@ export async function verifyReconciliation({
   assert.ok(candsA.length > 0);
   assert.equal(candsA[0].eventType, 'INTERNAL_TRANSFER');
 
-  const matchARes = await api(owner.context, `/finance/reconciliation/entries/${trfEntryA.id}/match`, 'POST', {
-    accountMovementId: candsA[0].accountMovementId,
-  });
-  assert.equal(matchARes.status(), 200);
-
   // 6. Match destination leg on HBL Secondary Bank
   const entriesBRes = await api(owner.context, `/finance/reconciliation/entries?accountId=${secAccount.id}&status=UNMATCHED`);
   const entriesB = (await entriesBRes.json()).content;
@@ -360,12 +373,31 @@ export async function verifyReconciliation({
   assert.ok(candsB.length > 0);
   assert.equal(candsB[0].eventType, 'INTERNAL_TRANSFER');
 
+  // Verify cross-account matching is strictly blocked:
+  // Leg A debit cannot match Leg B credit movement
+  const crossARes = await api(owner.context, `/finance/reconciliation/entries/${trfEntryA.id}/match`, 'POST', {
+    accountMovementId: candsB[0].accountMovementId,
+  });
+  assert.equal(crossARes.status(), 400);
+
+  // Leg B credit cannot match Leg A debit movement
+  const crossBRes = await api(owner.context, `/finance/reconciliation/entries/${trfEntryB.id}/match`, 'POST', {
+    accountMovementId: candsA[0].accountMovementId,
+  });
+  assert.equal(crossBRes.status(), 400);
+
+  // Perform legitimate matches
+  const matchARes = await api(owner.context, `/finance/reconciliation/entries/${trfEntryA.id}/match`, 'POST', {
+    accountMovementId: candsA[0].accountMovementId,
+  });
+  assert.equal(matchARes.status(), 200);
+
   const matchBRes = await api(owner.context, `/finance/reconciliation/entries/${trfEntryB.id}/match`, 'POST', {
     accountMovementId: candsB[0].accountMovementId,
   });
   assert.equal(matchBRes.status(), 200);
 
-  mark('JOURNEY F: Internal transfer dual-leg matching (outgoing debit to Leg A, incoming credit to Leg B, 0 duplicate income/expense) verified');
+  mark('JOURNEY F: Internal transfer dual-leg matching (outgoing debit to Leg A, incoming credit to Leg B, cross-matching blocked, BANK-only enforced, 0 duplicate income/expense) verified');
 
   // =========================================================================
   // JOURNEY G: Duplicate Statement Imports (Replay & Overlapping Warnings)
