@@ -54,6 +54,8 @@ public class TransactionReverseService {
     private final SecurityAuditRepository securityAuditRepository;
     private final com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository;
     private final com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository;
+    private final com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository matchRepository;
+    private final com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository;
     private final ObjectMapper objectMapper;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -65,6 +67,8 @@ public class TransactionReverseService {
             SecurityAuditRepository securityAuditRepository,
             com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
             com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository,
+            com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository matchRepository,
+            com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository,
             ObjectMapper objectMapper
     ) {
         this.accountRepository = accountRepository;
@@ -74,7 +78,22 @@ public class TransactionReverseService {
         this.securityAuditRepository = securityAuditRepository;
         this.allocationRepository = allocationRepository;
         this.advanceRepository = advanceRepository;
+        this.matchRepository = matchRepository;
+        this.statementEntryRepository = statementEntryRepository;
         this.objectMapper = objectMapper;
+    }
+
+    public TransactionReverseService(
+            FinancialAccountRepository accountRepository,
+            FinancialTransactionRepository transactionRepository,
+            AccountMovementRepository movementRepository,
+            FinancialIdempotencyRepository idempotencyRepository,
+            SecurityAuditRepository securityAuditRepository,
+            com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
+            com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository,
+            ObjectMapper objectMapper
+    ) {
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, advanceRepository, null, null, objectMapper);
     }
 
     public TransactionReverseService(
@@ -86,7 +105,7 @@ public class TransactionReverseService {
             com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
             ObjectMapper objectMapper
     ) {
-        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, null, objectMapper);
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, null, null, null, objectMapper);
     }
 
     public TransactionReverseService(
@@ -97,7 +116,7 @@ public class TransactionReverseService {
             SecurityAuditRepository securityAuditRepository,
             ObjectMapper objectMapper
     ) {
-        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, null, objectMapper);
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, null, null, null, null, objectMapper);
     }
 
     @Transactional
@@ -466,6 +485,8 @@ public class TransactionReverseService {
             throw new TransactionValidationException("eventType", "Unsupported transaction event type for reversal: " + original.getEventType());
         }
 
+        cancelReconciliationMatchesForReversal(context.businessId(), original.getId(), reversalTx.getId(), context.userId(), trimmedReason);
+
         // 6. Build response DTO
         List<MovementDetailResponse> movementDtos = createdMovements.stream()
                 .map(m -> new MovementDetailResponse(
@@ -678,6 +699,36 @@ public class TransactionReverseService {
                 allocation.setReversalTransactionId(reversalTxId);
                 allocationRepository.saveAndFlush(allocation);
             }
+        }
+    }
+
+    private void cancelReconciliationMatchesForReversal(UUID businessId, UUID originalTxId, UUID reversalTxId, UUID userId, String reason) {
+        if (matchRepository == null || statementEntryRepository == null) {
+            return;
+        }
+        List<AccountMovement> movements = movementRepository.findByTransactionIdOrderByCreatedAtAscIdAsc(originalTxId);
+        for (AccountMovement mov : movements) {
+            matchRepository.findByBusinessIdAndAccountMovementIdAndStatus(
+                    businessId,
+                    mov.getId(),
+                    com.app.sme_health_backend.reconciliation.model.ReconciliationMatchStatus.ACTIVE
+            ).ifPresent(match -> {
+                match.setStatus(com.app.sme_health_backend.reconciliation.model.ReconciliationMatchStatus.CANCELLED);
+                match.setUnmatchedAt(Instant.now());
+                match.setUnmatchedByUserId(userId);
+                String auditMsg = "Automatically cancelled due to transaction reversal: " + reversalTxId;
+                if (reason != null && !reason.isBlank()) {
+                    auditMsg += " (" + reason.trim() + ")";
+                }
+                match.setUnmatchReason(auditMsg);
+                matchRepository.saveAndFlush(match);
+
+                statementEntryRepository.findByIdAndBusinessId(match.getStatementEntryId(), businessId)
+                        .ifPresent(entry -> {
+                            entry.setStatus(com.app.sme_health_backend.reconciliation.model.StatementEntryStatus.UNMATCHED);
+                            statementEntryRepository.saveAndFlush(entry);
+                        });
+            });
         }
     }
 }

@@ -1,9 +1,9 @@
 # FinSight Phase 2 Implementation State & Dependency Register
 
-**Version:** `2.8`
-**Last Updated:** 20 October 2026
+**Version:** `2.9`
+**Last Updated:** 21 October 2026
 **Canonical Branch:** `dev/suleman`
-**Current HEAD SHA:** `884c606857540cf5ab9bcd1a83c2689526c0ed9a`
+**Current HEAD SHA:** `08b9ee30dc98a4f32924e0bb3cddf3da72b0eb38`
 **Baseline Release:** PR #3 integrated into `main` (Flyway V1–V17)  
 
 ---
@@ -13,10 +13,10 @@
 | Item | Value | Evidence / Verification |
 | :--- | :--- | :--- |
 | **Active Branch** | `dev/suleman` | Verified via `git branch --show-current` |
-| **Commit SHA** | `884c606857540cf5ab9bcd1a83c2689526c0ed9a` | Obligations V1 checkpoint commit (`884c606`) |
-| **Flyway Head** | **V27** | `backend/src/main/resources/db/migration/V27__create_payment_cycles_and_advances.sql` (V27 authored & integration verified) |
+| **Commit SHA** | `08b9ee30dc98a4f32924e0bb3cddf3da72b0eb38` | Payment Cycles V2 checkpoint commit (`08b9ee3`) |
+| **Flyway Head** | **V28** | `backend/src/main/resources/db/migration/V28__create_bank_reconciliation.sql` (V28 authored & integration verified) |
 | **Untracked Artifacts** | `backend/.cp.txt` | Maven classpath artifact (13,680 bytes); preserved untouched |
-| **Phase 2 Implementation** | **Payment Cycles & Advances, Obligations & Allocations, Counterparties, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET /api/finance/payments/**`, `POST/GET /api/finance/advances/**`, `GET /api/finance/payment-calendar`, `POST/GET/PUT /api/finance/obligations/**`, `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
+| **Phase 2 Implementation** | **Bank Reconciliation, Payment Cycles & Advances, Obligations & Allocations, Counterparties, Import Drafts, Reversals, Transfers, Drafts, Transactions, Summaries, Records, Import Preview & Calculators** | `POST/GET /api/finance/reconciliation/**`, `POST/GET /api/finance/payments/**`, `POST/GET /api/finance/advances/**`, `GET /api/finance/payment-calendar`, `POST/GET/PUT /api/finance/obligations/**`, `POST/GET/PUT /api/finance/counterparties`, `POST /api/finance/transactions/{id}/reverse`, `POST /api/finance/transfers`, `POST /api/finance/drafts`, `GET /api/finance/drafts`, `POST /api/finance/transactions`, `GET /api/finance/transactions/summary`, Import Preview route/wizard, and pure Obligation Aging & Funding Gap calculators |
 | **Blueprint Availability** | **Missing** | Master Phase 2 Technical Integration Blueprint not present locally |
 | **Onboarding Audits** | **Completed** | Antigravity Backend Baseline Audit & Codex Frontend Baseline Audit completed |
 | **Accounts Read Status** | **INTEGRATION_VERIFIED (Bounded Slice)** | Verified across Spring Boot, PostgreSQL V18, Next.js, and Edge |
@@ -32,6 +32,7 @@
 | **Counterparty Foundation (A-F03-COUNTERPARTIES)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V25 authored (`V25__create_counterparties.sql`), tenant isolation, composite FK `(counterparty_id, business_id) ON DELETE RESTRICT` on transactions and drafts, least-privilege DML (`DELETE` revoked from `finsight_app`), non-unique index `idx_counterparties_business_lower_name` allowing same-name entities, type compatibility (`CUSTOMER`/`SUPPLIER`/`BOTH`), active/archived state, search/filter/pagination, 33 BE tests passing (unit, controller, PostgreSQL IT), 198 FE tests passing (189 preceding + 9 counterparty unit/contract), tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–G passed cleanly (exit 0). |
 | **Receivables & Payables Obligations (A-F03-OBLIGATIONS-V1)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V26 authored (`V26__create_financial_obligations.sql`), canonical obligations (`RECEIVABLE`/`PAYABLE`), allocation engine, settlement cash posting (`RECEIVABLE_COLLECTION`/`PAYABLE_SETTLEMENT`), obligation aging (7 buckets), settlement reversals, multi-tenant isolation, 37 BE tests passing (unit, controller, PostgreSQL IT), 206 FE tests passing, tsc/lint exit 0, production build exit 0, real browser acceptance Journeys A–H passed cleanly on PostgreSQL V26 (exit 0). |
 | **Payment Cycles & Advances (A-F03-PAYMENT-CYCLES-V2)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V27 authored (`V27__create_payment_cycles_and_advances.sql`), multi-obligation payment allocation, customer/supplier advances lifecycle, derived unapplied balances, advance applications (0 cash movements), advance application reversals (0 cash movements), payment reversals with atomic allocation & advance cancellation, downstream application protection, non-posting installment schedules and payment calendar aggregation, 78 BE tests passing (unit, controller, PostgreSQL IT), 216 FE tests passing, tsc clean, lint 0, production build exit 0, real Microsoft Edge browser acceptance Journeys A–I passed cleanly on PostgreSQL V27 (exit 0). |
+| **Bank Reconciliation (A-F12A-BANK-RECONCILIATION-V1)** | **INTEGRATION_VERIFIED (Ready for Checkpoint)** | Flyway V28 authored (`V28__create_bank_reconciliation.sql`), CSV/TSV statement import, debit/credit normalization, duplicate detection & idempotent replay, deterministic matching engine with hard financial filters, user-confirmed 1-to-1 active reconciliation links, match reversal/undo with audit trail, row exclusion with mandatory reason, unmatched-entry-to-incomplete-draft integration (unresolved event classification), dual-leg transfer matching, account reconciliation summaries, zero financial posting mutations strictly verified, 32 BE tests passing (unit, controller, PostgreSQL IT), 220 FE tests passing, tsc clean, lint 0, production build exit 0, real Microsoft Edge browser acceptance Journeys A–J passed cleanly on PostgreSQL V28 (exit 0). |
 
 ---
 
@@ -267,12 +268,36 @@
     *   **Documentation Paths:**
         *   `docs/phase2/PAYMENT_CYCLES_AND_ADVANCES.md` (Revision 1.0 INTEGRATION_VERIFIED)
 
+*   **Developer A Full Stack (Antigravity):**
+    *   **Task ID:** `A-F12A-BANK-RECONCILIATION-V1` (Bank Statement Import, Transaction Matching, Reconciliation & Duplicate Detection)
+    *   **Status:** `INTEGRATION_VERIFIED — READY_FOR_COMMIT`
+    *   **Backend Paths Owned:**
+        *   `backend/src/main/resources/db/migration/V28__create_bank_reconciliation.sql`
+        *   `backend/src/main/java/com/app/sme_health_backend/reconciliation/**`
+        *   `backend/src/main/java/com/app/sme_health_backend/accounting/service/TransactionReverseService.java` (reconciliation cancellation on reversal)
+        *   `backend/src/main/java/com/app/sme_health_backend/shared/exception/GlobalExceptionHandler.java` (reconciliation handlers)
+        *   `backend/src/test/java/com/app/sme_health_backend/reconciliation/**`
+    *   **Frontend Paths Owned:**
+        *   `frontend/src/app/records/reconciliation/page.tsx`
+        *   `frontend/src/components/records/reconciliation/**`
+        *   `frontend/src/lib/api/dev-a/reconciliation.ts`
+        *   `frontend/src/components/records/records-copy.ts` (reconciliation tab copy)
+        *   `frontend/src/app/records/page.tsx` (connected Bank Reconciliation tab and workspace routing)
+        *   `frontend/tests/reconciliation.test.mjs`
+        *   `frontend/tests/reconciliation.live.mjs`
+        *   `frontend/tests/accounts-live.integration.mjs`
+    *   **Documentation Paths:**
+        *   `docs/phase2/BANK_RECONCILIATION.md` (Revision 1.0 INTEGRATION_VERIFIED)
+
 ---
 
 ## 3. Integration & Unit Verification Evidence Summary
 
 | Layer / Gate | Command / Target | Result | Evidence Details |
 | :--- | :--- | :--- | :--- |
+| **Backend Bank Reconciliation Suite (Unit + Controller + PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=BankStatementImportServiceTest,BankReconciliationServiceTest,BankReconciliationControllerTest,BankReconciliationPostgreSqlIT"` | **34 / 34 PASSED** | Disposable PostgreSQL 14.22 + Flyway V28 (BUILD SUCCESS, 1m 01s). Verifies external statement import, candidate ranking, 1-to-1 match confirmation, unmatching with audit trail, row exclusion, partial unique index concurrency enforcement, cross-tenant database rejection via composite FKs, zero financial ledger mutations, automatic reconciliation invalidation & statement entry restoration upon transaction reversal, and complete statement-to-draft-to-posting-to-match lifecycle. |
+| **Frontend Bank Reconciliation & Total Suites** | `npm test` | **220 / 220 PASSED** | All 4 dedicated reconciliation contract/unit tests (`reconciliation.test.mjs`: typed API adapter, copy parity, ranking and candidate wire shape preservation) + 216 existing frontend tests, 0 failed, 0 skipped. |
+| **Real Browser Integration Harness (Bank Reconciliation)** | `node tests/accounts-live.integration.mjs --reconciliation-only` | **EXIT 0 (15 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V28) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge 155.0.4283.62. 15 check groups passed; blockers=[]; integrated=true. Verified Journeys A–J: statement import (paste TSV, column map, preview, commit, reload persistence, 0 financial writes); exact match (PKR 50k receipt corroborated by bank credit, ranking, confirmation, 0 new cash postings); ambiguous matches (distinguish same-amount movements, select intended candidate, enforce 1-to-1 link); unmatched entry to draft (linked draft with provenance in To Review, unresolved classification); reconciliation correction (undo match with audit reason and status reversal); internal transfer dual-leg (outgoing debit to Leg A, incoming credit to Leg B, 0 duplicate income/expense); duplicate statement handling (idempotent replay and duplicate warnings without auto-deletion); authorization matrix (OWNER/ACCOUNTANT pass, VIEWER/MANAGER 403, cross-tenant 404, CSRF 403); interface quality (bilingual Urdu RTL `بینک مفاہمت`, mobile 390x844 responsive rendering with 0 horizontal overflow, keyboard focus); financial integrity invariant strictly verified (zero mutations to financial transactions, account movements, monthly records, or score results). |
 | **Real Browser Integration Harness (Payment Cycles & Advances)** | `node tests/accounts-live.integration.mjs --payment-cycles-only` | **EXIT 0 (14 grouped checks, 0 blockers)** | Disposable PostgreSQL 14.22 (Flyway V27) + Spring Boot (8680) + transparent gateway (3580) + Next.js (3581) + Microsoft Edge 155.0.4283.62. 14 check groups passed; blockers=[]; integrated=true. Verified Journeys A–I: multi-receivable payment (1 tx, 1 movement, +100k, 0 duplicate revenue); multi-payable settlement (1 tx, 1 movement, -150k, 0 duplicate expense); customer advance (50k cash, 50k unapplied, 0 revenue); advance application (70k outstanding, 0 unapplied, 0 new tx, 0 new movements); supplier advance (30k cash, applied to 80k bill -> 50k outstanding, 0 extra movements); reversals (multi-allocation payment reversal with compensating tx and restored UNPAID obligations, advance application reversal restoring unapplied balance with 0 movements, downstream application protection HTTP 400); payment calendar & 3x 50k installment plan (0 tx, 0 double counting); authorization matrix (VIEWER read-only, MANAGER 403, cross-business 404, CSRF 403); and bilingual Urdu RTL (`dir="rtl"`) + mobile 390x844 responsive rendering with 0 horizontal overflow. |
 | **Backend Payment Cycles Suite (PostgreSQL IT)** | `.\mvnw.cmd test "-Dtest=PaymentCyclesPostgreSqlIT"` | **15 / 15 PASSED** | Disposable PostgreSQL 14.22 + Flyway V27. Verifies multi-obligation payment allocation (1 cash transaction, 2 allocations, accurate outstanding), unapplied residual advance retention, customer/supplier advances, advance applications (0 cash movements), advance application reversals (0 cash movements), payment reversals with atomic allocation & advance cancellation, downstream application protection, non-posting installment schedules and payment calendar aggregation, idempotent replay, and conflict detection. |
 | **Backend Full Obligations & Payments Suite** | `.\mvnw.cmd test "-Dtest=AdvanceControllerTest,PaymentCalendarControllerTest,PaymentControllerTest,FinancialObligationControllerTest,FinancialObligationServiceTest,ObligationAgingCalculatorTest,FinancialObligationPostgreSqlIT,PaymentCyclesPostgreSqlIT"` | **78 / 78 PASSED** | All 78 backend domain tests pass on PostgreSQL 14.22 + Flyway V27 (BUILD SUCCESS, 29.01s). |
@@ -367,6 +392,7 @@ The following findings reported in Fatima's published handoff are recorded for t
 | **V25** | Counterparty Schema & Integrations (`V25__create_counterparties.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 | **V26** | Financial Obligations & Payment Allocations (`V26__create_financial_obligations.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 | **V27** | Payment Cycles, Advances & Payment Schedules (`V27__create_payment_cycles_and_advances.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
+| **V28** | Bank Reconciliation Schema (`V28__create_bank_reconciliation.sql`) | Antigravity (Dev A) | **AUTHORED (LOCAL / INTEGRATION_VERIFIED)** |
 
 ---
 
