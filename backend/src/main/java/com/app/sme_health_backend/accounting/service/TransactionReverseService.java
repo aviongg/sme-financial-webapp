@@ -56,9 +56,9 @@ public class TransactionReverseService {
     private final com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository;
     private final com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository matchRepository;
     private final com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository;
+    private final com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository;
     private final ObjectMapper objectMapper;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public TransactionReverseService(
             FinancialAccountRepository accountRepository,
             FinancialTransactionRepository transactionRepository,
@@ -71,6 +71,24 @@ public class TransactionReverseService {
             com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository,
             ObjectMapper objectMapper
     ) {
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, advanceRepository, matchRepository, statementEntryRepository, null, objectMapper);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransactionReverseService(
+            FinancialAccountRepository accountRepository,
+            FinancialTransactionRepository transactionRepository,
+            AccountMovementRepository movementRepository,
+            FinancialIdempotencyRepository idempotencyRepository,
+            SecurityAuditRepository securityAuditRepository,
+            com.app.sme_health_backend.obligation.ObligationPaymentAllocationRepository allocationRepository,
+            com.app.sme_health_backend.obligation.CounterpartyAdvanceRepository advanceRepository,
+            com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository matchRepository,
+            com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
+            ObjectMapper objectMapper
+    ) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.movementRepository = movementRepository;
@@ -80,6 +98,7 @@ public class TransactionReverseService {
         this.advanceRepository = advanceRepository;
         this.matchRepository = matchRepository;
         this.statementEntryRepository = statementEntryRepository;
+        this.recurringOccurrenceRepository = recurringOccurrenceRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -364,6 +383,7 @@ public class TransactionReverseService {
                     context.userId()
             );
             reversalTx.setReversedTransactionId(original.getId());
+            reversalTx.setReversalReason(trimmedReason);
             reversalTx.setCounterpartyId(original.getCounterpartyId());
             reversalTx = transactionRepository.saveAndFlush(reversalTx);
 
@@ -486,6 +506,7 @@ public class TransactionReverseService {
         }
 
         cancelReconciliationMatchesForReversal(context.businessId(), original.getId(), reversalTx.getId(), context.userId(), trimmedReason);
+        updateRecurringOccurrenceForReversal(context.businessId(), original.getId(), reversalTx.getId());
 
         // 6. Build response DTO
         List<MovementDetailResponse> movementDtos = createdMovements.stream()
@@ -730,5 +751,17 @@ public class TransactionReverseService {
                         });
             });
         }
+    }
+
+    private void updateRecurringOccurrenceForReversal(UUID businessId, UUID originalTxId, UUID reversalTxId) {
+        if (recurringOccurrenceRepository == null) {
+            return;
+        }
+        recurringOccurrenceRepository.findByBusinessIdAndPostedTransactionId(businessId, originalTxId)
+                .ifPresent(occ -> {
+                    occ.setStatus(com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.REVERSED);
+                    occ.setReversedAt(Instant.now());
+                    recurringOccurrenceRepository.saveAndFlush(occ);
+                });
     }
 }

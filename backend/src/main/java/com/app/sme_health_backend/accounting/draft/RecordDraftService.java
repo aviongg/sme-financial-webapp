@@ -67,6 +67,7 @@ public class RecordDraftService {
     private final TransactionPostService transactionPostService;
     private final FinancialIdempotencyRepository idempotencyRepository;
     private final com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository;
+    private final com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository;
     private final ObjectMapper objectMapper;
 
     public RecordDraftService(
@@ -76,7 +77,18 @@ public class RecordDraftService {
             FinancialIdempotencyRepository idempotencyRepository,
             ObjectMapper objectMapper
     ) {
-        this(draftRepository, accountRepository, transactionPostService, idempotencyRepository, null, objectMapper);
+        this(draftRepository, accountRepository, transactionPostService, idempotencyRepository, null, null, objectMapper);
+    }
+
+    public RecordDraftService(
+            RecordDraftRepository draftRepository,
+            FinancialAccountRepository accountRepository,
+            TransactionPostService transactionPostService,
+            FinancialIdempotencyRepository idempotencyRepository,
+            com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository,
+            ObjectMapper objectMapper
+    ) {
+        this(draftRepository, accountRepository, transactionPostService, idempotencyRepository, counterpartyRepository, null, objectMapper);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -86,6 +98,8 @@ public class RecordDraftService {
             TransactionPostService transactionPostService,
             FinancialIdempotencyRepository idempotencyRepository,
             com.app.sme_health_backend.counterparty.CounterpartyRepository counterpartyRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
             ObjectMapper objectMapper
     ) {
         this.draftRepository = draftRepository;
@@ -93,6 +107,7 @@ public class RecordDraftService {
         this.transactionPostService = transactionPostService;
         this.idempotencyRepository = idempotencyRepository;
         this.counterpartyRepository = counterpartyRepository;
+        this.recurringOccurrenceRepository = recurringOccurrenceRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -666,6 +681,16 @@ public class RecordDraftService {
         draft.setUpdatedAt(Instant.now());
 
         draft = draftRepository.saveAndFlush(draft);
+
+        if (recurringOccurrenceRepository != null) {
+            recurringOccurrenceRepository.findByBusinessIdAndDraftId(context.businessId(), draft.getId())
+                    .ifPresent(occ -> {
+                        occ.setStatus(com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.POSTED);
+                        occ.setPostedTransactionId(txDetail.id());
+                        occ.setPostedAt(Instant.now());
+                        recurringOccurrenceRepository.saveAndFlush(occ);
+                    });
+        }
 
         return new DraftRecordResponse(toDetailResponse(draft), txDetail);
     }
