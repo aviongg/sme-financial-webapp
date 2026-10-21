@@ -1,5 +1,6 @@
 package com.app.sme_health_backend.recurring;
 
+import com.app.sme_health_backend.accounting.draft.DraftConflictException;
 import com.app.sme_health_backend.accounting.draft.DraftCreateRequest;
 import com.app.sme_health_backend.accounting.draft.DraftDetailResponse;
 import com.app.sme_health_backend.accounting.draft.DraftRecordRequest;
@@ -52,6 +53,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -660,5 +662,153 @@ class RecurringTransactionsPostgreSqlIT extends DisposablePostgres {
         assertNotNull(revResp.id());
 
         assertEquals(initialOccCount, recurringOccurrenceRepository.count(), "Reversing ordinary transaction must not create or alter recurring occurrences");
+    }
+
+    @Test
+    @DisplayName("Reversal of recurring transaction marks occurrence terminal and prevents reposting single and concurrently")
+    void testReversalTerminalGuardPreventsRepostingAndPreservesProvenance() throws Exception {
+        // 1. Create an active recurring operating expense rule
+        long initialTxCount = transactionRepository.count();
+        long initialMovCount = movementRepository.count();
+
+        RecurringRuleCreateRequest createReq = new RecurringRuleCreateRequest(
+                "Office Internet",
+                "Monthly fiber internet connection",
+                "OPERATING_EXPENSE_PAYMENT",
+                bankAccountId,
+                supplierId,
+                "15000.00",
+                "MONTHLY",
+                today.toString(),
+                null
+        );
+        RecurringRuleResponse ruleResp = recurringRuleService.createRule(context, createReq);
+        assertNotNull(ruleResp.id());
+
+        // 2. Generate a due occurrence and its reviewable draft
+        OccurrenceGenerateDueResponse genResp = recurringRuleService.generateDueOccurrencesForBusiness(context);
+        assertEquals(1, genResp.generatedCount(), "Should generate exactly 1 due occurrence");
+
+        RecurringRuleOccurrence occ = recurringOccurrenceRepository.findAll().stream()
+                .filter(o -> o.getBusinessId().equals(businessId) && o.getRecurringRuleId().equals(ruleResp.id()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(RecurringOccurrenceStatus.DRAFT_READY, occ.getStatus());
+        assertNotNull(occ.getDraftId());
+        assertNull(occ.getPostedTransactionId());
+
+        DraftDetailResponse draft = recordDraftService.getDraft(context, occ.getDraftId());
+        assertNotNull(draft);
+        assertEquals("15000.00", draft.amountInput());
+
+        // 3. Explicitly record the draft
+        DraftRecordRequest recordReq = new DraftRecordRequest(
+                draft.version(),
+                "15000.00",
+                bankAccountId,
+                "OPERATING_EXPENSE_PAYMENT",
+                today.toString(),
+                "Office Internet: Monthly payment",
+                supplierId
+        );
+        String initialIdempKey = "REC-GUARD-INIT-" + UUID.randomUUID();
+        DraftRecordResponse recordResp = recordDraftService.recordDraft(context, draft.id(), initialIdempKey, recordReq);
+        assertNotNull(recordResp.transaction());
+        UUID postedTxId = recordResp.transaction().id();
+
+        // 4. Confirm exactly one original FinancialTransaction and AccountMovement
+        assertEquals(initialTxCount + 1, transactionRepository.count(), "Exactly one transaction created for initial recording");
+        assertEquals(initialMovCount + 1, movementRepository.count(), "Exactly one movement created for initial recording");
+
+        FinancialTransaction origTx = transactionRepository.findById(postedTxId).orElseThrow();
+        assertEquals(TransactionEventType.OPERATING_EXPENSE_PAYMENT, origTx.getEventType());
+        assertEquals(MovementDirection.DECREASE, origTx.getMovementDirection());
+        assertEquals(0, new BigDecimal("15000.00").compareTo(origTx.getAmount()));
+
+        RecurringRuleOccurrence postedOcc = recurringOccurrenceRepository.findById(occ.getId()).orElseThrow();
+        assertEquals(RecurringOccurrenceStatus.POSTED, postedOcc.getStatus());
+        assertEquals(postedTxId, postedOcc.getPostedTransactionId());
+        assertNotNull(postedOcc.getPostedAt());
+        assertNull(postedOcc.getReversedAt());
+
+        // 5. Reverse the transaction
+        String revIdempKey = "REV-GUARD-" + UUID.randomUUID();
+        TransactionReverseRequest revReq = new TransactionReverseRequest("Billing correction and cancellation");
+        var revResp = transactionReverseService.postReversal(context, revIdempKey, postedTxId, revReq);
+        assertNotNull(revResp.id());
+
+        // 6. Confirm one compensating FinancialTransaction and AccountMovement
+        assertEquals(initialTxCount + 2, transactionRepository.count(), "Exactly one compensating reversal transaction created");
+        assertEquals(initialMovCount + 2, movementRepository.count(), "Exactly one compensating movement created");
+
+        FinancialTransaction revTx = transactionRepository.findById(revResp.id()).orElseThrow();
+        assertEquals(postedTxId, revTx.getReversedTransactionId());
+        assertEquals(MovementDirection.INCREASE, revTx.getMovementDirection());
+
+        // 7. Verify the occurrence is REVERSED and retains its original posting/reversal provenance
+        RecurringRuleOccurrence reversedOcc = recurringOccurrenceRepository.findById(occ.getId()).orElseThrow();
+        assertEquals(RecurringOccurrenceStatus.REVERSED, reversedOcc.getStatus(), "Occurrence must transition to REVERSED");
+        assertEquals(postedTxId, reversedOcc.getPostedTransactionId(), "Original posted transaction reference must be preserved");
+        assertNotNull(reversedOcc.getPostedAt(), "Original posted timestamp must be preserved");
+        assertNotNull(reversedOcc.getReversedAt(), "Reversed timestamp must be populated");
+
+        // 8. Attempt to record the SAME draft again, using a NEW idempotency key
+        String newIdempKey = "REC-GUARD-NEW-" + UUID.randomUUID();
+        DraftRecordRequest secondRecordReq = new DraftRecordRequest(
+                draft.version(),
+                "15000.00",
+                bankAccountId,
+                "OPERATING_EXPENSE_PAYMENT",
+                today.toString(),
+                "Office Internet: Attempted second posting",
+                supplierId
+        );
+        DraftConflictException singleEx = assertThrows(DraftConflictException.class, () ->
+                recordDraftService.recordDraft(context, draft.id(), newIdempKey, secondRecordReq)
+        );
+        assertTrue(singleEx.getMessage().contains("already been recorded") || singleEx.getMessage().contains("reversed"),
+                "Rejection message must indicate already recorded or reversed occurrence, got: " + singleEx.getMessage());
+
+        // Confirm 0 new transactions after single attempt
+        assertEquals(initialTxCount + 2, transactionRepository.count(), "Transaction count must not change on rejected single replay");
+        assertEquals(initialMovCount + 2, movementRepository.count(), "Movement count must not change on rejected single replay");
+
+        // 9. Attempt the same operation concurrently with two requests
+        int concurrency = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        List<Future<String>> futures = new ArrayList<>();
+
+        for (int i = 0; i < concurrency; i++) {
+            final String threadKey = "REC-GUARD-CONCURRENT-" + i + "-" + UUID.randomUUID();
+            futures.add(executor.submit(() -> {
+                startLatch.await();
+                try {
+                    recordDraftService.recordDraft(context, draft.id(), threadKey, secondRecordReq);
+                    return "SUCCESS";
+                } catch (DraftConflictException e) {
+                    return "CONFLICT: " + e.getMessage();
+                } catch (Exception e) {
+                    return "ERROR: " + e.getClass().getSimpleName() + " - " + e.getMessage();
+                }
+            }));
+        }
+
+        startLatch.countDown();
+        for (Future<String> f : futures) {
+            String outcome = f.get(5, TimeUnit.SECONDS);
+            assertTrue(outcome.startsWith("CONFLICT"), "Concurrent requests must both be rejected with Conflict, got: " + outcome);
+        }
+        executor.shutdown();
+
+        // 10. Verify that the original recurring occurrence cannot silently become POSTED again or overwrite its historical posting reference
+        RecurringRuleOccurrence finalOcc = recurringOccurrenceRepository.findById(occ.getId()).orElseThrow();
+        assertEquals(RecurringOccurrenceStatus.REVERSED, finalOcc.getStatus(), "Occurrence status must remain REVERSED");
+        assertEquals(postedTxId, finalOcc.getPostedTransactionId(), "Posted transaction ID must not be overwritten");
+        assertEquals(reversedOcc.getReversedAt(), finalOcc.getReversedAt(), "Reversed timestamp must remain unchanged");
+
+        // Ledger actuals must remain exactly initialTxCount + 2 (1 original, 1 compensating reversal)
+        assertEquals(initialTxCount + 2, transactionRepository.count(), "Zero duplicate transactions may be created");
+        assertEquals(initialMovCount + 2, movementRepository.count(), "Zero duplicate movements may be created");
     }
 }

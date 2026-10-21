@@ -596,6 +596,22 @@ public class RecordDraftService {
             throw new DraftConflictException("Cannot record discarded draft " + id);
         }
 
+        // Verify recurring occurrence guard if draft is linked to a recurring rule occurrence
+        if (recurringOccurrenceRepository != null) {
+            recurringOccurrenceRepository.findByBusinessIdAndDraftId(context.businessId(), draft.getId())
+                    .ifPresent(occ -> {
+                        if (occ.getStatus() == com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.REVERSED) {
+                            throw new DraftConflictException("Cannot record draft: linked recurring occurrence " + occ.getId() + " is reversed");
+                        }
+                        if (occ.getStatus() == com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.SKIPPED) {
+                            throw new DraftConflictException("Cannot record draft: linked recurring occurrence " + occ.getId() + " was skipped");
+                        }
+                        if (occ.getStatus() == com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.POSTED) {
+                            throw new DraftConflictException("Cannot record draft: linked recurring occurrence " + occ.getId() + " has already been posted");
+                        }
+                    });
+        }
+
         // Optimistic concurrency version check
         if (!Objects.equals(request.version(), draft.getVersion())) {
             throw new DraftConflictException(
@@ -685,10 +701,13 @@ public class RecordDraftService {
         if (recurringOccurrenceRepository != null) {
             recurringOccurrenceRepository.findByBusinessIdAndDraftId(context.businessId(), draft.getId())
                     .ifPresent(occ -> {
-                        occ.setStatus(com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.POSTED);
-                        occ.setPostedTransactionId(txDetail.id());
-                        occ.setPostedAt(Instant.now());
-                        recurringOccurrenceRepository.saveAndFlush(occ);
+                        if (occ.getStatus() == com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.DRAFT_READY
+                                || occ.getStatus() == com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.SCHEDULED) {
+                            occ.setStatus(com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus.POSTED);
+                            occ.setPostedTransactionId(txDetail.id());
+                            occ.setPostedAt(Instant.now());
+                            recurringOccurrenceRepository.saveAndFlush(occ);
+                        }
                     });
         }
 

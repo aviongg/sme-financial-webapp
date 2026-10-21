@@ -210,7 +210,7 @@ Built with responsive Next.js App Router, Tailwind CSS, and Deep Spruce Teal tok
   - `RecurrenceCalculatorTest`: 9/9 passed (Weekly, Biweekly, Monthly, Quarterly, Annually, Month-end rollover, Leap year).
   - `RecurringRuleControllerTest`: 7/7 passed (MockMvc endpoints, validation, RBAC).
   - `RecurringRuleServiceTest`: 10/10 passed (CRUD, pause, resume, archive, skip, due generation).
-  - `RecurringTransactionsPostgreSqlIT`: 8/8 passed against real Flyway V1–V29 on disposable PostgreSQL 14.22:
+  - `RecurringTransactionsPostgreSqlIT`: 9/9 passed against real Flyway V1–V29 on disposable PostgreSQL 14.22:
     - `testEndToEndRecurringOperationsLifecycle`
     - `testRuleEditingPreservesHistory`
     - `testSkipOccurrenceDiscardsDraft`
@@ -219,6 +219,7 @@ Built with responsive Next.js App Router, Tailwind CSS, and Deep Spruce Teal tok
     - `testConcurrentGenerationRacingAndIdempotency`
     - `testBoundedCatchUpAfterDowntime`
     - `testRegressionManualDraftAndOrdinaryReversalUnaffected`
+    - `testReversalTerminalGuardPreventsRepostingAndPreservesProvenance`
 - **Shared Financial Services Regression Suite:** 104 / 104 passed:
   - `RecordDraftPostgreSqlIT`: 11/11 passed.
   - `RecordDraftServiceTest`: 74/74 passed.
