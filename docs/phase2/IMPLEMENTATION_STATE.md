@@ -1,5 +1,32 @@
 # Current Phase 2 implementation state
 
+## F12B Phase A bounded read-only financial reporting — completed local validation 25 October 2026 (Asia/Karachi)
+
+The explicitly requested **F12B Phase A** bounded slice (stateless, read-only business financial summary report, UTF-8 CSV export and print view at `/reports` with full English/Urdu/RTL support) is complete and locally verified on isolated branch `codex/f12b-reports-phase-a` in worktree `C:/Users/Hp/FYP/wt-f12b-reports`, based on `dev/fatima` commit `ea8e812f1d891c07362883a4374754e48485c884`. No remote branch or push was performed, and `dev/fatima`, `main`, `dev/suleman` and `C:/Users/Hp/FYP/wt-f05-phase-a` were not modified.
+
+**No Flyway migration was reserved or authored.** `git diff ea8e812f1d891c07362883a4374754e48485c884 -- backend/src/main/resources/db/migration` is empty; `V1–V19` and `V29` remain unchanged. The `reports` entry in F02 `ModuleRegistry` remains `implemented: false` because Phase A is a core-finance reporting capability over existing `MonthlyRecord` and `ScoreResult` stores; full F12B (financial operations calendar, document-to-entity links, persisted `report_runs`, `report_schedules`, retained artifacts, automated distribution, and future F01/F03/F04/F05/F08/F09/F11/C11 domain producers) remains unimplemented (`PARTIAL_VERIFIED` for bounded Phase A only; `BLOCKED_DEPENDENCY` / `DRAFT` for full F12B). Detailed contract and semantics are in [F12B_REPORTS_PHASE_A.md](F12B_REPORTS_PHASE_A.md).
+
+| Reserved scope (branch `codex/f12b-reports-phase-a`) | Sole editor | Status |
+|---|---|---|
+| `backend/.../reports/{controller,dto,service}`, read-only repository finders in `MonthlyRecordRepository` and `ScoreResultRepository`, and unit/PostgreSQL tests | B / isolated F12B worktree | Complete and locally verified |
+| `frontend/src/app/reports/page.tsx`, `components/reports/BusinessFinancialReportView.tsx`, `lib/api/reports.ts`, `lib/reports/{format,period}.ts`, `lib/i18n/translations/reports.ts`, `Sidebar.tsx`, `MobileNav.tsx`, `globals.css`, `lib/api/client.ts` and `tests/reports.test.mjs` | B / isolated F12B worktree | Complete and locally verified |
+| `backend/.../testsupport/F12bReportsBrowserAcceptance.java` and `scripts/test_f12b_reports_browser.mjs` | B / isolated F12B worktree | Complete and locally verified |
+| `docs/phase2/F12B_REPORTS_PHASE_A.md`, `FEATURE_REGISTER.md` and `IMPLEMENTATION_STATE.md` | B / isolated F12B worktree | Complete in containing local commit |
+
+| Final F12B Phase A gate | Result / qualifications |
+|---|---|
+| Targeted backend unit tests | **25 passed** (`BusinessFinancialReportAssemblerTests`: 14, `BusinessFinancialReportCsvTests`: 8, `ReportRequestReaderTests`: 3), 0 failures, 0 errors, 0 skips |
+| Targeted PostgreSQL integration test | **9 passed** (`BusinessFinancialReportPostgreSqlIT`), 0 failures, 0 errors, 0 skips; verifies exact flow/snapshot/health assembly, UTF-8 CSV + formula-injection neutralization, CSRF/session/permission/tenant isolation, closed request reader (unknown fields, `businessId`/`userId`/`sql`/`metrics` rejection, 2,048-byte limit, 24-month cap) and zero database mutations across 10 tables |
+| Full local backend verify | **998 default cases: 997 passed, 1 existing Windows symlink skip; 163 local PostgreSQL integration cases passed**, 0 failures, 0 errors. Nineteen production-target cases (`DatabaseRolePrivilegesPostgreSqlIT`, `PostgreSqlTlsConnectionIT`) explicitly excluded, not accepted |
+| Frontend unit tests | **99 passed** (including **13** F12B report tests in `tests/reports.test.mjs`), 0 failures, 0 skips |
+| Static checks & production build | **TypeScript passed; ESLint passed** (0 errors, 1 pre-existing warning in `SessionProvider.tsx`); **production Next webpack build (`next build --webpack`) passed** |
+| Real F12B browser acceptance | **15 checks passed** (`F12bReportsBrowserAcceptance`), production Next (`127.0.0.1:3100`) + real Spring (`127.0.0.1:8080`) + disposable PostgreSQL 14.22; desktop EN, mobile EN, mobile UR/RTL and desktop UR/RTL screenshots visually inspected; CSV download verified; print rules verified in EN and UR RTL; business switch, invalid range and session expiry verified; 0 runtime/CSP/hydration errors, 0 external requests |
+| Real browser regressions | **52 checks passed** across `PilotHardeningBrowserAcceptance` (11), `F13BrowserAcceptance` (16), `F06BrowserAcceptance` (14) and `F02AiBrowserAcceptance` (11) |
+
+Post-interruption continuation defects found and fixed before final validation:
+1. Preserved the previous session's post-browser fix in `BusinessFinancialReportView.tsx` storing `'exported' | 'failed' | null` in `exportNote` so switching to Urdu after CSV export translates the status note (`CSV ڈاؤن لوڈ ہو گئی۔` instead of remaining English `CSV downloaded.`), and added an explicit browser assertion in `scripts/test_f12b_reports_browser.mjs`.
+2. Fixed `capture()` in `scripts/test_f12b_reports_browser.mjs` to await `document.fonts?.ready` and `document.getAnimations({ subtree: true })` completion before capturing screenshots so resizing from `390x844` mobile to `1440x1000` desktop RTL does not capture `AppShell` mid-transition while its 200ms `margin-right` transition is still in flight.
+
 ## Client-pilot hardening — completed local validation 24 October 2026 (Asia/Karachi)
 
 The explicitly requested R01/R02/R03, numeric-bound and F06-documentation pass is complete on **dev/fatima**, based on `14cc912a078485ef7499c58cb5b76641c436f7f0`. The coordinated migration is **V29**. Only this branch was fetched during the continuation; no other developer implementation was inspected, copied or imported. The user authorized one normal push after all checks. The containing commit is the delivery identity (`git log -1 -- docs/phase2/PILOT_HARDENING.md`); exact post-push SHA and remote verification are recorded in the external final handoff rather than a self-referencing commit. No production/shared database or deployment action was taken.

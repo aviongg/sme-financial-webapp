@@ -218,3 +218,18 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* F12B Phase A: clean browser print / Save-as-PDF for the Reports page only. Scoped by the report root marker,
+   so no other page's print behavior changes. Shell chrome and controls are hidden; the report keeps its title,
+   period, generated time and flow/snapshot labels; tables are never clipped. */
+@page { margin: 12mm; }
+@media print {
+  body:has([data-report-print]) :is(aside, header, nav) { display: none !important; }
+  body:has([data-report-print]) div:has(> main) { margin-inline: 0 !important; padding-bottom: 0 !important; }
+  body:has([data-report-print]) main { padding: 0 !important; }
+  body:has([data-report-print]) { background: #fff !important; color: #000 !important; }
+  body:has([data-report-print]) [data-report-print] * { box-shadow: none !important; }
+  body:has([data-report-print]) [data-report-print] :is(section, table, tr, dl > div) { break-inside: avoid; }
+  body:has([data-report-print]) [data-report-print] table { font-size: 9pt; width: 100% !important; table-layout: auto; }
+  body:has([data-report-print]) [data-report-print] :is(td, th) { white-space: normal !important; overflow-wrap: anywhere; }
+}

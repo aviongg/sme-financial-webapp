@@ -56,7 +56,25 @@ async function csrfToken(): Promise<Csrf> {
             csrf = null; throw error; });
     return csrf;
 }
-export async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return transport<T>(endpoint, options, 'application/json', decode<T>);
+}
+export interface Download {
+    blob: Blob;
+    fileName: string | null;
+}
+async function readDownload(response: Response): Promise<Download> {
+    if (!response.ok)
+        return decode<Download>(response);
+    const blob = await response.blob();
+    const match = /filename="([A-Za-z0-9._-]{1,120})"/.exec(response.headers.get('Content-Disposition') ?? '');
+    return { blob, fileName: match ? match[1] : null };
+}
+/** Same session, CSRF, tenant-switch and abort guarantees as apiClient, for a bounded file response. */
+export function apiDownload(endpoint: string, options: RequestInit = {}): Promise<Download> {
+    return transport<Download>(endpoint, options, 'text/csv, application/json', readDownload);
+}
+async function transport<T>(endpoint: string, options: RequestInit, accept: string, read: (response: Response) => Promise<T>): Promise<T> {
     if (!/^\/(?!\/)/.test(endpoint) || endpoint.includes('\\') || endpoint.includes('://') || endpoint.includes('#'))
         throw new Error('A same-origin API path is required.');
     const privateRequest = !isSessionEndpoint(endpoint);
@@ -72,7 +90,7 @@ export async function apiClient<T>(endpoint: string, options: RequestInit = {}):
     try {
         const method = (options.method || 'GET').toUpperCase();
         const headers = new Headers(options.headers);
-        headers.set('Accept', 'application/json');
+        headers.set('Accept', accept);
         if (options.body != null && !(options.body instanceof FormData))
             headers.set('Content-Type', 'application/json');
         if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !endpoint.startsWith('/auth/password-reset/')) {
@@ -82,7 +100,7 @@ export async function apiClient<T>(endpoint: string, options: RequestInit = {}):
         if (current !== generation || controller.signal.aborted)
             throw new DOMException('Request context changed.', 'AbortError');
         const response = await fetch(`/api${endpoint}`, { ...options, method, headers, credentials: 'same-origin', cache: 'no-store', signal: controller.signal, redirect: 'error' });
-        const result = await decode<T>(response);
+        const result = await read(response);
         if (current !== generation || controller.signal.aborted)
             throw new DOMException('Request context changed.', 'AbortError');
         return result;

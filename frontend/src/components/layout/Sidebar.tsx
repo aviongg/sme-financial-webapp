@@ -17,6 +17,7 @@ import {
   ChevronRight,
   MessageCircle,
   Calculator,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -27,6 +28,7 @@ import { useConfiguration } from '@/components/configuration/ConfigurationProvid
 import { useAi } from '@/components/ai/AiProvider';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
+import { reportsCopy } from '@/lib/i18n/translations/reports';
 
 export interface SidebarProps {
   className?: string;
@@ -57,6 +59,7 @@ export function Sidebar({ className }: SidebarProps) {
       icon: FileBarChart2,
     },
     ...(!isDemoMode ? [{ label: estimatesCopy(locale).nav, href: '/estimates', icon: Calculator }] : []),
+    ...(!isDemoMode ? [{ label: reportsCopy(locale).nav, href: '/reports', icon: FileText }] : []),
     {
       label: t.nav.addData,
       href: "/records/new",

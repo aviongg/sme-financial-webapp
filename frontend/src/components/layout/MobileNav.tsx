@@ -22,6 +22,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 import { routePermission } from "@/lib/api/navigation";
 import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
+import { reportsCopy } from '@/lib/i18n/translations/reports';
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -31,6 +32,7 @@ export function MobileNav() {
   const router = useRouter();
   const { t, locale } = useLanguage();
   const estimates = estimatesCopy(locale);
+  const reports = reportsCopy(locale);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   const tabs = [
@@ -100,7 +102,7 @@ export function MobileNav() {
             <button
               type="button"
               onClick={() => setIsActionSheetOpen(true)}
-              disabled={!allowed('/records/new') && !allowed('/scan') && (isDemoMode || !allowed('/estimates'))}
+              disabled={!allowed('/records/new') && !allowed('/scan') && (isDemoMode || (!allowed('/estimates') && !allowed('/reports')))}
               aria-label={t.quickActions.title}
               className="w-12 h-12 -mt-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center shadow-md hover:bg-[var(--color-brand-hover)] active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]"
             >
@@ -148,6 +150,12 @@ export function MobileNav() {
             <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Calculator className="w-5 h-5"/></div>
             <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{estimates.nav}</p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{estimates.planning}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/reports') && <button type="button" onClick={() => handleActionSelect('/reports')} data-testid="mobile-reports-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FileText className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{reports.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{reports.reportTitle}</p></div>
           </button>}
           <button
             disabled={!allowed("/records/new")}
