@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import ts from 'typescript';
 const dir=mkdtempSync(path.join(tmpdir(),'finsight-secure-contracts-'));
-const modules=['client','session','contracts','phase-one','finance','documents','zakat','navigation','team','score-presentation'];
+const modules=['client','session','contracts','phase-one','finance','documents','zakat','navigation','team','score-presentation','record-integrity'];
 for(const name of modules){const source=readFileSync(fileURLToPath(new URL(`../src/lib/api/${name}.ts`,import.meta.url)),'utf8');writeFileSync(path.join(dir,`${name}.js`),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);}
 const require=createRequire(import.meta.url);
 const client=require(path.join(dir,'client.js'));
@@ -92,3 +92,39 @@ test('reviewed draft takes precedence while original extraction and machine conf
  const original=JSON.stringify({amount:100,confidence:'low'}),reviewed=JSON.stringify({amount:125,confidence:'low'}),doc={extractedData:original,reviewedData:reviewed};assert.deepEqual(currentDocumentDraft(doc),{amount:125,confidence:'low'});assert.equal(doc.extractedData,original);assert.deepEqual(currentDocumentDraft({...doc,reviewedData:null}),{amount:100,confidence:'low'});assert.deepEqual(parseDocumentData('[]'),{});assert.deepEqual(parseDocumentData('invalid'),{});
 });
 test('correction history is a protected document-scoped read',async()=>{backend((url,options)=>{assert.equal(url,`/api/documents/${businessId}/corrections`);assert.equal(options.method,'GET');return Response.json([{id:'audit',actorIsCurrentUser:true,changedFields:['amount']}]);});assert.equal((await documentsApi.corrections(businessId))[0].actorIsCurrentUser,true);});
+
+const {monthlyConflict,isPotentialDuplicate,withinMonthlyMoneyBounds}=require(path.join(dir,'record-integrity.js'));
+test('monthly edits send the originally loaded version including zero; missing/null versions remain absent-create assertions',async()=>{
+ backend();for(const expectedVersion of [0,7,null]){await phaseOneApi.updateMonthlyRecord('2026-09',{...record,expectedVersion});assert.equal(JSON.parse(calls.at(-1).options.body).expectedVersion,expectedVersion);}
+ await phaseOneApi.createMonthlyRecord(record);assert.equal('expectedVersion' in JSON.parse(calls.at(-1).options.body),false);
+ await phaseOneApi.createMonthlyRecord({...record,expectedVersion:null,version:999,businessId:'spoof'});
+ assert.deepEqual(JSON.parse(calls.at(-1).options.body),{...record,expectedVersion:null});
+});
+test('stale and confirmed-source conflicts preserve codes/fields and never auto-replay or fetch a newer version',async()=>{
+ for(const code of ['stale_monthly_record','confirmed_source_conflict']){
+  mock.restoreAll();calls=[];client.resetCsrf();backend(()=>Response.json({error:code,errors:{revenue:'confirmed_source_floor'}},{status:409}));
+  await assert.rejects(()=>phaseOneApi.updateMonthlyRecord('2026-09',{...record,expectedVersion:3}),error=>monthlyConflict(error)===(code==='stale_monthly_record'?'stale':'sources')&&error.fieldErrors.revenue==='confirmed_source_floor');
+  assert.equal(calls.filter(call=>call.url==='/api/records/monthly').length,1);assert.equal(calls.some(call=>call.url==='/api/records/monthly/query'),false);
+ }
+ assert.equal(monthlyConflict(new client.ApiError(409,'other',undefined,'another_conflict')),null);
+});
+test('potential duplicate confirmation requires a separate explicit true override and does not automatically retry',async()=>{
+ const input={targetMonth:'2026-09',confirmedAmount:200,confirmedDate:'2026-09-01',confirmedParty:'Vendor',targetClassification:'revenue',cashFlowImpact:'cash_inflow',initialCashBalanceEom:null};
+ backend(()=>Response.json({error:'potential_duplicate_source'},{status:409}));
+ await assert.rejects(()=>documentsApi.confirm(businessId,input),error=>isPotentialDuplicate(error));
+ assert.equal(calls.filter(call=>call.url.endsWith('/confirm')).length,1);assert.equal('allowPotentialDuplicate' in JSON.parse(calls.at(-1).options.body),false);
+ mock.restoreAll();backend(()=>Response.json({id:businessId,processingStatus:'confirmed'}));
+ await documentsApi.confirm(businessId,{...input,allowPotentialDuplicate:true,businessId:'spoof',actorUserId:'spoof'});
+ assert.deepEqual(JSON.parse(calls.at(-1).options.body),{...input,allowPotentialDuplicate:true});
+ await documentsApi.confirm(businessId,{...input,allowPotentialDuplicate:'true'});assert.deepEqual(JSON.parse(calls.at(-1).options.body),input);
+});
+test('monthly numeric validation accepts NUMERIC14,2 maximum and zero without silently rounding overflow or excessive scale',()=>{
+ for(const amount of [0,0.01,1.1,999999999999.99])assert.equal(withinMonthlyMoneyBounds(amount),true,String(amount));
+ for(const amount of [-1,0.001,1.234,1000000000000,Number.NaN,Infinity,1e-7])assert.equal(withinMonthlyMoneyBounds(amount),false,String(amount));
+});
+test('pilot conflict and acknowledgement copy has complete English/Urdu parity',()=>{
+ const source=readFileSync(new URL('../src/lib/i18n/translations/pilot-hardening.ts',import.meta.url),'utf8');
+ const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const compiled={exports:{}};new Function('exports',output)(compiled.exports);
+ const {pilotHardeningEn:en,pilotHardeningUr:ur}=compiled.exports;assert.deepEqual(Object.keys(en),Object.keys(ur));for(const value of Object.values(ur))assert.match(value,/[\u0600-\u06ff]/);
+});

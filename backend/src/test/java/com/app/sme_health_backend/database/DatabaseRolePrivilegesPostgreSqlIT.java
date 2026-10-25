@@ -113,6 +113,23 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppDmlAllowed() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
+            // V29 is append-only; it intentionally has narrower grants than mutable domain tables.
+            for (String role : new String[] {"finsight_app", "finsight_backup"}) {
+                for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
+                    boolean allowed = privilege.equals("SELECT") || role.equals("finsight_app") && privilege.equals("INSERT");
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('" + role
+                            + "', 'public.document_financial_contributions', '" + privilege + "')")) {
+                        assertTrue(rs.next());
+                        assertEquals(allowed, rs.getBoolean(1), role + " " + privilege + " contribution provenance");
+                    }
+                }
+            }
+            try (ResultSet rs = stmt.executeQuery("SELECT version FROM monthly_records LIMIT 1")) {
+                if (rs.next()) {
+                    assertTrue(rs.getLong(1) >= 0);
+                    assertFalse(rs.wasNull());
+                }
+            }
             for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences"}) {
                 try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM " + table)) {
                     assertTrue(rs.next());
@@ -155,7 +172,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppAlterTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences"}) {
+            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences", "document_financial_contributions"}) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN forbidden_col INT"));
                 assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
@@ -170,7 +187,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppDropTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences"}) {
+            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences", "document_financial_contributions"}) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("DROP TABLE " + table));
                 assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
@@ -185,7 +202,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppTruncateTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences"}) {
+            for (String table : new String[] {"app_users", "business_configuration", "dashboard_preferences", "document_financial_contributions"}) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("TRUNCATE TABLE " + table));
                 assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||

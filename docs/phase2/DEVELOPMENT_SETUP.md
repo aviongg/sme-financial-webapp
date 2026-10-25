@@ -136,6 +136,8 @@ On this Windows host, the bundled pnpm launcher attempted an unnecessary store o
 
 ## F06 bounded planning acceptance
 
+The bounded preview is integrated on dev/fatima in commit `14cc912a078485ef7499c58cb5b76641c436f7f0`. Its recorded 19 October tests ran on the exact tree later fast-forwarded and pushed. These commands remain reproducible regression checks; full F06 persistence/approval/conversion and production acceptance remain unperformed. The nineteen production-target cases were excluded from local acceptance, not passed.
+
 The stateless `/api/estimates/preview` and `/estimates` screen use the existing identity/session/CSRF path. No schema or financial posting is added. Isolate its deterministic and real PostgreSQL checks with:
 
 ```powershell
@@ -153,6 +155,20 @@ After building the live production Next frontend with the 8080 rewrite, start it
 ```
 
 The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL with synthetic accounts and explicitly disabled AI. It verifies margin/markup, cost groups, zero/unknown values, strict decimal/request bounds, access/session/business isolation, English/Urdu/mobile/keyboard, and unchanged records/score. Screenshots require visual inspection. Never point it at a developer/customer database. Actual contract, calculation precision and deferred work are in [F06 implementation](F06_IMPLEMENTATION.md); this does not establish production or policy approval.
+
+## Client-pilot hardening acceptance
+
+The coordinated migration is **V29**. Validate the current branch's V1–V19 then V29 and populated V19→V29; do not import V20–V28 or claim combined-branch sequencing. Do not target a production/shared database.
+
+```powershell
+# From backend, using the existing cached Maven fallback if needed
+.\mvnw.cmd '-Dtest=MonthlyRecordServiceTests,MonthlyRecordControllerTests,MonthlyRecordContributionTests,DocumentControllerTests,DocumentConfirmationServiceTests,JpaDocumentDraftStoreTests,DocumentDraftProcessorTests,DocumentStartupRecoveryTests,AsyncDocumentProcessingTests,DocumentUploadServiceTests,WhatsAppDeliveryServiceTest,Feature12PostgreSqlIntegrationTests' -Ppostgres-it '-Dit.test=MonthlyIntegrityPostgreSqlIT,DocumentAttemptOwnershipPostgreSqlIT,DocumentSecurityPostgreSqlIT,Feature8PostgreSqlIT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT' verify
+.\mvnw.cmd -Ppostgres-it '-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT' verify
+# After production Next is running on3100;8080 free; same browser environment as above
+.\mvnw.cmd '-Dtest=PilotHardeningBrowserAcceptance' test
+```
+
+Run the pilot, F02, F13 and F06 browser harnesses sequentially; each owns Spring8080 and disposable PostgreSQL. Pilot scenarios cover stale-version draft retention and explicit reload (EN/UR), all-field numeric bounds, source floors and correction, duplicate warning/acknowledgement invalidation, absent-month races, optional zero/null and session/business boundaries. OCR alone is simulated in the pilot harness. Normal frontend unit/TypeScript/ESLint/webpack and53 synthetic browser checks remain required. Results and acceptance limits: [hardening](PILOT_HARDENING.md), [dated evidence](verification/2026-10-24-pilot-hardening.json).
 
 ## Documentation and publication checks (onboarding baseline)
 

@@ -41,7 +41,7 @@ public class MonthlyRecordController {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.RECORD_CREATE_UPDATE);
 
         MonthlyRecord record = toEntity(requestDto, context.businessId());
-        MonthlyRecord savedRecord = monthlyRecordService.saveMonthlyRecord(record);
+        MonthlyRecord savedRecord = monthlyRecordService.saveMonthlyRecord(record, context.userId(), requestDto.getExpectedVersion());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

@@ -5,7 +5,7 @@ import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
 import com.app.sme_health_backend.scoring.service.ScoringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,152 +29,122 @@ public class MonthlyRecordService {
     private final ScoringService scoringService;
     private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
-    public MonthlyRecordService(MonthlyRecordRepository monthlyRecordRepository) {
-        this(monthlyRecordRepository, null, null);
+    private final com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
+    private final com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository contributions;
+
+    public MonthlyRecordService(MonthlyRecordRepository monthlyRecordRepository, ScoringService scoringService,
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService,
+            com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository,
+            com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository contributions) {
+        this.monthlyRecordRepository = java.util.Objects.requireNonNull(monthlyRecordRepository);
+        this.scoringService = java.util.Objects.requireNonNull(scoringService);
+        this.auditService = java.util.Objects.requireNonNull(auditService);
+        this.businessRepository = java.util.Objects.requireNonNull(businessRepository);
+        this.contributions = java.util.Objects.requireNonNull(contributions);
     }
 
-    public MonthlyRecordService(
-            MonthlyRecordRepository monthlyRecordRepository,
-            @Autowired(required = false) ScoringService scoringService
-    ) {
-        this(monthlyRecordRepository, scoringService, null);
-    }
-
-    @Autowired
-    public MonthlyRecordService(
-            MonthlyRecordRepository monthlyRecordRepository,
-            @Autowired(required = false) ScoringService scoringService,
-            @Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
-    ) {
-        this.monthlyRecordRepository = monthlyRecordRepository;
-        this.scoringService = scoringService;
-        this.auditService = auditService;
+    /** Every monthly writer first holds the business parent lock, including absent-month creation. */
+    @Transactional
+    public void lockBusiness(UUID businessId) {
+        if (businessId == null) throw new IllegalArgumentException("Business ID is required");
+        businessRepository.findByIdForUpdate(businessId)
+                .orElseThrow(() -> new com.app.sme_health_backend.shared.exception.ResourceNotFoundException("Business not found"));
     }
 
     @Transactional
-    public MonthlyRecord saveMonthlyRecord(MonthlyRecord record) {
+    public MonthlyRecord saveMonthlyRecord(MonthlyRecord record, UUID actorUserId, Long expectedVersion) {
         validateMonthlyRecord(record);
-
+        java.util.Objects.requireNonNull(actorUserId, "Authenticated actor is required");
+        lockBusiness(record.getUserId());
+        MonthlyRecord existing = monthlyRecordRepository.findByUserIdAndMonthForUpdate(record.getUserId(), record.getMonth()).orElse(null);
+        if ((existing == null && expectedVersion != null)
+                || (existing != null && (expectedVersion == null || !expectedVersion.equals(existing.getVersion()))))
+            throw new FinancialConflictException("stale_monthly_record", "This month changed. Reload its current values before saving.");
+        if (existing != null) enforceSourceFloors(record);
         record.setUpdatedAt(LocalDateTime.now());
-
-        Optional<MonthlyRecord> existingOpt = monthlyRecordRepository.findByUserIdAndMonth(record.getUserId(), record.getMonth());
-        boolean isUpdate = existingOpt.isPresent();
-
-        MonthlyRecord saved = existingOpt
-                .map(existingRecord -> {
-                    updateExistingRecord(existingRecord, record);
-                    return monthlyRecordRepository.save(existingRecord);
-                })
-                .orElseGet(() -> monthlyRecordRepository.save(record));
-
-        if (scoringService != null) {
-            recalculateAffectedScores(saved.getUserId(), saved.getMonth());
-        }
-
-        if (auditService != null) {
-            com.app.sme_health_backend.audit.model.AuditEventType eventType = isUpdate
-                    ? com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_UPDATED
-                    : com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_CREATED;
-            auditService.logSuccess(
-                    eventType,
-                    saved.getUserId(),
-                    null,
-                    null,
-                    "monthly_record",
-                    saved.getId() != null ? saved.getId().toString() : null,
-                    java.util.Map.of("month", saved.getMonth())
-            );
-        }
-
+        MonthlyRecord toSave = record;
+        if (existing != null) { updateExistingRecord(existing, record); toSave = existing; }
+        // Flush before returning so the response contains the version actually committed by JPA.
+        MonthlyRecord saved = monthlyRecordRepository.saveAndFlush(toSave);
+        recalculateAffectedScores(saved.getUserId(), saved.getMonth());
+        auditService.logSuccess(existing == null
+                        ? com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_CREATED
+                        : com.app.sme_health_backend.audit.model.AuditEventType.MONTHLY_RECORD_UPDATED,
+                actorUserId, null, saved.getUserId(), "monthly_record", saved.getId().toString(),
+                java.util.Map.of("month", saved.getMonth()));
         return saved;
+    }
+
+    private void enforceSourceFloors(MonthlyRecord incoming) {
+        var floors = contributions.floors(incoming.getUserId(), incoming.getMonth());
+        java.util.Map<String, String> errors = new java.util.LinkedHashMap<>();
+        checkFloor(errors, "revenue", incoming.getRevenue(), floors.get("revenue"));
+        checkFloor(errors, "operatingExpenses", incoming.getOperatingExpenses(), floors.get("operatingExpenses"));
+        checkFloor(errors, "cogs", incoming.getCogs(), floors.get("cogs"));
+        checkFloor(errors, "cashInflow", incoming.getCashInflow(), floors.get("cashInflow"));
+        checkFloor(errors, "cashOutflow", incoming.getCashOutflow(), floors.get("cashOutflow"));
+        if (!errors.isEmpty()) throw new FinancialConflictException("confirmed_source_conflict",
+                "Aggregate totals cannot be below confirmed document contributions.", errors);
+    }
+    private static void checkFloor(java.util.Map<String, String> errors, String field, BigDecimal value, BigDecimal floor) {
+        if (floor.signum() > 0 && (value == null || value.compareTo(floor) < 0)) errors.put(field, "confirmed_source_floor");
     }
 
     @Transactional
-    public MonthlyRecord applyDocumentContribution(
-            UUID userId,
-            String targetMonth,
-            String targetClassification,
-            String cashFlowImpact,
-            BigDecimal amount,
-            BigDecimal initialCashBalanceEom
-    ) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        if (targetMonth == null || targetMonth.isBlank()) {
-            throw new IllegalArgumentException("Target month is required");
-        }
-        try {
-            YearMonth.parse(targetMonth);
-        } catch (Exception e) {
+    public MonthlyRecord applyDocumentContribution(UUID businessId, UUID actorUserId, UUID documentId,
+            com.app.sme_health_backend.documents.dto.DocumentConfirmationRequest request) {
+        java.util.Objects.requireNonNull(actorUserId, "Authenticated actor is required");
+        java.util.Objects.requireNonNull(documentId, "Document ID is required");
+        java.util.Objects.requireNonNull(request, "Confirmation request is required");
+        String targetMonth = request.targetMonth();
+        if (targetMonth == null || !targetMonth.matches("[0-9]{4}-(0[1-9]|1[0-2])"))
             throw new IllegalArgumentException("Target month must be in YYYY-MM format");
+        BigDecimal amount = request.confirmedAmount();
+        validateNonNegative("Confirmed amount", amount);
+        if (amount.signum() <= 0) throw new IllegalArgumentException("Confirmed amount must be greater than zero");
+        validateOptionalNonNegative("Initial cash balance", request.initialCashBalanceEom());
+        String classification = request.targetClassification() == null ? "none" : request.targetClassification().strip().toLowerCase(java.util.Locale.ROOT);
+        String flow = request.cashFlowImpact() == null ? "none" : request.cashFlowImpact().strip().toLowerCase(java.util.Locale.ROOT);
+        if (!Set.of("revenue", "operating_expenses", "cogs", "none").contains(classification)
+                || !Set.of("cash_inflow", "cash_outflow", "none").contains(flow))
+            throw new IllegalArgumentException("Invalid contribution classification or cash flow impact");
+        lockBusiness(businessId);
+        MonthlyRecord record = monthlyRecordRepository.findByUserIdAndMonthForUpdate(businessId, targetMonth).orElse(null);
+        String fingerprint = DocumentSourceFingerprint.of(businessId, request, classification, flow);
+        boolean duplicate = contributions.hasFingerprint(businessId, fingerprint);
+        if (duplicate && !request.allowPotentialDuplicate())
+            throw new FinancialConflictException("potential_duplicate_source",
+                    "A similar source is already confirmed for this month. Review it and explicitly confirm anyway only for a separate source.");
+        boolean newMonth = record == null;
+        if (newMonth) {
+            if (request.initialCashBalanceEom() == null)
+                throw new IllegalArgumentException("No monthly record exists for " + targetMonth + ". An initial cash balance (initialCashBalanceEom) is required.");
+            record = new MonthlyRecord(); record.setUserId(businessId); record.setMonth(targetMonth);
+            record.setCashBalanceEom(request.initialCashBalanceEom());
         }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Confirmed amount must be greater than zero");
+        if ("revenue".equals(classification)) record.setRevenue(record.getRevenue().add(amount));
+        else if ("operating_expenses".equals(classification)) record.setOperatingExpenses(record.getOperatingExpenses().add(amount));
+        else if ("cogs".equals(classification)) record.setCogs((record.getCogs() == null ? BigDecimal.ZERO : record.getCogs()).add(amount));
+        if ("cash_inflow".equals(flow)) record.setCashInflow(record.getCashInflow().add(amount));
+        else if ("cash_outflow".equals(flow)) record.setCashOutflow(record.getCashOutflow().add(amount));
+        record.setUpdatedAt(LocalDateTime.now());
+        // Validate resulting period flows without reinterpreting untouched legacy point-in-time balances.
+        // New months retain the existing full validation and unknown-versus-zero defaults.
+        if (newMonth) validateMonthlyRecord(record);
+        else {
+            validateDatabaseAmount("Revenue", record.getRevenue());
+            validateDatabaseAmount("Operating expenses", record.getOperatingExpenses());
+            validateDatabaseAmount("COGS", record.getCogs());
+            validateDatabaseAmount("Cash inflow", record.getCashInflow());
+            validateDatabaseAmount("Cash outflow", record.getCashOutflow());
         }
-
-        String classification = targetClassification != null ? targetClassification.trim().toLowerCase() : "none";
-        String flowImpact = cashFlowImpact != null ? cashFlowImpact.trim().toLowerCase() : "none";
-
-        MonthlyRecord existing = monthlyRecordRepository.findByUserIdAndMonth(userId, targetMonth).orElse(null);
-        MonthlyRecord recordToSave;
-
-        if (existing != null) {
-            // Increment ONLY period-flow fields; point-in-time balances remain untouched
-            if ("revenue".equals(classification)) {
-                existing.setRevenue(existing.getRevenue().add(amount));
-            } else if ("operating_expenses".equals(classification)) {
-                existing.setOperatingExpenses(existing.getOperatingExpenses().add(amount));
-            } else if ("cogs".equals(classification)) {
-                BigDecimal currentCogs = existing.getCogs() != null ? existing.getCogs() : BigDecimal.ZERO;
-                existing.setCogs(currentCogs.add(amount));
-            }
-
-            if ("cash_inflow".equals(flowImpact)) {
-                existing.setCashInflow(existing.getCashInflow().add(amount));
-            } else if ("cash_outflow".equals(flowImpact)) {
-                existing.setCashOutflow(existing.getCashOutflow().add(amount));
-            }
-
-            existing.setUpdatedAt(LocalDateTime.now());
-            recordToSave = existing;
-        } else {
-            // Month does not exist: require initial cash balance to avoid fabricating point-in-time balances
-            if (initialCashBalanceEom == null) {
-                throw new IllegalArgumentException(
-                        "No monthly record exists for " + targetMonth
-                                + ". An initial cash balance (initialCashBalanceEom) is required to initialize this month's record."
-                );
-            }
-            if (initialCashBalanceEom.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Initial cash balance cannot be negative");
-            }
-
-            MonthlyRecord newRecord = new MonthlyRecord();
-            newRecord.setUserId(userId);
-            newRecord.setMonth(targetMonth);
-            newRecord.setRevenue("revenue".equals(classification) ? amount : BigDecimal.ZERO);
-            newRecord.setOperatingExpenses("operating_expenses".equals(classification) ? amount : BigDecimal.ZERO);
-            newRecord.setCogs("cogs".equals(classification) ? amount : null);
-            newRecord.setCashInflow("cash_inflow".equals(flowImpact) ? amount : BigDecimal.ZERO);
-            newRecord.setCashOutflow("cash_outflow".equals(flowImpact) ? amount : BigDecimal.ZERO);
-            newRecord.setCashBalanceEom(initialCashBalanceEom);
-            newRecord.setFinancingType("none");
-            newRecord.setUpdatedAt(LocalDateTime.now());
-
-            validateMonthlyRecord(newRecord);
-            recordToSave = newRecord;
-        }
-
-        MonthlyRecord saved = monthlyRecordRepository.save(recordToSave);
-
-        if (scoringService != null) {
-            recalculateAffectedScores(saved.getUserId(), saved.getMonth());
-        }
-
+        MonthlyRecord saved = monthlyRecordRepository.saveAndFlush(record);
+        contributions.insert(new com.app.sme_health_backend.records.entity.DocumentFinancialContribution(UUID.randomUUID(),
+                businessId, documentId, saved.getId(), targetMonth, classification, flow, amount, actorUserId, fingerprint,
+                request.allowPotentialDuplicate()));
+        recalculateAffectedScores(businessId, targetMonth);
         return saved;
     }
-
 
     private void recalculateAffectedScores(UUID userId, String targetMonth) {
         try {
@@ -274,6 +244,8 @@ public class MonthlyRecordService {
             throw new IllegalArgumentException("Month is required");
         }
 
+        if (!record.getMonth().matches("[0-9]{4}-(0[1-9]|1[0-2])"))
+            throw new IllegalArgumentException("Month must be in YYYY-MM format");
         try {
             YearMonth.parse(record.getMonth());
         } catch (Exception e) {
@@ -338,6 +310,11 @@ public class MonthlyRecordService {
         }
     }
 
+    private static void validateDatabaseAmount(String field, BigDecimal value) {
+        if (value != null && (value.scale() > 2 || (long) value.precision() - value.scale() > 12))
+            throw new IllegalArgumentException(field + " must fit 12 integer digits and at most 2 decimal places");
+    }
+
     private void validateNonNegative(
             String fieldName,
             BigDecimal value
@@ -348,6 +325,7 @@ public class MonthlyRecordService {
             );
         }
 
+        validateDatabaseAmount(fieldName, value);
         if (value.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException(
                     fieldName + " cannot be negative"
@@ -359,6 +337,7 @@ public class MonthlyRecordService {
             String fieldName,
             BigDecimal value
     ) {
+        validateDatabaseAmount(fieldName, value);
         if (value != null &&
                 value.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException(

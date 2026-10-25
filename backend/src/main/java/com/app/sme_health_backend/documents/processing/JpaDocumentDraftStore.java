@@ -9,6 +9,10 @@ import com.app.sme_health_backend.documents.storage.DocumentStorageService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import com.app.sme_health_backend.audit.model.AuditEventType;
+import com.app.sme_health_backend.audit.service.SecurityAuditService;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,17 +22,22 @@ public class JpaDocumentDraftStore implements DocumentDraftStore {
 
     private final UploadedDocumentRepository repository;
     private final DocumentStorageService storageService;
+    private final SecurityAuditService audit;
+    private final ProcessingAttemptPolicy policy;
 
-    public JpaDocumentDraftStore(UploadedDocumentRepository repository, DocumentStorageService storageService) {
+    public JpaDocumentDraftStore(UploadedDocumentRepository repository, DocumentStorageService storageService,
+            SecurityAuditService audit, ProcessingAttemptPolicy policy) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.storageService = Objects.requireNonNull(storageService, "storageService is required");
+        this.audit = Objects.requireNonNull(audit, "audit is required");
+        this.policy = Objects.requireNonNull(policy, "policy is required");
     }
 
     @Override
     @Transactional
-    public Optional<OcrRequest> claimPending(UUID documentId) {
+    public Optional<Claim> claimPending(UUID documentId) {
         Objects.requireNonNull(documentId, "documentId is required");
-        int updated = repository.claimStatus(documentId, DocumentStatus.pending, DocumentStatus.processing, java.time.LocalDateTime.now());
+        int updated = repository.claimStatus(documentId, DocumentStatus.pending, DocumentStatus.processing, policy.now());
         if (updated == 0) {
             return Optional.empty();
         }
@@ -38,47 +47,60 @@ public class JpaDocumentDraftStore implements DocumentDraftStore {
             return Optional.empty();
         }
 
+        // claimStatus clears the persistence context; this is the exact persisted PostgreSQL precision.
+        LocalDateTime startedAt = Objects.requireNonNull(doc.getProcessingStartedAt(), "Claim timestamp is required");
         byte[] fileBytes;
         try {
             fileBytes = storageService.loadBytes(doc.getStoragePath());
         } catch (Exception e) {
-            repository.failIfStatus(documentId, DocumentStatus.processing, DocumentStatus.failed, "file_storage_error");
+            failAttempt(documentId, startedAt, "file_storage_error");
             return Optional.empty();
         }
 
         OcrExtraction.DocumentType hint = parseHint(doc.getDocumentTypeHint());
-        return Optional.of(new OcrRequest(
+        return Optional.of(new Claim(new OcrRequest(
                 doc.getId(),
                 fileBytes,
                 doc.getOriginalFilename(),
                 doc.getContentType(),
                 hint
-        ));
+        ), startedAt));
     }
 
     @Override
     @Transactional
-    public boolean saveDraftIfProcessing(UUID documentId, OcrExtraction extraction, DocumentStatus target) {
+    public boolean saveDraftIfProcessing(UUID documentId, LocalDateTime expectedStartedAt, OcrExtraction extraction, DocumentStatus target) {
         Objects.requireNonNull(documentId, "documentId is required");
         Objects.requireNonNull(extraction, "extraction is required");
         Objects.requireNonNull(target, "target status is required");
 
-        if (target == DocumentStatus.confirmed) {
-            throw new IllegalArgumentException("Draft store cannot transition to confirmed directly");
+        Objects.requireNonNull(expectedStartedAt, "Attempt timestamp is required");
+        if (target != DocumentStatus.extracted && target != DocumentStatus.needs_review) {
+            throw new IllegalArgumentException("Draft store may only save extracted or needs_review, never confirmed");
         }
 
         String json = toJson(extraction);
-        int updated = repository.saveDraftIfStatus(documentId, DocumentStatus.processing, target, json);
+        int updated = repository.saveDraftIfStatus(documentId, DocumentStatus.processing, target, json, expectedStartedAt);
         return updated == 1;
     }
 
     @Override
     @Transactional
-    public boolean failIfProcessing(UUID documentId, OcrClientException.Reason reason) {
+    public boolean failIfProcessing(UUID documentId, LocalDateTime expectedStartedAt, OcrClientException.Reason reason) {
         Objects.requireNonNull(documentId, "documentId is required");
         String reasonStr = reason != null ? reason.name() : "unknown_failure";
-        int updated = repository.failIfStatus(documentId, DocumentStatus.processing, DocumentStatus.failed, reasonStr);
-        return updated == 1;
+        return failAttempt(documentId, expectedStartedAt, reasonStr);
+    }
+
+    private boolean failAttempt(UUID documentId, LocalDateTime expectedStartedAt, String reason) {
+        Objects.requireNonNull(expectedStartedAt, "Attempt timestamp is required");
+        int updated = repository.failIfStatus(documentId, DocumentStatus.processing, DocumentStatus.failed, reason, expectedStartedAt);
+        if (updated == 0) return false;
+        // The CAS and mandatory audit share this transaction. A losing worker writes no failure event.
+        UploadedDocument document = repository.findById(documentId).orElseThrow();
+        audit.logSystemFailure(AuditEventType.OCR_PROCESSING_FAILED, document.getUserId(), "document", documentId.toString(),
+                reason, Map.of("documentId", documentId.toString(), "processingStartedAt", expectedStartedAt.toString()));
+        return true;
     }
 
     private OcrExtraction.DocumentType parseHint(String hint) {

@@ -1,4 +1,4 @@
-/** Wire DTOs at Suleman f2ed9bd. Business identity is never supplied on financial writes. */
+/** Current wire DTOs. Business identity is never supplied on financial writes. */
 export type LanguagePreference = 'en' | 'ur';
 export type BusinessType = 'trade' | 'manufacturing' | 'services' | 'retail';
 export type FinancingType = 'none' | 'conventional' | 'islamic';
@@ -21,6 +21,8 @@ export interface BusinessProfileResponse extends Omit<BusinessProfileRequest, 'b
 }
 export interface MonthlyRecordRequest {
     month: string;
+    /** Null/omitted asserts that this month does not yet exist. Edits send the version originally loaded. */
+    expectedVersion?: number | null;
     cashInflow: number;
     cashOutflow: number;
     revenue: number;
@@ -36,6 +38,7 @@ export interface MonthlyRecordRequest {
 }
 export interface MonthlyRecordResponse extends MonthlyRecordRequest {
     id: string;
+    version: number;
     businessId: string;
     netCashFlow?: number | null;
     updatedAt: string;

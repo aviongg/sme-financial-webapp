@@ -10,7 +10,7 @@
     "main": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
     "dev/suleman": "f2ed9bda671404598bd73729563c6e0ceb2b08d1"
   },
-  "publication": "One local feature commit only; no push/integration/rebase. Resolve containing commit with git log -1 --format=%H -- docs/phase2/verification/2026-10-19-f06.json.",
+  "publication": "Originally tested on codex/f06-bounded-costing; the exact tested tree became 14cc912a078485ef7499c58cb5b76641c436f7f0 and was subsequently fast-forwarded into dev/fatima, normally pushed, fetched and verified. No code change, rebase, squash or merge commit occurred during integration. Recorded tests and fetched tips describe the original feature run; integration does not establish production acceptance.",
   "scope": {
     "route": "/estimates",
     "endpoint": "POST /api/estimates/preview",

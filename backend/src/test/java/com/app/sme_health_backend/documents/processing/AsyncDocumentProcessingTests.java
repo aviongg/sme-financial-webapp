@@ -24,7 +24,7 @@ class AsyncDocumentProcessingTests {
 
     @BeforeEach
     void setUp() {
-        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), Runnable::run);
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor), Runnable::run);
     }
 
     @Test
@@ -40,14 +40,13 @@ class AsyncDocumentProcessingTests {
     }
 
     @Test
-    void dispatchAsyncHandlesExceptionGracefully() throws Exception {
+    void unexpectedPersistenceExceptionDoesNotClaimAnUncommittedFailure() throws Exception {
         when(processor.process(documentId)).thenThrow(new RuntimeException("Crash during extraction"));
 
         CompletableFuture<Optional<DocumentStatus>> future = service.dispatchAsync(documentId);
         Optional<DocumentStatus> result = future.get();
 
-        assertTrue(result.isPresent());
-        assertEquals(DocumentStatus.failed, result.get());
+        assertTrue(result.isEmpty(), "An exception is not evidence that a failed status committed");
     }
 
     @Test
@@ -62,7 +61,7 @@ class AsyncDocumentProcessingTests {
     @Test
     void committedCallbackSubmitsToExecutorInsteadOfInvokingProcessorInline() {
         java.util.List<Runnable> queued = new java.util.ArrayList<>();
-        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), queued::add);
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor), queued::add);
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
         try {
@@ -84,7 +83,7 @@ class AsyncDocumentProcessingTests {
     @Test
     void rolledBackTransactionNeverSubmitsProcessing() {
         java.util.List<Runnable> queued = new java.util.ArrayList<>();
-        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor, null), queued::add);
+        service = new AsyncDocumentProcessingService(new DocumentProcessingWorker(processor), queued::add);
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
         try {

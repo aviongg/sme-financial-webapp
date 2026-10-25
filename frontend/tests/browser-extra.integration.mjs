@@ -31,7 +31,7 @@ let doc = {
   linkedMonth: null, failureReason: null, confirmedAt: null,
 };
 const records = [{id: '33333333-3333-4333-8333-333333333333', businessId,
-  month: '2026-09', cashInflow: 1000, cashOutflow: 400, revenue: 1500, operatingExpenses: 300,
+  month: '2026-09', version: 0, cashInflow: 1000, cashOutflow: 400, revenue: 1500, operatingExpenses: 300,
   cashBalanceEom: 600, cogs: null, receivablesOutstanding: 0, payablesOutstanding: 0,
   inventoryValue: null, loanOutstanding: null, interestExpense: null, financingType: 'none',
   updatedAt: '2026-09-27T00:00:00'}];

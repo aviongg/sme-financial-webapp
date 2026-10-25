@@ -9,6 +9,8 @@ import java.util.UUID;
 public class MonthlyRecordResponse {
 
     private UUID id;
+    private Long version;
+    public Long getVersion() { return version; }
     private UUID businessId;
     private String month;
 
@@ -33,6 +35,7 @@ public class MonthlyRecordResponse {
         MonthlyRecordResponse response = new MonthlyRecordResponse();
 
         response.id = record.getId();
+        response.version = record.getVersion();
         response.businessId = record.getUserId();
         response.month = record.getMonth();
 

@@ -39,6 +39,8 @@ export interface MonthlyRecordRequest {
 
 export interface MonthlyRecordResponse extends MonthlyRecordRequest {
   id: string;
+  /** Present on live responses; demo records have no concurrency contract. */
+  version?: number;
   userId?: string;
   businessId?: string;
   netCashFlow?: number | null;

@@ -1,6 +1,6 @@
 # F06 bounded pre-order costing and pricing
 
-Implemented scope: stateless, non-posting manual planning preview, with an authenticated English/Urdu/RTL screen at `/estimates`. This is a bounded F06 slice; versioned estimates, approval and conversion are not implemented. Development began 18 October and resumed 19 October 2026 (Asia/Karachi) on isolated `codex/f06-bounded-costing`, based on `1f72c6e8500f4a94a103768f1d71f980395af143`. Integration into `dev/fatima` is deferred until the separate R03 remediation is reviewed/integrated and this feature is rebased/revalidated.
+Implemented scope: stateless, non-posting manual planning preview, with an authenticated English/Urdu/RTL screen at `/estimates`. This is a bounded F06 slice; versioned estimates, approval and conversion are not implemented. Development began 18 October and resumed 19 October 2026 (Asia/Karachi) on isolated `codex/f06-bounded-costing`, based on `1f72c6e8500f4a94a103768f1d71f980395af143`. The exact tested tree was committed as `14cc912a078485ef7499c58cb5b76641c436f7f0`, then fast-forwarded into `dev/fatima` and normally pushed under the subsequent explicit integration request. No rebase, squash, merge commit or implementation change occurred during integration.
 
 ## Availability and authority
 
@@ -71,6 +71,6 @@ Results clear on edits and requests are aborted/discarded when superseded. Exist
 
 ## Persistence, side effects and exclusions
 
-There is no repository, entity, save/approve/convert/export endpoint, version history, migration or database financial write. No V20 reservation is made. Persistence awaits policy/contract readiness and an explicitly coordinated migration reservation. F05/C05 readiness is still required for conversion; this task does not start it.
+There is no repository, entity, save/approve/convert/export endpoint, version history, migration or database financial write. F06 made no migration reservation; the subsequent V29 hardening allocation is separate from this stateless feature. Persistence awaits policy/contract readiness and an explicitly coordinated migration reservation. F05/C05 readiness is still required for conversion; this task does not start it.
 
-The calculator has no dependencies on MonthlyRecord, scoring, ledger, cash, receivable/payable, stock, project-actual or funding-gap engines. Existing financial, audit, identity and security services and V1–V19 are unchanged. R01 recovery, R02 source/race and R03 attribution remediation are outside this diff. Tests and fresh evidence are recorded in [implementation state](IMPLEMENTATION_STATE.md) and the F06 verification record.
+The calculator has no dependencies on MonthlyRecord, scoring, ledger, cash, receivable/payable, stock, project-actual or funding-gap engines. The F06 commit left existing financial, audit, identity and security services and V1–V19 unchanged. R01 recovery, R02 source/race and R03 attribution remediation were outside that feature diff; the subsequent consolidated hardening pass is recorded separately in implementation state. Tests and fresh evidence are recorded in [implementation state](IMPLEMENTATION_STATE.md) and the F06 verification record.

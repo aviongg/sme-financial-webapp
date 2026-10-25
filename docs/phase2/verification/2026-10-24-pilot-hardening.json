@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-24",
+  "timezone": "Asia/Karachi",
+  "branch": "dev/fatima",
+  "baseline": "14cc912a078485ef7499c58cb5b76641c436f7f0",
+  "deliveryCommit": "containing commit; exact remote SHA in external final handoff",
+  "scope": [
+    "R03 audit attribution",
+    "R01 attempt ownership",
+    "R02 snapshot integrity",
+    "numeric bounds",
+    "F06 publication documentation only"
+  ],
+  "migration": {
+    "version": 29,
+    "existingUnchanged": "V1-V19",
+    "tested": [
+      "fresh V1-V19 then V29",
+      "populated V19 to V29"
+    ],
+    "deferred": "Combined V20-V29 after intentional branch integration",
+    "productionOrSharedDatabaseApplied": false
+  },
+  "environment": {
+    "os": "Windows; PowerShell",
+    "java": "26.0.1, compiler release21",
+    "postgresql": "14.22 disposable embedded native PostgreSQL",
+    "maven": "3.9.16 cached distribution; offline cache C:/Users/Hp/.m2/repository",
+    "node": "24.19.0 bundled runtime",
+    "frontend": "Next16.3.8 production webpack; existing unchanged dependencies; live API rewrite127.0.0.1:8080"
+  },
+  "results": {
+    "complete": true,
+    "environment": {
+      "os": "Windows; PowerShell",
+      "java": "26.0.1, compiler release21",
+      "postgresql": "14.22 disposable embedded native PostgreSQL",
+      "maven": "3.9.16 cached distribution; offline cache C:/Users/Hp/.m2/repository",
+      "node": "24.19.0 bundled runtime",
+      "frontend": "Next16.3.8 production webpack; existing unchanged dependencies; live API rewrite127.0.0.1:8080"
+    },
+    "targeted": {
+      "default": 100,
+      "postgresql": 44,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "focusedControllers": 28
+    },
+    "fixtureCompatibility": {
+      "monthlyVersionFocused": 5,
+      "migrationAndStrictAuthSameJvm": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "realBrowserScreenshotsReviewed": 16,
+    "full": {
+      "tests": 973,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "postgres": {
+      "tests": 154,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend": {
+      "unit": 86,
+      "typescript": "passed",
+      "eslint": "passed; one existing SessionProvider ref cleanup warning",
+      "webpack": "passed; existing middleware deprecation warning"
+    },
+    "syntheticBrowser": {
+      "checks": 53,
+      "suites": [
+        24,
+        10,
+        19
+      ],
+      "screenshotsReviewed": 8,
+      "runtimeErrors": 0
+    },
+    "realBrowser": [
+      {
+        "name": "Pilot hardening",
+        "checks": 11,
+        "passed": true,
+        "log": "work/hardening-real-browser/pilot/attempt-2/maven.log",
+        "scope": "real Next/Spring/session/CSRF/disposable PostgreSQL; OCR provider simulated"
+      },
+      {
+        "name": "F02",
+        "checks": 11,
+        "passed": true,
+        "log": "work/hardening-real-browser/f02/attempt-2/maven.log",
+        "scope": "real Next/Spring/session/CSRF/disposable PostgreSQL; AI explicitly simulated"
+      },
+      {
+        "name": "F13",
+        "checks": 16,
+        "passed": true,
+        "log": "work/hardening-real-browser/f13/maven.log",
+        "scope": "real Next/Spring/session/CSRF/disposable PostgreSQL; AI explicitly simulated"
+      },
+      {
+        "name": "F06",
+        "checks": 14,
+        "passed": true,
+        "log": "work/hardening-real-browser/f06/maven.log",
+        "scope": "real Next/Spring/session/CSRF/disposable PostgreSQL; AI disabled; unchanged financial snapshots"
+      }
+    ],
+    "commands": {
+      "mavenPrefix": "mvn -Dmaven.repo.local=C:\\Users\\Hp\\.m2\\repository -o -B (cached Maven3.9.16 executable)",
+      "targeted": "-Dtest=MonthlyRecordServiceTests,MonthlyRecordControllerTests,MonthlyRecordContributionTests,DocumentControllerTests,DocumentConfirmationServiceTests,JpaDocumentDraftStoreTests,DocumentDraftProcessorTests,DocumentStartupRecoveryTests,AsyncDocumentProcessingTests,DocumentUploadServiceTests,WhatsAppDeliveryServiceTest,Feature12PostgreSqlIntegrationTests -Ppostgres-it -Dit.test=MonthlyIntegrityPostgreSqlIT,DocumentAttemptOwnershipPostgreSqlIT,DocumentSecurityPostgreSqlIT,Feature8PostgreSqlIT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT verify",
+      "focusedControllers": "-Dtest=DocumentControllerTests,MonthlyRecordControllerTests test",
+      "monthlyVersionFocused": "-Dtest=MonthlyRecordIntegrationTests test",
+      "migrationAndStrictAuthFocused": "-Dtest=NoTests -Dsurefire.failIfNoSpecifiedTests=false -Ppostgres-it -Dit.test=MonthlyIntegrityMigrationPostgreSqlIT,AuthSecurityClosureIT verify",
+      "fullBackend": "-Ppostgres-it -Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT verify",
+      "frontendUnit": "node --test tests/*.test.mjs",
+      "typescript": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "eslint": "node node_modules/eslint/bin/eslint.js .",
+      "build": "BACKEND_API_URL=http://127.0.0.1:8080 NEXT_PUBLIC_DATA_MODE=live node node_modules/next/dist/bin/next build --webpack",
+      "syntheticBrowser": "node tests/browser.integration.mjs; node tests/browser-extra.integration.mjs; node tests/browser-phase-two.integration.mjs (sequential, each owns8080; production Next on3100)",
+      "realBrowser": "Separate sequential Maven invocations: -Dtest=PilotHardeningBrowserAcceptance test; -Dtest=F02AiBrowserAcceptance test; -Dtest=F13BrowserAcceptance test; -Dtest=F06BrowserAcceptance test. FINSIGHT_BROWSER_NODE and PLAYWRIGHT_MODULE point to bundled Node/Playwright; separate task-local BROWSER_ARTIFACT_DIR; production Next on3100, Spring8080."
+    },
+    "logs": {
+      "targeted": "work/pilot-targeted-verified.log",
+      "full": "work/pilot-full-regression-verified.log",
+      "build": "work/pilot-production-build.log",
+      "unit": "work/hardening-frontend-unit.log",
+      "typescript": "work/hardening-frontend-ts.log",
+      "lint": "work/hardening-frontend-lint.log",
+      "monthlyVersion": "work/pilot-monthly-version-focused.log",
+      "migrationAndStrictAuth": "work/pilot-encrypted-fixture-focused.log"
+    },
+    "excludedProductionCases": 19,
+    "scopeQualification": "Default-suite totals include existing disposable-database tests selected by Surefire; PostgreSQL totals here mean the separately selected Failsafe integration phase. No production target acceptance claimed."
+  },
+  "earlierFailures": "Earlier failed runs are retained as failures: the first targeted default run had two confirmation request errors because an omitted primitive duplicate flag failed JSON deserialization; the fix normalizes omitted/null to false. The next targeted run had six missing business-profile fixture errors and two insufficient-scoring-fixture failures. Fixtures were completed with real required parent rows and known synthetic repayment evidence. The new pilot browser fixture likewise needed sufficient unchanged scoring inputs while preserving its zero/null assertions. F02 mobile width initially failed before the Urdu font/viewport settled; the test now awaits fonts and two animation frames before the unchanged width assertion and records measured layout diagnostics (390px viewport/390px scroll width, no overflowing elements). The first full regression had one older deliberate-edit test omit expectedVersion; it now submits the initial response version and asserts version advancement while retaining all snapshot-replacement/null assertions. A subsequent full run exposed the new migration fixture leaving a plaintext full name in the shared disposable database; the fixture now uses the existing encryption implementation and test key, preserving strict authentication decryption and all privilege assertions. No assertions, score policy, encryption policy or concurrency checks were weakened. The corrected targeted, browser and final full runs pass.",
+  "limitations": [
+    "19 production-target cases excluded, not accepted",
+    "Java21/PostgreSQL17/TLS production matrix not exercised",
+    "Live provider and client UAT not performed",
+    "Prospective provenance only; legacy source amounts not reconstructed",
+    "Conservative fingerprint requires informed human override; does not prove economic identity",
+    "Same-business writes serialize; multi-instance JVM zone must match for existing OCR timestamps",
+    "Reciprocal review/signoff not fabricated",
+    "F06 full persistence/history/F05 conversion remain incomplete"
+  ],
+  "protected": {
+    "main": "untouched",
+    "devSuleman": "untouched; no inspection/copy/import in continuation",
+    "f06Source": "unchanged",
+    "scoringCashflowAiF13ModuleRegistry": "unchanged",
+    "userDocumentSha256": "B3E259F1CAC5389B3C5AD06FE5DEF96E5A5BFC3F64E129EA0DFAA9990AC85AC7",
+    "userTmp": "untouched; excluded from staging"
+  }
+}

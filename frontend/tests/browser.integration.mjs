@@ -8,7 +8,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const out=process.env.BROWSER_ARTIFACT_DIR || 'test-artifacts/browser';mkdirSync(out,{recursive:true});
 const id='11111111-1111-4111-8111-111111111111', other='22222222-2222-4222-8222-222222222222';
-const records=new Map([[id,[{id:'33333333-3333-4333-8333-333333333333',businessId:id,month:'2026-09',cashInflow:1000,cashOutflow:400,revenue:1500,operatingExpenses:300,cashBalanceEom:600,cogs:null,receivablesOutstanding:0,payablesOutstanding:0,inventoryValue:0,loanOutstanding:0,interestExpense:0,financingType:'none',updatedAt:'2026-09-27T00:00:00'}]],[other,[]]]);
+const records=new Map([[id,[{id:'33333333-3333-4333-8333-333333333333',businessId:id,version:0,month:'2026-09',cashInflow:1000,cashOutflow:400,revenue:1500,operatingExpenses:300,cashBalanceEom:600,cogs:null,receivablesOutstanding:0,payablesOutstanding:0,inventoryValue:0,loanOutstanding:0,interestExpense:0,financingType:'none',updatedAt:'2026-09-27T00:00:00'}]],[other,[]]]);
 let user=null,active=id,token='csrf0',seq=0,language='en';const events=[];
 const recommendationId='55555555-5555-4555-8555-555555555555', memberId='66666666-6666-4666-8666-666666666666';
 const businessNames=new Map([[id,'Fixture Trading'],[other,'Fixture Services']]);
@@ -51,7 +51,7 @@ const handler=async(req,res)=>{
  if(url==='/api/whatsapp/deliveries'||url==='/api/documents')return json(res,[]);
  const activeRecords=()=>records.get(active).map(r=>incompleteCash?{...r,cashInflow:null,netCashFlow:null}:{...r,netCashFlow:r.cashInflow-r.cashOutflow});
  if(url==='/api/records/monthly'){
-  if(method==='POST') {if(user.email.startsWith('viewer'))return json(res,{message:'Forbidden'},403);assert.ok(!('userId' in payload)&&!('businessId' in payload));const list=records.get(active);const previous=list.find(r=>r.month===payload.month);const record={...payload,id:previous?.id||crypto.randomUUID(),businessId:active,updatedAt:'2026-09-27'};records.set(active,[...list.filter(r=>r.month!==record.month),record]);return json(res,record,201);}
+  if(method==='POST') {if(user.email.startsWith('viewer'))return json(res,{message:'Forbidden'},403);assert.ok(!('userId' in payload)&&!('businessId' in payload));const list=records.get(active);const previous=list.find(r=>r.month===payload.month);if(previous?payload.expectedVersion!==previous.version:payload.expectedVersion!=null)return json(res,{error:'stale_monthly_record',message:'Reload the latest record'},409);const record={...payload,version:previous?previous.version+1:0,id:previous?.id||crypto.randomUUID(),businessId:active,updatedAt:'2026-09-27'};delete record.expectedVersion;records.set(active,[...list.filter(r=>r.month!==record.month),record]);return json(res,record,201);}
   return json(res,activeRecords());
  }
  if(url==='/api/records/monthly/query'){const r=activeRecords().find(r=>r.month===payload.month);return json(res,r||{message:'Record not found'},r?200:404);}
@@ -91,7 +91,7 @@ try{
  await page.goto('http://127.0.0.1:3100/records/2026-09');
  await page.getByLabel(/^Financial Month/).waitFor();assert.ok(await page.getByLabel(/^Financial Month/).isDisabled());mark('record edit locks original month');
  const numericInput=page.getByLabel(/^Total Cash Received/);await numericInput.fill('1200');const beforeFocus=events.filter(e=>e.url==='/api/businesses/active').length;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await new Promise(resolve=>setTimeout(resolve,500));assert.ok(events.filter(e=>e.url==='/api/businesses/active').length>beforeFocus);assert.equal((await numericInput.inputValue()).replaceAll(',',''),'1200');mark('unchanged session focus revalidation preserves unsaved form inputs');
- const submit=page.locator('button[type="submit"]');await submit.click();await page.waitForURL('**/records');assert.equal(events.filter(e=>e.url==='/api/records/monthly'&&e.method==='POST').length,1);mark('record edit saves once through tenant-free POST upsert');
+ const submit=page.locator('button[type="submit"]');await submit.click();await page.waitForURL('**/records');assert.equal(events.filter(e=>e.url==='/api/records/monthly'&&e.method==='POST').length,1);mark('record edit saves once through tenant-free versioned POST');
  await page.reload();await page.getByText('September 2026').first().waitFor();mark('saved record survives frontend reload');
  await page.goto('http://127.0.0.1:3100/settings');await page.getByLabel('Active business').waitFor();await page.getByLabel('Active business').selectOption(other);await page.getByLabel('Active business').waitFor();await page.goto('http://127.0.0.1:3100/records');await page.getByText('Add your first month', {exact:false}).first().waitFor();assert.equal(await page.getByText('September 2026').count(),0);mark('switching businesses removes previous financial rows');
  await page.goto('http://127.0.0.1:3100/settings');await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();mark('logout removes all private screens');

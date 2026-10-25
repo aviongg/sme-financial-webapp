@@ -28,13 +28,21 @@ class MonthlyRecordServiceTests {
     private MonthlyRecordService monthlyRecordService;
 
     private UUID userId;
+    private final UUID actorId = UUID.randomUUID();
+    private final ScoringService scoring = mock(ScoringService.class);
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService audit = mock(com.app.sme_health_backend.audit.service.SecurityAuditService.class);
+    private final com.app.sme_health_backend.identity.repository.BusinessRepository businesses = mock(com.app.sme_health_backend.identity.repository.BusinessRepository.class);
+    private final com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository contributions = mock(com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository.class);
 
     @BeforeEach
     void setUp() {
         monthlyRecordService =
-                new MonthlyRecordService(monthlyRecordRepository);
+                new MonthlyRecordService(monthlyRecordRepository, scoring, audit, businesses, contributions);
 
         userId = UUID.randomUUID();
+        lenient().when(businesses.findByIdForUpdate(any())).thenAnswer(inv -> Optional.of(new com.app.sme_health_backend.identity.entity.Business(inv.getArgument(0))));
+        lenient().when(contributions.floors(any(), any())).thenReturn(java.util.Map.of("revenue", BigDecimal.ZERO,
+                "operatingExpenses", BigDecimal.ZERO, "cogs", BigDecimal.ZERO, "cashInflow", BigDecimal.ZERO, "cashOutflow", BigDecimal.ZERO));
     }
 
     @Test
@@ -42,17 +50,17 @@ class MonthlyRecordServiceTests {
         MonthlyRecord record = validRecord();
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.empty());
 
-        when(monthlyRecordRepository.save(record))
+        when(monthlyRecordRepository.saveAndFlush(record))
                 .thenReturn(record);
 
         MonthlyRecord result =
-                monthlyRecordService.saveMonthlyRecord(record);
+                monthlyRecordService.saveMonthlyRecord(record, actorId, null);
 
         assertNotNull(result);
-        verify(monthlyRecordRepository).save(record);
+        verify(monthlyRecordRepository).saveAndFlush(record);
     }
 
     @Test
@@ -63,14 +71,14 @@ class MonthlyRecordServiceTests {
         incoming.setRevenue(new BigDecimal("250000"));
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.of(existing));
 
-        when(monthlyRecordRepository.save(existing))
+        when(monthlyRecordRepository.saveAndFlush(existing))
                 .thenReturn(existing);
 
         MonthlyRecord result =
-                monthlyRecordService.saveMonthlyRecord(incoming);
+                monthlyRecordService.saveMonthlyRecord(incoming, actorId, 0L);
 
         assertNotNull(result);
         assertEquals(
@@ -78,7 +86,7 @@ class MonthlyRecordServiceTests {
                 existing.getRevenue()
         );
 
-        verify(monthlyRecordRepository, times(1)).save(existing);
+        verify(monthlyRecordRepository, times(1)).saveAndFlush(existing);
     }
 
     @Test
@@ -89,7 +97,7 @@ class MonthlyRecordServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> monthlyRecordService.saveMonthlyRecord(record)
+                        () -> monthlyRecordService.saveMonthlyRecord(record, actorId, null)
                 );
 
         assertEquals(
@@ -97,7 +105,7 @@ class MonthlyRecordServiceTests {
                 exception.getMessage()
         );
 
-        verify(monthlyRecordRepository, never()).save(any());
+        verify(monthlyRecordRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -108,7 +116,7 @@ class MonthlyRecordServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> monthlyRecordService.saveMonthlyRecord(record)
+                        () -> monthlyRecordService.saveMonthlyRecord(record, actorId, null)
                 );
 
         assertEquals(
@@ -116,7 +124,7 @@ class MonthlyRecordServiceTests {
                 exception.getMessage()
         );
 
-        verify(monthlyRecordRepository, never()).save(any());
+        verify(monthlyRecordRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -127,7 +135,7 @@ class MonthlyRecordServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> monthlyRecordService.saveMonthlyRecord(record)
+                        () -> monthlyRecordService.saveMonthlyRecord(record, actorId, null)
                 );
 
         assertEquals(
@@ -135,7 +143,7 @@ class MonthlyRecordServiceTests {
                 exception.getMessage()
         );
 
-        verify(monthlyRecordRepository, never()).save(any());
+        verify(monthlyRecordRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -144,22 +152,22 @@ class MonthlyRecordServiceTests {
         MonthlyRecord incoming = validRecord();
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.of(existing));
 
-        when(monthlyRecordRepository.save(existing))
+        when(monthlyRecordRepository.saveAndFlush(existing))
                 .thenReturn(existing);
 
-        monthlyRecordService.saveMonthlyRecord(incoming);
+        monthlyRecordService.saveMonthlyRecord(incoming, actorId, 0L);
 
         verify(monthlyRecordRepository, times(1))
-                .findByUserIdAndMonth(userId, "2026-08");
+                .findByUserIdAndMonthForUpdate(userId, "2026-08");
 
         verify(monthlyRecordRepository, times(1))
-                .save(existing);
+                .saveAndFlush(existing);
 
         verify(monthlyRecordRepository, never())
-                .save(incoming);
+                .saveAndFlush(incoming);
     }
 
     @Test
@@ -168,17 +176,17 @@ class MonthlyRecordServiceTests {
         record.setCogs(null);
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.empty());
 
-        when(monthlyRecordRepository.save(record))
+        when(monthlyRecordRepository.saveAndFlush(record))
                 .thenReturn(record);
 
-        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(record);
+        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(record, actorId, null);
 
         assertNotNull(result);
         assertNull(result.getCogs());
-        verify(monthlyRecordRepository).save(record);
+        verify(monthlyRecordRepository).saveAndFlush(record);
     }
 
     @Test
@@ -187,17 +195,17 @@ class MonthlyRecordServiceTests {
         record.setCogs(new BigDecimal("75000"));
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.empty());
 
-        when(monthlyRecordRepository.save(record))
+        when(monthlyRecordRepository.saveAndFlush(record))
                 .thenReturn(record);
 
-        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(record);
+        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(record, actorId, null);
 
         assertNotNull(result);
         assertEquals(new BigDecimal("75000"), result.getCogs());
-        verify(monthlyRecordRepository).save(record);
+        verify(monthlyRecordRepository).saveAndFlush(record);
     }
 
     @Test
@@ -208,16 +216,17 @@ class MonthlyRecordServiceTests {
         IllegalArgumentException exception =
                 assertThrows(
                         IllegalArgumentException.class,
-                        () -> monthlyRecordService.saveMonthlyRecord(record)
+                        () -> monthlyRecordService.saveMonthlyRecord(record, actorId, null)
                 );
 
         assertEquals("COGS cannot be negative", exception.getMessage());
-        verify(monthlyRecordRepository, never()).save(any());
+        verify(monthlyRecordRepository, never()).saveAndFlush(any());
     }
 
     @Test
     void shouldReplaceExistingRecordFieldsOnManualEditWithoutSumming() {
         MonthlyRecord existing = new MonthlyRecord();
+        existing.setId(UUID.randomUUID()); existing.setVersion(0L);
         existing.setUserId(userId);
         existing.setMonth("2026-08");
         existing.setCashInflow(new BigDecimal("100000"));
@@ -251,13 +260,13 @@ class MonthlyRecordServiceTests {
         incoming.setFinancingType("conventional");
 
         when(monthlyRecordRepository
-                .findByUserIdAndMonth(userId, "2026-08"))
+                .findByUserIdAndMonthForUpdate(userId, "2026-08"))
                 .thenReturn(Optional.of(existing));
 
-        when(monthlyRecordRepository.save(existing))
+        when(monthlyRecordRepository.saveAndFlush(existing))
                 .thenReturn(existing);
 
-        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(incoming);
+        MonthlyRecord result = monthlyRecordService.saveMonthlyRecord(incoming, actorId, 0L);
 
         assertNotNull(result);
         // Verify EXACT replacement, NOT summation (+=)
@@ -281,8 +290,8 @@ class MonthlyRecordServiceTests {
         assertEquals(new BigDecimal("4500"), existing.getInterestExpense());
         assertEquals("conventional", existing.getFinancingType());
 
-        verify(monthlyRecordRepository, times(1)).save(existing);
-        verify(monthlyRecordRepository, never()).save(incoming);
+        verify(monthlyRecordRepository, times(1)).saveAndFlush(existing);
+        verify(monthlyRecordRepository, never()).saveAndFlush(incoming);
     }
 
     @Test
@@ -342,7 +351,7 @@ class MonthlyRecordServiceTests {
     @Test
     void shouldRecalculateChronologicalRollingScoresForNextFiveRecordsOnHistoricalEdit() {
         ScoringService mockScoringService = mock(ScoringService.class);
-        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService);
+        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService, audit, businesses, contributions);
 
         MonthlyRecord jan = createRecordWithMonth("2026-01");
         MonthlyRecord feb = createRecordWithMonth("2026-02");
@@ -354,11 +363,11 @@ class MonthlyRecordServiceTests {
 
         List<MonthlyRecord> allRecords = List.of(jan, feb, apr, jul, aug, sep, nov);
 
-        when(monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-01")).thenReturn(Optional.of(jan));
-        when(monthlyRecordRepository.save(any())).thenReturn(jan);
+        when(monthlyRecordRepository.findByUserIdAndMonthForUpdate(userId, "2026-01")).thenReturn(Optional.of(jan));
+        when(monthlyRecordRepository.saveAndFlush(any())).thenReturn(jan);
         when(monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId)).thenReturn(allRecords);
 
-        serviceWithScoring.saveMonthlyRecord(jan);
+        serviceWithScoring.saveMonthlyRecord(jan, actorId, 0L);
 
         // Verify that Jan, Feb, Apr, Jul, Aug, Sep were recalculated in exact chronological order
         org.mockito.InOrder inOrder = inOrder(mockScoringService);
@@ -376,16 +385,16 @@ class MonthlyRecordServiceTests {
     @Test
     void shouldPropagateExceptionWhenScoringRecalculationFails() {
         ScoringService mockScoringService = mock(ScoringService.class);
-        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService);
+        MonthlyRecordService serviceWithScoring = new MonthlyRecordService(monthlyRecordRepository, mockScoringService, audit, businesses, contributions);
 
         MonthlyRecord jan = createRecordWithMonth("2026-01");
-        when(monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-01")).thenReturn(Optional.empty());
-        when(monthlyRecordRepository.save(any())).thenReturn(jan);
+        when(monthlyRecordRepository.findByUserIdAndMonthForUpdate(userId, "2026-01")).thenReturn(Optional.empty());
+        when(monthlyRecordRepository.saveAndFlush(any())).thenReturn(jan);
         when(monthlyRecordRepository.findByUserIdOrderByMonthAsc(userId)).thenReturn(List.of(jan));
         doThrow(new RuntimeException("Database error during scoring"))
                 .when(mockScoringService).calculateAndSaveScore(userId, "2026-01");
 
-        assertThrows(RuntimeException.class, () -> serviceWithScoring.saveMonthlyRecord(jan));
+        assertThrows(RuntimeException.class, () -> serviceWithScoring.saveMonthlyRecord(jan, actorId, null));
     }
 
     private MonthlyRecord createRecordWithMonth(String month) {
@@ -396,6 +405,7 @@ class MonthlyRecordServiceTests {
 
     private MonthlyRecord validRecord() {
         MonthlyRecord record = new MonthlyRecord();
+        record.setId(UUID.randomUUID()); record.setVersion(0L);
 
         record.setUserId(userId);
         record.setMonth("2026-08");

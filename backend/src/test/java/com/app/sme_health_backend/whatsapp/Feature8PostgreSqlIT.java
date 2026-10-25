@@ -50,6 +50,9 @@ public class Feature8PostgreSqlIT extends com.app.sme_health_backend.testsupport
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.app.sme_health_backend.audit.service.SecurityAuditService audit;
+
     private UUID testUserId;
     private final List<UUID> createdUserIds = new ArrayList<>();
     private final List<UUID> createdScoreIds = new ArrayList<>();
@@ -150,6 +153,7 @@ public class Feature8PostgreSqlIT extends com.app.sme_health_backend.testsupport
         createdDeliveryIds.add(delivery.getId());
 
         assertEquals(WhatsAppDeliveryStatus.SENT, delivery.getDeliveryStatus());
+        assertSystemAudit(delivery.getId(),"WHATSAPP_SENT","SUCCESS");
         assertEquals("2026-W39", delivery.getDeliveryCycle());
         assertEquals("+923001234567", delivery.getDestinationNumber());
         assertEquals("2026-09", delivery.getTargetMonth());
@@ -221,6 +225,7 @@ public class Feature8PostgreSqlIT extends com.app.sme_health_backend.testsupport
         createdDeliveryIds.add(delivery.getId());
 
         assertEquals(WhatsAppDeliveryStatus.INDETERMINATE, delivery.getDeliveryStatus());
+        assertSystemAudit(delivery.getId(),"WHATSAPP_FAILED","FAILURE");
         assertNotNull(delivery.getFailureReason());
         assertTrue(delivery.getFailureReason().contains("timeout"));
         assertNull(delivery.getSentAt());
@@ -313,5 +318,92 @@ public class Feature8PostgreSqlIT extends com.app.sme_health_backend.testsupport
                 Integer.class, testUserId, deliveryCycle
         );
         assertEquals(1, totalRowsForCycle, "Exactly 1 delivery row must exist for (user_id, delivery_cycle)");
+    }
+    @Test
+    void shouldPersistRejectedDeliveryAndSystemBusinessFailureAudit() {
+        // Create profile with number ending in 9999 to trigger rejection simulation in mock client
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(testUserId);
+        profile.setBusinessType("trade");
+        profile.setLanguagePreference("en");
+        profile.setWhatsappOptIn(true);
+        profile.setWhatsappNumber("+923001239999");
+        profile.setWhatsappOptedInAt(LocalDateTime.now());
+        profile.setCreatedAt(LocalDateTime.now());
+        profileRepository.saveAndFlush(profile);
+
+        ScoreResult score = new ScoreResult();
+        score.setUserId(testUserId);
+        score.setMonth("2026-09");
+        score.setCompositeScore(new BigDecimal("68.00"));
+        score.setBand("STABLE");
+        score.setWeakestComponent("profitability");
+        score.setComponentScores(new ComponentScoresDto(
+                new BigDecimal("70"), new BigDecimal("65"), new BigDecimal("70"),
+                new BigDecimal("65"), new BigDecimal("70")
+        ));
+        score.setDataCompleteness(new BigDecimal("1.00"));
+        score.setComputedAt(LocalDateTime.now());
+        ScoreResult savedScore = scoreResultRepository.saveAndFlush(score);
+        createdScoreIds.add(savedScore.getId());
+
+        LocalDate targetDate = LocalDate.of(2026, 9, 23);
+        Optional<WhatsAppDelivery> deliveryOpt = deliveryService.deliverWeeklySummary(testUserId, targetDate);
+
+        assertTrue(deliveryOpt.isPresent());
+        WhatsAppDelivery delivery = deliveryOpt.get();
+        createdDeliveryIds.add(delivery.getId());
+
+        assertEquals(WhatsAppDeliveryStatus.FAILED, delivery.getDeliveryStatus());
+        assertSystemAudit(delivery.getId(),"WHATSAPP_FAILED","FAILURE");
+        assertNotNull(delivery.getFailureReason());
+        assertTrue(delivery.getFailureReason().contains("rejection"));
+        assertNull(delivery.getSentAt());
+    }
+
+    @Test
+    void terminalAuditFailureRollsBackTerminalStateWithoutAFalseSuccessEvent() {
+        // Create profile with number ending in 9999 to trigger rejection simulation in mock client
+        BusinessProfile profile = new BusinessProfile();
+        profile.setUserId(testUserId);
+        profile.setBusinessType("trade");
+        profile.setLanguagePreference("en");
+        profile.setWhatsappOptIn(true);
+        profile.setWhatsappNumber("+923001239999");
+        profile.setWhatsappOptedInAt(LocalDateTime.now());
+        profile.setCreatedAt(LocalDateTime.now());
+        profileRepository.saveAndFlush(profile);
+
+        ScoreResult score = new ScoreResult();
+        score.setUserId(testUserId);
+        score.setMonth("2026-09");
+        score.setCompositeScore(new BigDecimal("68.00"));
+        score.setBand("STABLE");
+        score.setWeakestComponent("profitability");
+        score.setComponentScores(new ComponentScoresDto(
+                new BigDecimal("70"), new BigDecimal("65"), new BigDecimal("70"),
+                new BigDecimal("65"), new BigDecimal("70")
+        ));
+        score.setDataCompleteness(new BigDecimal("1.00"));
+        score.setComputedAt(LocalDateTime.now());
+        ScoreResult savedScore = scoreResultRepository.saveAndFlush(score);
+        createdScoreIds.add(savedScore.getId());
+
+        LocalDate targetDate = LocalDate.of(2026, 9, 23);
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit unavailable")).when(audit).logSystemFailure(
+                org.mockito.ArgumentMatchers.eq(com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED),
+                org.mockito.ArgumentMatchers.eq(testUserId),org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyMap());
+        assertThrows(IllegalStateException.class,()->deliveryService.deliverWeeklySummary(testUserId,targetDate));
+        WhatsAppDelivery row=deliveryRepository.findByUserIdAndDeliveryCycle(testUserId,"2026-W39").orElseThrow();
+        assertEquals(WhatsAppDeliveryStatus.SENDING,row.getDeliveryStatus());
+        assertEquals(0,jdbcTemplate.queryForObject("SELECT count(*) FROM security_audit_events WHERE business_id=? AND event_type IN ('WHATSAPP_SENT','WHATSAPP_FAILED')",Integer.class,testUserId));
+    }
+
+
+    private void assertSystemAudit(UUID target,String type,String outcome) {
+        java.util.Map<String,Object> event=jdbcTemplate.queryForMap("SELECT actor_user_id,business_id,is_system,outcome FROM security_audit_events WHERE event_type=? AND target_id=?",type,target.toString());
+        assertNull(event.get("actor_user_id")); assertEquals(testUserId,event.get("business_id"));
+        assertEquals(true,event.get("is_system")); assertEquals(outcome,event.get("outcome"));
     }
 }

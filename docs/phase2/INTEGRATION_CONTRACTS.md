@@ -148,6 +148,9 @@ Errors: unknown/unavailable tool, invalid argument, rate cap, stale evidence, pr
 
 ## C12 API and i18n conventions
 
+**21 October 2026 pilot hardening subset:** existing `/api/records/monthly` keeps numeric aggregate payloads and adds `expectedVersion: long|null`; null/omitted asserts absent creation, existing updates must match the response `version`. HTTP409 `stale_monthly_record` requires explicit reload without write replay; `confirmed_source_conflict` rejects totals below immutable confirmed sources. Existing document confirmation adds `allowPotentialDuplicate: boolean` (default false); `potential_duplicate_source` requires explicit reviewed human acknowledgement. Actor/business are exclusively server context. V29 supplies prospective source provenance and optimistic versioning; no ledger API or broader C12 freeze is implied. See [implementation contract and legacy boundary](PILOT_HARDENING.md).
+
+
 **19 October 2026 F06 subset:** [the explicitly requested stateless planning preview](F06_IMPLEMENTATION.md) uses the current `/api/estimates/preview` convention, strict decimal-string inputs/outputs and existing session/CSRF/business authority. Its bounded calculation precision is not a shared financial rounding policy. No broader C12 freeze or C05 conversion readiness is implied.
 
 **Owner B, reviewer A; each feature owner authors their own endpoints/translations.** Extend `frontend/src/lib/api/client.ts`, domain API modules, `contracts.ts`, `lib/i18n/errors.ts`, `labels.ts` and translation dictionaries. Preserve generation-based cancellation on business/session changes, `credentials:'same-origin'`, CSRF acquisition, non-replayed writes, explicit demo boundary and loading/error/empty/no-data states.

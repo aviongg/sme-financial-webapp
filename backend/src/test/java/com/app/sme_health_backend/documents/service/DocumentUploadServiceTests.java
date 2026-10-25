@@ -35,13 +35,16 @@ class DocumentUploadServiceTests {
     @Mock
     private AsyncDocumentProcessingService asyncProcessingService;
 
+    @Mock private com.app.sme_health_backend.audit.service.SecurityAuditService audit;
+    private final UUID actorId = UUID.randomUUID();
     private DocumentUploadService service;
     private final UUID userId = UUID.randomUUID();
     private final UUID docId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new DocumentUploadService(repository, storageService, asyncProcessingService);
+        service = new DocumentUploadService(repository, storageService, asyncProcessingService, audit,
+                new com.app.sme_health_backend.documents.processing.ProcessingAttemptPolicy(java.time.Clock.systemUTC()));
     }
 
     @Test
@@ -56,7 +59,7 @@ class DocumentUploadServiceTests {
             return doc;
         });
 
-        UploadedDocument created = service.uploadSingle(userId, file, "receipt");
+        UploadedDocument created = service.uploadSingle(userId, actorId, file, "receipt");
 
         assertNotNull(created);
         assertEquals(userId, created.getUserId());
@@ -66,6 +69,8 @@ class DocumentUploadServiceTests {
         verify(storageService).store(userId, file);
         verify(repository).save(any(UploadedDocument.class));
         verify(asyncProcessingService).processAfterCommit(any());
+        verify(audit).logSuccess(eq(com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED),
+                eq(actorId), isNull(), eq(userId), eq("document"), eq(created.getId().toString()), anyMap());
     }
 
     @Test
@@ -79,11 +84,13 @@ class DocumentUploadServiceTests {
         when(storageService.store(userId, file2)).thenReturn(stored2);
         when(repository.save(any(UploadedDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        List<UploadedDocument> results = service.uploadBulk(userId, List.of(file1, file2), "invoice");
+        List<UploadedDocument> results = service.uploadBulk(userId, actorId, List.of(file1, file2), "invoice");
 
         assertEquals(2, results.size());
         verify(storageService, times(2)).store(eq(userId), any());
         verify(asyncProcessingService, times(2)).processAfterCommit(any());
+        verify(audit, times(2)).logSuccess(eq(com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED),
+                eq(actorId), isNull(), eq(userId), eq("document"), anyString(), anyMap());
     }
 
     @Test
@@ -93,7 +100,7 @@ class DocumentUploadServiceTests {
         );
 
         DocumentValidationException ex = assertThrows(DocumentValidationException.class,
-                () -> service.uploadBulk(userId, elevenFiles, "receipt"));
+                () -> service.uploadBulk(userId, actorId, elevenFiles, "receipt"));
         assertTrue(ex.getMessage().contains("limit exceeded"));
     }
 
@@ -184,7 +191,7 @@ class DocumentUploadServiceTests {
         when(storageService.resolveFileUrl(any())).thenReturn("http://localhost:8080/api/documents/" + docId + "/file");
         when(repository.save(any(UploadedDocument.class))).thenThrow(new RuntimeException("DB error"));
 
-        assertThrows(RuntimeException.class, () -> service.uploadSingle(userId, file, "receipt"));
+        assertThrows(RuntimeException.class, () -> service.uploadSingle(userId, actorId, file, "receipt"));
 
         verify(storageService).delete("/path/to/receipt.png");
         verify(asyncProcessingService, never()).processAfterCommit(any());

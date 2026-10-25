@@ -4,7 +4,7 @@ export function validMonth(month: string) { if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(
     throw new Error('Use a valid month (YYYY-MM).'); return month; }
 /** Explicit allowlist prevents legacy userId/businessId or arbitrary form fields being sent. */
 export function recordPayload(request: MonthlyRecordRequest): MonthlyRecordRequest {
-    return { month: validMonth(request.month), cashInflow: request.cashInflow, cashOutflow: request.cashOutflow,
+    return { month: validMonth(request.month), ...(request.expectedVersion !== undefined ? { expectedVersion: request.expectedVersion } : {}), cashInflow: request.cashInflow, cashOutflow: request.cashOutflow,
         revenue: request.revenue, operatingExpenses: request.operatingExpenses, cashBalanceEom: request.cashBalanceEom,
         cogs: request.cogs ?? null, receivablesOutstanding: request.receivablesOutstanding ?? null,
         payablesOutstanding: request.payablesOutstanding ?? null, inventoryValue: request.inventoryValue ?? null,

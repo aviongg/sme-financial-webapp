@@ -131,10 +131,12 @@ class MonthlyRecordIntegrationTests extends com.app.sme_health_backend.testsuppo
                 }
                 """;
 
-        mockMvc.perform(post("/api/records/monthly")
+        String createdResponse = mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(initialPayload))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long initialVersion = new tools.jackson.databind.ObjectMapper().readTree(createdResponse).get("version").longValue();
 
         // 2. Second submission for same (userId, month) - manual snapshot edit
         String updatedPayload = """
@@ -150,10 +152,14 @@ class MonthlyRecordIntegrationTests extends com.app.sme_health_backend.testsuppo
                 }
                 """;
 
+        var json = new tools.jackson.databind.ObjectMapper();
+        var updatedRequest = (tools.jackson.databind.node.ObjectNode) json.readTree(updatedPayload);
+        updatedRequest.put("expectedVersion", initialVersion);
         mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(updatedPayload))
-                .andExpect(status().isCreated());
+                        .content(json.writeValueAsString(updatedRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.version").value(initialVersion + 1));
 
         // Verify only ONE record exists in DB for this user & month
         List<MonthlyRecord> records = monthlyRecordRepository.findByUserIdOrderByMonthDesc(userId);

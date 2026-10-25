@@ -1,7 +1,5 @@
 package com.app.sme_health_backend.documents.processing;
 
-import com.app.sme_health_backend.audit.model.AuditEventType;
-import com.app.sme_health_backend.audit.service.SecurityAuditService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,10 +11,8 @@ import java.util.*;
 public class DocumentProcessingWorker {
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingWorker.class);
     private final DocumentDraftProcessor processor;
-    private final SecurityAuditService audit;
-    public DocumentProcessingWorker(DocumentDraftProcessor processor, SecurityAuditService audit) {
+    public DocumentProcessingWorker(DocumentDraftProcessor processor) {
         this.processor = Objects.requireNonNull(processor);
-        this.audit = audit;
     }
 
     // CallerRunsPolicy can execute on an afterCommit thread whose completed transaction
@@ -29,11 +25,8 @@ public class DocumentProcessingWorker {
             result = processor.process(documentId);
         } catch (Exception exception) {
             log.error("Background OCR processing failed for document {}; type={}", documentId, exception.getClass().getSimpleName());
-            result = Optional.of(DocumentStatus.failed);
-        }
-        if (result.orElse(null) == DocumentStatus.failed && audit != null) {
-            audit.logSystemFailure(AuditEventType.OCR_PROCESSING_FAILED, null, "document", documentId.toString(),
-                    "OCR processing failed", Map.of("documentId", documentId.toString()));
+            // A database/audit failure may roll back the transition; do not claim or audit a failed row.
+            result = Optional.empty();
         }
         return result;
     }

@@ -8,17 +8,45 @@ public class MonthlyRecordRequest {
 
     private String month;
 
+    /** Null asserts that this month was absent when the form was loaded. Never means overwrite. */
+    @jakarta.validation.constraints.PositiveOrZero
+    private Long expectedVersion;
+    public Long getExpectedVersion() { return expectedVersion; }
+    public void setExpectedVersion(Long expectedVersion) { this.expectedVersion = expectedVersion; }
+
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal cashInflow;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal cashOutflow;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal revenue;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal cogs;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal operatingExpenses;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal cashBalanceEom;
 
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal receivablesOutstanding;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal payablesOutstanding;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal inventoryValue;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal loanOutstanding;
+    @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+    @jakarta.validation.constraints.DecimalMin("0")
     private BigDecimal interestExpense;
 
     @Pattern(

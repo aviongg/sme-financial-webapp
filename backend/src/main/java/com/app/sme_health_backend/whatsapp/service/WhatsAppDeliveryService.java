@@ -47,23 +47,11 @@ public class WhatsAppDeliveryService {
     private final ZoneId schedulerZone;
     private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
+    private final org.springframework.transaction.support.TransactionTemplate terminalTransaction;
+
     // Mandatory in Spring; older direct-constructor fixtures retain their isolated behavior.
     @org.springframework.beans.factory.annotation.Autowired
     private com.app.sme_health_backend.configuration.service.ModuleAccessPolicy moduleAccessPolicy;
-
-    public WhatsAppDeliveryService(
-            WhatsAppDeliveryRepository deliveryRepository,
-            BusinessProfileRepository profileRepository,
-            ScoreResultRepository scoreResultRepository,
-            InsightService insightService,
-            RecommendationService recommendationService,
-            WhatsAppSummaryComposer summaryComposer,
-            WhatsAppClient whatsappClient,
-            @Value("${app.whatsapp.scheduler.timezone:Asia/Karachi}") String timezone
-    ) {
-        this(deliveryRepository, profileRepository, scoreResultRepository, insightService,
-                recommendationService, summaryComposer, whatsappClient, timezone, null);
-    }
 
     @org.springframework.beans.factory.annotation.Autowired
     public WhatsAppDeliveryService(
@@ -75,7 +63,8 @@ public class WhatsAppDeliveryService {
             WhatsAppSummaryComposer summaryComposer,
             WhatsAppClient whatsappClient,
             @Value("${app.whatsapp.scheduler.timezone:Asia/Karachi}") String timezone,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService,
+            org.springframework.transaction.PlatformTransactionManager transactionManager
     ) {
         this.deliveryRepository = deliveryRepository;
         this.profileRepository = profileRepository;
@@ -84,7 +73,8 @@ public class WhatsAppDeliveryService {
         this.recommendationService = recommendationService;
         this.summaryComposer = summaryComposer;
         this.whatsappClient = whatsappClient;
-        this.auditService = auditService;
+        this.auditService = java.util.Objects.requireNonNull(auditService);
+        this.terminalTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
 
         ZoneId zone;
         try {
@@ -218,6 +208,12 @@ public class WhatsAppDeliveryService {
 
         WhatsAppSendResult sendResult = whatsappClient.sendSummary(sendRequest);
 
+        // Provider I/O has completed. Terminal state and its mandatory audit commit together.
+        return terminalTransaction.execute(status -> finishDelivery(savedDelivery, sendResult, profile, userId, deliveryCycle));
+    }
+
+    private Optional<WhatsAppDelivery> finishDelivery(WhatsAppDelivery savedDelivery, WhatsAppSendResult sendResult,
+            BusinessProfile profile, UUID userId, String deliveryCycle) {
         savedDelivery.setAttemptCount(Math.max(1, sendResult.attempts()));
         LocalDateTime now = LocalDateTime.now();
 
@@ -228,41 +224,33 @@ public class WhatsAppDeliveryService {
             log.info("WhatsApp delivery {} SENT to {} for user {}",
                     savedDelivery.getId(), PhoneNumberValidator.mask(profile.getWhatsappNumber()), userId);
 
-            if (auditService != null) {
-                auditService.logSuccess(
-                        com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_SENT,
-                        userId,
-                        null,
-                        null,
-                        "whatsapp_delivery",
-                        savedDelivery.getId().toString(),
-                        java.util.Map.of(
-                                "deliveryCycle", deliveryCycle,
-                                "provider", whatsappClient.getProviderName()
-                        )
-                );
-            }
+            auditService.logSystemEvent(
+                    com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_SENT,
+                    userId,
+                    "whatsapp_delivery",
+                    savedDelivery.getId().toString(),
+                    java.util.Map.of(
+                            "deliveryCycle", deliveryCycle,
+                            "provider", whatsappClient.getProviderName()
+                    )
+            );
         } else if (sendResult.status() == WhatsAppDeliveryStatus.INDETERMINATE) {
             savedDelivery.setDeliveryStatus(WhatsAppDeliveryStatus.INDETERMINATE);
             savedDelivery.setFailureReason(sendResult.failureReason());
             log.warn("WhatsApp delivery {} INDETERMINATE for user {}: ambiguous timeout, will NOT blindly retry",
                     savedDelivery.getId(), userId);
 
-            if (auditService != null) {
-                auditService.logFailure(
-                        com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED,
-                        userId,
-                        null,
-                        null,
-                        "whatsapp_delivery",
-                        savedDelivery.getId().toString(),
-                        sendResult.failureReason() != null ? sendResult.failureReason() : "Indeterminate timeout",
-                        java.util.Map.of(
-                                "deliveryCycle", deliveryCycle,
-                                "provider", whatsappClient.getProviderName()
-                        )
-                );
-            }
+            auditService.logSystemFailure(
+                    com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED,
+                    userId,
+                    "whatsapp_delivery",
+                    savedDelivery.getId().toString(),
+                    sendResult.failureReason() != null ? sendResult.failureReason() : "Indeterminate timeout",
+                    java.util.Map.of(
+                            "deliveryCycle", deliveryCycle,
+                            "provider", whatsappClient.getProviderName()
+                    )
+            );
         } else {
             savedDelivery.setDeliveryStatus(WhatsAppDeliveryStatus.FAILED);
             savedDelivery.setFailedAt(now);
@@ -270,21 +258,17 @@ public class WhatsAppDeliveryService {
             log.error("WhatsApp delivery {} FAILED for user {}: {}",
                     savedDelivery.getId(), userId, sendResult.failureReason());
 
-            if (auditService != null) {
-                auditService.logFailure(
-                        com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED,
-                        userId,
-                        null,
-                        null,
-                        "whatsapp_delivery",
-                        savedDelivery.getId().toString(),
-                        sendResult.failureReason() != null ? sendResult.failureReason() : "Delivery failed",
-                        java.util.Map.of(
-                                "deliveryCycle", deliveryCycle,
-                                "provider", whatsappClient.getProviderName()
-                        )
-                );
-            }
+            auditService.logSystemFailure(
+                    com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED,
+                    userId,
+                    "whatsapp_delivery",
+                    savedDelivery.getId().toString(),
+                    sendResult.failureReason() != null ? sendResult.failureReason() : "Delivery failed",
+                    java.util.Map.of(
+                            "deliveryCycle", deliveryCycle,
+                            "provider", whatsappClient.getProviderName()
+                    )
+            );
         }
 
         savedDelivery.setUpdatedAt(now);

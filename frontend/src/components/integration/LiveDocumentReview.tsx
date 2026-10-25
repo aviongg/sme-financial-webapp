@@ -5,7 +5,9 @@ import { localizedError } from '@/lib/i18n/errors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { documentsApi, documentFilePath, DocumentRecord, currentDocumentDraft } from '@/lib/api/documents';
+import { documentsApi, documentFilePath, DocumentRecord, currentDocumentDraft, type Confirmation } from '@/lib/api/documents';
+import { isPotentialDuplicate } from '@/lib/api/record-integrity';
+import { pilotHardeningCopy } from '@/lib/i18n/translations/pilot-hardening';
 import { ApiError } from '@/lib/api/client';
 import { useSession } from '@/components/auth/SessionProvider';
 import { useLiveResource } from './useLiveResource';
@@ -42,11 +44,14 @@ function ReviewForm({ document: doc, reload }: {
 }) {
     const { can } = useSession();
     const { t, locale } = useLanguage(); const configuration = useConfiguration(); const copy = phaseTwoCopy(locale); const enabled = configuration?.available('documents') === true;
+    const integrity = pilotHardeningCopy(locale);
     const router = useRouter();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [confirming, setConfirming] = useState(false);
+    const [potentialDuplicate, setPotentialDuplicate] = useState<Confirmation | null>(null);
+    const confirmationLock = useRef(false);
     const draft = currentDocumentDraft(doc);
     const [amount, setAmount] = useState(draft.amount == null ? '' : String(draft.amount));
     const [month, setMonth] = useState(doc.linkedMonth || '');
@@ -85,15 +90,31 @@ function ReviewForm({ document: doc, reload }: {
             setConfirming(false);
         }
     };
-    const confirm = () => action(() => documentsApi.confirm(doc.id, { targetMonth: month, confirmedAmount: Number(amount), confirmedDate: date || null, confirmedParty: party || null, targetClassification: classification, cashFlowImpact: impact, initialCashBalanceEom: balance === '' ? null : Number(balance) }));
+    const confirm = async (acknowledged?: Confirmation) => {
+        if (busy || confirmationLock.current || !enabled || !can('DOCUMENT_CONFIRM')) return;
+        // An override reuses the exact reviewed request that produced the warning. Edits clear that request.
+        const input: Confirmation = acknowledged ? { ...acknowledged, allowPotentialDuplicate: true } : {
+            targetMonth: month, confirmedAmount: Number(amount), confirmedDate: date || null, confirmedParty: party || null,
+            targetClassification: classification, cashFlowImpact: impact, initialCashBalanceEom: balance === '' ? null : Number(balance) };
+        confirmationLock.current = true; setBusy(true); setError(''); setPotentialDuplicate(null);
+        try { await documentsApi.confirm(doc.id, input); reload(); }
+        catch (failure) {
+            if (isPotentialDuplicate(failure)) setPotentialDuplicate(input);
+            else { setError(localizedError(failure, t)); if (failure instanceof ApiError && failure.status === 409) reload(); }
+        } finally { confirmationLock.current = false; setBusy(false); setConfirming(false); }
+    };
     return <div className="space-y-5"><Card padding="lg" className="space-y-3"><h2 className="font-semibold break-words">{doc.originalFilename}</h2><p>{t.live.status}: {t.uploadStates[doc.processingStatus]}</p><a className="underline" href={documentFilePath(doc.id)} target="_blank" rel="noopener noreferrer">{t.live.openOriginal}</a>{doc.failureReason && <p role="alert">{t.live.processingFailure}</p>}{['pending', 'processing'].includes(doc.processingStatus) && <p role="status">{t.live.processingHelp}</p>}{doc.processingStatus === 'confirmed' && <p>{interpolate(t.live.confirmedHelp, { month: doc.linkedMonth || '—' })}</p>}</Card>
  {Object.keys(extracted).length > 0 && <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{doc.extractionProvenance === 'LEGACY_UNKNOWN' ? t.live.legacyExtraction : t.live.originalExtraction}</h2><p className="text-sm">{t.live.extractionHelp}</p><DraftValues json={doc.extractedData}/></Card>}
  {doc.reviewedData && <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.reviewedDraft}</h2><DraftValues json={doc.reviewedData}/></Card>}
  <CorrectionHistory id={doc.id}/>
  {error && <p role="alert" className="text-red-700">{error}</p>}{message && <p role="status">{message}</p>}
  {!enabled && <p role="status">{configuration?.data ? copy.historyOnly : copy.configurationMissing}</p>}
- {editable && enabled && <Card padding="lg"><form className="space-y-4" onSubmit={e => { e.preventDefault(); setConfirming(true); }}><h2 className="font-semibold">{t.live.financialContribution}</h2><p className="text-sm">{t.live.contributionHelp}</p><fieldset disabled={busy || !can('DOCUMENT_CONFIRM')} className="grid sm:grid-cols-2 gap-4"><Input label={t.live.targetMonth} type="month" value={month} onChange={e => setMonth(e.target.value)} required/><Input label={t.live.amount} type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required/><Input label={t.live.documentDate} type="date" value={date} onChange={e => setDate(e.target.value)}/><Input label={t.live.vendor} value={party} onChange={e => setParty(e.target.value)} maxLength={200}/>{can('DOCUMENT_EDIT') && <><label>{t.live.category}<select className="block w-full border rounded-lg p-3" value={draftCategory} onChange={e => setDraftCategory(e.target.value)}>{['sales', 'expense', 'purchase', 'unknown'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><label>{t.live.documentType}<select className="block w-full border rounded-lg p-3" value={draftType} onChange={e => setDraftType(e.target.value)}>{['receipt', 'invoice', 'bank_statement', 'unknown'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label></>}<label>{t.live.classification}<select className="block w-full border rounded-lg p-3" value={classification} onChange={e => setClassification(e.target.value)}>{['none', 'revenue', 'operating_expenses', 'cogs'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><label>{t.live.cashImpact}<select className="block w-full border rounded-lg p-3" value={impact} onChange={e => setImpact(e.target.value)}>{['none', 'cash_inflow', 'cash_outflow'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><Input label={t.live.initialBalance} type="number" min="0" step="0.01" value={balance} onChange={e => setBalance(e.target.value)}/></fieldset>
- {!can('DOCUMENT_CONFIRM') ? <p>{t.live.viewOnlyDraft}</p> : confirming ? <div role="group" aria-label={t.live.financialContribution} className="border border-amber-300 bg-amber-50 p-4 space-y-3"><p>{interpolate(t.live.confirmSummary, { amount, month, classification: liveLabel(t, classification), impact: liveLabel(t, impact) })}</p><div className="flex gap-3"><Button type="button" disabled={busy} isLoading={busy} onClick={() => void confirm()}>{t.live.confirmOnce}</Button><Button type="button" variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>{t.live.reviewAgain}</Button></div></div> : <Button type="submit" disabled={busy}>{t.live.reviewContribution}</Button>}
+ {editable && enabled && <Card padding="lg"><form className="space-y-4" onChange={() => { setPotentialDuplicate(null); setConfirming(false); }} onSubmit={e => { e.preventDefault(); setConfirming(true); }}><h2 className="font-semibold">{t.live.financialContribution}</h2><p className="text-sm">{t.live.contributionHelp}</p><fieldset disabled={busy || !can('DOCUMENT_CONFIRM')} className="grid sm:grid-cols-2 gap-4"><Input data-testid="document-target-month" label={t.live.targetMonth} type="month" value={month} onChange={e => setMonth(e.target.value)} required/><Input data-testid="document-amount" label={t.live.amount} type="number" min="0.01" max="999999999999.99" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required/><Input data-testid="document-date" label={t.live.documentDate} type="date" value={date} onChange={e => setDate(e.target.value)}/><Input data-testid="document-party" label={t.live.vendor} value={party} onChange={e => setParty(e.target.value)} maxLength={200}/>{can('DOCUMENT_EDIT') && <><label>{t.live.category}<select className="block w-full border rounded-lg p-3" value={draftCategory} onChange={e => setDraftCategory(e.target.value)}>{['sales', 'expense', 'purchase', 'unknown'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><label>{t.live.documentType}<select className="block w-full border rounded-lg p-3" value={draftType} onChange={e => setDraftType(e.target.value)}>{['receipt', 'invoice', 'bank_statement', 'unknown'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label></>}<label>{t.live.classification}<select data-testid="document-classification" className="block w-full border rounded-lg p-3" value={classification} onChange={e => setClassification(e.target.value)}>{['none', 'revenue', 'operating_expenses', 'cogs'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><label>{t.live.cashImpact}<select data-testid="document-cash-impact" className="block w-full border rounded-lg p-3" value={impact} onChange={e => setImpact(e.target.value)}>{['none', 'cash_inflow', 'cash_outflow'].map(v => <option key={v} value={v}>{liveLabel(t, v)}</option>)}</select></label><Input data-testid="document-initial-balance" label={t.live.initialBalance} type="number" min="0" max="999999999999.99" step="0.01" value={balance} onChange={e => setBalance(e.target.value)}/></fieldset>
+ {!can('DOCUMENT_CONFIRM') ? <p>{t.live.viewOnlyDraft}</p> : potentialDuplicate ? <div role="alert" data-testid="duplicate-source-warning" className="border border-amber-300 bg-amber-50 p-4 space-y-3">
+   <h3 className="font-semibold">{integrity.duplicateTitle}</h3><p>{integrity.duplicateWarning}</p>
+   <div className="flex flex-wrap gap-3"><Button type="button" data-testid="confirm-duplicate-source" disabled={busy} isLoading={busy} onClick={() => void confirm(potentialDuplicate)}>{integrity.confirmAnyway}</Button>
+   <Button type="button" variant="secondary" disabled={busy} onClick={() => setPotentialDuplicate(null)}>{integrity.reviewDuplicate}</Button></div>
+ </div> : confirming ? <div role="group" aria-label={t.live.financialContribution} className="border border-amber-300 bg-amber-50 p-4 space-y-3"><p>{interpolate(t.live.confirmSummary, { amount, month, classification: liveLabel(t, classification), impact: liveLabel(t, impact) })}</p><div className="flex gap-3"><Button type="button" data-testid="confirm-document" disabled={busy} isLoading={busy} onClick={() => void confirm()}>{t.live.confirmOnce}</Button><Button type="button" variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>{t.live.reviewAgain}</Button></div></div> : <Button type="submit" data-testid="review-document" disabled={busy}>{t.live.reviewContribution}</Button>}
  {can('DOCUMENT_EDIT') && <Button type="button" variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.correct(doc.id, { date: date || null, amount: amount === '' ? null : Number(amount), vendorOrParty: party || null, category: draftCategory, documentType: draftType }))}>{t.live.saveCorrections}</Button>}
  </form></Card>}
  <div className="flex gap-3">{enabled && doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <Button variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.retry(doc.id))}>{t.live.retryExtraction}</Button>}{enabled && doc.processingStatus !== 'confirmed' && can('DOCUMENT_DELETE') && <Button variant="destructive" disabled={busy} onClick={() => {

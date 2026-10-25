@@ -36,10 +36,12 @@ class DocumentConfirmationServiceTests {
     private DocumentConfirmationService service;
     private final UUID userId = UUID.randomUUID();
     private final UUID docId = UUID.randomUUID();
+    private final UUID actorId = UUID.randomUUID();
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService audit = mock(com.app.sme_health_backend.audit.service.SecurityAuditService.class);
 
     @BeforeEach
     void setUp() {
-        service = new DocumentConfirmationService(repository, monthlyRecordService);
+        service = new DocumentConfirmationService(repository, monthlyRecordService, audit);
     }
 
     @Test
@@ -62,7 +64,7 @@ class DocumentConfirmationServiceTests {
                 null
         );
 
-        UploadedDocument confirmed = service.confirmDocument(userId, docId, request);
+        UploadedDocument confirmed = service.confirmDocument(userId, docId, actorId, request);
 
         assertEquals(DocumentStatus.confirmed, confirmed.getProcessingStatus());
         assertEquals("2026-03", confirmed.getLinkedMonth());
@@ -71,14 +73,7 @@ class DocumentConfirmationServiceTests {
         assertTrue(confirmed.getConfirmedData().contains("Lahore Wholesale"));
         assertTrue(confirmed.getConfirmedData().contains("12500.00"));
 
-        verify(monthlyRecordService).applyDocumentContribution(
-                userId,
-                "2026-03",
-                "cogs",
-                "cash_outflow",
-                new BigDecimal("12500.00"),
-                null
-        );
+        verify(monthlyRecordService).applyDocumentContribution(userId, actorId, docId, request);
         verify(repository).save(doc);
     }
 
@@ -102,12 +97,10 @@ class DocumentConfirmationServiceTests {
                 null
         );
 
-        UploadedDocument confirmed = service.confirmDocument(userId, docId, request);
+        UploadedDocument confirmed = service.confirmDocument(userId, docId, actorId, request);
 
         assertEquals(DocumentStatus.confirmed, confirmed.getProcessingStatus());
-        verify(monthlyRecordService).applyDocumentContribution(
-                eq(userId), eq("2026-03"), eq("operating_expenses"), eq("cash_outflow"), eq(new BigDecimal("2500.00")), any()
-        );
+        verify(monthlyRecordService).applyDocumentContribution(userId, actorId, docId, request);
     }
 
     @Test
@@ -124,10 +117,10 @@ class DocumentConfirmationServiceTests {
         );
 
         assertThrows(DocumentAlreadyConfirmedException.class, () ->
-                service.confirmDocument(userId, docId, request)
+                service.confirmDocument(userId, docId, actorId, request)
         );
 
-        verify(monthlyRecordService, never()).applyDocumentContribution(any(), any(), any(), any(), any(), any());
+        verify(monthlyRecordService, never()).applyDocumentContribution(any(), any(), any(), any());
     }
 
     @Test
@@ -144,7 +137,7 @@ class DocumentConfirmationServiceTests {
         );
 
         assertThrows(IllegalStateException.class, () ->
-                service.confirmDocument(userId, docId, request)
+                service.confirmDocument(userId, docId, actorId, request)
         );
     }
 
@@ -158,7 +151,7 @@ class DocumentConfirmationServiceTests {
         );
 
         assertThrows(DocumentNotFoundException.class, () ->
-                service.confirmDocument(wrongUser, docId, request)
+                service.confirmDocument(wrongUser, docId, actorId, request)
         );
     }
 
@@ -174,11 +167,11 @@ class DocumentConfirmationServiceTests {
         DocumentConfirmationRequest badClass = new DocumentConfirmationRequest(
                 "2026-03", new BigDecimal("100.00"), null, null, "invalid_class", "none", null
         );
-        assertThrows(DocumentValidationException.class, () -> service.confirmDocument(userId, docId, badClass));
+        assertThrows(DocumentValidationException.class, () -> service.confirmDocument(userId, docId, actorId, badClass));
 
         DocumentConfirmationRequest badFlow = new DocumentConfirmationRequest(
                 "2026-03", new BigDecimal("100.00"), null, null, "revenue", "invalid_flow", null
         );
-        assertThrows(DocumentValidationException.class, () -> service.confirmDocument(userId, docId, badFlow));
+        assertThrows(DocumentValidationException.class, () -> service.confirmDocument(userId, docId, actorId, badFlow));
     }
 }

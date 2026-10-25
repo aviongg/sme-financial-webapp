@@ -28,6 +28,9 @@ class DocumentDraftProcessorTests {
     private final UUID documentId = UUID.randomUUID();
     private final OcrRequest request = new OcrRequest(new byte[]{1, 2, 3}, "image/png", OcrExtraction.DocumentType.invoice);
 
+    private final java.time.LocalDateTime attempt = java.time.LocalDateTime.of(2026, 10, 1, 12, 0);
+    private final DocumentDraftStore.Claim claim = new DocumentDraftStore.Claim(request, attempt);
+
     @BeforeEach
     void setUp() {
         processor = new DocumentDraftProcessor(client, store);
@@ -37,56 +40,56 @@ class DocumentDraftProcessorTests {
     void keepsRecognizedValuesAndMissingContactInAnUnapprovedDraft() {
         OcrExtraction partial = new OcrExtraction(LocalDate.of(2026, 9, 1), new BigDecimal("1250.50"), null,
                 OcrExtraction.Category.unknown, OcrExtraction.Confidence.medium, OcrExtraction.DocumentType.invoice);
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenReturn(partial);
-        when(store.saveDraftIfProcessing(documentId, partial, DocumentStatus.needs_review)).thenReturn(true);
+        when(store.saveDraftIfProcessing(documentId, attempt, partial, DocumentStatus.needs_review)).thenReturn(true);
 
         assertEquals(Optional.of(DocumentStatus.needs_review), processor.process(documentId));
-        verify(store).saveDraftIfProcessing(documentId, partial, DocumentStatus.needs_review);
+        verify(store).saveDraftIfProcessing(documentId, attempt, partial, DocumentStatus.needs_review);
         assertNull(partial.vendorOrParty());
         assertEquals(new BigDecimal("1250.50"), partial.amount());
-        verify(store, never()).saveDraftIfProcessing(any(), any(), eq(DocumentStatus.confirmed));
+        verify(store, never()).saveDraftIfProcessing(any(), any(), any(), eq(DocumentStatus.confirmed));
     }
 
     @Test
     void completeHighConfidenceResultStillRequiresExplicitHumanApproval() {
         OcrExtraction complete = complete();
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenReturn(complete);
-        when(store.saveDraftIfProcessing(documentId, complete, DocumentStatus.extracted)).thenReturn(true);
+        when(store.saveDraftIfProcessing(documentId, attempt, complete, DocumentStatus.extracted)).thenReturn(true);
 
         assertEquals(Optional.of(DocumentStatus.extracted), processor.process(documentId));
-        verify(store, never()).saveDraftIfProcessing(any(), any(), eq(DocumentStatus.confirmed));
+        verify(store, never()).saveDraftIfProcessing(any(), any(), any(), eq(DocumentStatus.confirmed));
     }
 
     @Test
     void allBlankResultIsReviewableRatherThanFabricatedOrMarkedFailed() {
         OcrExtraction blank = new OcrExtraction(null, null, null, OcrExtraction.Category.unknown,
                 OcrExtraction.Confidence.low, OcrExtraction.DocumentType.unknown);
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenReturn(blank);
-        when(store.saveDraftIfProcessing(documentId, blank, DocumentStatus.needs_review)).thenReturn(true);
+        when(store.saveDraftIfProcessing(documentId, attempt, blank, DocumentStatus.needs_review)).thenReturn(true);
 
         assertEquals(Optional.of(DocumentStatus.needs_review), processor.process(documentId));
-        verify(store, never()).failIfProcessing(any(), any());
+        verify(store, never()).failIfProcessing(any(), any(), any());
     }
 
     @Test
     void terminalFailureMarksFailedWithoutSavingFabricatedFieldsOrRetrying() {
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenThrow(new OcrClientException(OcrClientException.Reason.unavailable));
-        when(store.failIfProcessing(documentId, OcrClientException.Reason.unavailable)).thenReturn(true);
+        when(store.failIfProcessing(documentId, attempt, OcrClientException.Reason.unavailable)).thenReturn(true);
 
         assertEquals(Optional.of(DocumentStatus.failed), processor.process(documentId));
         verify(client, times(1)).extract(request);
-        verify(store, never()).saveDraftIfProcessing(any(), any(), any());
+        verify(store, never()).saveDraftIfProcessing(any(), any(), any(), any());
     }
 
     @Test
     void malformedUpstreamResultFailsSafely() {
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenThrow(new OcrClientException(OcrClientException.Reason.invalid_response));
-        when(store.failIfProcessing(documentId, OcrClientException.Reason.invalid_response)).thenReturn(true);
+        when(store.failIfProcessing(documentId, attempt, OcrClientException.Reason.invalid_response)).thenReturn(true);
         assertEquals(Optional.of(DocumentStatus.failed), processor.process(documentId));
     }
 
@@ -95,23 +98,39 @@ class DocumentDraftProcessorTests {
         when(store.claimPending(documentId)).thenReturn(Optional.empty());
         assertEquals(Optional.empty(), processor.process(documentId));
         verifyNoInteractions(client);
-        verify(store, never()).saveDraftIfProcessing(any(), any(), any());
-        verify(store, never()).failIfProcessing(any(), any());
+        verify(store, never()).saveDraftIfProcessing(any(), any(), any(), any());
+        verify(store, never()).failIfProcessing(any(), any(), any());
     }
 
     @Test
     void preservesHumanChangesWhenDocumentLeavesProcessingBeforeResponse() {
-        when(store.claimPending(documentId)).thenReturn(Optional.of(request));
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
         when(client.extract(request)).thenReturn(complete());
-        when(store.saveDraftIfProcessing(eq(documentId), any(), eq(DocumentStatus.extracted))).thenReturn(false);
+        when(store.saveDraftIfProcessing(eq(documentId), eq(attempt), any(), eq(DocumentStatus.extracted))).thenReturn(false);
         assertEquals(Optional.empty(), processor.process(documentId));
-        verify(store, never()).failIfProcessing(any(), any());
+        verify(store, never()).failIfProcessing(any(), any(), any());
     }
 
     @Test
     void preservesAllSixExistingStatusesWithoutAddingADraftStatus() {
         assertEquals(Arrays.asList("pending", "processing", "extracted", "needs_review", "confirmed", "failed"),
                 Arrays.stream(DocumentStatus.values()).map(Enum::name).toList());
+    }
+
+    @Test
+    void unexpectedClientFailureIsOwnedByTheSameClaim() {
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
+        when(client.extract(request)).thenThrow(new IllegalStateException("client failed"));
+        when(store.failIfProcessing(documentId, attempt, OcrClientException.Reason.unavailable)).thenReturn(true);
+        assertEquals(Optional.of(DocumentStatus.failed), processor.process(documentId));
+    }
+
+    @Test
+    void obsoleteFailureReportsNoStatusWhenItsClaimWasLost() {
+        when(store.claimPending(documentId)).thenReturn(Optional.of(claim));
+        when(client.extract(request)).thenThrow(new OcrClientException(OcrClientException.Reason.unavailable));
+        when(store.failIfProcessing(documentId, attempt, OcrClientException.Reason.unavailable)).thenReturn(false);
+        assertTrue(processor.process(documentId).isEmpty());
     }
 
     private OcrExtraction complete() {

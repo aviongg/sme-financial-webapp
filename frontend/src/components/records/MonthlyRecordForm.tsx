@@ -15,6 +15,8 @@ import { mockApi } from "@/lib/api/adapter";
 import { ApiError } from "@/lib/api/client";
 import { isDemoMode } from "@/lib/api/config";
 import { phaseOneApi } from "@/lib/api/phase-one";
+import { monthlyConflict, withinMonthlyMoneyBounds, type MonthlyConflict } from "@/lib/api/record-integrity";
+import { pilotHardeningCopy } from "@/lib/i18n/translations/pilot-hardening";
 import { useSession } from "@/components/auth/SessionProvider";
 import type { MonthlyRecordRequest as BackendMonthlyRecordRequest } from "@/lib/api/contracts";
 import { MonthSelector } from "./MonthSelector";
@@ -37,6 +39,7 @@ export interface MonthlyRecordFormProps {
   initialData?: Partial<MonthlyRecordResponse>;
   isEditMode?: boolean;
   className?: string;
+  onReload?: () => void;
 }
 
 /**
@@ -49,11 +52,13 @@ export function MonthlyRecordForm({
   initialData,
   isEditMode = false,
   className,
+  onReload,
 }: MonthlyRecordFormProps) {
   const router = useRouter();
   const session = useSession();
   const canWrite = isDemoMode || session.can("RECORD_CREATE_UPDATE");
   const { t, direction, locale } = useLanguage();
+  const integrity = pilotHardeningCopy(locale);
   const isRTL = direction === "rtl";
   const { toast } = useToast();
 
@@ -68,6 +73,9 @@ export function MonthlyRecordForm({
 
   // Form State
   const [month, setMonth] = useState<string>(defaultMonth());
+  // Keep the version paired with the values originally loaded. A background refetch cannot upgrade a stale draft.
+  const [expectedVersion] = useState<number | null>(isEditMode ? initialData?.version ?? null : null);
+  const [conflict, setConflict] = useState<MonthlyConflict | null>(null);
 
   const [coreValues, setCoreValues] = useState<CoreVitalsValues>({
     cashInflow: initialData?.cashInflow ?? null,
@@ -126,6 +134,7 @@ export function MonthlyRecordForm({
   const handleMonthChange = (newMonth: string) => {
     setMonth(newMonth);
     setExistingMonth(null);
+    setConflict(null);
     if (monthError) setMonthError(undefined);
   };
 
@@ -169,6 +178,9 @@ export function MonthlyRecordForm({
       } else if (val < 0) {
         newCoreErrors[field] = t.records.validationNonNegative;
         isValid = false;
+      } else if (!withinMonthlyMoneyBounds(val)) {
+        newCoreErrors[field] = integrity.moneyBounds;
+        isValid = false;
       }
     }
 
@@ -191,6 +203,9 @@ export function MonthlyRecordForm({
         } else if (val < 0) {
           newPrecisionErrors[field] = t.records.validationNonNegative;
           isValid = false;
+        } else if (!withinMonthlyMoneyBounds(val)) {
+          newPrecisionErrors[field] = integrity.moneyBounds;
+          isValid = false;
         }
       }
     }
@@ -209,7 +224,7 @@ export function MonthlyRecordForm({
 
   // Save implementation
   const executeSave = async () => {
-    if (submissionLock.current) return;
+    if (submissionLock.current || conflict === 'stale') return;
     if (!canWrite) {
       setSubmitError(locale === "ur" ? "پہلے اپنا پروفائل بنائیں یا کھولیں۔" : "Set up or open your profile before saving a record.");
       return;
@@ -218,9 +233,11 @@ export function MonthlyRecordForm({
     setIsSubmitting(true);
     setSubmitError(null);
     setExistingMonth(null);
+    setConflict(null);
 
     const payload: BackendMonthlyRecordRequest = {
       month,
+      expectedVersion,
       cashInflow: Number(coreValues.cashInflow),
       cashOutflow: Number(coreValues.cashOutflow),
       revenue: Number(coreValues.revenue),
@@ -258,11 +275,11 @@ export function MonthlyRecordForm({
       } else if (isEditMode) {
         await phaseOneApi.updateMonthlyRecord(month, payload);
       } else {
-        // POST is an upsert on this backend. Direct the user to the edit screen
-        // before replacing a month they may have saved in another session.
+        // This precheck is helpful UX; expectedVersion:null also protects the absent-month race on the server.
         const records = await phaseOneApi.getMonthlyRecords();
         if (records.some((record) => record.month === month)) {
           setExistingMonth(month);
+          setConflict('stale');
           setSubmitError(locale === "ur" ? "اس مہینے کا ریکارڈ پہلے سے موجود ہے۔ اسے کھول کر ترمیم کریں۔" : "A record already exists for this month. Open it to review and edit the saved values.");
           return;
         }
@@ -271,6 +288,18 @@ export function MonthlyRecordForm({
       toast(t.records.saveSuccess, "success");
       router.push(isDemoMode ? "/" : "/records");
     } catch (cause) {
+      const financialConflict = monthlyConflict(cause);
+      if (financialConflict) {
+        setConflict(financialConflict);
+        setSubmitError(null);
+        if (!isEditMode) setExistingMonth(month);
+        if (financialConflict === 'sources' && cause instanceof ApiError) {
+          const fields = cause.fieldErrors || {};
+          setCoreErrors(Object.fromEntries(Object.keys(coreValues).filter(key => fields[key]).map(key => [key, integrity.sourceFloor])));
+          setPrecisionErrors(Object.fromEntries(Object.keys(precisionValues).filter(key => fields[key]).map(key => [key, integrity.sourceFloor])));
+        }
+        return;
+      }
       if (cause instanceof ApiError) {
         const fields = { ...cause.fieldErrors };
         // The standalone Fatima service uses a message-only error for required COGS.
@@ -382,10 +411,11 @@ export function MonthlyRecordForm({
         )}
 
         {/* Form Submission Error Banner */}
-        {submitError && (
+        {(submitError || conflict) && (
           <AlertBanner variant="error">
-            <p>{submitError}</p>
-            {existingMonth && <Link className="underline font-semibold" href={`/records/${existingMonth}`}>{locale === "ur" ? "موجودہ ریکارڈ کھولیں" : "Open existing record"}</Link>}
+            <p data-testid="monthly-conflict">{conflict === 'stale' ? integrity.staleRecord : conflict === 'sources' ? integrity.sourceConflict : submitError}</p>
+            {existingMonth && <Link className="underline font-semibold" href={`/records/${existingMonth}`}>{integrity.openRecord}</Link>}
+            {conflict && isEditMode && onReload && <Button type="button" variant="secondary" data-testid="monthly-reload" onClick={onReload}>{integrity.reloadRecord}</Button>}
           </AlertBanner>
         )}
 
@@ -406,7 +436,8 @@ export function MonthlyRecordForm({
             type="submit"
             variant="primary"
             isLoading={isSubmitting}
-            disabled={isSubmitting}
+            disabled={isSubmitting || conflict === 'stale'}
+            data-testid="monthly-save"
             className="px-6"
             leftIcon={
               !isSubmitting ? <CheckCircle2 className="w-4 h-4" /> : undefined

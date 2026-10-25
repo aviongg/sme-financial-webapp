@@ -5,6 +5,7 @@ import com.app.sme_health_backend.documents.exception.DocumentNotFoundException;
 import com.app.sme_health_backend.documents.exception.DocumentValidationException;
 import com.app.sme_health_backend.documents.processing.AsyncDocumentProcessingService;
 import com.app.sme_health_backend.documents.processing.DocumentStatus;
+import com.app.sme_health_backend.documents.processing.ProcessingAttemptPolicy;
 import com.app.sme_health_backend.documents.repository.UploadedDocumentRepository;
 import com.app.sme_health_backend.documents.storage.DocumentStorageService;
 import com.app.sme_health_backend.documents.storage.StoredFile;
@@ -21,36 +22,27 @@ import java.util.UUID;
 public class DocumentUploadService {
 
     public static final int MAX_BULK_DOCUMENTS = 10;
-    public static final java.time.Duration STALE_PROCESSING_TIMEOUT = java.time.Duration.ofMinutes(5);
 
     private final UploadedDocumentRepository repository;
     private final DocumentStorageService storageService;
     private final AsyncDocumentProcessingService asyncProcessingService;
     private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
-    public DocumentUploadService(
-            UploadedDocumentRepository repository,
-            DocumentStorageService storageService,
-            AsyncDocumentProcessingService asyncProcessingService
-    ) {
-        this(repository, storageService, asyncProcessingService, null);
-    }
+    private final ProcessingAttemptPolicy policy;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public DocumentUploadService(
-            UploadedDocumentRepository repository,
-            DocumentStorageService storageService,
+    public DocumentUploadService(UploadedDocumentRepository repository, DocumentStorageService storageService,
             AsyncDocumentProcessingService asyncProcessingService,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
-    ) {
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService, ProcessingAttemptPolicy policy) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.storageService = Objects.requireNonNull(storageService, "storageService is required");
         this.asyncProcessingService = Objects.requireNonNull(asyncProcessingService, "asyncProcessingService is required");
-        this.auditService = auditService;
+        this.auditService = Objects.requireNonNull(auditService, "audit is required");
+        this.policy = Objects.requireNonNull(policy, "policy is required");
     }
 
     @Transactional
-    public UploadedDocument uploadSingle(UUID userId, MultipartFile file, String documentTypeHint) {
+    public UploadedDocument uploadSingle(UUID userId, UUID actorUserId, MultipartFile file, String documentTypeHint) {
+        Objects.requireNonNull(actorUserId, "Authenticated actor is required");
         if (userId == null) {
             throw new DocumentValidationException("User ID is required");
         }
@@ -75,20 +67,18 @@ public class DocumentUploadService {
 
             UploadedDocument saved = repository.save(doc);
 
-            if (auditService != null) {
-                auditService.logSuccess(
-                        com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
-                        saved.getUserId(),
-                        null,
-                        null,
-                        "document",
-                        saved.getId().toString(),
-                        java.util.Map.of(
-                                "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
-                                "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
-                        )
-                );
-            }
+            auditService.logSuccess(
+                    com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
+                    actorUserId,
+                    null,
+                    saved.getUserId(),
+                    "document",
+                    saved.getId().toString(),
+                    java.util.Map.of(
+                            "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
+                            "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
+                    )
+            );
 
             asyncProcessingService.processAfterCommit(saved.getId());
 
@@ -104,7 +94,8 @@ public class DocumentUploadService {
     }
 
     @Transactional
-    public List<UploadedDocument> uploadBulk(UUID userId, List<MultipartFile> files, String documentTypeHint) {
+    public List<UploadedDocument> uploadBulk(UUID userId, UUID actorUserId, List<MultipartFile> files, String documentTypeHint) {
+        Objects.requireNonNull(actorUserId, "Authenticated actor is required");
         if (userId == null) {
             throw new DocumentValidationException("User ID is required");
         }
@@ -140,20 +131,18 @@ public class DocumentUploadService {
                     UploadedDocument saved = repository.save(doc);
                     results.add(saved);
 
-                    if (auditService != null) {
-                        auditService.logSuccess(
-                                com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
-                                saved.getUserId(),
-                                null,
-                                null,
-                                "document",
-                                saved.getId().toString(),
-                                java.util.Map.of(
-                                        "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
-                                        "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
-                                )
-                        );
-                    }
+                    auditService.logSuccess(
+                            com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_UPLOADED,
+                            actorUserId,
+                            null,
+                            saved.getUserId(),
+                            "document",
+                            saved.getId().toString(),
+                            java.util.Map.of(
+                                    "contentType", saved.getContentType() != null ? saved.getContentType() : "unknown",
+                                    "fileSizeBytes", saved.getFileSizeBytes() != null ? saved.getFileSizeBytes() : 0
+                            )
+                    );
 
                     asyncProcessingService.processAfterCommit(saved.getId());
                 }
@@ -208,8 +197,7 @@ public class DocumentUploadService {
         }
 
         if (doc.getProcessingStatus() == DocumentStatus.processing) {
-            if (doc.getProcessingStartedAt() != null &&
-                    doc.getProcessingStartedAt().isAfter(java.time.LocalDateTime.now().minus(STALE_PROCESSING_TIMEOUT))) {
+            if (!policy.isStale(doc.getProcessingStartedAt())) {
                 throw new IllegalStateException("Document is currently being processed. Please wait before retrying.");
             }
         }

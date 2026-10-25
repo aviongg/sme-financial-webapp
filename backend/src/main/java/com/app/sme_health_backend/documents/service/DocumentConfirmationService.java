@@ -31,29 +31,22 @@ public class DocumentConfirmationService {
     private final MonthlyRecordService monthlyRecordService;
     private final com.app.sme_health_backend.audit.service.SecurityAuditService auditService;
 
-    public DocumentConfirmationService(
-            UploadedDocumentRepository repository,
-            MonthlyRecordService monthlyRecordService
-    ) {
-        this(repository, monthlyRecordService, null);
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public DocumentConfirmationService(
-            UploadedDocumentRepository repository,
-            MonthlyRecordService monthlyRecordService,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) com.app.sme_health_backend.audit.service.SecurityAuditService auditService
-    ) {
+    public DocumentConfirmationService(UploadedDocumentRepository repository, MonthlyRecordService monthlyRecordService,
+            com.app.sme_health_backend.audit.service.SecurityAuditService auditService) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.monthlyRecordService = Objects.requireNonNull(monthlyRecordService, "monthlyRecordService is required");
-        this.auditService = auditService;
+        this.auditService = Objects.requireNonNull(auditService, "auditService is required");
     }
-
     @Transactional
-    public UploadedDocument confirmDocument(UUID userId, UUID documentId, DocumentConfirmationRequest request) {
+    public UploadedDocument confirmDocument(UUID userId, UUID documentId, UUID actorUserId, DocumentConfirmationRequest request) {
         if (userId == null) throw new DocumentValidationException("User ID is required");
         if (documentId == null) throw new DocumentValidationException("Document ID is required");
         if (request == null) throw new DocumentValidationException("Confirmation request is required");
+
+        Objects.requireNonNull(actorUserId, "Authenticated actor is required");
+        if (request.confirmedParty() != null && (request.confirmedParty().length() > 500 || request.confirmedParty().indexOf(0) >= 0))
+            throw new DocumentValidationException("Confirmed party must be at most 500 characters and contain no NUL character");
+        monthlyRecordService.lockBusiness(userId);
 
         UploadedDocument doc = repository.findByIdAndUserIdForUpdate(documentId, userId)
                 .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));
@@ -69,7 +62,7 @@ public class DocumentConfirmationService {
         }
 
         String classification = request.targetClassification() != null
-                ? request.targetClassification().trim().toLowerCase() : "none";
+                ? request.targetClassification().trim().toLowerCase(java.util.Locale.ROOT) : "none";
         if (!VALID_CLASSIFICATIONS.contains(classification)) {
             throw new DocumentValidationException(
                     "targetClassification must be one of: revenue, operating_expenses, cogs, none"
@@ -77,7 +70,7 @@ public class DocumentConfirmationService {
         }
 
         String flowImpact = request.cashFlowImpact() != null
-                ? request.cashFlowImpact().trim().toLowerCase() : "none";
+                ? request.cashFlowImpact().trim().toLowerCase(java.util.Locale.ROOT) : "none";
         if (!VALID_CASH_FLOW_IMPACTS.contains(flowImpact)) {
             throw new DocumentValidationException(
                     "cashFlowImpact must be one of: cash_inflow, cash_outflow, none"
@@ -86,14 +79,7 @@ public class DocumentConfirmationService {
 
         // Apply incremental financial contribution to MonthlyRecord
         try {
-            monthlyRecordService.applyDocumentContribution(
-                    userId,
-                    request.targetMonth(),
-                    classification,
-                    flowImpact,
-                    request.confirmedAmount(),
-                    request.initialCashBalanceEom()
-            );
+            monthlyRecordService.applyDocumentContribution(userId, actorUserId, documentId, request);
         } catch (IllegalArgumentException e) {
             throw new DocumentValidationException(e.getMessage());
         }
@@ -105,12 +91,12 @@ public class DocumentConfirmationService {
 
         UploadedDocument saved = repository.save(doc);
 
-        if (auditService != null) {
+        {
             auditService.logSuccess(
                     com.app.sme_health_backend.audit.model.AuditEventType.DOCUMENT_CONFIRMED,
+                    actorUserId,
+                    null,
                     userId,
-                    null,
-                    null,
                     "document",
                     saved.getId().toString(),
                     java.util.Map.of(
@@ -125,22 +111,13 @@ public class DocumentConfirmationService {
     }
 
     private String formatConfirmedJson(DocumentConfirmationRequest req, String classification, String flowImpact) {
-        return String.format(
-                "{\"target_month\":\"%s\",\"confirmed_amount\":%s,\"confirmed_date\":%s,\"confirmed_party\":%s,\"target_classification\":\"%s\",\"cash_flow_impact\":\"%s\"}",
-                req.targetMonth(),
-                req.confirmedAmount().toPlainString(),
-                req.confirmedDate() != null ? "\"" + req.confirmedDate() + "\"" : "null",
-                req.confirmedParty() != null ? "\"" + escapeJson(req.confirmedParty()) + "\"" : "null",
-                classification,
-                flowImpact
-        );
-    }
-
-    private String escapeJson(String raw) {
-        return raw.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("target_month", req.targetMonth());
+        data.put("confirmed_amount", req.confirmedAmount());
+        data.put("confirmed_date", req.confirmedDate() == null ? null : req.confirmedDate().toString());
+        data.put("confirmed_party", req.confirmedParty());
+        data.put("target_classification", classification);
+        data.put("cash_flow_impact", flowImpact);
+        return new tools.jackson.databind.ObjectMapper().writeValueAsString(data);
     }
 }

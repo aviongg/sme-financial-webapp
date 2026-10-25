@@ -1,8 +1,39 @@
 # Current Phase 2 implementation state
 
+## Client-pilot hardening — completed local validation 24 October 2026 (Asia/Karachi)
+
+The explicitly requested R01/R02/R03, numeric-bound and F06-documentation pass is complete on **dev/fatima**, based on `14cc912a078485ef7499c58cb5b76641c436f7f0`. The coordinated migration is **V29**. Only this branch was fetched during the continuation; no other developer implementation was inspected, copied or imported. The user authorized one normal push after all checks. The containing commit is the delivery identity (`git log -1 -- docs/phase2/PILOT_HARDENING.md`); exact post-push SHA and remote verification are recorded in the external final handoff rather than a self-referencing commit. No production/shared database or deployment action was taken.
+
+Historical allocation: the initial unpublished V20 was this task's own SQL. Work stopped on 21 October when another developer's external reservation was discovered. The explicit continuation allocated V29; only the filename/references changed. The final migration set is unchanged V1–V19 plus V29, with no V20–V28/V30 imported or authored here.
+
+| Continuation-start WIP | Retained and completed |
+|---|---|
+| Records version/locking/provenance, confirmation DTO/service, V20 SQL and partly adapted tests | Retained; renamed own unpublished migration V29; completed exact numeric checks, JSON compatibility, mandatory transactions, real concurrency/rollback/tenant/source tests |
+| OCR attempts/recovery, upload and WhatsApp actor changes | Retained; unified stale timestamp interpretation, required audit dependencies, exact persisted token checks, terminal audit transactions and deterministic races |
+| Frontend saved workspace draft | Reviewed and applied; stale-version reload, editable source-floor error, explicit duplicate acknowledgement, EN/UR and browser acceptance completed |
+| F06 publication documentation and upgrade/role test draft | Retained; publication facts corrected; V29 upgrade/constraint/privilege evidence completed; current handoff and API/policy boundary recorded |
+
+No valid WIP was discarded, reset or stashed. Only incomplete implementations and test fixtures were corrected; no user-owned files were written or staged. Detailed design is in [PILOT_HARDENING.md](PILOT_HARDENING.md) and machine-readable evidence in [2026-10-24-pilot-hardening.json](verification/2026-10-24-pilot-hardening.json).
+
+| Check | Result |
+|---|---|
+| Targeted hardening | 100 default cases and 44 PostgreSQL cases passed, zero failures/errors/skips |
+| Full backend regression | 973 default cases: 972 passed, 1 existing Windows symlink skip; 154 local PostgreSQL cases passed, zero failures/errors |
+| Frontend | 86 unit tests passed; TypeScript and ESLint passed (one existing SessionProvider warning); production Next webpack build passed |
+| Synthetic browser | 53 checks passed (24 + 10 + 19); eight screenshots visually reviewed |
+| Real production-frontend browser | Pilot hardening: 11 checks; F02: 11 checks; F13: 16 checks; F06: 14 checks; all passed with real Spring/session/CSRF/disposable PostgreSQL and synthetic accounts; external providers simulated/disabled |
+| Migration/permissions | Fresh V1–V19 then V29 and populated V19→V29 passed; legacy null/negative values and scores preserved; scoped FK, unique document, append-only and runtime/backup privileges verified |
+| Preserved boundaries | V1–V19, F06 source, scoring/CashFlowService, AI/F13 and ModuleRegistry unchanged; main untouched; no other developer code imported |
+
+Earlier failed runs are retained as failures: the first targeted default run had two confirmation request errors because an omitted primitive duplicate flag failed JSON deserialization; the fix normalizes omitted/null to false. The next targeted run had six missing business-profile fixture errors and two insufficient-scoring-fixture failures. Fixtures were completed with real required parent rows and known synthetic repayment evidence. The new pilot browser fixture likewise needed sufficient unchanged scoring inputs while preserving its zero/null assertions. F02 mobile width initially failed before the Urdu font/viewport settled; the test now awaits fonts and two animation frames before the unchanged width assertion and records measured layout diagnostics (390px viewport/390px scroll width, no overflowing elements). The first full regression had one older deliberate-edit test omit expectedVersion; it now submits the initial response version and asserts version advancement while retaining all snapshot-replacement/null assertions. A subsequent full run exposed the new migration fixture leaving a plaintext full name in the shared disposable database; the fixture now uses the existing encryption implementation and test key, preserving strict authentication decryption and all privilege assertions. No assertions, score policy, encryption policy or concurrency checks were weakened. The corrected targeted, browser and final full runs pass.
+
+R01 now has deterministic stale/fresh/equality and old/new attempt PostgreSQL evidence, including the historically flaky recovery scenario on a separate never-dispatched stale document. R02 has same-business parent locks, exact version conflicts, source floors, append-only provenance and human duplicate acknowledgement, with complete rollback tests. R03 uses authenticated actor plus business for interactive financial actions and null actor plus business for background outcomes. Historical failures below remain dated evidence, not current unresolved hardening status.
+
+V29 reservation: `{version:29,feature:"client-pilot R02",author:"Developer B implementation",reviewer:"explicit user pilot policy and coordinated allocation; reciprocal signoff not asserted",filename:"V29__monthly_record_integrity.sql",status:"IMPLEMENTED_LOCALLY_VERIFIED",producerBranch:"dev/fatima",producerCommit:"containing commit",date:"2026-10-24"}`. Tests validate **V1–V19 then V29 / V19→V29 only**. Combined V20–V29 sequencing remains deferred until intentional branch integration. Nineteen production-target cases remain excluded and unaccepted. Java21/PostgreSQL17/TLS, production restore/live-provider/client UAT and reciprocal review remain separate release gates.
+
 ## F06 bounded planning — 18–19 October 2026 (Asia/Karachi)
 
-Explicit user request authorizes only a stateless, non-posting cost/pricing preview and EN/UR/RTL user journey. Isolated branch `codex/f06-bounded-costing`, base `1f72c6e8500f4a94a103768f1d71f980395af143`, verified after fetching origin. No direct integration/push to dev/fatima; parallel R03 paths and existing untracked files are excluded.
+Explicit user request authorizes only a stateless, non-posting cost/pricing preview and EN/UR/RTL user journey. Originally developed on isolated branch `codex/f06-bounded-costing`, base `1f72c6e8500f4a94a103768f1d71f980395af143`, verified after fetching origin. The exact tested tree became commit `14cc912a078485ef7499c58cb5b76641c436f7f0` and was subsequently fast-forwarded into local and remote `dev/fatima` under explicit integration authorization. Integration changed no feature code and preserved the existing untracked files.
 
 | Reserved scope | Sole editor | Status |
 |---|---|---|
@@ -27,7 +58,7 @@ No migration reserved or authored; V1–V19 remain unchanged. The preview is a c
 
 Runtime: Java 26.0.1 compiling release 21, Maven 3.9.16, disposable PostgreSQL 14.22, Node 24.19.0, Next 16.3.8 and Edge. Local fixtures do not establish production Java21/PostgreSQL17/TLS or release acceptance. Initial sandbox dependency copy/JVM inspection stalled; frozen offline pnpm installation lacked policy metadata. Normal permitted frozen installation passed registry policy checks with unchanged manifests/lockfiles. Feature tests passed on first execution; a later browser rerun improves screenshot position only. Details and exact commands are in the verification record.
 
-One coherent local feature commit is intended; resolve its SHA with `git log -1 --format=%H -- docs/phase2/F06_IMPLEMENTATION.md` and the final handoff. No push, integration, merge, rebase, main/dev/suleman/dev/fatima direct change or next feature is performed. Rebase/revalidation against the later dev/fatima is deferred until R03 is reviewed/integrated.
+Published F06 commit: `14cc912a078485ef7499c58cb5b76641c436f7f0`, sole parent `1f72c6e8500f4a94a103768f1d71f980395af143`. The subsequent integration was a clean fast-forward and normal push, verified on `origin/dev/fatima`, without rewriting or retesting an unchanged tree. The test results above describe that exact F06 tree, not later hardening changes. Main and dev/suleman remained unchanged. Full F06 remains PARTIAL_VERIFIED; production acceptance and the nineteen production-target cases were not performed.
 
 
 ## F13 client-pilot remediation — 18 October 2026 (Asia/Karachi, isolated branch `f13-client-pilot-remediation`)
@@ -87,15 +118,15 @@ Implementation direction: preserve mandatory core finance and all legacy MVP def
 |---|---|
 | Repository / persistent branch | `aviongg/sme-financial-webapp` / `dev/fatima` |
 | Fetched F13 implementation baseline | `9f5b2b46bf9aaa8bacc462c7217a45db46b0fc77`, HEAD and origin/dev/fatima synchronized before reservation on 15 October |
-| Last verified published backend milestone | `8ec373c1a600a2a480a1c9813512b2302a403319` on origin/dev/fatima; live `ls-remote` matched and subsequent fetches on 17 October confirmed no intervening remote commits before final publication |
-| Last verified published frontend milestone | `277eb00945475ae51ab0e23e754bc635ba64fc3e`; push and live `ls-remote` confirmed on 17 October before the final acceptance commit |
+| Historical F13 backend milestone | `8ec373c1a600a2a480a1c9813512b2302a403319` on origin/dev/fatima; live `ls-remote` matched and subsequent fetches on 17 October confirmed no intervening remote commits before final publication |
+| Historical F13 frontend milestone | `277eb00945475ae51ab0e23e754bc635ba64fc3e`; push and live `ls-remote` confirmed on 17 October before the final acceptance commit |
 | Verified origin/main | `b51e27696cccc59b94aa9d9c9388ad0faa5b4176` (PR #3 merged 8 October) |
 | Baseline relationship | dev/fatima contains main and the prior onboarding/handoff; no branch history replacement |
-| Unmodified other developer tip | origin/dev/suleman `f2ed9bda671404598bd73729563c6e0ceb2b08d1` |
-| Source tested | Final F13 implementation on baseline `9f5b2b4`, backend milestone `8ec373c`; opening results distinguish fresh F13 checks from historical F02/onboarding evidence |
-| Publication commit | Resolve the containing acceptance commit with `git log -1 --format=%H -- docs/phase2/verification/2026-10-17-f13.json`, then compare to live origin/dev/fatima/ancestry. Its exact SHA is reported after verified push; a local commit alone does not establish remote publication. |
-| Latest migration | **V19__dashboard_preferences.sql**, additive F13 personal layout overrides; V1–V18 preserved |
-| Migration allocation / next candidate | V19 implemented for F13; V20 is only a candidate and must be revalidated/reserved against both branches before use |
+| Other developer boundary | Outside this task; no implementation inspection, import, checkout or write during the coordinated continuation. Earlier dated references are not current remote verification. |
+| Source tested | Final pilot-hardening source on baseline 14cc912a078485ef7499c58cb5b76641c436f7f0; detailed results above |
+| Publication commit | Resolve this containing hardening commit with `git log -1 --format=%H -- docs/phase2/verification/2026-10-24-pilot-hardening.json`; exact final normal-push SHA is verified in the external handoff |
+| Latest migration | **V29__monthly_record_integrity.sql**, this authorized hardening; V1–V19 preserved |
+| Migration allocation / next candidate | V29 implemented for this pass; V20–V28 reserved externally and absent here. Future numbers require explicit coordination. |
 
 The direct user instruction to use dev/fatima supersedes the supplied work division's phase2/integration procedure. Ownership and required financial review remain as specified in that document. No main PR is authorized. No open PR was returned by GitHub search during the audit; no configured tracked GitHub Actions workflow or baseline status was found. An empty CI response is not a pass.
 
@@ -108,7 +139,7 @@ The direct user instruction to use dev/fatima supersedes the supplied work divis
 * Root AGENTS, repeatable new-chat/recovery/commit/push workflow, prompt standard, migration/shared-file reservation rules, source document transcript/hash and verification evidence.
 * Local ignored frontend installation restored to frozen pnpm lockfile (Next 16.3.8); declared OCR multipart test dependency restored. No dependency manifest/lockfile/source edits. No permanent DB/server/secrets provisioned. Test server stopped after verification.
 
-## Current feature and contract status
+## Historical feature and contract status (15 October 2026)
 
 F02, F13 and AI-LAUNCH-01 are **PARTIAL_VERIFIED** in the register's formal review vocabulary. Their requested development journeys are complete: persistent profile/module settings, personalized dashboards, server capability enforcement, opt-in explanations, bounded Ask FinSight, EN/UR and session/tenant isolation. Remaining gates are reciprocal C03/C10/C12/P09/P12 review; R01 is historically intermittent and passed the 16 October full run without a source fix. There is no missing initial UI/API/DB journey or A implementation dependency for these authorized MVP slices. Real-provider compatibility, model quality and production/client acceptance remain separate and unperformed. No contract is FROZEN, no P01–P14 decision is signed, and no owner/reviewer signoff has been supplied.
 
@@ -162,13 +193,15 @@ Commands and scopes are detailed in DEVELOPMENT_SETUP and [machine-readable evid
 | Production configuration | **15 passed** | PyYAML + Git Bash shell fixtures; not actual Docker/TLS/provider acceptance |
 | Docs/source integrity | **Passed**: links/heading anchors, 14 package IDs, 12 parseable contract examples, 17 unchanged migration hashes, whitespace, Gitleaks scans of new docs and the complete staged diff (zero findings) and unchanged application/configuration/lockfiles | See final verification evidence/commit review; no secret/generated-file commit intended |
 
-## Known failures, risks and blocked acceptance
+## Historical findings and remaining acceptance gates
+
+The observations below retain their original failure evidence. R01–R03 are now remediated and locally verified by the authorized hardening pass at the top of this document; production and reciprocal-review gates remain separate.
 
 | ID | Finding / state | Owner or next review / required action |
 |---|---|---|
-| R01 | `backend/src/test/java/com/app/sme_health_backend/documents/DocumentSecurityPostgreSqlIT.java:416` failed in two 10 October full runs and recurred in the final 15 October local full run: expected `processing_interrupted`, actual `unavailable`. Other full/isolated runs passed. Test retries asynchronously, then manually sets processing/recovery state. Timing interference is source-consistent, not yet proved as sole cause. | Cross-domain documents/platform review; request a focused investigation/fix in a subsequent scoped chat before claiming full app regression green. Do not skip the assertion, rerun until green, or relabel these failed runs passing. No document-recovery source/test change is included here. |
-| R02 | Source-inferred same-month distinct-document/manual contribution race and lack of economic-source deduplication; snapshot overwrite can lose prior OCR contribution. | A C01/C02/P14 with B document handoff; real concurrency/source fixtures and explicit mode/locking policy. |
-| R03 | Several monthly/document/WhatsApp audit calls confuse business UUID with actor UUID and omit business linkage. | Scoped shared-security review; pass actual actor + tenant (or system event) and add assertions. No source fix made here. |
+| R01 | `backend/src/test/java/com/app/sme_health_backend/documents/DocumentSecurityPostgreSqlIT.java:416` failed in two 10 October full runs and recurred in the final 15 October local full run: expected `processing_interrupted`, actual `unavailable`. Other full/isolated runs passed. Test retries asynchronously, then manually sets processing/recovery state. Timing interference is source-consistent, not yet proved as sole cause. | Remediated in this explicit pilot-hardening pass; deterministic PostgreSQL/browser/full-regression evidence and remaining release limits are recorded above. Historical failed runs remain failures. |
+| R02 | Source-inferred same-month distinct-document/manual contribution race and lack of economic-source deduplication; snapshot overwrite can lose prior OCR contribution. | Remediated in this explicit pilot-hardening pass; deterministic PostgreSQL/browser/full-regression evidence and remaining release limits are recorded above. Historical failed runs remain failures. |
+| R03 | Several monthly/document/WhatsApp audit calls confuse business UUID with actor UUID and omit business linkage. | Remediated in this explicit pilot-hardening pass; deterministic PostgreSQL/browser/full-regression evidence and remaining release limits are recorded above. Historical failed runs remain failures. |
 | R04 | Legacy scale validation, source/evidence history, negative cash/overdraft and score-unavailable posting behavior need decisions. | P01/P02/P10/P14; preserve old methodology and missing values. |
 | R05 | OCR startup recovery/scheduling/storage has single-node and DB/file-boundary limitations; high-volume search/list unbounded. | Relevant future operational slice; no unsolicited infrastructure replacement. |
 | R06 | Required A/B financial policy and interface approvals absent. | Relevant owner/reviewer review; F02 starts with C03/C12/P09 subset, F13 adds C10. No implementation approval inferred from docs push. |
@@ -184,16 +217,14 @@ The historical baseline failure remains recorded even if a later run passes. R01
 | V1–V17 | Existing MVP | Historical | Applied/tested baseline; immutable |
 | V18 | F02 | B author / A reviewer pending | V18__business_configuration.sql; implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
 | V19 | F13 | B author / A reviewer pending | V19__dashboard_preferences.sql; reserved at 9f5b2b4 on 2026-10-15, V18 upgrade tested on 16–17 October; producer `8ec373c1a600a2a480a1c9813512b2302a403319` |
+| V29 | Client-pilot R02 | B author / explicit user policy and coordinated allocation; reciprocal signoff not asserted | V29__monthly_record_integrity.sql; V19→V29 and fresh branch schema verified; producer is this hardening commit |
 
 Reserve `{version,feature,author,reviewer,filename,status,producerBranch,producerCommit,date}` before authoring SQL. Only reuse a cancelled reservation if it was never applied/shared and both agree. Coordinate numbers across branches in this file; do not assume A's unseen WIP cannot collide. No blanket V18–V40 preallocation.
 
-Shared-file editing for this slice is complete and released as recorded in the opening table. Existing permission grants and financial services remain unchanged. Future slices must renew reservations; A's work remains A-owned regardless of which reviewed source is later integrated into dev/fatima.
+Shared-file editing for this pass is complete and released. V29 adds the documented contribution privileges; financial writes use the bounded integrity contract above. Scoring, cash-flow methodology and other feature implementations remain unchanged. Future slices must renew reservations; A's work remains A-owned regardless of which reviewed source is later integrated into dev/fatima.
 
-## Next recommended actions and recovery
+## Next actions and recovery
 
-1. Verify the containing F13 acceptance commit against origin/dev/fatima, then obtain reciprocal C03/C10/C12/P09 review for F13 and the existing P12 AI review before release. No additional A-side implementation is needed for the initial workspace/evidence adapters. Paid-provider work remains separately deferred; follow the activation runbook only under a later explicit request.
-2. Keep R01 baseline recovery instability and R02/R03 source/audit remediation with the responsible shared owners. Record any future authorized fix scope and tests separately.
-3. A prepares C01/C02/C04/C09 initial policy/contract producer sequence; B freezes C05 project identity/plan early for parallel funding calculator fixtures. Never fabricate producer services.
-4. Next independent B candidate: a **bounded F06 estimate/costing planning slice**, after an explicit request and approved category/pricing/rounding semantics (C03/C05/C12 and applicable P05/P10/P13). Manual planning inputs need no A ledger/payment implementation. This is not the entire F06 package: persisted project-budget conversion still needs real F05, and inventory/FX suggestions remain unavailable until accepted producers exist. Do not begin it under the completed F13 authorization. Refresh dev/fatima and follow `prompts/README.md` with current approvals and migration reservations.
+This authorized hardening task ends after its single verified normal push. Do not begin another feature automatically. A later intentional branch integration must validate combined V20–V29 migrations; production/provider/client and reciprocal-review gates remain separate. F06's bounded preview is already integrated; persistence, approval/history and F05 conversion remain future work requiring a separate request. Historical R01/R02/R03 failures are retained above and superseded for this bounded development scope by the new evidence.
 
 Preserved unrelated local files: `docs/Phase_1_Backend_Remaining_Work.docx` and pre-existing `tmp/`. F13 raw evidence is under `tmp/f13` and `tmp/f13-workspace-postgres*.log`; historical F02 and onboarding evidence remains under its original directories. All are untracked and excluded from publication. Do not clean them by broad recursive deletion. New chats use committed summaries and repeat required checks rather than depending on local scratch. Task-owned loopback servers are stopped after final browser acceptance; harnesses close their own browser/Spring/disposable database. No permanent local server or database was provisioned.

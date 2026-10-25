@@ -53,7 +53,7 @@ class MonthlyRecordControllerTests {
 
     @Test
     void shouldPropagateErrorWhenRecordSaveFailsDueToScoringError() throws Exception {
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenThrow(new IllegalStateException("Scoring calculation failed"));
 
         String request = """
@@ -79,7 +79,7 @@ class MonthlyRecordControllerTests {
     void shouldCreateMonthlyRecord() throws Exception {
         MonthlyRecord record = validRecord(businessId);
 
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenReturn(record);
 
         String request = """
@@ -136,7 +136,7 @@ class MonthlyRecordControllerTests {
                 }
                 """;
 
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Cash inflow is required"));
 
         mockMvc.perform(post("/api/records/monthly")
@@ -148,7 +148,7 @@ class MonthlyRecordControllerTests {
 
     @Test
     void shouldRejectNegativeFinancialValue() throws Exception {
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Revenue cannot be negative"));
 
         String request = """
@@ -169,12 +169,12 @@ class MonthlyRecordControllerTests {
                         .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Revenue cannot be negative"));
+                .andExpect(jsonPath("$.errors.revenue").exists());
     }
 
     @Test
     void shouldRejectInvalidMonth() throws Exception {
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Month must be in YYYY-MM format"));
 
         String request = """
@@ -203,7 +203,7 @@ class MonthlyRecordControllerTests {
         MonthlyRecord record = validRecord(businessId);
         record.setCogs(null);
 
-        when(monthlyRecordService.saveMonthlyRecord(any()))
+        when(monthlyRecordService.saveMonthlyRecord(any(), any(), any()))
                 .thenReturn(record);
 
         String request = """
@@ -316,5 +316,15 @@ class MonthlyRecordControllerTests {
         record.setUpdatedAt(LocalDateTime.now());
 
         return record;
+    }
+    @Test
+    void malformedMonthlyNumbersReturnSafe400() throws Exception {
+        for (String value : java.util.List.of("\"not-a-number\"", "1e9999999999", "{}")) {
+            mockMvc.perform(post("/api/records/monthly").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"month\":\"2026-03\",\"revenue\":" + value + "}"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("invalid_request"))
+                    .andExpect(jsonPath("$.message").value("Request fields or numeric values are invalid."));
+        }
+        org.mockito.Mockito.verifyNoInteractions(monthlyRecordService);
     }
 }

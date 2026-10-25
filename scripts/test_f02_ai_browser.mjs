@@ -151,6 +151,12 @@ try {
   await page.waitForFunction(()=>document.documentElement.dir==='rtl');
   await page.setViewportSize({width:390,height:844});
   await page.getByTestId('business-configuration').waitFor();
+  // Viewport resize and the Urdu font can finish on different frames; inspect the settled layout.
+  await page.evaluate(async()=>{await document.fonts.ready;await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));});
+  writeFileSync(resolve(out,'configuration-mobile-layout.json'),JSON.stringify(await page.evaluate(()=>({
+    viewport:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,
+    overflowing:[...document.querySelectorAll('main *')].map(element=>({tag:element.tagName,text:element.textContent?.slice(0,100),rect:element.getBoundingClientRect().toJSON()})).filter(item=>item.rect.right>window.innerWidth+2||item.rect.left < -2)
+  })),null,2));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2));
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:resolve(out,'configuration-urdu-mobile.png'),fullPage:true});

@@ -2,6 +2,10 @@
 
 This register separates **observed MVP behavior**, **user-required invariants**, and **proposed policy requiring A/B signoff**. Date: 10 October 2026. Documentation publication does not approve any accounting policy. No decision below is represented as an accounting, tax or religious certification.
 
+## Explicit pilot snapshot hardening policy — 21 October 2026
+
+The user's consolidated remediation and subsequent V29 continuation explicitly authorize the bounded snapshot policy in [pilot hardening](PILOT_HARDENING.md): business/month serialization, expected-version manual writes, immutable prospective document provenance, aggregate source floors, conservative duplicate warnings with explicit human override, and NUMERIC(14,2) bounds. Manual inputs remain aggregate totals and confirmed documents contribute once; point-in-time balances and health-score-v1 remain unchanged. Historical attribution is not fabricated. This scoped user instruction governs the remediation and does not claim broader P01/P02/P10/P14, ledger, recognition, valuation, tax, settlement-rounding or reciprocal owner/reviewer approval. The older open policy proposals below remain open outside this bounded scope.
+
 ## Preserved baseline and mandated boundaries
 
 **14 October implementation note:** the subsequent user kickoff authorizes F02 and AI-LAUNCH-01 offline engineering. The [actual implementation](F02_AI_IMPLEMENTATION.md) preserves all financial methods and existing permissions, and records the implemented P09 capability behavior and P12 grounding/privacy controls for review. Neither this implementation nor its publication supplies reciprocal approval. Real-provider routing remains disabled and requires the separate [activation procedure](AI_ACTIVATION_RUNBOOK.md); no C11 work is reassigned to B and no new A-side implementation is required for the MVP adapter.
