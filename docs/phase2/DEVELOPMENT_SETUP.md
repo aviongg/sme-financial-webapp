@@ -156,6 +156,21 @@ After building the live production Next frontend with the 8080 rewrite, start it
 
 The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL with synthetic accounts and explicitly disabled AI. It verifies margin/markup, cost groups, zero/unknown values, strict decimal/request bounds, access/session/business isolation, English/Urdu/mobile/keyboard, and unchanged records/score. Screenshots require visual inspection. Never point it at a developer/customer database. Actual contract, calculation precision and deferred work are in [F06 implementation](F06_IMPLEMENTATION.md); this does not establish production or policy approval.
 
+## F04 Phase A commercial documents acceptance
+
+F04 Phase A adds only **V31** (record-only invoices/bills, `financialEffect = NONE`). Validate fresh V1–V19, V29, V30, V31 and populated V30→V31 on disposable PostgreSQL; never a shared database.
+
+```powershell
+# From backend
+.\mvnw.cmd '-Dtest=Commercial*Tests' -Ppostgres-it '-Dit.test=CommercialDocument*IT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT' verify
+# From frontend
+node --test tests/commercial.test.mjs
+# After the live production Next build is running on 127.0.0.1:3100 with 8080 free; same browser environment as above
+.\mvnw.cmd '-Dtest=F04CommercialBrowserAcceptance' test
+```
+
+The browser harness uses real Spring/session/CSRF, disposable PostgreSQL, Edge and synthetic accounts with AI disabled; it verifies twelve unchanged financial/score/project/configuration tables plus zero write statements. Run it sequentially with the other browser suites. Contract and non-goals: [F04 Phase A](F04_PHASE_A_IMPLEMENTATION.md).
+
 ## Client-pilot hardening acceptance
 
 The coordinated migration is **V29**. Validate the current branch's V1–V19 then V29 and populated V19→V29; do not import V20–V28 or claim combined-branch sequencing. Do not target a production/shared database.

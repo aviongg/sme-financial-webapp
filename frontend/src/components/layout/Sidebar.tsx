@@ -19,6 +19,8 @@ import {
   Calculator,
   FileText,
   FolderKanban,
+  Receipt,
+  ReceiptText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -31,6 +33,7 @@ import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
 import { reportsCopy } from '@/lib/i18n/translations/reports';
 import { projectsCopy } from '@/lib/i18n/translations/projects';
+import { commercialCopy } from '@/lib/i18n/translations/commercial';
 
 export interface SidebarProps {
   className?: string;
@@ -63,6 +66,8 @@ export function Sidebar({ className }: SidebarProps) {
     ...(!isDemoMode ? [{ label: estimatesCopy(locale).nav, href: '/estimates', icon: Calculator }] : []),
     ...(!isDemoMode ? [{ label: reportsCopy(locale).nav, href: '/reports', icon: FileText }] : []),
     ...(!isDemoMode ? [{ label: projectsCopy(locale).nav, href: '/projects', icon: FolderKanban }] : []),
+    ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.INVOICE.nav, href: '/invoices', icon: Receipt }] : []),
+    ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.BILL.nav, href: '/bills', icon: ReceiptText }] : []),
     {
       label: t.nav.addData,
       href: "/records/new",
@@ -157,7 +162,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {navItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (item.href === '/projects' && pathname.startsWith('/projects/'));
+          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
@@ -183,7 +188,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
         {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (item.href === '/projects' && pathname.startsWith('/projects/'));
+          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (

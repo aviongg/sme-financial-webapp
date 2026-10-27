@@ -136,7 +136,9 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "dashboard_preferences",
                     "projects",
                     "project_budget_versions",
-                    "project_budget_lines"
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines"
             }) {
                 try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM " + table)) {
                     assertTrue(rs.next());
@@ -186,7 +188,10 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "document_financial_contributions",
                     "projects",
                     "project_budget_versions",
-                    "project_budget_lines"
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN forbidden_col INT"));
@@ -209,7 +214,10 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "document_financial_contributions",
                     "projects",
                     "project_budget_versions",
-                    "project_budget_lines"
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("DROP TABLE " + table));
@@ -232,7 +240,10 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "document_financial_contributions",
                     "projects",
                     "project_budget_versions",
-                    "project_budget_lines"
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("TRUNCATE TABLE " + table));
