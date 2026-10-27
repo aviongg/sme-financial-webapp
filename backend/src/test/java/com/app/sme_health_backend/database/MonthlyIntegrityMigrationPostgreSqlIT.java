@@ -67,13 +67,17 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
     }
 
     @Test
-    void freshV1ThroughV29AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
+    void freshV1ThroughV19PlusV29AndV30AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
         UUID business = UUID.randomUUID(), otherBusiness = UUID.randomUUID(), actor = UUID.randomUUID();
         UUID doc = UUID.randomUUID(), doc2 = UUID.randomUUID(), record = UUID.randomUUID(), otherRecord = UUID.randomUUID();
         UUID contribution = UUID.randomUUID();
         try (var admin = POSTGRES.getPostgresDatabase().getConnection(); var sql = admin.createStatement()) {
-            try (var rs = sql.executeQuery("SELECT count(*) FROM flyway_schema_history WHERE success AND type='SQL'")) {
-                assertTrue(rs.next()); assertEquals(20, rs.getInt(1)); // Nineteen existing migrations plus V29; no V20-V28 imports.
+            try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
+                List<String> versions = new ArrayList<>();
+                while (rs.next()) versions.add(rs.getString(1));
+                assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
+                        "13", "14", "15", "16", "17", "18", "19", "29", "30"), versions,
+                        "The integrated schema contains only V1-V19, V29 and F05 V30");
             }
             assertPrivileges(admin, "public");
         }

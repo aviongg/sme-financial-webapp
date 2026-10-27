@@ -1,5 +1,29 @@
 # Current Phase 2 implementation state
 
+## F05 integrated after F12B — verification complete; handoff 28 October 2026 (Asia/Karachi)
+
+Completed F05 source `0323948acfb824c4be9d3328cabcb7ac9069a113` (sole parent `ea8e812f1d891c07362883a4374754e48485c884`) is integrated onto the verified F12B baseline `ba2e3bc5f1884c00ebdf98070b17df3ed26a80cd` on `dev/fatima`. The interrupted `cherry-pick --no-commit` was recovered without reapplying it. Conflicts in this file, `Sidebar.tsx` and `MobileNav.tsx` were resolved by retaining both complete feature sections and both Reports and Projects navigation; Estimates and other existing actions remain. `navigation.ts` applied cleanly. The containing commit is the delivery identity; exact push/remote SHA is recorded in the external final handoff, avoiding a self-referencing commit.
+
+Measured combined verification was completed 26–27 October and recovered unchanged on 28 October. See [machine-readable evidence](verification/2026-10-28-f05-integration.json) and [F05 contract and browser reproduction](F05_PHASE_A_IMPLEMENTATION.md). Historical isolated-development results below remain dated history, not the current combined gate. All editor reservations are released.
+
+| Combined gate | Result / qualification |
+|---|---|
+| F05 backend | **42 unit + 11 disposable PostgreSQL cases passed**, zero failures/errors/skips |
+| F12B backend | **25 unit + 9 PostgreSQL cases passed**, zero failures/errors/skips; read-only flow/snapshot/CSV semantics retained |
+| Full backend | **1,040 default cases: 1,039 passed, 1 existing Windows symlink skip**; **168 local Failsafe cases passed**. Production-target classes `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT` (19 cases) explicitly excluded and unaccepted |
+| Frontend | **110 passed**, including projects11/reports13/estimates15; TypeScript passed; ESLint passed with one existing SessionProvider ref-cleanup warning; production Next webpack build passed |
+| True F05 browser | **24 checks passed** with production Next, real Spring/CSRF/session, disposable PostgreSQL and Edge. All PROJECT/JOB/ORDER forms, two approvals/supersession, exact planned totals, VIEWER restrictions, EN/UR/RTL and mobile verified. Four screenshots visually reviewed. Nine complete table snapshots unchanged; **zero MonthlyRecord and zero score write statements**. Intentional profile-language updates excluded from immutable table snapshots |
+| Browser regressions | F12B **15**, Pilot **11**, F02 **11**, F13 **16**, F06 **14** checks passed. All six suites: zero runtime/CSP/hydration errors and zero unexpected external requests |
+| Migration | Only **V30** added; V1–V19/V29 byte-preserved, no V20–V28/V31+. Fresh migration and populated V29→V30, scoped keys, unique code, single draft/approved, immutable history, draft cleanup and runtime/backup privileges passed on disposable PostgreSQL |
+
+Integration review found and fixed a V30 history loophole: an UPDATE could move a line out of an approved/superseded parent into a draft. The 14-line OLD-parent check closes it, with failing-before/passing-after assertions and preserved draft deletion. The older monthly-integrity migration test now checks the exact ordered versions1–19,29,30 instead of an obsolete count20. No original financial assertions were weakened.
+
+Other failed attempts remain recorded in the evidence: the navigation source-shape assertion was resolved by restoring separate gated spreads; F05 browser ancillary dashboard reads were replaced by existing read-only score/widget-metadata endpoints so the strict full-row and zero-write assertions verify the requested project journey. Those ancillary full-dashboard reads can issue same-value score updates; this integration does not alter or claim to fix that independent behavior. An F12B harness race after language switching was fixed by awaiting completed session revalidation before switching business; all15 unchanged acceptance assertions pass. **F12B production code and contract remain unchanged**; its sole test-script delta is this synchronization.
+
+F05 remains **PLANNED_ONLY** (`planningOnly=true`, actual financials `NOT_IMPLEMENTED_PHASE_A`). No actual revenue/cost/profitability, ledger/monthly posting, invoice/AR/AP/inventory/COGS/commission/funding-gap/FX/tax logic or persisted F06 conversion is introduced. F06, F13, MonthlyRecord and health-score-v1 implementations are unchanged. ModuleRegistry `projects` and `reports` remain future/unimplemented; F13 project-margin remains unavailable. Full F05/F12B and reciprocal review remain pending beyond these bounded slices.
+
+Protected local `main` remains `b51e27696cccc59b94aa9d9c9388ad0faa5b4176`; local `dev/suleman` remains `f2ed9bda671404598bd73729563c6e0ceb2b08d1` and its tracking ref remains `f1049c1c78f9c091945555b1e6dfde8759e16911`. No foreign implementation was inspected/imported. User DOCX and `tmp/` were preserved and never staged/cleaned. No shared/production database, deployment or paid-provider action occurred. Local Java26 (release21), PostgreSQL14.22 and Next16.3.8 evidence does not establish Java21/PostgreSQL17/TLS or production/client acceptance. Stop after the authorized normal dev/fatima push and exact remote verification; no next feature is authorized here.
+
 ## F12B Phase A bounded read-only financial reporting — completed local validation 25 October 2026 (Asia/Karachi)
 
 The explicitly requested **F12B Phase A** bounded slice (stateless, read-only business financial summary report, UTF-8 CSV export and print view at `/reports` with full English/Urdu/RTL support) is complete and locally verified on isolated branch `codex/f12b-reports-phase-a` in worktree `C:/Users/Hp/FYP/wt-f12b-reports`, based on `dev/fatima` commit `ea8e812f1d891c07362883a4374754e48485c884`. No remote branch or push was performed, and `dev/fatima`, `main`, `dev/suleman` and `C:/Users/Hp/FYP/wt-f05-phase-a` were not modified.
@@ -26,6 +50,18 @@ The explicitly requested **F12B Phase A** bounded slice (stateless, read-only bu
 Post-interruption continuation defects found and fixed before final validation:
 1. Preserved the previous session's post-browser fix in `BusinessFinancialReportView.tsx` storing `'exported' | 'failed' | null` in `exportNote` so switching to Urdu after CSV export translates the status note (`CSV ڈاؤن لوڈ ہو گئی۔` instead of remaining English `CSV downloaded.`), and added an explicit browser assertion in `scripts/test_f12b_reports_browser.mjs`.
 2. Fixed `capture()` in `scripts/test_f12b_reports_browser.mjs` to await `document.fonts?.ready` and `document.getAnimations({ subtree: true })` completion before capturing screenshots so resizing from `390x844` mobile to `1440x1000` desktop RTL does not capture `AppShell` mid-transition while its 200ms `margin-right` transition is still in flight.
+## F05 Phase A (Project Planning + Budgeting Foundation) — completed local validation 25 October 2026 (Asia/Karachi)
+
+The explicitly requested **F05 — Project / Job / Order Finance (Phase A Only: Project Planning + Budgeting Foundation)** vertical slice is implemented and locally verified in isolated worktree `C:/Users/Hp/FYP/wt-f05-phase-a` (`codex/f05-project-planning-phase-a`), based strictly on `dev/fatima` commit `ea8e812f1d891c07362883a4374754e48485c884`. The persistent `dev/fatima` checkout, `main`, and `dev/suleman` were not touched, and no remote push or remote branch was created. Detailed implementation scope and non-goals are recorded in [F05_PHASE_A_IMPLEMENTATION.md](F05_PHASE_A_IMPLEMENTATION.md) and [F05_PHASE_A_IMPLEMENTATION_PLAN.md](F05_PHASE_A_IMPLEMENTATION_PLAN.md).
+
+| Check | Result |
+|---|---|
+| Migration (`V30__project_planning_foundation.sql`) | Fresh V1–V19 + V29 + V30 and populated V29→V30 upgrade verified; UUID tenant-scoped composite FKs, partial unique indexes (`single_draft`, `single_approved`), immutability triggers (`APPROVED`/`SUPERSEDED` financial immutability + `BEFORE TRUNCATE`), and `finsight_app`/`finsight_backup` grants verified |
+| Targeted backend unit tests | **42 / 42 passed** (`ProjectBudgetCalculatorTests`: 26, `ProjectRequestReaderTests`: 14, `ProjectLifecycleTests`: 2) |
+| PostgreSQL integration tests (`-Ppostgres-it`) | **11 / 11 passed** (`ProjectPlanningMigrationPostgreSqlIT`: 1, `ProjectPlanningPostgreSqlIT`: 4, `DisposableDatabaseRolesIT`: 6) |
+| Frontend unit / helper / AST tests | **97 / 97 passed** (`tests/*.test.mjs`, including 11 F05 tests in `projects.test.mjs` and 15 F06 tests in `estimates.test.mjs`) |
+| TypeScript / ESLint / production Next build | **Pass / pass (zero errors, zero warnings on F05 files) / production webpack build pass** |
+| Preserved boundaries | V1–V19 and V29 untouched; F06 source (`estimates/`), `MonthlyRecord`, `ScoringService` (`health-score-v1`), `ModuleRegistry`, and F13 `WidgetRegistry` unchanged; all project figures strictly **PLANNED** (`PKR` / `APPLICATION_FIXED_PKR`) |
 
 ## Client-pilot hardening — completed local validation 24 October 2026 (Asia/Karachi)
 
@@ -245,6 +281,11 @@ The historical baseline failure remains recorded even if a later run passes. R01
 | V18 | F02 | B author / A reviewer pending | V18__business_configuration.sql; implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
 | V19 | F13 | B author / A reviewer pending | V19__dashboard_preferences.sql; reserved at 9f5b2b4 on 2026-10-15, V18 upgrade tested on 16–17 October; producer `8ec373c1a600a2a480a1c9813512b2302a403319` |
 | V29 | Client-pilot R02 | B author / explicit user policy and coordinated allocation; reciprocal signoff not asserted | V29__monthly_record_integrity.sql; V19→V29 and fresh branch schema verified; producer is this hardening commit |
+| V30 | F05 Phase A — Project Planning + Budgeting Foundation | B author / A reviewer pending | V30__project_planning_foundation.sql; implemented and V29→V30 upgrade-tested on 2026-10-25 on base `ea8e812f1d891c07362883a4374754e48485c884` (`dev/fatima` via isolated worktree `codex/f05-project-planning-phase-a`); producer is the containing F05 Phase A commit |
+
+V30 reservation record: `{version:30,feature:"F05 Project / Job / Order Finance — Phase A (Project Planning + Budgeting)",author:"Developer B",reviewer:"Developer A (pending)",filename:"V30__project_planning_foundation.sql",status:"IMPLEMENTED_LOCALLY_VERIFIED",producerBranch:"dev/fatima (via isolated worktree codex/f05-project-planning-phase-a)",producerCommit:"containing commit",baseCommit:"ea8e812f1d891c07362883a4374754e48485c884",date:"2026-10-25"}`.
+
+Shared-file reservations for F05 Phase A (`B / codex/f05-project-planning-phase-a`, completed and released in the containing commit): `backend/src/main/java/com/app/sme_health_backend/audit/model/AuditEventType.java`, `backend/src/test/java/com/app/sme_health_backend/database/DisposableDatabaseRolesIT.java`, `backend/src/test/java/com/app/sme_health_backend/database/DatabaseRolePrivilegesPostgreSqlIT.java`, `frontend/src/lib/api/navigation.ts`, `frontend/src/components/layout/Sidebar.tsx`, `frontend/src/components/layout/MobileNav.tsx`, `docs/phase2/IMPLEMENTATION_STATE.md`, `docs/phase2/F05_PHASE_A_IMPLEMENTATION_PLAN.md`, `docs/phase2/F05_PHASE_A_IMPLEMENTATION.md`.
 
 Reserve `{version,feature,author,reviewer,filename,status,producerBranch,producerCommit,date}` before authoring SQL. Only reuse a cancelled reservation if it was never applied/shared and both agree. Coordinate numbers across branches in this file; do not assume A's unseen WIP cannot collide. No blanket V18–V40 preallocation.
 

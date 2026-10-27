@@ -13,6 +13,7 @@ import {
   UploadCloud,
   Edit3,
   Calculator,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -23,6 +24,7 @@ import { routePermission } from "@/lib/api/navigation";
 import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
 import { reportsCopy } from '@/lib/i18n/translations/reports';
+import { projectsCopy } from '@/lib/i18n/translations/projects';
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -33,6 +35,7 @@ export function MobileNav() {
   const { t, locale } = useLanguage();
   const estimates = estimatesCopy(locale);
   const reports = reportsCopy(locale);
+  const projects = projectsCopy(locale);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   const tabs = [
@@ -145,6 +148,12 @@ export function MobileNav() {
         description={t.quickActions.actionSheetDesc}
       >
         <div className="space-y-3 pt-2">
+          {!isDemoMode && allowed('/projects') && <button type="button" onClick={() => handleActionSelect('/projects')}
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FolderKanban className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{projects.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{projects.planningBannerTitle}</p></div>
+          </button>}
           {!isDemoMode && allowed('/estimates') && <button type="button" onClick={() => handleActionSelect('/estimates')}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
             <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Calculator className="w-5 h-5"/></div>

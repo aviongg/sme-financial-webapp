@@ -58,6 +58,15 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                     "ALTER TABLE document_financial_contributions ADD COLUMN forbidden_runtime_column integer",
                     "DROP TABLE document_financial_contributions",
                     "TRUNCATE TABLE document_financial_contributions",
+                    "ALTER TABLE projects ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE projects",
+                    "TRUNCATE TABLE projects",
+                    "ALTER TABLE project_budget_versions ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE project_budget_versions",
+                    "TRUNCATE TABLE project_budget_versions",
+                    "ALTER TABLE project_budget_lines ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE project_budget_lines",
+                    "TRUNCATE TABLE project_budget_lines",
                     "UPDATE document_financial_contributions SET confirmed_amount=1 WHERE false",
                     "DELETE FROM document_financial_contributions WHERE false",
                     "SELECT * FROM flyway_schema_history",
@@ -74,7 +83,13 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
 
     @Test
     void v18BusinessConfigurationAndV19DashboardPreferencesEnforceRuntimeAndBackupPrivileges() throws Exception {
-        for (String table : new String[] {"public.business_configuration", "public.dashboard_preferences"}) {
+        for (String table : new String[] {
+                "public.business_configuration",
+                "public.dashboard_preferences",
+                "public.projects",
+                "public.project_budget_versions",
+                "public.project_budget_lines"
+        }) {
             try (var migrator = connect("finsight_migrator"); var statement = migrator.createStatement()) {
                 for (String allowed : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE"}) {
                     try (var rs = statement.executeQuery("SELECT has_table_privilege('finsight_app', '" + table + "', '" + allowed + "')")) {

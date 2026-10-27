@@ -295,8 +295,10 @@ try {
   await anonymous.close();
   mark('Real API: VIEWER may read the same report, tenant authority/CSRF/authentication are enforced and a suspended membership loses access');
 
-  await page.getByRole('button', { name: 'English', exact: true }).first().click().catch(() => {});
+  await page.getByRole('button', { name: 'English', exact: true }).first().click();
   await page.waitForFunction(() => document.documentElement.dir === 'ltr');
+  // The toggle stays busy until session revalidation finishes; focus during it would be ignored.
+  await page.getByRole('button', { name: 'اردو', exact: true }).first().waitFor();
   assert.equal(await id('report-view').count(), 1);
   const second = await api(context.request, '/api/businesses', { method: 'POST', status: 201, data: { businessName: 'F12B Second Business', businessType: 'retail', languagePreference: 'en', whatsappOptIn: false } });
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));

@@ -1,6 +1,6 @@
 import { Permission } from './session';
 export function routePermission(path: string): Permission | null {
-    if (path === '/records/new')
+    if (path === '/records/new' || path === '/projects/new')
         return 'RECORD_CREATE_UPDATE';
     if (path === '/scan')
         return 'DOCUMENT_UPLOAD';
