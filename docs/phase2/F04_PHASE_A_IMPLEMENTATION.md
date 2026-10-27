@@ -4,7 +4,7 @@
 * **Slice:** F04 Phase A only — record-only customer INVOICE and supplier BILL documents
 * **Lead / reviewer:** Developer B / Developer A (cross-domain financial review pending)
 * **Base:** `dev/fatima` `34d9cd86b237cc35ec2fad2cc4ef69ec6de0f877` (F12B + F05 + F06 + F13 + F02 + pilot hardening)
-* **Worktree / branch:** `C:/Users/Hp/FYP/wt-f04-commercial-documents` / `claude/f04-commercial-documents-phase-a` (local only; no push, no remote branch)
+* **Delivery:** source commit `f5aac5a53f6ad2d8cc14188c28ab13e5dc8c4701`, fast-forwarded onto `dev/fatima`; the temporary local worktree/branch were removed and no remote feature branch exists
 * **Migration:** `V31__commercial_documents_foundation.sql` only. V1–V19, V29 and V30 are byte-unchanged; no V20–V28 or V32+ are added here (V32 is used by the separate F09 worktree).
 * **Formal status:** **PARTIAL_VERIFIED** for this bounded Phase A. Full F04 (issue/approve, C04 obligations, settlement) is **not** complete.
 

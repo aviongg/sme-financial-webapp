@@ -6,10 +6,33 @@
   "baseVerification": "git fetch failed (DNS for github.com unavailable); equality checked against cached origin/dev/fatima only",
   "worktree": "C:/Users/Hp/FYP/wt-f04-commercial-documents",
   "branch": "claude/f04-commercial-documents-phase-a",
-  "pushed": false,
+  "pushed": true,
   "migration": {
     "added": "V31__commercial_documents_foundation.sql",
-    "freshHistory": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","29","30","31"],
+    "freshHistory": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "29",
+      "30",
+      "31"
+    ],
     "unchanged": "V1-V19, V29, V30",
     "upgrade": "populated V30 -> V31 preserved monthly_records, score_results, business_profiles, projects"
   },
@@ -22,28 +45,93 @@
     "browser": "Microsoft Edge via Playwright"
   },
   "results": {
-    "backendUnitF04": { "command": "mvn -o -B -Dtest=Commercial*Tests test", "passed": 14, "failed": 0, "skipped": 0 },
+    "backendUnitF04": {
+      "command": "mvn -o -B -Dtest=Commercial*Tests test",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
     "postgresTargeted": {
       "command": "mvn -o -B -Ppostgres-it -Dtest=Commercial*Tests -Dit.test=CommercialDocument*IT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT verify",
-      "passed": 13, "failed": 0, "skipped": 0
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
     },
-    "backendFullDefault": { "run": 1054, "passed": 1053, "failed": 0, "skipped": 1, "skipNote": "existing Windows symlink skip" },
+    "backendFullDefault": {
+      "run": 1054,
+      "passed": 1053,
+      "failed": 0,
+      "skipped": 1,
+      "skipNote": "existing Windows symlink skip"
+    },
     "backendFullFailsafe": {
       "command": "mvn -o -B -Ppostgres-it -Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT verify",
-      "status": "INCOMPLETE",
-      "completedCases": 131, "completedClasses": 25, "failed": 0,
-      "reason": "background run stopped by host memory pressure; not rerun in this session",
-      "excluded": ["DatabaseRolePrivilegesPostgreSqlIT", "PostgreSqlTlsConnectionIT"]
+      "status": "COMPLETE",
+      "acceptedClasses": 34,
+      "cases": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "method": "first combined run passed 25 classes/131 cases before host memory pressure stopped it; remaining 9 classes/42 cases ran in three sequential batches on the unchanged commit",
+      "sequentialBatches": [
+        [
+          "CoreJourneyClosureIT",
+          "CredentialLifecycleIT",
+          "Feature8PostgreSqlIT",
+          13
+        ],
+        [
+          "MfaAndRecoverySecurityIT",
+          "MvpCoreJourneyIT",
+          "PlatformSecurityIT",
+          17
+        ],
+        [
+          "ProductionIngressSecurityIT",
+          "SecurityIdentityPostgreSqlIT",
+          "SpringSessionLifecyclePostgreSqlIT",
+          12
+        ]
+      ],
+      "excluded": {
+        "DatabaseRolePrivilegesPostgreSqlIT": 15,
+        "PostgreSqlTlsConnectionIT": 4,
+        "total": 19,
+        "reason": "production-target DB/TLS fixtures; excluded, not accepted"
+      }
     },
-    "frontend": { "unitPassed": 119, "unitFailed": 0, "f04Tests": 9, "typescript": "pass", "eslint": "0 errors, 1 existing SessionProvider warning", "productionBuild": "pass" },
+    "frontend": {
+      "unitPassed": 119,
+      "unitFailed": 0,
+      "f04Tests": 9,
+      "typescript": "pass",
+      "eslint": "0 errors, 1 existing SessionProvider warning",
+      "productionBuild": "pass"
+    },
     "f04Browser": {
       "command": "mvn -o -B -Dtest=F04CommercialBrowserAcceptance test",
-      "checks": 22, "result": "PASS",
+      "checks": 22,
+      "result": "PASS",
       "databaseBoundary": "12 whole tables unchanged; 0 write statements on monthly_records, score_results, document_financial_contributions, projects, project_budget_versions, project_budget_lines",
-      "persistedFacts": ["INVOICE INV-000001 VOID 1921.40", "INVOICE INV-000002 FINALIZED 99.99", "BILL BILL-000001 FINALIZED 10750.50"],
+      "persistedFacts": [
+        "INVOICE INV-000001 VOID 1921.40",
+        "INVOICE INV-000002 FINALIZED 99.99",
+        "BILL BILL-000001 FINALIZED 10750.50"
+      ],
       "counterpartyEncryptedAtRest": true,
-      "screenshotsReviewed": ["invoice-desktop-en.png", "invoice-finalized-desktop-en.png", "bill-editor-mobile-en.png", "bill-mobile-en.png", "bill-mobile-ur-rtl.png", "invoice-mobile-ur-rtl.png"],
-      "defectsFoundAndFixed": ["finalized/voided date shown in UTC instead of local calendar", "duplicated server-calculation label", "cramped read-only mobile line cards and Urdu line-height"]
+      "screenshotsReviewed": [
+        "invoice-desktop-en.png",
+        "invoice-finalized-desktop-en.png",
+        "bill-editor-mobile-en.png",
+        "bill-mobile-en.png",
+        "bill-mobile-ur-rtl.png",
+        "invoice-mobile-ur-rtl.png"
+      ],
+      "defectsFoundAndFixed": [
+        "finalized/voided date shown in UTC instead of local calendar",
+        "duplicated server-calculation label",
+        "cramped read-only mobile line cards and Urdu line-height"
+      ]
     },
     "browserRegressions": {
       "F05ProjectsBrowserAcceptance": 24,
@@ -51,8 +139,46 @@
       "F06BrowserAcceptance": 14,
       "F13BrowserAcceptance": 16,
       "PilotHardeningBrowserAcceptance": 11,
-      "F02AiBrowserAcceptance": { "firstRun": "FAIL (mobile Urdu settings scrollWidth 491, no overflowing element in main)", "reruns": ["11/11 PASS", "11/11 PASS"], "classification": "existing harness timing race; harness unchanged" }
+      "F02AiBrowserAcceptance": {
+        "firstRun": "FAIL (mobile Urdu settings scrollWidth 491, no overflowing element in main)",
+        "reruns": [
+          "11/11 PASS",
+          "11/11 PASS"
+        ],
+        "classification": "existing harness timing race; harness unchanged"
+      }
+    },
+    "integratedSmoke": {
+      "f04Unit": 14,
+      "f04Postgres": 13,
+      "frontendCommercial": 9,
+      "typescript": "pass",
+      "productionBuild": "pass",
+      "f04Browser": 22
     }
   },
-  "notImplemented": ["receivable/payable or C04 obligation creation", "settlement", "payment tracking", "outstanding balances", "ISSUED/APPROVED", "tax", "discounts", "FX", "project actual linkage", "inventory/COGS", "F06 estimate conversion", "F12B register reporting", "PDF/email delivery", "OCR auto-posting", "counterparty key-rotation coverage"]
+  "notImplemented": [
+    "receivable/payable or C04 obligation creation",
+    "settlement",
+    "payment tracking",
+    "outstanding balances",
+    "ISSUED/APPROVED",
+    "tax",
+    "discounts",
+    "FX",
+    "project actual linkage",
+    "inventory/COGS",
+    "F06 estimate conversion",
+    "F12B register reporting",
+    "PDF/email delivery",
+    "OCR auto-posting",
+    "counterparty key-rotation coverage"
+  ],
+  "sourceCommit": "f5aac5a53f6ad2d8cc14188c28ab13e5dc8c4701",
+  "integration": {
+    "method": "fast-forward of dev/fatima from 34d9cd86b237cc35ec2fad2cc4ef69ec6de0f877",
+    "conflicts": "none",
+    "pushedBranch": "dev/fatima only",
+    "featureBranchRemote": false
+  }
 }
