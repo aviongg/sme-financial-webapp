@@ -28,6 +28,16 @@ public interface AccountMovementRepository extends JpaRepository<AccountMovement
 
     @Query("SELECT m.accountId AS accountId, m.movementDirection AS movementDirection, SUM(m.amount) AS totalAmount " +
             "FROM AccountMovement m " +
+            "WHERE m.businessId = :businessId AND m.effectiveDate >= :startDate AND m.effectiveDate <= :endDate " +
+            "GROUP BY m.accountId, m.movementDirection")
+    List<AccountMovementSum> findMovementSumsByBusinessIdAndDateRange(
+            @Param("businessId") UUID businessId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT m.accountId AS accountId, m.movementDirection AS movementDirection, SUM(m.amount) AS totalAmount " +
+            "FROM AccountMovement m " +
             "WHERE m.accountId = :accountId AND m.effectiveDate <= :cutoffDate " +
             "GROUP BY m.accountId, m.movementDirection")
     List<AccountMovementSum> findMovementSumsByAccountIdAndCutoffDate(

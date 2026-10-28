@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,4 +25,8 @@ public interface RecordDraftRepository extends JpaRepository<RecordDraft, UUID>,
     Optional<RecordDraft> findForUpdateByIdAndBusinessId(@Param("id") UUID id, @Param("businessId") UUID businessId);
 
     Optional<RecordDraft> findByBusinessIdAndRecordedTransactionId(UUID businessId, UUID recordedTransactionId);
+
+    List<RecordDraft> findByBusinessIdAndStatus(UUID businessId, DraftStatus status);
+
+    long countByBusinessIdAndStatus(UUID businessId, DraftStatus status);
 }

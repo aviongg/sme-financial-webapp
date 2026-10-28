@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -27,4 +28,11 @@ public interface FinancialTransactionRepository extends JpaRepository<FinancialT
     Optional<FinancialTransaction> findByReversedTransactionIdAndBusinessId(UUID reversedTransactionId, UUID businessId);
 
     List<FinancialTransaction> findByBusinessIdAndReversedTransactionIdIn(UUID businessId, Collection<UUID> reversedTransactionIds);
+
+    @Query("SELECT t FROM FinancialTransaction t WHERE t.businessId = :businessId AND t.effectiveDate >= :startDate AND t.effectiveDate <= :endDate ORDER BY t.effectiveDate ASC, t.createdAt ASC, t.id ASC")
+    List<FinancialTransaction> findByBusinessIdAndDateRange(
+            @Param("businessId") UUID businessId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }
