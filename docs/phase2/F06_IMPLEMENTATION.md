@@ -1,5 +1,7 @@
 # F06 bounded pre-order costing and pricing
 
+> **Phase B (28 October 2026, local, not yet integrated):** persisted estimates, approval history and exact-fit F05 conversion are documented in [F06 Phase B](F06_PHASE_B_IMPLEMENTATION.md). This Phase A preview contract is unchanged; its screen moved from `/estimates` to `/estimates/preview` and `/estimates` is now the persisted register. Statements below that persistence is not implemented describe Phase A only.
+
 Implemented scope: stateless, non-posting manual planning preview, with an authenticated English/Urdu/RTL screen at `/estimates`. This is a bounded F06 slice; versioned estimates, approval and conversion are not implemented. Development began 18 October and resumed 19 October 2026 (Asia/Karachi) on isolated `codex/f06-bounded-costing`, based on `1f72c6e8500f4a94a103768f1d71f980395af143`. The exact tested tree was committed as `14cc912a078485ef7499c58cb5b76641c436f7f0`, then fast-forwarded into `dev/fatima` and normally pushed under the subsequent explicit integration request. No rebase, squash, merge commit or implementation change occurred during integration.
 
 ## Availability and authority

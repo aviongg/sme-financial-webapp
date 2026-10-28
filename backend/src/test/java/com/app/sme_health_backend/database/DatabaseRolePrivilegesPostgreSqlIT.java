@@ -138,7 +138,10 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "project_budget_versions",
                     "project_budget_lines",
                     "commercial_documents",
-                    "commercial_document_lines"
+                    "commercial_document_lines",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines"
             }) {
                 try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM " + table)) {
                     assertTrue(rs.next());
@@ -191,7 +194,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "project_budget_lines",
                     "commercial_documents",
                     "commercial_document_lines",
-                    "commercial_number_sequences"
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN forbidden_col INT"));
@@ -217,7 +224,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "project_budget_lines",
                     "commercial_documents",
                     "commercial_document_lines",
-                    "commercial_number_sequences"
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("DROP TABLE " + table));
@@ -243,7 +254,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "project_budget_lines",
                     "commercial_documents",
                     "commercial_document_lines",
-                    "commercial_number_sequences"
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("TRUNCATE TABLE " + table));

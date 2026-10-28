@@ -156,6 +156,22 @@ After building the live production Next frontend with the 8080 rewrite, start it
 
 The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL with synthetic accounts and explicitly disabled AI. It verifies margin/markup, cost groups, zero/unknown values, strict decimal/request bounds, access/session/business isolation, English/Urdu/mobile/keyboard, and unchanged records/score. Screenshots require visual inspection. Never point it at a developer/customer database. Actual contract, calculation precision and deferred work are in [F06 implementation](F06_IMPLEMENTATION.md); this does not establish production or policy approval.
 
+## F06 Phase B persisted estimates acceptance
+
+F06 Phase B adds only **V33** (V32 belongs to the separate F09 work and is absent until integration). Validate on disposable PostgreSQL only.
+
+```powershell
+# From backend
+.\mvnw.cmd '-Dtest=ProjectConversionValidatorTests,EstimatePersistenceParityTests,EstimateRequestReaderTests,PricingCalculatorTests,EstimatePreviewBoundaryTests' test
+.\mvnw.cmd -Ppostgres-it '-Dit.test=EstimatePlanning*IT,EstimatePreviewPostgreSqlIT,ProjectPlanning*IT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT' verify
+# From frontend
+node --test tests/estimates.test.mjs tests/estimatePlanning.test.mjs
+# Production Next on 127.0.0.1:3100 built with BACKEND_API_URL=http://127.0.0.1:8080, 8080 free; same browser environment as above
+.\mvnw.cmd '-Dtest=F06PersistedEstimatesBrowserAcceptance' test
+```
+
+The Phase A browser harness (`F06BrowserAcceptance`) now opens `/estimates/preview`. The Phase B harness compares twelve financial/score/commercial/configuration tables row-for-row and probes for zero write statements; the only permitted writes are estimate tables, one F05 DRAFT planning budget, lineage, audit and profile language. Contract: [F06 Phase B](F06_PHASE_B_IMPLEMENTATION.md).
+
 ## F04 Phase A commercial documents acceptance
 
 F04 Phase A adds only the commercial-documents migration, now **V34** (formerly V31; record-only invoices/bills, `financialEffect = NONE`). Validate the standalone Developer-B fresh history V1–V17, V30, V31, V32, V33, V34 and populated V33→V34 on disposable PostgreSQL; never a shared database. V18–V29 are intentionally absent on this standalone branch (see [Migration resequencing](IMPLEMENTATION_STATE.md#developer-b-migration-resequencing-candidate-a--30-october-2026-asiakarachi)).

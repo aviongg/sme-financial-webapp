@@ -333,6 +333,32 @@ public class ProjectPlanningService {
             UUID projectId,
             ProjectBudgetRequest request
     ) {
+        return createDraftBudget(context, projectId, request, null);
+    }
+
+    /**
+     * Internal entry point for F06 estimate conversion: the same authoritative DRAFT creation, locks and invariants,
+     * additionally recording the existing V33 {@code source_estimate_ref} provenance. Not exposed through the F05 API.
+     */
+    @Transactional
+    public ProjectBudgetVersionResponse createDraftBudgetFromEstimate(
+            BusinessAccessContext context,
+            UUID projectId,
+            ProjectBudgetRequest request,
+            String sourceEstimateRef
+    ) {
+        if (sourceEstimateRef == null || sourceEstimateRef.isBlank() || sourceEstimateRef.length() > 120) {
+            throw new IllegalArgumentException("A bounded source estimate reference is required");
+        }
+        return createDraftBudget(context, projectId, request, sourceEstimateRef);
+    }
+
+    private ProjectBudgetVersionResponse createDraftBudget(
+            BusinessAccessContext context,
+            UUID projectId,
+            ProjectBudgetRequest request,
+            String sourceEstimateRef
+    ) {
         if (request == null) {
             throw new ProjectValidationException("request", "required");
         }
@@ -404,7 +430,7 @@ public class ProjectPlanningService {
                 calculated.rawTotals().plannedMarginPct(),
                 calculated.unavailableReasons().plannedMarginPct(),
                 ProjectBudgetCalculator.CALCULATION_VERSION,
-                null,
+                sourceEstimateRef,
                 0L,
                 context.userId(),
                 context.userId(),
@@ -428,6 +454,15 @@ public class ProjectPlanningService {
         }
         projectRepository.incrementVersion(context.businessId(), projectId, context.userId(), now);
 
+        Map<String, Object> createdDetails = new LinkedHashMap<>();
+        createdDetails.put("projectId", projectId.toString());
+        createdDetails.put("revision", nextRevision);
+        createdDetails.put("status", ProjectBudgetStatus.DRAFT.name());
+        createdDetails.put("plannedRevenue", calculated.plannedRevenue());
+        createdDetails.put("plannedCost", calculated.plannedCost());
+        if (sourceEstimateRef != null) {
+            createdDetails.put("sourceEstimateRef", sourceEstimateRef);
+        }
         audit.logSuccess(
                 AuditEventType.PROJECT_BUDGET_CREATED,
                 context.userId(),
@@ -435,13 +470,7 @@ public class ProjectPlanningService {
                 context.businessId(),
                 "project_budget_version",
                 budgetVersionId.toString(),
-                Map.of(
-                        "projectId", projectId.toString(),
-                        "revision", nextRevision,
-                        "status", ProjectBudgetStatus.DRAFT.name(),
-                        "plannedRevenue", calculated.plannedRevenue(),
-                        "plannedCost", calculated.plannedCost()
-                )
+                createdDetails
         );
         return ProjectBudgetVersionResponse.fromRecord(draftRecord);
     }

@@ -88,7 +88,7 @@ try {
   await api(context.request, '/api/auth/register', { method: 'POST', status: 201, data: { email, password, fullName: 'Synthetic Pricing Owner' } });
   await api(context.request, '/api/auth/login', { method: 'POST', data: { email, password } });
   const business = await api(context.request, '/api/businesses', { method: 'POST', status: 201, data: { businessName: 'F06 Planning Studio', businessType: 'manufacturing', languagePreference: 'en', whatsappOptIn: false } });
-  await page.goto(`${base}/estimates`);
+  await page.goto(`${base}/estimates/preview`); // Phase B moved the unchanged stateless preview here
   await input('estimate-preview').waitFor();
   assert.equal(await input('line-unit-cost-0').inputValue(), '');
   assert.equal(await input('estimate-results').count(), 0);

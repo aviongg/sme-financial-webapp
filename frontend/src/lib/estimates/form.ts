@@ -1,4 +1,4 @@
-import type { EstimateLine, PricingMode, PricingPreviewRequest } from '../api/estimates';
+import type { EstimateLine, PricingMode, PricingPreviewRequest, PricingPreviewResponse } from '../api/estimates';
 
 export const MAX_ESTIMATE_LINES = 100;
 export interface DraftLine extends EstimateLine { id: string }
@@ -94,4 +94,42 @@ export function formatEstimatePercent(value: string | null): string {
   const integer = `${whole}${padded.slice(0, 2)}`.replace(/^0+(?=\d)/, '');
   const remainder = padded.slice(2).replace(/0+$/, '');
   return `${negative ? '-' : ''}${integer}${remainder ? `.${remainder}` : ''}%`;
+}
+
+/** Inverse of percentageToRatio, by decimal-point movement only: "0.2" -> "20", "0.125" -> "12.5". */
+export function ratioToPercentage(value: string): string {
+  if (!/^\d{1,12}(?:\.\d{1,12})?$/.test(value)) throw new Error('Invalid ratio');
+  const [whole, fraction = ''] = value.split('.');
+  const integer = `${whole}${fraction.slice(0, 2).padEnd(2, '0')}`.replace(/^0+(?=\d)/, '');
+  const remainder = fraction.slice(2).replace(/0+$/, '');
+  return remainder ? `${integer}.${remainder}` : integer;
+}
+
+/** Rebuilds editable inputs from a stored revision's server result; nothing is recalculated in the browser. */
+export function draftFromResult(result: PricingPreviewResponse, idPrefix: string): EstimateDraft {
+  const values = { PROPOSED_PRICE: '', TARGET_MARGIN: '', TARGET_MARKUP: '' };
+  values[result.pricingMode] = result.pricingMode === 'PROPOSED_PRICE' ? result.pricingValue : ratioToPercentage(result.pricingValue);
+  return {
+    lines: result.lines.map((line, index) => ({ id: `${idPrefix}-${index}`, costGroup: line.costGroup, description: line.description,
+      quantity: line.quantity, unit: line.unit, unitCost: line.unitCost })),
+    saleableQuantity: result.saleableQuantity ?? '', pricingMode: result.pricingMode, pricingValues: values,
+  };
+}
+
+export interface EstimateIdentityDraft { code: string; name: string; description: string }
+export type IdentityIssue = 'codeRequired' | 'codeInvalid' | 'nameRequired' | 'nameLength' | 'descriptionLength';
+const codePattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/;
+
+export function validateIdentity(identity: EstimateIdentityDraft): Partial<Record<keyof EstimateIdentityDraft, IdentityIssue>> {
+  const issues: Partial<Record<keyof EstimateIdentityDraft, IdentityIssue>> = {};
+  const code = identity.code.trim();
+  if (!code) issues.code = 'codeRequired';
+  else if (!codePattern.test(code)) issues.code = 'codeInvalid';
+  if (!identity.name.trim()) issues.name = 'nameRequired';
+  else if (identity.name.length > 160) issues.name = 'nameLength';
+  if (identity.description.length > 1000) issues.description = 'descriptionLength';
+  return issues;
+}
+export function identityPayload(identity: EstimateIdentityDraft) {
+  return { code: identity.code.trim(), name: identity.name.trim(), description: identity.description.trim() || null };
 }

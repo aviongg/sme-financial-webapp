@@ -1,3 +1,3 @@
-import { EstimateEditor } from '@/components/estimates/EstimateEditor';
+import { EstimateRegister } from '@/components/estimates/EstimateRegister';
 
-export default function EstimatesPage() { return <EstimateEditor/>; }
+export default function EstimatesPage() { return <EstimateRegister/>; }

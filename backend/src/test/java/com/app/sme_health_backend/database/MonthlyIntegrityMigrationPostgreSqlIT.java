@@ -67,7 +67,7 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
     }
 
     @Test
-    void freshV1ThroughV17PlusV30ToV35AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
+    void freshV1ThroughV17PlusV30ToV36AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
         UUID business = UUID.randomUUID(), otherBusiness = UUID.randomUUID(), actor = UUID.randomUUID();
         UUID doc = UUID.randomUUID(), doc2 = UUID.randomUUID(), record = UUID.randomUUID(), otherRecord = UUID.randomUUID();
         UUID contribution = UUID.randomUUID();
@@ -76,8 +76,8 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
                 List<String> versions = new ArrayList<>();
                 while (rs.next()) versions.add(rs.getString(1));
                 assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
-                        "13", "14", "15", "16", "17", "30", "31", "32", "33", "34", "35"), versions,
-                        "The standalone Developer-B schema contains only V1-V17 and V30-V35 (configuration, dashboard, monthly integrity, F05, F04, F09)");
+                        "13", "14", "15", "16", "17", "30", "31", "32", "33", "34", "35", "36"), versions,
+                        "The standalone Developer-B schema contains only V1-V17 and V30-V36 (configuration, dashboard, monthly integrity, F05, F04, F09, F06)");
             }
             assertPrivileges(admin, "public");
         }

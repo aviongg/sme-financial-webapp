@@ -77,6 +77,20 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                     "DROP TABLE commercial_number_sequences",
                     "TRUNCATE TABLE commercial_number_sequences",
                     "DELETE FROM commercial_number_sequences WHERE false",
+                    "ALTER TABLE estimates ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE estimates",
+                    "TRUNCATE TABLE estimates",
+                    "ALTER TABLE estimate_versions ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE estimate_versions",
+                    "TRUNCATE TABLE estimate_versions",
+                    "ALTER TABLE estimate_lines ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE estimate_lines",
+                    "TRUNCATE TABLE estimate_lines",
+                    "ALTER TABLE estimate_project_conversions ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE estimate_project_conversions",
+                    "TRUNCATE TABLE estimate_project_conversions",
+                    "UPDATE estimate_project_conversions SET converted_at=now() WHERE false",
+                    "DELETE FROM estimate_project_conversions WHERE false",
                     "UPDATE document_financial_contributions SET confirmed_amount=1 WHERE false",
                     "DELETE FROM document_financial_contributions WHERE false",
                     "SELECT * FROM flyway_schema_history",
@@ -100,7 +114,10 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                 "public.project_budget_versions",
                 "public.project_budget_lines",
                 "public.commercial_documents",
-                "public.commercial_document_lines"
+                "public.commercial_document_lines",
+                "public.estimates",
+                "public.estimate_versions",
+                "public.estimate_lines"
         }) {
             try (var migrator = connect("finsight_migrator"); var statement = migrator.createStatement()) {
                 for (String allowed : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE"}) {
