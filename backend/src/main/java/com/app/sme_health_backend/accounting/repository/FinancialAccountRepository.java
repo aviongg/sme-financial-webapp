@@ -11,11 +11,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface FinancialAccountRepository extends JpaRepository<FinancialAccount, UUID>, JpaSpecificationExecutor<FinancialAccount> {
+
+    List<FinancialAccount> findByBusinessId(UUID businessId);
 
     Optional<FinancialAccount> findByIdAndBusinessId(UUID id, UUID businessId);
 

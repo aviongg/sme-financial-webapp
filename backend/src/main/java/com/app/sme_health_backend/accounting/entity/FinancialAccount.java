@@ -67,6 +67,18 @@ public class FinancialAccount {
             String currency,
             Integer currencyDecimals,
             BigDecimal openingBalance,
+            LocalDate openingDate
+    ) {
+        this(businessId, accountName, accountType, currency, currencyDecimals, openingBalance, openingDate, AccountStatus.ACTIVE, null, null, null);
+    }
+
+    public FinancialAccount(
+            UUID businessId,
+            String accountName,
+            AccountType accountType,
+            String currency,
+            Integer currencyDecimals,
+            BigDecimal openingBalance,
             LocalDate openingDate,
             AccountStatus status,
             String institutionName,

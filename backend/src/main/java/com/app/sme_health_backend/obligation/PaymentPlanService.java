@@ -287,20 +287,20 @@ public class PaymentPlanService {
         List<ObligationPaymentSchedule> allPlannedSchedules = scheduleRepository.findByBusinessId(context.businessId())
                 .stream()
                 .filter(s -> s.getStatus() == ScheduleStatus.PLANNED)
+                .sorted(Comparator.comparing(ObligationPaymentSchedule::getExpectedDate)
+                        .thenComparingInt(ObligationPaymentSchedule::getInstallmentNumber))
                 .toList();
 
-        Map<UUID, BigDecimal> totalPlannedByObligation = new HashMap<>();
+        Map<UUID, List<ObligationPaymentSchedule>> schedulesByObligation = new LinkedHashMap<>();
         for (ObligationPaymentSchedule s : allPlannedSchedules) {
-            totalPlannedByObligation.merge(s.getObligationId(), s.getExpectedAmount(), BigDecimal::add);
+            schedulesByObligation.computeIfAbsent(s.getObligationId(), k -> new ArrayList<>()).add(s);
         }
+
+        Map<UUID, FinancialObligation> obligationById = allObligations.stream()
+                .collect(Collectors.toMap(FinancialObligation::getId, o -> o));
 
         final LocalDate finalStartDate = startDate;
         final LocalDate finalEndDate = endDate;
-
-        List<ObligationPaymentSchedule> inRangeSchedules = allPlannedSchedules.stream()
-                .filter(s -> !s.getExpectedDate().isBefore(finalStartDate) && !s.getExpectedDate().isAfter(finalEndDate))
-                .sorted(Comparator.comparing(ObligationPaymentSchedule::getExpectedDate))
-                .toList();
 
         List<PaymentCalendarItemResponse> calendarItems = new ArrayList<>();
 
@@ -311,46 +311,72 @@ public class PaymentPlanService {
         BigDecimal upcomingRec = BigDecimal.ZERO;
         BigDecimal upcomingPay = BigDecimal.ZERO;
 
-        // 1. Add scheduled installments in range
-        for (ObligationPaymentSchedule s : inRangeSchedules) {
-            Optional<FinancialObligation> obOpt = allObligations.stream().filter(o -> o.getId().equals(s.getObligationId())).findFirst();
-            if (obOpt.isEmpty()) continue;
-            FinancialObligation ob = obOpt.get();
-            if (ob.getStatus() != ObligationStatus.OPEN) continue;
+        Map<UUID, BigDecimal> remainingPlannedByObligation = new HashMap<>();
+
+        // 1. Add scheduled installments in range, absorbing effective partial settlements chronologically
+        //    and capping scheduled exposure at remaining obligation outstanding
+        for (Map.Entry<UUID, List<ObligationPaymentSchedule>> entry : schedulesByObligation.entrySet()) {
+            FinancialObligation ob = obligationById.get(entry.getKey());
+            if (ob == null || ob.getStatus() != ObligationStatus.OPEN) continue;
 
             BigDecimal paid = paidByObligation.getOrDefault(ob.getId(), BigDecimal.ZERO);
             BigDecimal outstanding = ob.getOriginalAmount().subtract(paid);
             if (outstanding.compareTo(BigDecimal.ZERO) < 0) outstanding = BigDecimal.ZERO;
             if (outstanding.compareTo(BigDecimal.ZERO) == 0) continue; // Settled obligation
 
-            Counterparty cp = cpMap.get(ob.getCounterpartyId());
-            boolean isOverdue = s.getExpectedDate().isBefore(today);
+            BigDecimal remainingPaidToAbsorb = paid;
+            BigDecimal remainingOutstandingCap = outstanding;
+            BigDecimal totalRemainingPlannedForOb = BigDecimal.ZERO;
 
-            if (ob.getDirection() == ObligationDirection.RECEIVABLE) {
-                totalExpRec = totalExpRec.add(s.getExpectedAmount());
-                if (isOverdue) overdueRec = overdueRec.add(s.getExpectedAmount());
-                else upcomingRec = upcomingRec.add(s.getExpectedAmount());
-            } else {
-                totalExpPay = totalExpPay.add(s.getExpectedAmount());
-                if (isOverdue) overduePay = overduePay.add(s.getExpectedAmount());
-                else upcomingPay = upcomingPay.add(s.getExpectedAmount());
+            for (ObligationPaymentSchedule s : entry.getValue()) {
+                BigDecimal installmentExp = s.getExpectedAmount();
+                if (remainingPaidToAbsorb.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal absorbed = remainingPaidToAbsorb.min(installmentExp);
+                    installmentExp = installmentExp.subtract(absorbed);
+                    remainingPaidToAbsorb = remainingPaidToAbsorb.subtract(absorbed);
+                }
+                if (installmentExp.compareTo(remainingOutstandingCap) > 0) {
+                    installmentExp = remainingOutstandingCap;
+                }
+                if (installmentExp.compareTo(BigDecimal.ZERO) <= 0) {
+                    continue; // Installment satisfied by prior settlement
+                }
+
+                remainingOutstandingCap = remainingOutstandingCap.subtract(installmentExp);
+                totalRemainingPlannedForOb = totalRemainingPlannedForOb.add(installmentExp);
+
+                if (!s.getExpectedDate().isBefore(finalStartDate) && !s.getExpectedDate().isAfter(finalEndDate)) {
+                    Counterparty cp = cpMap.get(ob.getCounterpartyId());
+                    boolean isOverdue = s.getExpectedDate().isBefore(today);
+
+                    if (ob.getDirection() == ObligationDirection.RECEIVABLE) {
+                        totalExpRec = totalExpRec.add(installmentExp);
+                        if (isOverdue) overdueRec = overdueRec.add(installmentExp);
+                        else upcomingRec = upcomingRec.add(installmentExp);
+                    } else {
+                        totalExpPay = totalExpPay.add(installmentExp);
+                        if (isOverdue) overduePay = overduePay.add(installmentExp);
+                        else upcomingPay = upcomingPay.add(installmentExp);
+                    }
+
+                    calendarItems.add(new PaymentCalendarItemResponse(
+                            ob.getId(),
+                            ob.getDirection().name(),
+                            ob.getCounterpartyId(),
+                            cp != null ? cp.getDisplayName() : "Unknown Counterparty",
+                            ob.getReferenceNumber(),
+                            ob.getSourceType().name(),
+                            "SCHEDULED_INSTALLMENT",
+                            s.getExpectedDate(),
+                            installmentExp.setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                            paid.setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                            outstanding.setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                            isOverdue,
+                            s.getNotes()
+                    ));
+                }
             }
-
-            calendarItems.add(new PaymentCalendarItemResponse(
-                    ob.getId(),
-                    ob.getDirection().name(),
-                    ob.getCounterpartyId(),
-                    cp != null ? cp.getDisplayName() : "Unknown Counterparty",
-                    ob.getReferenceNumber(),
-                    ob.getSourceType().name(),
-                    "SCHEDULED_INSTALLMENT",
-                    s.getExpectedDate(),
-                    s.getExpectedAmount().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
-                    paid.setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
-                    outstanding.setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
-                    isOverdue,
-                    s.getNotes()
-            ));
+            remainingPlannedByObligation.put(ob.getId(), totalRemainingPlannedForOb);
         }
 
         // 2. Add unscheduled residual obligation exposure due within range
@@ -364,7 +390,7 @@ public class PaymentPlanService {
                 if (outstanding.compareTo(BigDecimal.ZERO) < 0) outstanding = BigDecimal.ZERO;
                 if (outstanding.compareTo(BigDecimal.ZERO) == 0) continue; // Already settled
 
-                BigDecimal plannedTotal = totalPlannedByObligation.getOrDefault(ob.getId(), BigDecimal.ZERO);
+                BigDecimal plannedTotal = remainingPlannedByObligation.getOrDefault(ob.getId(), BigDecimal.ZERO);
                 BigDecimal unscheduledResidual = outstanding.subtract(plannedTotal);
                 if (unscheduledResidual.compareTo(BigDecimal.ZERO) <= 0) {
                     continue; // Fully covered by active scheduled installments; prevent double counting
@@ -384,7 +410,7 @@ public class PaymentPlanService {
                 }
 
                 String notes = plannedTotal.compareTo(BigDecimal.ZERO) > 0
-                        ? "Unscheduled residual exposure (Plan covers PKR " + plannedTotal.setScale(2, RoundingMode.UNNECESSARY).toPlainString() + ")"
+                        ? "Unscheduled residual exposure (Remaining plan covers PKR " + plannedTotal.setScale(2, RoundingMode.UNNECESSARY).toPlainString() + ")"
                         : ob.getDescription();
 
                 calendarItems.add(new PaymentCalendarItemResponse(
