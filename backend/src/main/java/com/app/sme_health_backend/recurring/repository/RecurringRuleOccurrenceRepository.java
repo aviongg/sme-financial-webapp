@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +39,14 @@ public interface RecurringRuleOccurrenceRepository extends JpaRepository<Recurri
     Optional<RecurringRuleOccurrence> findByBusinessIdAndPostedTransactionId(UUID businessId, UUID postedTransactionId);
 
     Page<RecurringRuleOccurrence> findByBusinessId(UUID businessId, Pageable pageable);
+
+    List<RecurringRuleOccurrence> findByBusinessId(UUID businessId);
+
+    List<RecurringRuleOccurrence> findByBusinessIdAndScheduledDateBetween(
+            UUID businessId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
 
     Page<RecurringRuleOccurrence> findByBusinessIdAndStatus(
             UUID businessId,

@@ -30,7 +30,11 @@ public interface RecurringRuleRepository extends JpaRepository<RecurringRule, UU
 
     Page<RecurringRule> findByBusinessId(UUID businessId, Pageable pageable);
 
+    List<RecurringRule> findByBusinessId(UUID businessId);
+
     Page<RecurringRule> findByBusinessIdAndStatus(UUID businessId, RecurringRuleStatus status, Pageable pageable);
+
+    List<RecurringRule> findByBusinessIdAndStatus(UUID businessId, RecurringRuleStatus status);
 
     List<RecurringRule> findByBusinessIdAndStatusAndNextDueDateLessThanEqual(
             UUID businessId,
