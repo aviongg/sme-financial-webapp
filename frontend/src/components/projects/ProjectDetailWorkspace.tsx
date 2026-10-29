@@ -315,14 +315,14 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }) {
         actions={
           <Link href="/projects">
             <Button type="button" variant="secondary">
-              <ArrowLeft className="w-4 h-4 me-1.5" aria-hidden="true" />
+              <ArrowLeft className="w-4 h-4 me-1.5 rtl:rotate-180" aria-hidden="true" />
               {copy.form.backToList}
             </Button>
           </Link>
         }
       >
         <Card className="space-y-3" data-testid="project-detail-error">
-          <p role="alert" className="text-sm text-[var(--color-semantic-danger)]">
+          <p role="alert" className="text-sm text-[var(--color-status-error)]">
             {localizedError(loadFailure, t)}
           </p>
           <Button type="button" variant="secondary" onClick={() => void loadWorkspace(false)}>
@@ -509,7 +509,7 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }) {
       actions={
         <Link href="/projects" data-testid="detail-back-to-projects">
           <Button type="button" variant="secondary">
-            <ArrowLeft className="w-4 h-4 me-1.5" aria-hidden="true" />
+            <ArrowLeft className="w-4 h-4 me-1.5 rtl:rotate-180" aria-hidden="true" />
             {copy.form.backToList}
           </Button>
         </Link>

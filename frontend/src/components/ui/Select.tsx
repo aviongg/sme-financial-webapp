@@ -43,7 +43,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const hasError = Boolean(error);
 
     return (
-      <div className="w-full flex flex-col gap-1.5 text-start">
+      <div className="w-full min-w-0 flex flex-col gap-1.5 text-start">
         <div className="flex items-center justify-between">
           <label
             htmlFor={id}

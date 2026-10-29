@@ -9,7 +9,6 @@ import { BusinessProfileResponse } from '@/lib/api/contracts';
 import { useLanguage } from '@/lib/i18n/context';
 import { useLiveResource } from './useLiveResource';
 import { LivePage } from './LivePage';
-import { LanguageControl } from './LanguageControl';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TeamAccess, Invitations } from './TeamAccess';
@@ -20,6 +19,7 @@ import { useConfiguration } from '@/components/configuration/ConfigurationProvid
 import { useAi } from '@/components/ai/AiProvider';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 interface Delivery {
     id: string;
     targetMonth: string;
@@ -34,7 +34,7 @@ export function LiveSettings() {
     const [error, setError] = useState('');
     const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [profile, deliveries] = await Promise.all([phaseOneApi.getProfile(), apiClient<Delivery[]>('/whatsapp/deliveries', { signal })]); return { profile, deliveries }; }, []));
     const changeBusiness = (id: string) => void session.switchBusiness(id).catch(e => setError(localizedError(e, t)));
-    return <LivePage title={t.nav.settings} {...resource}><Card padding="lg" className="space-y-4"><h2 className="font-semibold">{t.live.accountBusiness}</h2><p>{session.user?.fullName} · {session.user?.email}</p><label className="block">{t.live.activeBusiness}<select className="block border rounded-lg p-2 mt-2 max-w-full" value={session.business?.businessId || ''} onChange={e => changeBusiness(e.target.value)}>{session.businesses.filter(b => b.membershipStatus === 'ACTIVE').map(b => <option key={b.businessId} value={b.businessId}>{b.businessName} · {liveLabel(t, b.businessType)} · {liveLabel(t, b.role)}</option>)}</select></label><Link className="underline block" href="/onboarding">{t.live.anotherBusiness}</Link><p className="text-sm">{t.live.yourRole}: {liveLabel(t, session.business?.role)}</p><LanguageControl />{!session.can('BUSINESS_SETTINGS_MANAGE') && <p className="text-sm">{t.live.interfaceLanguage}</p>}{error && <p role="alert">{error}</p>}<Button variant="secondary" onClick={() => void session.logout().catch(e => setError(localizedError(e, t)))}>{t.live.signOut}</Button></Card>
+    return <LivePage title={t.nav.settings} {...resource}><Card padding="lg" className="space-y-4 min-w-0"><h2 className="font-semibold">{t.live.accountBusiness}</h2><p className="[overflow-wrap:anywhere]">{session.user?.fullName} · {session.user?.email}</p><Select label={t.live.activeBusiness} value={session.business?.businessId || ''} onChange={e => changeBusiness(e.target.value)} options={session.businesses.filter(b => b.membershipStatus === 'ACTIVE').map(b => ({ value: b.businessId, label: `${b.businessName} · ${liveLabel(t, b.businessType)} · ${liveLabel(t, b.role)}` }))}/><Link className="underline block" href="/onboarding">{t.live.anotherBusiness}</Link><p className="text-sm">{t.live.yourRole}: {liveLabel(t, session.business?.role)}</p>{!session.can('BUSINESS_SETTINGS_MANAGE') && <p className="text-sm">{t.live.interfaceLanguage}</p>}{error && <p role="alert">{error}</p>}<Button variant="secondary" onClick={() => void session.logout().catch(e => setError(localizedError(e, t)))}>{t.live.signOut}</Button></Card>
     <BusinessConfigurationPanel/>
     {ai?.available && <Card padding="md"><Link className="underline" href="/ask-finsight">{copy.ask}</Link></Card>}
     {resource.data && <WhatsAppSettings key={resource.data.profile.businessId} profile={resource.data.profile} editable={session.can('WHATSAPP_CONFIG_MANAGE')}/>}

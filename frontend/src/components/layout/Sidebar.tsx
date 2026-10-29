@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -41,15 +41,17 @@ import { inventoryCopy } from '@/lib/i18n/translations/inventory';
 
 export interface SidebarProps {
   className?: string;
+  /** Collapse state is owned by AppShell so the content offset always matches the sidebar width. */
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { can } = useSession();
   const configuration = useConfiguration(); const ai = useAi();
   const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true) && (path !== '/ask-finsight' || ai?.available === true)); };
   const { t, direction, locale } = useLanguage(); const copy = phaseTwoCopy(locale);
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
     {
@@ -153,7 +155,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* Sidebar Collapse Toggle Button */}
         <button
           type="button"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={onToggleCollapsed}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden lg:flex items-center justify-center w-7 h-7 rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
         >

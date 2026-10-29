@@ -169,7 +169,7 @@ export function CommercialDocumentList({ kind }: { kind: CommercialKind }) {
 
         {!loading && Boolean(failure) && (
           <Card className="space-y-3" data-testid="commercial-error">
-            <p role="alert" className="text-sm text-[var(--color-semantic-danger)]">{failureMessage(failure, copy)}</p>
+            <p role="alert" className="text-sm text-[var(--color-status-error)]">{failureMessage(failure, copy)}</p>
             <Button type="button" variant="secondary" onClick={reload}>{copy.retry}</Button>
           </Card>
         )}

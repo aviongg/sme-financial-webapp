@@ -58,17 +58,19 @@ export function Sheet({
 
       <div
         className={cn(
-          "relative w-full sm:max-w-[480px] bg-[var(--color-surface-card)] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] border-t sm:border border-[var(--color-border-strong)] p-6 shadow-[var(--elevation-2)] z-10 text-start transition-transform",
+          "relative w-full min-w-0 sm:max-w-[480px] bg-[var(--color-surface-card)] rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-xl)] border-t sm:border border-[var(--color-border-strong)] p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[var(--elevation-2)] z-10 text-start transition-transform",
+          // Keep the sheet within short viewports: header stays fixed, actions scroll inside the sheet.
+          "flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden",
           "animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
         )}
       >
         {/* Mobile handle indicator */}
-        <div className="sm:hidden flex justify-center -mt-2 mb-3">
+        <div className="sm:hidden flex justify-center -mt-2 mb-3 shrink-0">
           <div className="w-10 h-1 rounded-full bg-[var(--color-border-strong)]" />
         </div>
 
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
+        <div className="flex items-start justify-between gap-4 mb-4 shrink-0">
+          <div className="min-w-0">
             {title && (
               <h2 className="text-[17px] font-semibold text-[var(--color-text-primary)] font-heading">
                 {title}
@@ -84,14 +86,20 @@ export function Sheet({
           <button
             type="button"
             onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-[var(--radius-sm)] p-1 hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
+            className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-[var(--radius-sm)] p-1 hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
             aria-label="Close sheet"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div>{children}</div>
+        {/* Inset padding keeps focus outlines visible inside the scroll region. */}
+        <div
+          data-testid="sheet-scroll-region"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain -mx-1 px-1 pb-1"
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

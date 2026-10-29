@@ -231,7 +231,7 @@ export function ProjectList() {
 
         {!loading && Boolean(failure) && (
           <Card className="space-y-3" data-testid="projects-error">
-            <p role="alert" className="text-sm text-[var(--color-semantic-danger)]">
+            <p role="alert" className="text-sm text-[var(--color-status-error)]">
               {localizedError(failure, t)}
             </p>
             <Button type="button" variant="secondary" onClick={reload}>

@@ -164,7 +164,7 @@ function ProjectFormInner() {
       actions={
         <Link href="/projects" data-testid="back-to-projects-link">
           <Button type="button" variant="secondary">
-            <ArrowLeft className="w-4 h-4 me-1.5" aria-hidden="true" />
+            <ArrowLeft className="w-4 h-4 me-1.5 rtl:rotate-180" aria-hidden="true" />
             {copy.form.backToList}
           </Button>
         </Link>
@@ -200,7 +200,7 @@ function ProjectFormInner() {
             )}
 
             {Boolean(failure) && !conflictCode && (
-              <p role="alert" className="text-sm text-[var(--color-semantic-danger)]">
+              <p role="alert" className="text-sm text-[var(--color-status-error)]">
                 {localizedError(failure, t)}
               </p>
             )}
@@ -255,7 +255,7 @@ function ProjectFormInner() {
                 className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-surface-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-2 focus:outline-[var(--color-brand-primary)]"
               />
               {errorFor('description') && (
-                <p role="alert" className="text-xs text-[var(--color-semantic-danger)]">
+                <p role="alert" className="text-xs text-[var(--color-status-error)]">
                   {errorFor('description')}
                 </p>
               )}
