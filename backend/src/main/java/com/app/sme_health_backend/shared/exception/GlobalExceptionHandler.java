@@ -115,6 +115,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(com.app.sme_health_backend.risk.exception.RiskValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleRiskValidationException(
+            com.app.sme_health_backend.risk.exception.RiskValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST,
+                "Validation Failed",
+                exception.getMessage() != null ? exception.getMessage() : "One or more request parameters are invalid"
+        );
+        response.put("errors", exception.getErrors());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(com.app.sme_health_backend.accounting.draft.DraftConflictException.class)
     public ResponseEntity<Map<String, Object>> handleDraftConflictException(
             com.app.sme_health_backend.accounting.draft.DraftConflictException exception) {
