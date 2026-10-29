@@ -13,8 +13,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Verifies V30__project_planning_foundation.sql on real disposable PostgreSQL:
- * - populated V29 -> V30 upgrade preserving monthly_records, score_results, business_configuration, dashboard_preferences
+ * Verifies V33__project_planning_foundation.sql on real disposable PostgreSQL:
+ * - populated V32 -> V33 upgrade preserving monthly_records, score_results, business_configuration, dashboard_preferences
  * - UUID identity, composite tenant FKs, and partial unique indexes (one DRAFT, one APPROVED per project)
  * - enforce_project_planning_immutability() trigger protection against TRUNCATE, history deletion, and approved mutation
  * - finsight_app (SELECT, INSERT, UPDATE, DELETE) and finsight_backup (SELECT only) table privileges
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProjectPlanningMigrationPostgreSqlIT extends DisposablePostgres {
 
     @Test
-    void upgradesPopulatedV29SchemaToV30AndEnforcesConstraintsTriggersAndPrivileges() throws Exception {
+    void upgradesPopulatedV32SchemaToV33AndEnforcesConstraintsTriggersAndPrivileges() throws Exception {
         String schema = "f05_upgrade_" + UUID.randomUUID().toString().replace("-", "");
         String adminUrl = POSTGRES.getJdbcUrl("postgres", "postgres");
 
@@ -31,7 +31,7 @@ class ProjectPlanningMigrationPostgreSqlIT extends DisposablePostgres {
                 .schemas(schema)
                 .defaultSchema(schema)
                 .locations("classpath:db/migration")
-                .target("29")
+                .target("32")
                 .load()
                 .migrate();
 
@@ -76,14 +76,14 @@ class ProjectPlanningMigrationPostgreSqlIT extends DisposablePostgres {
                     .schemas(schema)
                     .defaultSchema(schema)
                     .locations("classpath:db/migration")
-                    .target("30")
+                    .target("33")
                     .load()
                     .migrate();
 
             for (var entry : before.entrySet()) {
                 try (var rows = sql.executeQuery("SELECT row_to_json(t)::text FROM " + entry.getKey() + " t")) {
                     assertTrue(rows.next());
-                    assertEquals(entry.getValue(), rows.getString(1), "Unchanged row after V30: " + entry.getKey());
+                    assertEquals(entry.getValue(), rows.getString(1), "Unchanged row after V33: " + entry.getKey());
                 }
             }
 

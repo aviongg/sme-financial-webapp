@@ -113,7 +113,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppDmlAllowed() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            // V29 is append-only; it intentionally has narrower grants than mutable domain tables.
+            // V32 (monthly record integrity) is append-only; it intentionally has narrower grants than mutable domain tables.
             for (String role : new String[] {"finsight_app", "finsight_backup"}) {
                 for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
                     boolean allowed = privilege.equals("SELECT") || role.equals("finsight_app") && privilege.equals("INSERT");

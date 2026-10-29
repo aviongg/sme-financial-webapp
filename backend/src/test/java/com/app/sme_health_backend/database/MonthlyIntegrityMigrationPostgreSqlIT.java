@@ -16,11 +16,11 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Real PostgreSQL upgrade, source constraints and least-privilege checks. */
 class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
     @Test
-    void upgradesV19WithoutInventingLegacyProvenanceOrChangingFinancialValues() throws Exception {
+    void upgradesV31WithoutInventingLegacyProvenanceOrChangingFinancialValues() throws Exception {
         String schema = "pilot_upgrade_" + UUID.randomUUID().toString().replace("-", "");
         String adminUrl = POSTGRES.getJdbcUrl("postgres", "postgres");
         Flyway.configure().dataSource(adminUrl, "postgres", "").schemas(schema).defaultSchema(schema)
-                .locations("classpath:db/migration").target("19").load().migrate();
+                .locations("classpath:db/migration").target("31").load().migrate();
         try (var connection = POSTGRES.getPostgresDatabase().getConnection(); var sql = connection.createStatement()) {
             sql.execute("SET search_path TO " + schema);
             UUID business = UUID.randomUUID(), doc = UUID.randomUUID();
@@ -41,7 +41,7 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
                 }
             }
             var result = Flyway.configure().dataSource(adminUrl, "postgres", "").schemas(schema).defaultSchema(schema)
-                    .locations("classpath:db/migration").target("29").load().migrate();
+                    .locations("classpath:db/migration").target("32").load().migrate();
             assertEquals(1, result.migrationsExecuted);
             for (var entry : before.entrySet()) {
                 String expression = entry.getKey().equals("monthly_records") ? "(to_jsonb(t)-'version')" : "to_jsonb(t)";
@@ -67,7 +67,7 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
     }
 
     @Test
-    void freshV1ThroughV19PlusV29V30AndV31AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
+    void freshV1ThroughV17PlusV30ToV34AllowsAppendOnlyRuntimeSourcesAndReadOnlyBackup() throws Exception {
         UUID business = UUID.randomUUID(), otherBusiness = UUID.randomUUID(), actor = UUID.randomUUID();
         UUID doc = UUID.randomUUID(), doc2 = UUID.randomUUID(), record = UUID.randomUUID(), otherRecord = UUID.randomUUID();
         UUID contribution = UUID.randomUUID();
@@ -76,8 +76,8 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
                 List<String> versions = new ArrayList<>();
                 while (rs.next()) versions.add(rs.getString(1));
                 assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
-                        "13", "14", "15", "16", "17", "18", "19", "29", "30", "31"), versions,
-                        "The integrated schema contains only V1-V19, V29, F05 V30 and F04 V31");
+                        "13", "14", "15", "16", "17", "30", "31", "32", "33", "34"), versions,
+                        "The standalone Developer-B schema contains only V1-V17 and V30-V34 (configuration, dashboard, monthly integrity, F05, F04)");
             }
             assertPrivileges(admin, "public");
         }

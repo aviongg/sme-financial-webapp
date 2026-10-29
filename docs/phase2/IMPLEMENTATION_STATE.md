@@ -1,5 +1,33 @@
 # Current Phase 2 implementation state
 
+## Developer-B migration resequencing (Candidate A) — 30 October 2026 (Asia/Karachi)
+
+Developer A and Developer B agreed **Candidate A**: the five already-published Developer-B migrations are renumbered so that **V18–V29 are reserved for the unified Developer-A migration history** during later branch integration. Work was done in isolated worktree `C:/Users/Hp/FYP/wt-migration-resequence`, local branch `claude/migration-resequence-v30-v34`, based exactly on `dev/fatima` `cae92058bca1063a948e4e67e6c8c2694f87aa58`. It is a local commit only, pending user review; it is not pushed or merged into `dev/fatima`.
+
+| Former file | Current file | Feature |
+|---|---|---|
+| `V18__business_configuration.sql` | `V30__business_configuration.sql` | F02 Business Configuration |
+| `V19__dashboard_preferences.sql` | `V31__dashboard_preferences.sql` | F13 Dashboard Preferences |
+| `V29__monthly_record_integrity.sql` | `V32__monthly_record_integrity.sql` | Client-pilot R02 Monthly Record Integrity |
+| `V30__project_planning_foundation.sql` | `V33__project_planning_foundation.sql` | F05 Phase A Project Planning |
+| `V31__commercial_documents_foundation.sql` | `V34__commercial_documents_foundation.sql` | F04 Phase A Commercial Documents |
+
+* Relative order is unchanged (configuration → dashboard → monthly integrity → project planning → commercial documents). The renames are pure `git mv` renames: every SQL body is **byte-identical** (100% rename similarity, identical blob SHAs), so Flyway checksums are unchanged; none of the five files contained an explicit Flyway version reference.
+* The standalone Developer-B branch history is intentionally **V1–V17, V30–V34**. There are no Developer-B migrations at V18–V29, and no placeholder or copied Developer-A migrations; the Flyway gap is intentional.
+* Migration tests now expect fresh history `1–17, 30, 31, 32, 33, 34` and the populated upgrades V17→V30 (configuration), V30→V31 (dashboard), V31→V32 (monthly integrity), V32→V33 (F05) and V33→V34 (F04).
+* **Not integrated yet:** the isolated, uncommitted F09 worktree `C:/Users/Hp/FYP/wt-f09-sampling-planning` still has local `V32__sample_cost_planning_foundation.sql` and must later be reconciled to **V35**. The F06 Phase B worktree `C:/Users/Hp/FYP/wt-f06-persisted-estimates` (`8ac5da2366160c372364a0e879df79a67a924425`) still has local `V33__persisted_estimates_and_conversion.sql` and must later be reconciled to **V36**. Neither worktree was changed by this task. No V35 or V36 exists on this branch.
+* Any database that already applied the former versions (for example a local or pilot database built from `dev/fatima` before this change) records V18/V19/V29/V30/V31 in `flyway_schema_history` and will fail validation against the renumbered files. It needs a recreate or an explicitly approved history repair before it can use this branch; no shared or production database was touched.
+* Dated sections and `verification/*.json` evidence below keep the version numbers that were current when they were recorded. Read them through the mapping above.
+
+| Gate (30 October 2026, disposable embedded PostgreSQL 14.22) | Result |
+|---|---|
+| Fresh empty database | Flyway applied exactly 22 migrations V1→V17→V30→V31→V32→V33→V34 with no duplicate-version or ordering error; `flyway_schema_history` is exactly `1–17, 30, 31, 32, 33, 34` (asserted by `CommercialDocumentMigrationPostgreSqlIT` and `MonthlyIntegrityMigrationPostgreSqlIT`), so V18–V29 are absent |
+| Populated upgrades | V17→V30 configuration, V30→V31 dashboard, V31→V32 monthly integrity (legacy MonthlyRecord values/nulls/scores preserved, no invented provenance), V32→V33 F05 and V33→V34 F04 (existing financial/score/profile/project rows unchanged) all pass |
+| Targeted PostgreSQL | **56 passed**, 0 failures/errors/skips: Configuration/Workspace/MonthlyIntegrity/ProjectPlanning/CommercialDocument migration ITs, `DisposableDatabaseRolesIT`, `BusinessConfigurationPostgreSqlIT`, `WorkspacePostgreSqlIT`, `MonthlyIntegrityPostgreSqlIT`, `ProjectPlanningPostgreSqlIT`, `CommercialDocumentPostgreSqlIT` |
+| Full accepted local Failsafe | **34 classes, 173 cases, 0 failures/errors/skips** in one run (`-Ppostgres-it '-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT'`). The 19 production-target cases (`DatabaseRolePrivilegesPostgreSqlIT` 15, `PostgreSqlTlsConnectionIT` 4) remain excluded and are not counted as passed; only a comment in the former was renumbered |
+| Full backend default suite | **1,054 run: 1,053 passed, 1 existing Windows symlink skip** (`LocalFileSystemStorageServiceTests`), 0 failures/errors |
+| Frontend | No frontend file changed and no frontend source references Flyway versions; frontend checks were not rerun |
+
 ## F04 Phase A commercial documents — integrated on dev/fatima 28 October 2026 (Asia/Karachi)
 
 Explicitly requested **F04 Invoice/Bill Phase A** (record-only commercial documents, `financialEffect = NONE`) was implemented in temporary worktree `C:/Users/Hp/FYP/wt-f04-commercial-documents` (local branch `claude/f04-commercial-documents-phase-a`) as single source commit `f5aac5a53f6ad2d8cc14188c28ab13e5dc8c4701`, whose sole parent is the previous verified `dev/fatima` tip `34d9cd86b237cc35ec2fad2cc4ef69ec6de0f877`. With `origin/dev/fatima` re-fetched and still at that SHA, `dev/fatima` was **fast-forwarded** to the exact verified commit (no conflicts, no rewritten history); this documentation-only follow-up records the completed regression. The temporary worktree and local branch are removed after push verification; no remote feature branch was ever created. `main` (`b51e276`) and `dev/suleman` (`f2ed9bd`) were not modified and no foreign implementation was inspected. User `docs/Phase_1_Backend_Remaining_Work.docx` and `tmp/` were preserved. Contract and non-goals: [F04 Phase A](F04_PHASE_A_IMPLEMENTATION.md); evidence: [dated JSON](verification/2026-10-28-f04-phase-a.json). The exact pushed SHA is reported in the external handoff.
@@ -300,10 +328,14 @@ The historical baseline failure remains recorded even if a later run passes. R01
 | Version | Feature | Author / reviewer | Filename / status / commit |
 |---|---|---|---|
 | V1–V17 | Existing MVP | Historical | Applied/tested baseline; immutable |
-| V18 | F02 | B author / A reviewer pending | V18__business_configuration.sql; implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
-| V19 | F13 | B author / A reviewer pending | V19__dashboard_preferences.sql; reserved at 9f5b2b4 on 2026-10-15, V18 upgrade tested on 16–17 October; producer `8ec373c1a600a2a480a1c9813512b2302a403319` |
-| V29 | Client-pilot R02 | B author / explicit user policy and coordinated allocation; reciprocal signoff not asserted | V29__monthly_record_integrity.sql; V19→V29 and fresh branch schema verified; producer is this hardening commit |
-| V30 | F05 Phase A — Project Planning + Budgeting Foundation | B author / A reviewer pending | V30__project_planning_foundation.sql; implemented and V29→V30 upgrade-tested on 2026-10-25 on base `ea8e812f1d891c07362883a4374754e48485c884` (`dev/fatima` via isolated worktree `codex/f05-project-planning-phase-a`); producer is the containing F05 Phase A commit |
+| V30 (formerly V18) | F02 | B author / A reviewer pending | V30__business_configuration.sql (renumbered from V18 on 2026-10-30, byte-identical); implemented and upgrade-tested on dev/fatima; reserved at 60f570c on 2026-10-12; producer is the containing milestone commit |
+| V31 (formerly V19) | F13 | B author / A reviewer pending | V31__dashboard_preferences.sql (renumbered from V19 on 2026-10-30, byte-identical); reserved at 9f5b2b4 on 2026-10-15, V18 upgrade tested on 16–17 October; producer `8ec373c1a600a2a480a1c9813512b2302a403319` |
+| V32 (formerly V29) | Client-pilot R02 | B author / explicit user policy and coordinated allocation; reciprocal signoff not asserted | V32__monthly_record_integrity.sql (renumbered from V29 on 2026-10-30, byte-identical); V19→V29 and fresh branch schema verified; producer is this hardening commit |
+| V33 (formerly V30) | F05 Phase A — Project Planning + Budgeting Foundation | B author / A reviewer pending | V33__project_planning_foundation.sql (renumbered from V30 on 2026-10-30, byte-identical); implemented and V29→V30 upgrade-tested on 2026-10-25 on base `ea8e812f1d891c07362883a4374754e48485c884` (`dev/fatima` via isolated worktree `codex/f05-project-planning-phase-a`); producer is the containing F05 Phase A commit |
+| V34 (formerly V31) | F04 Phase A — Commercial Documents | B author / A reviewer pending | V34__commercial_documents_foundation.sql (authored as V31 in `f5aac5a53f6ad2d8cc14188c28ab13e5dc8c4701`, renumbered on 2026-10-30, byte-identical) |
+| V18–V29 | Reserved for Developer A unified history | A | Absent on the standalone Developer-B branch by agreement (Candidate A); no placeholders |
+| V35 | F09 Sampling Phase A (planned) | B | Not integrated. Isolated uncommitted worktree still uses local V32__sample_cost_planning_foundation.sql; reconcile to V35 in a later task |
+| V36 | F06 Phase B persisted estimates (planned) | B | Not integrated. Worktree `claude/f06-persisted-estimates-phase-b` at `8ac5da2` still uses local V33__persisted_estimates_and_conversion.sql; reconcile to V36 in a later task |
 
 V30 reservation record: `{version:30,feature:"F05 Project / Job / Order Finance — Phase A (Project Planning + Budgeting)",author:"Developer B",reviewer:"Developer A (pending)",filename:"V30__project_planning_foundation.sql",status:"IMPLEMENTED_LOCALLY_VERIFIED",producerBranch:"dev/fatima (via isolated worktree codex/f05-project-planning-phase-a)",producerCommit:"containing commit",baseCommit:"ea8e812f1d891c07362883a4374754e48485c884",date:"2026-10-25"}`.
 
@@ -315,6 +347,6 @@ Shared-file editing for this pass is complete and released. V29 adds the documen
 
 ## Next actions and recovery
 
-This authorized hardening task ends after its single verified normal push. Do not begin another feature automatically. A later intentional branch integration must validate combined V20–V29 migrations; production/provider/client and reciprocal-review gates remain separate. F06's bounded preview is already integrated; persistence, approval/history and F05 conversion remain future work requiring a separate request. Historical R01/R02/R03 failures are retained above and superseded for this bounded development scope by the new evidence.
+This authorized hardening task ends after its single verified normal push. Do not begin another feature automatically. A later intentional branch integration must validate the combined Developer-A V18–V29 history with the Developer-B V30–V34 chain (see Candidate A resequencing above); production/provider/client and reciprocal-review gates remain separate. F06's bounded preview is already integrated; persistence, approval/history and F05 conversion remain future work requiring a separate request. Historical R01/R02/R03 failures are retained above and superseded for this bounded development scope by the new evidence.
 
 Preserved unrelated local files: `docs/Phase_1_Backend_Remaining_Work.docx` and pre-existing `tmp/`. F13 raw evidence is under `tmp/f13` and `tmp/f13-workspace-postgres*.log`; historical F02 and onboarding evidence remains under its original directories. All are untracked and excluded from publication. Do not clean them by broad recursive deletion. New chats use committed summaries and repeat required checks rather than depending on local scratch. Task-owned loopback servers are stopped after final browser acceptance; harnesses close their own browser/Spring/disposable database. No permanent local server or database was provisioned.

@@ -5,14 +5,14 @@
 * **Feature Lead / Reviewer:** Developer B (full-stack lead) / Developer A (cross-domain financial reviewer — pending)
 * **Authoritative Base:** `dev/fatima` at `ea8e812f1d891c07362883a4374754e48485c884`
 * **Isolated Worktree / Branch:** `C:/Users/Hp/FYP/wt-f05-phase-a` / `codex/f05-project-planning-phase-a`
-* **Migration:** `V30__project_planning_foundation.sql` (V1–V19 and V29 untouched; V20–V28 remain externally reserved)
+* **Migration:** `V33__project_planning_foundation.sql` (authored as V30; renumbered to V33 on 30 October 2026 under the agreed Candidate A resequencing with byte-identical SQL; it applies after V32 monthly record integrity, and V18–V29 are reserved for Developer A)
 * **Formal Status:** **PARTIAL_VERIFIED (Phase A Planning + Budgeting Foundation complete; Phase B actual revenue/cost attribution and C05/C01/C04/C08 conversion remain out of scope / blocked on cross-domain dependencies)**
 
 ---
 
 ## 1. Implemented Phase A Capabilities
 
-1. **Tenant-Scoped UUID Persistence (`V30__project_planning_foundation.sql`):**
+1. **Tenant-Scoped UUID Persistence (`V33__project_planning_foundation.sql`, formerly V30):**
    * `projects`: UUID primary key (`gen_random_uuid()`), composite tenant-scoped key `UNIQUE (business_id, id)`, business-scoped uppercase project code `UNIQUE (business_id, code)`, terminology `kind` (`PROJECT`, `JOB`, `ORDER`), lifecycle `status` (`DRAFT`, `ACTIVE`, `COMPLETED`, `CANCELLED`, `ARCHIVED`), fixed currency `'PKR'`, optional `description`, optional `start_date` and `target_end_date` (`target_end_date >= start_date`), optimistic `version`, and human actor `created_by` / `updated_by` UUIDs.
    * `project_budget_versions`: UUID primary key, composite tenant-scoped FK `(business_id, project_id) -> projects(business_id, id) ON DELETE RESTRICT`, monotonic `revision` (`UNIQUE (business_id, project_id, revision)`), status (`DRAFT`, `APPROVED`, `SUPERSEDED`), partial unique indexes enforcing at most **one** `DRAFT` (`uq_project_budget_versions_one_draft`) and at most **one** `APPROVED` (`uq_project_budget_versions_one_approved`) version per project, exact `NUMERIC` fields (`planned_revenue NUMERIC(16,4)`, `planned_cost NUMERIC(35,12)`, `planned_margin NUMERIC(35,12)`, `planned_margin_pct NUMERIC(39,12)`), nullable `source_estimate_ref VARCHAR(120)` (no FK to non-existent estimates table), optimistic `version`, and approval/supersession provenance (`approved_by`, `approved_at`, `superseded_by_budget_id`, `superseded_at`).
    * `project_budget_lines`: UUID primary key, composite tenant-scoped FK `(business_id, project_id, budget_version_id) -> project_budget_versions(business_id, project_id, id) ON DELETE CASCADE`, `line_number` (`1..100`), `category` (`MATERIAL`, `LABOUR`, `OVERHEAD`, `FREIGHT`, `OTHER`), `description`, `quantity NUMERIC(15,6)`, `unit`, `unit_cost NUMERIC(18,6)`, and server-calculated `planned_line_cost NUMERIC(33,12)`.

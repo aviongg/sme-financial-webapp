@@ -92,7 +92,7 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
     }
 
     @Test
-    void v18BusinessConfigurationAndV19DashboardPreferencesEnforceRuntimeAndBackupPrivileges() throws Exception {
+    void v30BusinessConfigurationAndV31DashboardPreferencesEnforceRuntimeAndBackupPrivileges() throws Exception {
         for (String table : new String[] {
                 "public.business_configuration",
                 "public.dashboard_preferences",

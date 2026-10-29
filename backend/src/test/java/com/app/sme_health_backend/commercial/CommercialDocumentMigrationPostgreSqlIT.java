@@ -15,8 +15,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Verifies V31__commercial_documents_foundation.sql on real disposable PostgreSQL: exact fresh migration
- * history, populated V30 -> V31 upgrade, tenant-scoped composite keys, CHECK constraints, lifecycle and
+ * Verifies V34__commercial_documents_foundation.sql on real disposable PostgreSQL: exact fresh migration
+ * history, populated V33 -> V34 upgrade, tenant-scoped composite keys, CHECK constraints, lifecycle and
  * immutability triggers, numbering uniqueness/monotonic sequences, TRUNCATE protection and role privileges.
  */
 class CommercialDocumentMigrationPostgreSqlIT extends DisposablePostgres {
@@ -25,14 +25,14 @@ class CommercialDocumentMigrationPostgreSqlIT extends DisposablePostgres {
             List.of("commercial_documents", "commercial_document_lines", "commercial_number_sequences");
 
     @Test
-    void freshMigrationContainsOnlyV1ToV19V29V30AndV31() throws Exception {
+    void freshMigrationContainsOnlyV1ToV17AndV30ToV34() throws Exception {
         try (var connection = POSTGRES.getPostgresDatabase().getConnection(); var sql = connection.createStatement()) {
             List<String> versions = new ArrayList<>();
             try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
                 while (rs.next()) versions.add(rs.getString(1));
             }
             assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15",
-                    "16", "17", "18", "19", "29", "30", "31"), versions);
+                    "16", "17", "30", "31", "32", "33", "34"), versions);
             for (String table : TABLES) {
                 try (var rs = sql.executeQuery("SELECT to_regclass('public." + table + "') IS NOT NULL")) {
                     assertTrue(rs.next());
@@ -44,10 +44,10 @@ class CommercialDocumentMigrationPostgreSqlIT extends DisposablePostgres {
     }
 
     @Test
-    void upgradesPopulatedV30SchemaAndEnforcesConstraintsTriggersAndPrivileges() throws Exception {
+    void upgradesPopulatedV33SchemaAndEnforcesConstraintsTriggersAndPrivileges() throws Exception {
         String schema = "f04_upgrade_" + UUID.randomUUID().toString().replace("-", "");
         String adminUrl = POSTGRES.getJdbcUrl("postgres", "postgres");
-        migrate(adminUrl, schema, "30");
+        migrate(adminUrl, schema, "33");
         try (var connection = POSTGRES.getPostgresDatabase().getConnection(); var sql = connection.createStatement()) {
             sql.execute("SET search_path TO " + schema);
             UUID businessA = UUID.randomUUID(), businessB = UUID.randomUUID(), user = UUID.randomUUID(), project = UUID.randomUUID();
@@ -63,9 +63,9 @@ class CommercialDocumentMigrationPostgreSqlIT extends DisposablePostgres {
                     + project + "','" + businessA + "','PRJ-F04','Upgrade fixture','PROJECT','ACTIVE',1,'" + user + "','" + user + "')");
             Map<String, String> before = snapshot(sql, List.of("monthly_records", "score_results", "business_profiles", "projects"));
 
-            migrate(adminUrl, schema, "31");
+            migrate(adminUrl, schema, "34");
             assertEquals(before, snapshot(sql, List.of("monthly_records", "score_results", "business_profiles", "projects")),
-                    "V31 must not change existing financial, score, profile or project rows");
+                    "V34 must not change existing financial, score, profile or project rows");
             assertPrivileges(sql, schema);
 
             // Draft creation with lines; explicit zero and null totals are both representable.

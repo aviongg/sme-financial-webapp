@@ -27,7 +27,7 @@ class ConfigurationMigrationPostgreSqlIT extends DisposablePostgres {
             try (var rows = sql.executeQuery("SELECT row_to_json(s)::text FROM score_results s")) { assertTrue(rows.next()); scoreBefore = rows.getString(1); }
             try (var rows = sql.executeQuery("SELECT row_to_json(p)::text FROM business_profiles p")) { assertTrue(rows.next()); profileBefore = rows.getString(1); }
             Flyway.configure().dataSource(adminUrl, "postgres", "").schemas(schema).defaultSchema(schema)
-                    .locations("classpath:db/migration").target("18").load().migrate();
+                    .locations("classpath:db/migration").target("30").load().migrate();
             try (var rows = sql.executeQuery("SELECT row_to_json(m)::text FROM monthly_records m")) { assertTrue(rows.next()); assertEquals(recordBefore, rows.getString(1)); }
             try (var rows = sql.executeQuery("SELECT row_to_json(s)::text FROM score_results s")) { assertTrue(rows.next()); assertEquals(scoreBefore, rows.getString(1)); }
             try (var rows = sql.executeQuery("SELECT row_to_json(p)::text FROM business_profiles p")) { assertTrue(rows.next()); assertEquals(profileBefore, rows.getString(1)); }

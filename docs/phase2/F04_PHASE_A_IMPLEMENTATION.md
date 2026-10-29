@@ -5,7 +5,7 @@
 * **Lead / reviewer:** Developer B / Developer A (cross-domain financial review pending)
 * **Base:** `dev/fatima` `34d9cd86b237cc35ec2fad2cc4ef69ec6de0f877` (F12B + F05 + F06 + F13 + F02 + pilot hardening)
 * **Delivery:** source commit `f5aac5a53f6ad2d8cc14188c28ab13e5dc8c4701`, fast-forwarded onto `dev/fatima`; the temporary local worktree/branch were removed and no remote feature branch exists
-* **Migration:** `V31__commercial_documents_foundation.sql` only. V1–V19, V29 and V30 are byte-unchanged; no V20–V28 or V32+ are added here (V32 is used by the separate F09 worktree).
+* **Migration:** `V34__commercial_documents_foundation.sql` only (authored as V31; renumbered to V34 on 30 October 2026 under the agreed Candidate A resequencing with byte-identical SQL). Standalone Developer-B history is V1–V17 and V30–V34; V18–V29 are reserved for Developer A. No V35+ is added here (F09 and F06 Phase B are later reconciled to V35 and V36).
 * **Formal status:** **PARTIAL_VERIFIED** for this bounded Phase A. Full F04 (issue/approve, C04 obligations, settlement) is **not** complete.
 
 ## 1. Financial boundary
@@ -41,7 +41,7 @@ Amounts serialize as exact 2-decimal strings; quantities as stripped plain decim
 
 `INV-000001` / `BILL-000001`: six digits, one monotonic sequence per business + kind in `commercial_number_sequences`, allocated only inside a successful finalize transaction. Lock order is always document row (`FOR UPDATE`) then sequence row (`INSERT … ON CONFLICT DO NOTHING` + `SELECT … FOR UPDATE`), so a rollback also rolls back the allocation and no gap is created. The sequence trigger forbids decrease, reset, delete and truncate; finalized/void numbers are immutable and tenant-scoped unique `(business_id, kind, document_number)`. Exhaustion past 999999 returns `409 document_number_exhausted`.
 
-## 5. Schema (`V31`)
+## 5. Schema (`V34`, formerly `V31`)
 
 * `commercial_documents`: UUID id, business FK, kind, status, nullable `document_number` (format CHECK per kind), `counterparty_name_ciphertext` (CHECK requires the `enc:v1:` AES-256-GCM envelope — plaintext cannot be stored), document/due dates (due ≥ document), notes, `subtotal`/`total NUMERIC(18,2)` (paired null; total = subtotal), `base_currency = 'PKR'`, `financial_effect = 'NONE'`, `calculation_version`, optimistic `version`, created/updated/finalized/voided actor UUIDs and timestamps, `void_reason`, `UNIQUE (id, business_id)`, lifecycle CHECK (DRAFT has no number/finalize/void fields; FINALIZED/VOID require number, counterparty, date, total > 0 and actors; VOID requires a non-blank reason).
 * `commercial_document_lines`: UUID id, business, document, `line_number 1..100` unique per document, description, quantity > 0, optional unit, unit_price ≥ 0, `line_amount = quantity * unit_price` CHECK (also rejects silently rounded 3-decimal inserts), composite FK `(document_id, business_id) → commercial_documents(id, business_id) ON DELETE CASCADE`.

@@ -38,7 +38,7 @@ Errors include `unknown_widget`/`layout_invalid` (400), `widget_forbidden`/`widg
 
 ## Persistence and concurrency
 
-Additive **V19__dashboard_preferences.sql** creates one optional row per `(business_id,user_id)`, both existing identity foreign keys, JSONB overrides, registry version, optimistic version and updated timestamp. Presets and financial data are not copied into database rows. V1–V18 remain unchanged. Runtime and backup grants follow the existing role pattern.
+Additive **V31__dashboard_preferences.sql** (authored as V19; renumbered on 30 October 2026 with byte-identical SQL) creates one optional row per `(business_id,user_id)`, both existing identity foreign keys, JSONB overrides, registry version, optimistic version and updated timestamp. Presets and financial data are not copied into database rows. V1–V17 and the business-configuration migration (now V30) remain unchanged. Runtime and backup grants follow the existing role pattern.
 
 Save/reset lock the existing business row before reading configuration/preferences, matching F02's configuration lock. This serializes the first insert, later updates, reset and configuration changes. Reset retains its versioned row to prevent an old version-zero tab becoming valid again. Existing security audit events record the actual actor, business, workspace operation and resulting version; no balances or provider credentials enter the preference audit payload.
 

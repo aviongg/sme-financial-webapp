@@ -7,11 +7,11 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkspaceMigrationPostgreSqlIT extends DisposablePostgres {
-    @Test void upgradesVersion18WithoutChangingConfigurationFinancialRecordsOrScoresAndGrantsRuntime() throws Exception {
+    @Test void upgradesVersion30WithoutChangingConfigurationFinancialRecordsOrScoresAndGrantsRuntime() throws Exception {
         String schema = "f13_upgrade_" + UUID.randomUUID().toString().replace("-", "");
         String adminUrl = POSTGRES.getJdbcUrl("postgres", "postgres");
         Flyway.configure().dataSource(adminUrl, "postgres", "").schemas(schema).defaultSchema(schema)
-                .locations("classpath:db/migration").target("18").load().migrate();
+                .locations("classpath:db/migration").target("30").load().migrate();
         try (var connection = POSTGRES.getPostgresDatabase().getConnection(); var sql = connection.createStatement()) {
             sql.execute("SET search_path TO " + schema);
             UUID business = UUID.randomUUID(), user = UUID.randomUUID();
@@ -29,7 +29,7 @@ class WorkspaceMigrationPostgreSqlIT extends DisposablePostgres {
                 try (var rows = sql.executeQuery("SELECT row_to_json(t)::text FROM " + table + " t")) { assertTrue(rows.next()); before.put(table, rows.getString(1)); }
             }
             Flyway.configure().dataSource(adminUrl, "postgres", "").schemas(schema).defaultSchema(schema)
-                    .locations("classpath:db/migration").target("19").load().migrate();
+                    .locations("classpath:db/migration").target("31").load().migrate();
             for (var entry : before.entrySet()) {
                 try (var rows = sql.executeQuery("SELECT row_to_json(t)::text FROM " + entry.getKey() + " t")) {
                     assertTrue(rows.next()); assertEquals(entry.getValue(), rows.getString(1));

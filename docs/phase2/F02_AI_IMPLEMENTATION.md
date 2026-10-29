@@ -4,7 +4,7 @@
 
 ## F02 configuration
 
-`configuration/` in the existing Spring application owns the operating profile, registry, dependency resolver, aggregate repository and module checks. V18 adds `business_configuration` with one business-scoped row, profile, JSON answers/module keys, optimistic version, configured flag and actual actor/timestamp. It backfills existing businesses with compatible capabilities and maps the existing category to an operating profile. New businesses have equivalent read-time defaults until first save; reads do not create configuration rows. V1–V17 and existing financial/profile/score records remain unchanged.
+`configuration/` in the existing Spring application owns the operating profile, registry, dependency resolver, aggregate repository and module checks. V30 (`V30__business_configuration.sql`, authored as V18 and renumbered on 30 October 2026 with byte-identical SQL) adds `business_configuration` with one business-scoped row, profile, JSON answers/module keys, optimistic version, configured flag and actual actor/timestamp. It backfills existing businesses with compatible capabilities and maps the existing category to an operating profile. New businesses have equivalent read-time defaults until first save; reads do not create configuration rows. V1–V17 and existing financial/profile/score records remain unchanged.
 
 Profiles are `MANUFACTURING`, `RETAIL_TRADE`, `SERVICES`, `PROJECT_ORDER`; they are distinct from the legacy score category. `presetKey` is respectively `manufacturing`, `retail-trade`, `services`, `project-order`. It supplies future F13 composition, without implementing dashboard layout persistence now. Terminology keys are localized by the frontend.
 

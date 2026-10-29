@@ -158,7 +158,7 @@ The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL w
 
 ## F04 Phase A commercial documents acceptance
 
-F04 Phase A adds only **V31** (record-only invoices/bills, `financialEffect = NONE`). Validate fresh V1–V19, V29, V30, V31 and populated V30→V31 on disposable PostgreSQL; never a shared database.
+F04 Phase A adds only the commercial-documents migration, now **V34** (formerly V31; record-only invoices/bills, `financialEffect = NONE`). Validate the standalone Developer-B fresh history V1–V17, V30, V31, V32, V33, V34 and populated V33→V34 on disposable PostgreSQL; never a shared database. V18–V29 are intentionally absent on this standalone branch (see [Migration resequencing](IMPLEMENTATION_STATE.md#developer-b-migration-resequencing-candidate-a--30-october-2026-asiakarachi)).
 
 ```powershell
 # From backend
@@ -173,7 +173,7 @@ The browser harness uses real Spring/session/CSRF, disposable PostgreSQL, Edge a
 
 ## Client-pilot hardening acceptance
 
-The coordinated migration is **V29**. Validate the current branch's V1–V19 then V29 and populated V19→V29; do not import V20–V28 or claim combined-branch sequencing. Do not target a production/shared database.
+The coordinated monthly-record-integrity migration is now **V32** (formerly V29). Validate the standalone Developer-B history V1–V17 then V30, V31, V32 and populated V31→V32; do not import Developer-A V18–V29 or claim combined-branch sequencing. Do not target a production/shared database.
 
 ```powershell
 # From backend, using the existing cached Maven fallback if needed
