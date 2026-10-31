@@ -170,7 +170,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {navItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
+          const isActive = pathname === item.href || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
@@ -196,7 +196,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
         {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
+          const isActive = pathname === item.href || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (

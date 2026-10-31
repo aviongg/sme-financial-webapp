@@ -23,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Opt-in production Next / real Spring / disposable PostgreSQL journey. No shared database or paid provider. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
-        "server.address=127.0.0.1", "server.port=8080",
+        "server.address=127.0.0.1", "server.port=${FINSIGHT_BROWSER_BACKEND_PORT:8080}",
         "app.security.internal-service-secret=f05-browser-fixture-only-not-production",
         "app.ai.enabled=false", "app.ai.live-activation-approved=false", "app.ai.api-key=",
-        "app.security.cors.allowed-origins=http://127.0.0.1:3100"
+        "app.security.cors.allowed-origins=${FINSIGHT_BROWSER_BASE_URL:http://127.0.0.1:3100}"
 })
 @ActiveProfiles("dev")
 class F05ProjectsBrowserAcceptance extends DisposablePostgres {

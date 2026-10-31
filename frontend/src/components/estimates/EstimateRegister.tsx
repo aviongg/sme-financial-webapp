@@ -94,7 +94,7 @@ export function EstimateRegister() {
       </label>
       {loading && <Card><p role="status" data-testid="estimate-register-loading">{copy.loading}</p></Card>}
       {!loading && Boolean(failure) && <Card className="space-y-3" data-testid="estimate-register-error">
-        <p role="alert" className="text-sm text-[var(--color-semantic-danger)]">{failure instanceof ApiError && failure.status === 403 ? copy.forbidden : copy.requestFailed}</p>
+        <p role="alert" className="text-sm text-[var(--color-status-error)]">{failure instanceof ApiError && failure.status === 403 ? copy.forbidden : copy.requestFailed}</p>
         <Button type="button" variant="secondary" onClick={reload}>{copy.retry}</Button>
       </Card>}
       {!loading && !failure && visible.length === 0 && <Card className="py-10 text-center space-y-3" data-testid="estimate-empty-state">

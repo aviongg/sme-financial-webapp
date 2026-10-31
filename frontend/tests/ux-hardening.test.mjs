@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 // Source-level regression guards for the responsive navigation / RTL hardening pass.
 // Real geometry is verified separately in the browser; these keep the fixes from silently regressing.
@@ -45,6 +45,21 @@ test('error text uses the defined status token, never the undefined semantic-dan
     assert.doesNotMatch(text, /--color-semantic-danger/, file);
     assert.match(text, /text-\[var\(--color-status-error\)\]/, file);
   }
+});
+
+test('no component in the integrated tree uses the undefined semantic-danger token', () => {
+  const root = new URL('../src/', import.meta.url);
+  const files = readdirSync(root, { recursive: true }).filter((file) => /\.(tsx?|css)$/.test(file));
+  assert.ok(files.length > 0);
+  for (const file of files) assert.doesNotMatch(source(`../src/${file.replaceAll('\\', '/')}`), /--color-semantic-danger/, file);
+});
+
+test('sidebar keeps every feature entry and highlights nested feature routes', () => {
+  const sidebar = source('../src/components/layout/Sidebar.tsx');
+  for (const href of ['/estimates', '/reports', '/projects', '/samples', '/invoices', '/bills', '/inventory']) {
+    assert.match(sidebar, new RegExp(`href: '${href}'`), href);
+  }
+  assert.match(sidebar, /\['\/projects', '\/samples', '\/estimates', '\/invoices', '\/bills', '\/inventory'\]/);
 });
 
 test('project back arrows reverse in RTL', () => {

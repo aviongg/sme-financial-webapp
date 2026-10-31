@@ -20,10 +20,10 @@ import static org.mockito.Mockito.when;
 
 /** Opt-in real Next/Spring/PostgreSQL financial-integrity journey; only the OCR provider is simulated. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
-        "server.address=127.0.0.1", "server.port=8080",
+        "server.address=127.0.0.1", "server.port=${FINSIGHT_BROWSER_BACKEND_PORT:8080}",
         "app.security.internal-service-secret=pilot-browser-fixture-only-not-production",
         "app.ai.enabled=false", "app.ai.live-activation-approved=false", "app.ai.api-key=",
-        "app.security.cors.allowed-origins=http://127.0.0.1:3100"
+        "app.security.cors.allowed-origins=${FINSIGHT_BROWSER_BASE_URL:http://127.0.0.1:3100}"
 })
 @ActiveProfiles("dev")
 class PilotHardeningBrowserAcceptance extends DisposablePostgres {
