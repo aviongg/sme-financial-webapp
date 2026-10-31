@@ -17,6 +17,7 @@ import {
   Receipt,
   ReceiptText,
   FlaskConical,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -30,6 +31,7 @@ import { reportsCopy } from '@/lib/i18n/translations/reports';
 import { projectsCopy } from '@/lib/i18n/translations/projects';
 import { samplesCopy } from '@/lib/i18n/translations/samples';
 import { commercialCopy } from '@/lib/i18n/translations/commercial';
+import { inventoryCopy } from '@/lib/i18n/translations/inventory';
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -43,6 +45,7 @@ export function MobileNav() {
   const projects = projectsCopy(locale);
   const commercial = commercialCopy(locale);
   const samples = samplesCopy(locale);
+  const inventory = inventoryCopy(locale);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   const tabs = [
@@ -178,6 +181,12 @@ export function MobileNav() {
             <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><ReceiptText className="w-5 h-5"/></div>
             <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{commercial.kinds.BILL.title}</p>
               <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{commercial.recordOnlyTitle}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/inventory') && <button type="button" onClick={() => handleActionSelect('/inventory')} data-testid="mobile-inventory-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Boxes className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{inventory.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{inventory.catalogBannerTitle}</p></div>
           </button>}
           {!isDemoMode && allowed('/estimates') && <button type="button" onClick={() => handleActionSelect('/estimates')}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">

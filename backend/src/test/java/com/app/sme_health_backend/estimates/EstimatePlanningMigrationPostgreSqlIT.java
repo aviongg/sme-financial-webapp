@@ -27,14 +27,14 @@ class EstimatePlanningMigrationPostgreSqlIT extends DisposablePostgres {
     private static final String MAX = "999999999999.999999999999";
 
     @Test
-    void freshMigrationContainsV1ToV17AndV30ToV36() throws Exception {
+    void freshMigrationContainsV1ToV17AndV30ToV37() throws Exception {
         try (var connection = POSTGRES.getPostgresDatabase().getConnection(); var sql = connection.createStatement()) {
             List<String> versions = new ArrayList<>();
             try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
                 while (rs.next()) versions.add(rs.getString(1));
             }
             assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15",
-                    "16", "17", "30", "31", "32", "33", "34", "35", "36"), versions);
+                    "16", "17", "30", "31", "32", "33", "34", "35", "36", "37"), versions);
             for (String table : TABLES) {
                 try (var rs = sql.executeQuery("SELECT to_regclass('public." + table + "') IS NOT NULL")) {
                     assertTrue(rs.next());

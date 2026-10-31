@@ -207,6 +207,23 @@ node node_modules/next/dist/bin/next build --webpack
 
 The F09 browser harness authenticates through real Spring/session/CSRF, uses disposable PostgreSQL and production Next/Edge with synthetic accounts, and captures EN/UR/RTL/mobile screenshots. It compares fifteen complete table snapshots and probes write statements on actual records/scores, project budgets and F04 documents/number sequences. Inspect screenshots and retain failed attempts with final evidence. Shared-navigation regressions are F04CommercialBrowserAcceptance, F05ProjectsBrowserAcceptance, F12bReportsBrowserAcceptance, F06BrowserAcceptance, F13BrowserAcceptance, PilotHardeningBrowserAcceptance and F02AiBrowserAcceptance; the separate local F06 Phase B and frontend UX hardening branches are not imported. Contract and qualified results: [F09 Phase A](F09_PHASE_A_IMPLEMENTATION.md).
 
+## F08 Phase A inventory catalog and valuation preview (local branch only)
+
+F08 Phase A adds only **V37** (`inventory_items`, catalog identity only). On the isolated F08 branch the history is temporarily V1–V17, V30–V34, V37 because V35 (F09) and V36 (F06) are reserved but not yet integrated; after they land, re-verify the full V1–V37 sequence. Use disposable PostgreSQL only.
+
+```powershell
+# From backend
+.\mvnw.cmd '-Dtest=WeightedAverageCostCalculatorTests,InventoryRequestAndPreviewTests' -Ppostgres-it '-Dit.test=Inventory*IT,CommercialDocumentMigrationPostgreSqlIT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT' verify
+# From frontend
+node --test tests/inventory.test.mjs
+# After the live production Next build is running on 127.0.0.1:3100 with 8080 free; same browser environment as above.
+# If another task owns those ports, build Next with BACKEND_API_URL pointing at a free Spring port and set
+# F08_BROWSER_WEB_PORT / F08_BROWSER_API_PORT accordingly.
+.\mvnw.cmd '-Dtest=F08InventoryBrowserAcceptance' test
+```
+
+The browser harness verifies sixteen unchanged financial/score/project/commercial/configuration tables plus zero write statements on eight probed tables. Contract and non-goals: [F08 Phase A](F08_PHASE_A_IMPLEMENTATION.md).
+
 ## Client-pilot hardening acceptance
 
 The coordinated monthly-record-integrity migration is now **V32** (formerly V29). Validate the standalone Developer-B history V1–V17 then V30, V31, V32 and populated V31→V32; do not import Developer-A V18–V29 or claim combined-branch sequencing. Do not target a production/shared database.

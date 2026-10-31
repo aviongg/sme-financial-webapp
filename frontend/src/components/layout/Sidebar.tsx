@@ -22,6 +22,7 @@ import {
   Receipt,
   ReceiptText,
   FlaskConical,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -36,6 +37,7 @@ import { reportsCopy } from '@/lib/i18n/translations/reports';
 import { projectsCopy } from '@/lib/i18n/translations/projects';
 import { samplesCopy } from '@/lib/i18n/translations/samples';
 import { commercialCopy } from '@/lib/i18n/translations/commercial';
+import { inventoryCopy } from '@/lib/i18n/translations/inventory';
 
 export interface SidebarProps {
   className?: string;
@@ -71,6 +73,7 @@ export function Sidebar({ className }: SidebarProps) {
     ...(!isDemoMode ? [{ label: samplesCopy(locale).nav, href: '/samples', icon: FlaskConical }] : []),
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.INVOICE.nav, href: '/invoices', icon: Receipt }] : []),
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.BILL.nav, href: '/bills', icon: ReceiptText }] : []),
+    ...(!isDemoMode ? [{ label: inventoryCopy(locale).nav, href: '/inventory', icon: Boxes }] : []),
     {
       label: t.nav.addData,
       href: "/records/new",
@@ -165,7 +168,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {navItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills'].includes(item.href) && pathname.startsWith(`${item.href}/`));
+          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
@@ -191,7 +194,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
         {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills'].includes(item.href) && pathname.startsWith(`${item.href}/`));
+          const isActive = pathname === item.href || (['/projects', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
