@@ -224,9 +224,9 @@ node --test tests/inventory.test.mjs
 
 The browser harness verifies sixteen unchanged financial/score/project/commercial/configuration tables plus zero write statements on eight probed tables. Contract and non-goals: [F08 Phase A](F08_PHASE_A_IMPLEMENTATION.md).
 
-## Local integrated Developer-B candidate (V35–V37)
+## Final Developer-B candidate (V35–V37)
 
-The local candidate branch `claude/dev-b-integration-v35-v37` must have fresh history exactly V1–V17, V30–V37 (`DeveloperBIntegratedMigrationPostgreSqlIT` also proves the populated V34 → V35 → V36 → V37 upgrade). Run the accepted PostgreSQL suite in sequential batches of a few classes (one large Failsafe run can be stopped by the host for low memory), always excluding `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT`:
+`dev/fatima` (final Developer-B candidate, built locally as `claude/dev-b-integration-v35-v37`) must have fresh history exactly V1–V17, V30–V37 (`DeveloperBIntegratedMigrationPostgreSqlIT` also proves the populated V34 → V35 → V36 → V37 upgrade). Run the accepted PostgreSQL suite in sequential batches of a few classes (one large Failsafe run can be stopped by the host for low memory), always excluding `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT`:
 
 ```powershell
 # From backend; repeat with each batch of class names
@@ -237,6 +237,8 @@ The local candidate branch `claude/dev-b-integration-v35-v37` must have fresh hi
 ```
 
 `DevBIntegrationBrowserAcceptance` checks every navigation entry, the sidebar collapse offset, the active business name, RTL arrows and the mobile `+` sheet (all ten actions at 390×844 and 390×600, EN and UR/RTL) with whole-row snapshots and write probes on financial and feature tables. Dashboard reads issue pre-existing no-op `score_results` UPDATEs (Hibernate dirty check); the harness requires those rows to remain identical and reports the count separately.
+
+`DatabaseRolePrivilegesPostgreSqlIT` defines the V35 sample, V36 conversion and V37 inventory runtime/backup grants but is a production-target class: it must compile locally and is executed only in its explicit acceptance environment (an external release gate, together with `PostgreSqlTlsConnectionIT`). The local equivalent is `DisposableDatabaseRolesIT`.
 
 ## Client-pilot hardening acceptance
 

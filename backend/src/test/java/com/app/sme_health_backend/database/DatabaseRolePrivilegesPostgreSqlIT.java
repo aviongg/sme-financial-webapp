@@ -109,7 +109,7 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     }
 
     @Test
-    @DisplayName("finsight_app DML allowed and finsight_backup read-only on domain and F02/F13 tables")
+    @DisplayName("finsight_app DML allowed and finsight_backup read-only on domain, F02/F13, F04-F06, F08 and F09 tables")
     void testFinsightAppDmlAllowed() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
@@ -139,6 +139,9 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "project_budget_lines",
                     "commercial_documents",
                     "commercial_document_lines",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
                     "estimates",
                     "estimate_versions",
                     "estimate_lines"
@@ -161,6 +164,21 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_backup', 'public." + table + "', '" + denied + "')")) {
                         assertTrue(rs.next());
                         assertFalse(rs.getBoolean(1));
+                    }
+                }
+            }
+            // V36 conversion lineage is append-only and the V37 catalog has no runtime DELETE (archive is the only exit).
+            for (String[] grant : new String[][] {
+                    {"estimate_project_conversions", "SELECT,INSERT"},
+                    {"inventory_items", "SELECT,INSERT,UPDATE"}
+            }) {
+                java.util.List<String> runtime = java.util.List.of(grant[1].split(","));
+                for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_app', 'public." + grant[0] + "', '" + privilege + "'),"
+                            + " has_table_privilege('finsight_backup', 'public." + grant[0] + "', '" + privilege + "')")) {
+                        assertTrue(rs.next());
+                        assertEquals(runtime.contains(privilege), rs.getBoolean(1), "finsight_app " + privilege + " on " + grant[0]);
+                        assertEquals(privilege.equals("SELECT"), rs.getBoolean(2), "finsight_backup " + privilege + " on " + grant[0]);
                     }
                 }
             }
@@ -198,7 +216,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "estimates",
                     "estimate_versions",
                     "estimate_lines",
-                    "estimate_project_conversions"
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN forbidden_col INT"));
@@ -228,7 +250,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "estimates",
                     "estimate_versions",
                     "estimate_lines",
-                    "estimate_project_conversions"
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("DROP TABLE " + table));
@@ -258,7 +284,11 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
                     "estimates",
                     "estimate_versions",
                     "estimate_lines",
-                    "estimate_project_conversions"
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
             }) {
                 SQLException ex = assertThrows(SQLException.class,
                         () -> stmt.executeUpdate("TRUNCATE TABLE " + table));

@@ -77,6 +77,15 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                     "DROP TABLE commercial_number_sequences",
                     "TRUNCATE TABLE commercial_number_sequences",
                     "DELETE FROM commercial_number_sequences WHERE false",
+                    "ALTER TABLE sample_activities ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE sample_activities",
+                    "TRUNCATE TABLE sample_activities",
+                    "ALTER TABLE sample_cost_plan_versions ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE sample_cost_plan_versions",
+                    "TRUNCATE TABLE sample_cost_plan_versions",
+                    "ALTER TABLE sample_cost_plan_lines ADD COLUMN forbidden_runtime_column integer",
+                    "DROP TABLE sample_cost_plan_lines",
+                    "TRUNCATE TABLE sample_cost_plan_lines",
                     "ALTER TABLE estimates ADD COLUMN forbidden_runtime_column integer",
                     "DROP TABLE estimates",
                     "TRUNCATE TABLE estimates",
@@ -119,6 +128,9 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                 "public.project_budget_lines",
                 "public.commercial_documents",
                 "public.commercial_document_lines",
+                "public.sample_activities",
+                "public.sample_cost_plan_versions",
+                "public.sample_cost_plan_lines",
                 "public.estimates",
                 "public.estimate_versions",
                 "public.estimate_lines"
@@ -144,6 +156,25 @@ class DisposableDatabaseRolesIT extends DisposablePostgres {
                     try (var rs = statement.executeQuery("SELECT has_table_privilege('finsight_backup', '" + table + "', '" + forbidden + "')")) {
                         assertTrue(rs.next());
                         assertFalse(rs.getBoolean(1), "finsight_backup must not have " + forbidden + " on " + table);
+                    }
+                }
+            }
+        }
+
+        // Narrower runtime grants: V36 conversion lineage is append-only (SELECT, INSERT) and the V37 catalog has no
+        // DELETE (archive is the only exit). Backup stays read-only on both.
+        for (String[] grant : new String[][] {
+                {"public.estimate_project_conversions", "SELECT,INSERT"},
+                {"public.inventory_items", "SELECT,INSERT,UPDATE"}
+        }) {
+            java.util.List<String> runtime = java.util.List.of(grant[1].split(","));
+            try (var migrator = connect("finsight_migrator"); var statement = migrator.createStatement()) {
+                for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
+                    try (var rs = statement.executeQuery("SELECT has_table_privilege('finsight_app', '" + grant[0] + "', '" + privilege + "'),"
+                            + " has_table_privilege('finsight_backup', '" + grant[0] + "', '" + privilege + "')")) {
+                        assertTrue(rs.next());
+                        assertEquals(runtime.contains(privilege), rs.getBoolean(1), "finsight_app " + privilege + " on " + grant[0]);
+                        assertEquals(privilege.equals("SELECT"), rs.getBoolean(2), "finsight_backup " + privilege + " on " + grant[0]);
                     }
                 }
             }

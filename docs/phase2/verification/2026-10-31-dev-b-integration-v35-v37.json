@@ -2,7 +2,7 @@
   "subject": "Local integrated Developer-B candidate: F09 Phase A (V35), F06 Phase B (V36), F08 Phase A (V37), frontend UX hardening",
   "date": "2026-10-31",
   "timezone": "Asia/Karachi",
-  "status": "LOCAL_CANDIDATE_VERIFIED_NOT_PUSHED",
+  "status": "FINAL_DEVELOPER_B_CANDIDATE_AUTHORIZED_FOR_DEV_FATIMA_FAST_FORWARD",
   "source": {
     "repository": "aviongg/sme-financial-webapp",
     "worktree": "C:/Users/Hp/FYP/wt-dev-b-integration-v35-v37",
@@ -91,8 +91,21 @@
   "laterIntegrationNotes": [
     "Fast-forwardable onto origin/dev/fatima only while it remains 311de78.",
     "Developer-A unified V18-V29 history and its fresh-history expectations must be merged with these V1-V17,V30-V37 assertions.",
-    "DatabaseRolePrivilegesPostgreSqlIT (production-target) lists F06 tables but not F09 sample or F08 inventory tables; extend before production-target acceptance.",
+    "DatabaseRolePrivilegesPostgreSqlIT now defines F09 sample, F06 conversion and F08 inventory grants (finalization follow-up); it still must be executed in the production-target acceptance environment.",
     "Any database that applied isolated F06 V33 or F09 V32 needs recreation.",
     "Developer-A review of F06 conversion, F08 draft WAC policy and F09 planning remains pending."
-  ]
+  ],
+  "finalization": {
+    "authorization": "User authorized final pre-publish cleanup and fast-forward publication of dev/fatima from 311de78 on 31 October 2026",
+    "followUpCommit": "test-only privilege definitions + docs/handoff; exact SHA reported externally",
+    "productionCodeOrMigrationChanged": false,
+    "privilegeDefinitions": {
+      "DatabaseRolePrivilegesPostgreSqlIT": "sample_activities, sample_cost_plan_versions, sample_cost_plan_lines: app SELECT/INSERT/UPDATE/DELETE, backup SELECT only; estimate_project_conversions: app SELECT/INSERT only; inventory_items: app SELECT/INSERT/UPDATE (no DELETE); backup read-only; ALTER/DROP/TRUNCATE denied on all five new entries. Compiled; NOT executed (production-target environment absent)",
+      "DisposableDatabaseRolesIT": "same coverage added inside existing methods; 6/6 pass",
+      "DeveloperBIntegratedMigrationPostgreSqlIT": "2/2 pass (re-run)",
+      "acceptedTotalsUnchanged": "41 classes / 196 cases (no new test methods)"
+    },
+    "port3100": "PID 13920 verified as the stale Codex F09 'next start --port 3100' server (Codex node runtime, launched by Codex pwsh logging to wt-f09-sampling-planning/logs/f09/production-next-server-oct31.log) and stopped",
+    "scoreNoOpUpdates": "Existing behaviour / technical debt: 77 no-op UPDATE score_results with identical rows; not a data-integrity failure; no numerical score mutation; AdviceContextService and score persistence intentionally unchanged"
+  }
 }
