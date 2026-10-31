@@ -21,6 +21,7 @@ import {
   FolderKanban,
   Receipt,
   ReceiptText,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -33,6 +34,7 @@ import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
 import { reportsCopy } from '@/lib/i18n/translations/reports';
 import { projectsCopy } from '@/lib/i18n/translations/projects';
+import { samplesCopy } from '@/lib/i18n/translations/samples';
 import { commercialCopy } from '@/lib/i18n/translations/commercial';
 
 export interface SidebarProps {
@@ -66,6 +68,7 @@ export function Sidebar({ className }: SidebarProps) {
     ...(!isDemoMode ? [{ label: estimatesCopy(locale).nav, href: '/estimates', icon: Calculator }] : []),
     ...(!isDemoMode ? [{ label: reportsCopy(locale).nav, href: '/reports', icon: FileText }] : []),
     ...(!isDemoMode ? [{ label: projectsCopy(locale).nav, href: '/projects', icon: FolderKanban }] : []),
+    ...(!isDemoMode ? [{ label: samplesCopy(locale).nav, href: '/samples', icon: FlaskConical }] : []),
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.INVOICE.nav, href: '/invoices', icon: Receipt }] : []),
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.BILL.nav, href: '/bills', icon: ReceiptText }] : []),
     {

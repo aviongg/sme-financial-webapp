@@ -1,0 +1,812 @@
+{
+  "schemaVersion": 1,
+  "feature": "F09 Phase A — Sampling and production cost planning",
+  "date": "2026-10-31",
+  "timezone": "Asia/Karachi",
+  "status": "PARTIAL_VERIFIED_BOUNDED_PHASE_A_LOCAL_ONLY",
+  "source": {
+    "repository": "aviongg/sme-financial-webapp",
+    "worktree": "C:/Users/Hp/FYP/wt-f09-sampling-planning",
+    "branch": "codex/f09-sampling-planning-phase-a",
+    "base": "311de78f1b517aaaf09420914ebe6a32371280e1",
+    "sourceState": "Tested feature tree on 311de78, recorded by the containing single local feature commit. No integration or push.",
+    "baseVerification": "Primary agent reports successful 31 October fetch still at 311de78f1b517aaaf09420914ebe6a32371280e1; local HEAD and origin/dev/fatima equality directly checked for this record.",
+    "commitAuthorized": true,
+    "pushAuthorized": false,
+    "pushed": false,
+    "integrated": false,
+    "deliveryIdentity": "Containing local commit: git log -1 -- docs/phase2/verification/2026-10-31-f09-phase-a.json; exact SHA reported externally, avoiding a self-referencing commit."
+  },
+  "scope": {
+    "financialBasis": "PLANNED_ONLY",
+    "kinds": [
+      "SAMPLE",
+      "PRODUCTION_COST_ACTIVITY"
+    ],
+    "recoveryIntents": [
+      "FREE",
+      "PAID",
+      "PARTIAL"
+    ],
+    "roles": {
+      "mutate": [
+        "OWNER",
+        "ACCOUNTANT"
+      ],
+      "readOnly": [
+        "MANAGER",
+        "VIEWER"
+      ]
+    },
+    "actualFinancials": "NOT_IMPLEMENTED_PHASE_A",
+    "reciprocalReview": "PENDING",
+    "productionAcceptance": "NOT_PERFORMED"
+  },
+  "migration": {
+    "added": "backend/src/main/resources/db/migration/V35__sample_cost_planning_foundation.sql",
+    "freshHistory": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35"
+    ],
+    "unchanged": "Canonical V1–V17 and V30–V34",
+    "intentionalAbsentRange": "V18–V29 reserved for Developer A; no placeholders imported",
+    "separateReservation": "V36 belongs to separate F06 Phase B and is absent from this feature",
+    "populatedUpgrade": [
+      "33",
+      "34",
+      "35"
+    ],
+    "upgradePreservation": "Seeded F05 budgets, actual monthly records/scores/configuration preserved through V34; actual F04 invoice/line/number-sequence and draft bill fixtures preserved through V35, with original F04 immutability/numbering protections rechecked."
+  },
+  "reconciliation": [
+    {
+      "date": "2026-10-28",
+      "from": "34d9cd86b237cc35ec2fad2cc4ef69ec6de0f877",
+      "to": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+      "stash": "0e8001eaa51b7ecbceefc500a616ca8169f2c692",
+      "retained": true,
+      "filesPreserved": 34,
+      "tracked": 3,
+      "untracked": 31,
+      "process": "Git blob/SHA256 preservation verification; same branch fast-forward; stash apply, no reset or preservation commit.",
+      "conflicts": 2,
+      "resolutions": [
+        "IMPLEMENTATION_STATE.md retained both F04 and F09 entries.",
+        "MonthlyIntegrityMigrationPostgreSqlIT.java retained existing assertions and then-current full migration history."
+      ],
+      "localEvidencePrefix": "logs/f09/reconcile-"
+    },
+    {
+      "date": "2026-10-30",
+      "from": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+      "to": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "stash": "3525b88428951a92c7c7f7cf5095a53f685e6e27",
+      "retained": true,
+      "filesPreserved": 58,
+      "tracked": 8,
+      "untracked": 50,
+      "process": "Git blob/SHA256 preservation verification; same branch fast-forward; stash apply, no reset or preservation commit.",
+      "conflicts": 3,
+      "resolutions": [
+        "docs/phase2/IMPLEMENTATION_STATE.md retains Candidate A history and current F09 checkpoint.",
+        "CommercialDocumentMigrationPostgreSqlIT.java preserves canonical V33→V34 tests; only fresh method/list includes V35.",
+        "MonthlyIntegrityMigrationPostgreSqlIT.java preserves canonical V31→V32 upgrade and encrypted fixture assertions; only fresh method/list/diagnostic includes V35."
+      ],
+      "additionalAdaptations": [
+        "Only task-local F09 migration renamed V32→V35; SQL statements unchanged, descriptive F04 header updated to V34.",
+        "F09 populated migration test now V33→V34→V35; exact fresh list V1–V17,V30–V35."
+      ],
+      "localEvidencePrefix": "logs/f09/resequence-"
+    }
+  ],
+  "environment": {
+    "java": "26.0.1 compiling release21 (direct backend log)",
+    "postgresql": "14.22 disposable embedded zonky (direct backend log)",
+    "next": "16.3.8 webpack (direct build log)",
+    "maven": "3.9.16 cached Maven distribution; offline dependencies",
+    "node": "24.22.1 (direct browser process log)",
+    "browser": "Microsoft Edge via Playwright; actual production Next/Spring/disposable PostgreSQL",
+    "qualification": "Local development stack and synthetic fixtures; not production Java21/PostgreSQL17/TLS or live-provider acceptance."
+  },
+  "results": {
+    "backendFull": {
+      "status": "PASS_WITH_EXISTING_SKIP",
+      "base": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "finishedAt": "2026-10-30T10:37:07+05:00",
+      "log": "logs/f09/resequenced-full-backend.log",
+      "commandSemantics": "Maven verify with postgres-it; accepted *IT excludes DatabaseRolePrivilegesPostgreSqlIT and PostgreSqlTlsConnectionIT.",
+      "default": {
+        "classes": 104,
+        "run": 1119,
+        "passed": 1118,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skip": "Existing Windows symlink case in LocalFileSystemStorageServiceTests."
+      },
+      "postgres": {
+        "classes": 36,
+        "run": 184,
+        "passed": 184,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "countsBasis": "Individual run log summary and independently summed per-class lines; not accumulated stale report XML."
+    },
+    "targetedNewBase": {
+      "status": "PASS",
+      "finishedAt": "2026-10-30T10:32:42+05:00",
+      "log": "logs/f09/resequenced-targeted-backend.log",
+      "unit": {
+        "run": 65,
+        "passed": 65,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "postgres": {
+        "run": 29,
+        "passed": 29,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "f09Cases": {
+      "unit": {
+        "SampleLifecycleTests": 3,
+        "SamplePlanCalculatorTests": 26,
+        "SampleProjectLinkExceptionHandlerTests": 10,
+        "SampleProjectLockingTests": 1,
+        "SampleRequestReaderTests": 25
+      },
+      "postgres": {
+        "SamplePlanningMigrationPostgreSqlIT": 2,
+        "SamplePlanningPostgreSqlIT": 9
+      },
+      "status": "PASS_IN_NEW_BASE_FULL_RUN",
+      "coverage": [
+        "Exact arithmetic and precision bounds; FREE zero and PAID/PARTIAL unknown versus explicit zero.",
+        "Real session/CSRF and OWNER/ACCOUNTANT mutations versus MANAGER/VIEWER read-only; tenant and actor attribution.",
+        "Plan draft/approval/update races, optimistic conflicts, immutable approval/supersession and archived lifecycle.",
+        "Raw SQL scoped FKs, uniqueness, checks, deferred exact line sums, old and new line parents, history preservation, grants and TRUNCATE restrictions.",
+        "Linked F05 draft project deletion returns409; explicit sample detach permits project deletion without unrelated financial changes.",
+        "Nonempty actual/F05/F04 fixture snapshots remain unchanged during F09 operations."
+      ]
+    },
+    "frontendUnit": {
+      "status": "PASS",
+      "run": 134,
+      "passed": 134,
+      "failures": 0,
+      "skipped": 0,
+      "f09Cases": 15,
+      "command": "node --test tests/*.test.mjs",
+      "retainedLog": "logs/f09/frontend-unit.log",
+      "laterVerification": "Frontend agent reported a fresh134/134 pass after scoped lint repairs. The earlier retained log also shows134/134; later direct log was not retained. Primary confirms no subsequent frontend edits at this checkpoint.",
+      "finalTreeReconfirmation": "2026-10-31 takeover: node --test tests/*.test.mjs directly rerun on the exact final tree: 134 tests, 134 pass, 0 fail/cancelled/skipped."
+    },
+    "typescript": {
+      "status": "PASS",
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "finalTreeReconfirmation": "2026-10-31 takeover: directly rerun on the exact final tree, exit 0; ESLint also rerun: exit 0, 0 errors, 1 existing SessionProvider warning.",
+      "standaloneEvidence": "Frontend agent reported exit0 after scoped lint repairs; logs/f09/frontend-typescript.log is empty and does not independently prove exit status.",
+      "directBuildEvidence": "logs/f09/resequenced-frontend-build.log reports Finished TypeScript in8.4s and completed production build."
+    },
+    "eslint": {
+      "status": "PASS_WITH_EXISTING_WARNING",
+      "command": "node node_modules/eslint/bin/eslint.js",
+      "latestReportedResult": {
+        "errors": 0,
+        "warnings": 1,
+        "warning": "Existing SessionProvider ref-cleanup warning",
+        "basis": "Direct final log contains0errors/1warning; primary agent confirms command exit0 on31October."
+      },
+      "retainedEarlierLog": "logs/f09/frontend-eslint.log",
+      "earlierResult": {
+        "errors": 11,
+        "warnings": 1,
+        "status": "FAIL"
+      },
+      "finalLog": "logs/f09/final-frontend-eslint.log"
+    },
+    "productionBuild": {
+      "status": "PASS",
+      "log": "logs/f09/resequenced-frontend-build.log",
+      "command": "node node_modules/next/dist/bin/next build --webpack",
+      "base": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "date": "2026-10-30",
+      "compileSeconds": 32.6,
+      "typescriptSeconds": 8.4,
+      "routes": [
+        "/samples",
+        "/samples/new",
+        "/samples/[id]"
+      ],
+      "warnings": [
+        "Existing middleware file convention deprecation.",
+        "Next dynamic-rendering dependency references process.cwd unsupported by Edge Runtime."
+      ]
+    },
+    "realBrowser": {
+      "status": "PASS",
+      "passed": 20,
+      "failed": 0,
+      "harness": "backend/src/test/java/com/app/sme_health_backend/testsupport/F09SamplesBrowserAcceptance.java",
+      "script": "scripts/test_f09_samples_browser.mjs",
+      "plannedStack": "Production Next + actual Spring/session/CSRF + disposable PostgreSQL + Edge; synthetic accounts/data and AI disabled",
+      "runtimeErrors": 0,
+      "cspErrors": 0,
+      "hydrationErrors": 0,
+      "externalRequests": 0,
+      "screenshotsReviewed": true,
+      "databaseBoundaryResult": {
+        "wholeRowTablesCompared": 15,
+        "monthlyRecordWriteStatements": 0,
+        "scoreResultWriteStatements": 0,
+        "projectWriteStatements": 0,
+        "commercialWriteStatements": 0,
+        "permittedMutation": "business_profiles language preference changes through the required English-to-Urdu journey",
+        "result": "PASS",
+        "database": "real disposable PostgreSQL; synthetic preexisting actual records and scores"
+      },
+      "checks": [
+        "01. Authenticate through real UI, session and CSRF",
+        "02. Actuals, F04 invoices/bills/numbering and F05 approved budgets precede SQL write probes",
+        "03. Empty Samples workspace preserves F04/F05/Reports/Estimates/Dashboard navigation",
+        "04. Empty form validation focuses the invalid keyboard field without posting",
+        "05. Create FREE SAMPLE and associate an existing same-business F05 project as context",
+        "06. Keyboard line editing and validation produce exact server totals across five cost categories",
+        "07. Approved plan survives reload and becomes immutable",
+        "08. Replacement approval supersedes the old revision while preserving its immutable values and lines",
+        "09. PAID production planning separates cost/recovery/contribution and mobile line editor has no overflow",
+        "10. PARTIAL recovery distinguishes unknown from explicit zero",
+        "11. Real stale edit returns409, preserves user draft, and explicit reload recovers server state",
+        "12. Metadata edit and operational lifecycle work; archive is terminal/read-only",
+        "13. Persisted history and module registry expose bounded planning only",
+        "14. EN/UR/RTL desktop and mobile preserve readable LTR amounts without horizontal overflow",
+        "15. MANAGER reads history without mutation controls and write requests are forbidden",
+        "16. VIEWER reads history without mutation controls and write requests are forbidden",
+        "17. Business switching removes old results and enforces cross-business404",
+        "18. Actuals, health-score-v1, F05 budgets and F04 documents remain identical; Java verifies SQL writes and number sequences",
+        "19. F06 and F12B outputs remain equivalent; zero actual/F04/F05 mutation requests",
+        "20. Zero runtime/CSP/hydration errors or unexpected external requests"
+      ],
+      "screenshots": [
+        "sample-approved-history-desktop-en.png",
+        "production-plan-editor-mobile-en.png",
+        "samples-list-desktop-en.png",
+        "sample-history-mobile-ur-rtl.png",
+        "sample-history-desktop-ur-rtl.png"
+      ],
+      "artifactDirectory": "logs/f09/browser-f09-attempt2",
+      "log": "logs/f09/browser-f09-attempt2.log",
+      "visualReview": "Five screenshots inspected: desktop English approved/superseded history and list, mobile English plan editor, mobile and desktop Urdu/RTL history. No clipping or horizontal overflow observed; LTR amounts retained."
+    },
+    "realBrowserRegressions": {
+      "status": "PASS",
+      "totalChecks": 113,
+      "suites": [
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f04-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f04-attempt1",
+          "suite": "F04CommercialBrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 22
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f05-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f05-attempt1",
+          "suite": "F05ProjectsBrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 24
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f12b-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f12b-attempt1",
+          "suite": "F12bReportsBrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 15
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f06-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f06-attempt1",
+          "suite": "F06BrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 14
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f13-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f13-attempt1",
+          "suite": "F13BrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 16
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-pilot-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-pilot-attempt1",
+          "suite": "PilotHardeningBrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 11
+        },
+        {
+          "externalRequests": 0,
+          "log": "logs/f09/browser-f02-attempt1.log",
+          "status": "PASS",
+          "artifactDirectory": "logs/f09/browser-f02-attempt1",
+          "suite": "F02AiBrowserAcceptance",
+          "runtimeCspHydrationErrors": 0,
+          "checks": 11
+        }
+      ]
+    },
+    "diffCheck": {
+      "status": "PASS",
+      "command": "git diff --cached --check",
+      "review": "Explicit 60-path manifest staged and reviewed; only V35 added, canonical migrations unchanged; existing F04/F05/F06/F12B/F13/auth source unchanged; no builds/logs/credentials/user files staged."
+    }
+  },
+  "attempts": [
+    {
+      "date": "2026-10-29",
+      "base": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+      "log": "logs/f09/targeted-backend-pg-attempt1.log",
+      "status": "PASS_HISTORICAL_BASE",
+      "unitPassed": 54,
+      "postgresPassed": 20
+    },
+    {
+      "finishedAt": "2026-10-30T03:18:42+05:00",
+      "base": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+      "log": "logs/f09/full-backend-attempt1.log",
+      "status": "FAIL",
+      "default": {
+        "run": 1119,
+        "passed": 1118,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1
+      },
+      "postgres": {
+        "run": 183,
+        "passed": 182,
+        "failures": 0,
+        "errors": 1,
+        "skipped": 0
+      },
+      "error": "MfaAndRecoverySecurityIT.testConcurrentTotpReplay:231 raised BadCredentialsException: Invalid verification code during confirmEnrollment.",
+      "interpretation": "Historical MFA timing-sensitive failure retained. No MFA/security production or test fix is claimed; later reruns pass."
+    },
+    {
+      "finishedAt": "2026-10-30T10:19:27+05:00",
+      "base": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+      "log": "logs/f09/mfa-and-project-link-recheck.log",
+      "status": "PASS_HISTORICAL_BASE",
+      "unitPassed": 65,
+      "postgresPassed": 17,
+      "postgresBreakdown": {
+        "MfaAndRecoverySecurityIT": 8,
+        "SamplePlanningPostgreSqlIT": 9
+      },
+      "note": "MFA rerun unchanged; also verifies added linked-project compatibility case. New-base full run independently passes MFA8/8."
+    },
+    {
+      "date": "2026-10-30",
+      "log": "logs/f09/frontend-eslint.log",
+      "status": "FAIL_THEN_REPORTED_FIXED",
+      "errors": 11,
+      "warnings": 1,
+      "note": "F09 React hook/manual-memoization errors; repairs reported by frontend agent. Original failure retained; final lint captured in logs/f09/final-frontend-eslint.log (0 errors) and re-confirmed on the final tree on 31 October."
+    },
+    {
+      "date": "2026-10-31",
+      "base": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "log": "logs/f09/browser-f09-attempt1.log",
+      "artifacts": "logs/f09/browser-f09-attempt1",
+      "status": "FAIL_HARNESS_FORMATTED_AMOUNT_ASSERTION",
+      "checksCompleted": 5,
+      "javaHarnessRun": 1,
+      "javaHarnessFailures": 1,
+      "error": "page.waitForFunction timeout20seconds in waitValue at script line159 while checking the saved FREE planned contribution.",
+      "diagnosis": "Primary inspected UI text - PKR300.00; harness incorrectly expected contiguous -300.00. Currency and whitespace separated the sign from the exact amount.",
+      "resolution": "Primary changed only the new F09 browser amount helper to strip currency, commas and whitespace before exact equality. Application unchanged. Attempt2 pending.",
+      "databaseBoundaryResult": "Not accepted; harness stopped before final full-row and statement-probe checks."
+    }
+  ],
+  "exclusions": {
+    "productionPostgres": {
+      "classes": [
+        "DatabaseRolePrivilegesPostgreSqlIT",
+        "PostgreSqlTlsConnectionIT"
+      ],
+      "cases": 19,
+      "status": "EXPLICITLY_EXCLUDED_NOT_ACCEPTED"
+    },
+    "productionDeployment": "NOT_PERFORMED",
+    "sharedOrCustomerDatabase": "NOT_USED",
+    "paidOrLiveProvider": "NOT_USED",
+    "financialPolicyApproval": "NOT_CLAIMED",
+    "fullF09": "NOT_COMPLETED_BY_THIS_PLANNING_SLICE",
+    "foreignWork": "Separate F06 Phase B, frontend UX hardening and Developer A implementations not imported or changed."
+  },
+  "preservation": {
+    "protectedRefsMeaning": "Observed local/tracking refs at record creation; remote tracking changes from fetching are not local branch modifications.",
+    "userDocxInitialSha256": "B3E259F1CAC5389B3C5AD06FE5DEF96E5A5BFC3F64E129EA0DFAA9990AC85AC7",
+    "userTmpInitialLastWriteUtc": "2026-10-16T12:25:06.9601808Z",
+    "initialEvidence": "logs/f09/baseline.json",
+    "userFiles": "User DOCX/tmp preserved; no staging/cleanup authorized.",
+    "stashesRetained": true,
+    "protectedRefs": {
+      "refs/heads/claude/f06-persisted-estimates-phase-b": "8ac5da2366160c372364a0e879df79a67a924425",
+      "refs/heads/claude/frontend-ux-hardening": "f22a1ed71e880c7fd11178efbf146c90c547c970",
+      "refs/heads/dev/fatima": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "refs/heads/dev/suleman": "f2ed9bda671404598bd73729563c6e0ceb2b08d1",
+      "refs/heads/main": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176",
+      "refs/remotes/origin/dev/fatima": "311de78f1b517aaaf09420914ebe6a32371280e1",
+      "refs/remotes/origin/dev/suleman": "89f60fdf82168e2474d63ed1c1fa8a25f69f397a",
+      "refs/remotes/origin/main": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176"
+    },
+    "userDocxFinalSha256": "B3E259F1CAC5389B3C5AD06FE5DEF96E5A5BFC3F64E129EA0DFAA9990AC85AC7",
+    "userDocxUnchanged": true,
+    "finalAudit": "Canonical V1–V17/V30–V34 Git blobs match 311de78; all 58 preserved WIP paths exist (sample V32 renamed V35). User DOCX SHA256 matches baseline. No writes to F06/UX-hardening worktrees, main/dev/suleman/persistent dev/fatima or user tmp; protected local refs unchanged."
+  },
+  "manifest": {
+    "basis": "All 60 intended changed files in the containing local commit, explicit paths only; ignored local logs/builds/dependencies excluded.",
+    "entries": [
+      {
+        "status": "M",
+        "path": "backend/src/main/java/com/app/sme_health_backend/audit/model/AuditEventType.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/controller/SampleController.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/controller/SampleProjectLinkExceptionHandler.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/controller/SampleRequestReader.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SampleCreateRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SampleListResponse.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanApprovalRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanCalculationResponse.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanLineRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanningSummaryResponse.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SamplePlanVersionResponse.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SampleResponse.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SampleTransitionRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/dto/SampleUpdateRequest.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/RecoveryIntent.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/SampleKind.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/SamplePlanStatus.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/SamplePlanVersionRecord.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/SampleRecord.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/model/SampleStatus.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/repository/SamplePlanRepository.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/repository/SampleRepository.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/service/SampleDecimals.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/service/SampleException.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/service/SamplePlanCalculator.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/service/SamplePlanningService.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/java/com/app/sme_health_backend/samples/service/SampleValidationException.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/main/resources/db/migration/V35__sample_cost_planning_foundation.sql"
+      },
+      {
+        "status": "M",
+        "path": "backend/src/test/java/com/app/sme_health_backend/commercial/CommercialDocumentMigrationPostgreSqlIT.java"
+      },
+      {
+        "status": "M",
+        "path": "backend/src/test/java/com/app/sme_health_backend/database/MonthlyIntegrityMigrationPostgreSqlIT.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SampleLifecycleTests.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SamplePlanCalculatorTests.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SamplePlanningMigrationPostgreSqlIT.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SamplePlanningPostgreSqlIT.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SampleProjectLinkExceptionHandlerTests.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SampleProjectLockingTests.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/samples/SampleRequestReaderTests.java"
+      },
+      {
+        "status": "A",
+        "path": "backend/src/test/java/com/app/sme_health_backend/testsupport/F09SamplesBrowserAcceptance.java"
+      },
+      {
+        "status": "M",
+        "path": "docs/phase2/DEVELOPMENT_SETUP.md"
+      },
+      {
+        "status": "A",
+        "path": "docs/phase2/F09_PHASE_A_IMPLEMENTATION.md"
+      },
+      {
+        "status": "M",
+        "path": "docs/phase2/FEATURE_REGISTER.md"
+      },
+      {
+        "status": "M",
+        "path": "docs/phase2/IMPLEMENTATION_STATE.md"
+      },
+      {
+        "status": "A",
+        "path": "docs/phase2/verification/2026-10-31-f09-phase-a.json"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/app/samples/[id]/page.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/app/samples/new/page.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/app/samples/page.tsx"
+      },
+      {
+        "status": "M",
+        "path": "frontend/src/components/layout/MobileNav.tsx"
+      },
+      {
+        "status": "M",
+        "path": "frontend/src/components/layout/Sidebar.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/components/samples/SampleDetailWorkspace.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/components/samples/SampleForm.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/components/samples/SampleList.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/components/samples/SamplePlanEditor.tsx"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/components/samples/SampleShared.tsx"
+      },
+      {
+        "status": "M",
+        "path": "frontend/src/lib/api/navigation.ts"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/lib/api/samples.ts"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/lib/i18n/translations/samples.ts"
+      },
+      {
+        "status": "A",
+        "path": "frontend/src/lib/samples/form.ts"
+      },
+      {
+        "status": "A",
+        "path": "frontend/tests/samples.test.mjs"
+      },
+      {
+        "status": "A",
+        "path": "scripts/test_f09_samples_browser.mjs"
+      }
+    ],
+    "total": 60
+  },
+  "pending": [],
+  "localEvidenceHashes": [
+    {
+      "path": "logs\\f09\\resequenced-full-backend.log",
+      "sha256": "eeadc9f93b1bb0ea0ba08818a9420a3c59aec0517013b453384c2a4e0bd227a8"
+    },
+    {
+      "path": "logs\\f09\\resequenced-targeted-backend.log",
+      "sha256": "4fa37d88f35b49bb108810d1f7d6053fb53c1e8c158444716753597ad6a38ba5"
+    },
+    {
+      "path": "logs\\f09\\resequenced-frontend-build.log",
+      "sha256": "1404b0fa806cce839a2280399f8fbbc34eabf3e760a7089314f6924d6c7820fb"
+    },
+    {
+      "path": "logs\\f09\\full-backend-attempt1.log",
+      "sha256": "da5760ac83dc602914b29641c1dce4d7cc502cde4cd7ccd5fe8cc7669b17f018"
+    },
+    {
+      "path": "logs\\f09\\mfa-and-project-link-recheck.log",
+      "sha256": "bb3d391601b95b6504d0660a82e17348aaba9504171d91a8bf3bf64b148b4b91"
+    },
+    {
+      "path": "logs\\f09\\frontend-unit.log",
+      "sha256": "3d3f43021404b94349b23a1382a147367d16ed9a32611215f1d92c8734404dda"
+    },
+    {
+      "path": "logs\\f09\\frontend-eslint.log",
+      "sha256": "e99cd4625976e6719bbceee8b4b26bc9e260e73638abd23ad95ed01d91135e3d"
+    },
+    {
+      "path": "logs/f09/final-frontend-eslint.log",
+      "sha256": "83c9b3d72ffe29fdb145a8708da803ef09da4e55f55a9026dff211b3ac65b6bc"
+    },
+    {
+      "path": "logs/f09/browser-f09-attempt1.log",
+      "sha256": "a9349f851f9ceb46c60cab325e864b4b202b5affe721c8da2b3a238de4ce0241"
+    },
+    {
+      "path": "logs/f09/browser-f09-attempt1/browser-process.log",
+      "sha256": "bb651d3fd0cf418d8ebc37403f339a605e3e0978572da562402bd66b746a4d2e"
+    },
+    {
+      "path": "logs/f09/browser-f09-attempt2.log",
+      "sha256": "d5faf6c0ec1abd16acf1fa0fd64f3cc062e4e20ea480af8f4d9c8418b186ea71"
+    },
+    {
+      "path": "logs/f09/browser-f04-attempt1.log",
+      "sha256": "fca7ad1f13a6ae33f2ad3115660c1ef761998c8e2a8bdce76de30f5f44fc15a5"
+    },
+    {
+      "path": "logs/f09/browser-f05-attempt1.log",
+      "sha256": "7f929f2b0ce817934b102344a08cb7458da7635ebf474bd91eac300afed06199"
+    },
+    {
+      "path": "logs/f09/browser-f12b-attempt1.log",
+      "sha256": "af1326501bc6d7920b22c958e156c0007ae91bafc3f01b2ab4ddc0e0b435e863"
+    },
+    {
+      "path": "logs/f09/browser-f06-attempt1.log",
+      "sha256": "b8c529947fda1748da2031401583522d8e4605ee7d56c74144dc34960f496f0f"
+    },
+    {
+      "path": "logs/f09/browser-f13-attempt1.log",
+      "sha256": "ff297f0153b80129bf039b3484fb145f26ffdeb2382cd9953aa13193913eb51c"
+    },
+    {
+      "path": "logs/f09/browser-pilot-attempt1.log",
+      "sha256": "2b31556cb2c46140d54b2a5502de7e61b9d5d1f5ab78e384184f3c4701a6ba7f"
+    },
+    {
+      "path": "logs/f09/browser-f02-attempt1.log",
+      "sha256": "5c1162d5c09c87977b99c58fc9c81c44f5cf7c538c7139f1ae186dc76717df12"
+    }
+  ],
+  "futureSeparateWork": [
+    "Reciprocal Developer-A review, full F09 actual-source/policy work and production/client acceptance.",
+    "Separately authorized integration with dev/fatima and frontend UX hardening; no push or cleanup in this task."
+  ]
+}

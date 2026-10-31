@@ -171,6 +171,26 @@ node --test tests/commercial.test.mjs
 
 The browser harness uses real Spring/session/CSRF, disposable PostgreSQL, Edge and synthetic accounts with AI disabled; it verifies twelve unchanged financial/score/project/configuration tables plus zero write statements. Run it sequentially with the other browser suites. Contract and non-goals: [F04 Phase A](F04_PHASE_A_IMPLEMENTATION.md).
 
+## F09 Phase A sampling / production cost planning acceptance
+
+F09 adds **V35__sample_cost_planning_foundation.sql** after unchanged canonical V1–V17 and V30–V34. Fresh history is exactly V1–V17 plus V30–V35; the populated combined upgrade is V33 → V34 → V35, with existing F04 documents and F05 budgets preserved. V36 belongs to separate F06 work. This feature is strictly `PLANNED_ONLY`; it must issue no actual financial, project-budget or commercial-document writes.
+
+```powershell
+# From backend, using the existing cached Maven fallback if needed
+.\mvnw.cmd '-Dtest=Sample*Tests' -Ppostgres-it '-Dit.test=SamplePlanningPostgreSqlIT,SamplePlanningMigrationPostgreSqlIT,CommercialDocumentMigrationPostgreSqlIT,MonthlyIntegrityMigrationPostgreSqlIT,DisposableDatabaseRolesIT,MfaAndRecoverySecurityIT' verify
+# From frontend
+node --test tests/*.test.mjs
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+node node_modules/eslint/bin/eslint.js
+# Build live mode with BACKEND_API_URL=http://127.0.0.1:8080 and NEXT_PUBLIC_DATA_MODE=live
+node node_modules/next/dist/bin/next build --webpack
+# Start production Next on127.0.0.1:3100, verify8080 is free, and set the browser environment described above.
+# From backend; run browser suites sequentially
+.\mvnw.cmd '-Dtest=F09SamplesBrowserAcceptance' test
+```
+
+The F09 browser harness authenticates through real Spring/session/CSRF, uses disposable PostgreSQL and production Next/Edge with synthetic accounts, and captures EN/UR/RTL/mobile screenshots. It compares fifteen complete table snapshots and probes write statements on actual records/scores, project budgets and F04 documents/number sequences. Inspect screenshots and retain failed attempts with final evidence. Shared-navigation regressions are F04CommercialBrowserAcceptance, F05ProjectsBrowserAcceptance, F12bReportsBrowserAcceptance, F06BrowserAcceptance, F13BrowserAcceptance, PilotHardeningBrowserAcceptance and F02AiBrowserAcceptance; the separate local F06 Phase B and frontend UX hardening branches are not imported. Contract and qualified results: [F09 Phase A](F09_PHASE_A_IMPLEMENTATION.md).
+
 ## Client-pilot hardening acceptance
 
 The coordinated monthly-record-integrity migration is now **V32** (formerly V29). Validate the standalone Developer-B history V1–V17 then V30, V31, V32 and populated V31→V32; do not import Developer-A V18–V29 or claim combined-branch sequencing. Do not target a production/shared database.
