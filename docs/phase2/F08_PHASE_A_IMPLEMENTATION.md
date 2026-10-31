@@ -45,7 +45,7 @@ Grants:
 
 ### Temporary migration history
 
-V35 (F09) and V36 (F06 Phase B) are reserved but not present on this isolated branch, so its local Flyway history is **`V1–V17, V30–V34, V37`**. No placeholder V35/V36 was created, and no F09 or F06 migration was copied.
+V35 (F09) and V36 (F06 Phase B) were reserved but not present on the isolated F08 branch, so its local Flyway history was **`V1–V17, V30–V34, V37`**; no placeholder V35/V36 was created and no F09 or F06 migration was copied. In the **local integrated Developer-B candidate** (`claude/dev-b-integration-v35-v37`) V37 follows F09 V35 and F06 V36: fresh history is exactly `V1–V17, V30–V37`, the temporary `version <= 34` filters in the shared history tests are removed, and `InventoryCatalogMigrationPostgreSqlIT` asserts the exact combined history and a populated V34 → V35 → V36 → V37 upgrade.
 - `InventoryCatalogMigrationPostgreSqlIT` accepts exactly that local history or the eventual combined `V1–V17, V30–V37`, and requires V37 to be last.
 - The shared `CommercialDocumentMigrationPostgreSqlIT` and `MonthlyIntegrityMigrationPostgreSqlIT` assertions now check the history **through V34** only. This stays true in the combined history, and later versions are verified by their own feature tests.
 
@@ -163,7 +163,7 @@ Valuation policy (scale, rounding) needs recorded owner/reviewer approval before
 | New PostgreSQL: `InventoryCatalogMigrationPostgreSqlIT` (2), `InventoryCatalogPostgreSqlIT` (3) | 5 passed |
 | Shared migration and role ITs: `CommercialDocumentMigrationPostgreSqlIT` (2), `MonthlyIntegrityMigrationPostgreSqlIT` (2), `DisposableDatabaseRolesIT` (6) | 10 passed |
 | Backend default suite | 1,070 run, 0 failures/errors, 1 existing Windows symlink skip |
-| Full accepted local PostgreSQL (`*IT` excluding `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT`) | **Incomplete:** the single run was stopped by the host for low system memory (not a test failure). 31 of 36 classes completed (154 cases, 0 failures/errors/skips, including every F08, migration, role, F04, F05, F02, F13 and monthly-integrity class). Not run: `Feature8PostgreSqlIT`, `PlatformSecurityIT`, `ProductionIngressSecurityIT`, `SecurityIdentityPostgreSqlIT`, `SpringSessionLifecyclePostgreSqlIT`; rerun them in a smaller batch before integration. The 19 production-target cases are excluded and not counted |
+| Full accepted local PostgreSQL (`*IT` excluding `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT`) | **Complete: all 36 accepted classes, 178 cases, 0 failures/errors/skips** on the isolated F08 commit `cd0f624`. The first single run was stopped by the host for low memory after 31 classes (154 cases, all passing); the remaining five (`Feature8PostgreSqlIT` 6, `PlatformSecurityIT` 6, `ProductionIngressSecurityIT` 5, `SecurityIdentityPostgreSqlIT` 6, `SpringSessionLifecyclePostgreSqlIT` 1 = 24 cases) then passed individually with no source change. The 19 production-target cases stay excluded and unaccepted. In the local integrated Developer-B candidate the accepted suite is re-run in full (see [integrated evidence](verification/2026-10-31-dev-b-integration-v35-v37.json)) |
 | Frontend `node --test tests/*.test.mjs` | 125/125 (6 new in `tests/inventory.test.mjs`) |
 | TypeScript / ESLint | `tsc --noEmit` clean; ESLint 0 errors, 1 existing `SessionProvider` warning |
 | Production build | `next build --webpack` passes, with only the existing middleware-convention warning. The worktree's `node_modules` is a junction, which Turbopack rejects |

@@ -21,9 +21,9 @@ Everything here is **PLANNING ONLY**. Saving, approving or converting creates no
 
 Examples: TARGET_MARGIN 30% on cost 1000 gives `1428.571428571428571428571429` (`inexact_division`); quantity `1.0000001` (`scale_exceeded`); unit cost `0.1234567` (`scale_exceeded`); quantity `1000000000` (`integer_digits_exceeded`). Revising to the PROPOSED_PRICE `1428.5714` converts. Inside the conversion transaction the service also asserts that F05 stored exactly the source numbers, and rolls back otherwise.
 
-## Schema: `V33__persisted_estimates_and_conversion.sql`
+## Schema: `V36__persisted_estimates_and_conversion.sql`
 
-Sole new migration; V1–V31 untouched; **V32 is absent here** (it belongs to the separate F09 worktree). This is not combined V31 → V32 → V33 acceptance.
+Sole new F06 migration. It was authored and verified in isolation as `V33__persisted_estimates_and_conversion.sql` on base `cae9205`; in the **local integrated Developer-B candidate** (`claude/dev-b-integration-v35-v37`, base `311de78`) the same SQL is renumbered **V36**, after canonical V33 (F05), V34 (F04) and F09 V35, and before F08 V37. Only one comment changed (it now names the F05 migration V33). Combined fresh V1–V17, V30–V37 and populated V35 → V36 acceptance is recorded in [the integrated candidate evidence](verification/2026-10-31-dev-b-integration-v35-v37.json); the isolated results below remain historical.
 
 | Table | Purpose / key rules |
 |---|---|

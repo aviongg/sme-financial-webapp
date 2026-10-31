@@ -158,7 +158,7 @@ The opt-in harness launches real Spring/session/CSRF and disposable PostgreSQL w
 
 ## F06 Phase B persisted estimates acceptance
 
-F06 Phase B adds only **V33** (V32 belongs to the separate F09 work and is absent until integration). Validate on disposable PostgreSQL only.
+F06 Phase B adds only **V36__persisted_estimates_and_conversion.sql** (authored in isolation as V33; renumbered in the local integrated Developer-B candidate after F09 V35). Validate on disposable PostgreSQL only.
 
 ```powershell
 # From backend
@@ -189,7 +189,7 @@ The browser harness uses real Spring/session/CSRF, disposable PostgreSQL, Edge a
 
 ## F09 Phase A sampling / production cost planning acceptance
 
-F09 adds **V35__sample_cost_planning_foundation.sql** after unchanged canonical V1–V17 and V30–V34. Fresh history is exactly V1–V17 plus V30–V35; the populated combined upgrade is V33 → V34 → V35, with existing F04 documents and F05 budgets preserved. V36 belongs to separate F06 work. This feature is strictly `PLANNED_ONLY`; it must issue no actual financial, project-budget or commercial-document writes.
+F09 adds **V35__sample_cost_planning_foundation.sql** after unchanged canonical V1–V17 and V30–V34. Fresh history is exactly V1–V17 plus V30–V35; the populated combined upgrade is V33 → V34 → V35, with existing F04 documents and F05 budgets preserved. In the local integrated Developer-B candidate F06 V36 and F08 V37 follow, and fresh history is V1–V17, V30–V37. This feature is strictly `PLANNED_ONLY`; it must issue no actual financial, project-budget or commercial-document writes.
 
 ```powershell
 # From backend, using the existing cached Maven fallback if needed
@@ -209,7 +209,7 @@ The F09 browser harness authenticates through real Spring/session/CSRF, uses dis
 
 ## F08 Phase A inventory catalog and valuation preview (local branch only)
 
-F08 Phase A adds only **V37** (`inventory_items`, catalog identity only). On the isolated F08 branch the history is temporarily V1–V17, V30–V34, V37 because V35 (F09) and V36 (F06) are reserved but not yet integrated; after they land, re-verify the full V1–V37 sequence. Use disposable PostgreSQL only.
+F08 Phase A adds only **V37** (`inventory_items`, catalog identity only). The isolated F08 branch history was V1–V17, V30–V34, V37; in the local integrated Developer-B candidate it follows F09 V35 and F06 V36, and the exact V1–V17, V30–V37 sequence is asserted. Use disposable PostgreSQL only.
 
 ```powershell
 # From backend
@@ -223,6 +223,20 @@ node --test tests/inventory.test.mjs
 ```
 
 The browser harness verifies sixteen unchanged financial/score/project/commercial/configuration tables plus zero write statements on eight probed tables. Contract and non-goals: [F08 Phase A](F08_PHASE_A_IMPLEMENTATION.md).
+
+## Local integrated Developer-B candidate (V35–V37)
+
+The local candidate branch `claude/dev-b-integration-v35-v37` must have fresh history exactly V1–V17, V30–V37 (`DeveloperBIntegratedMigrationPostgreSqlIT` also proves the populated V34 → V35 → V36 → V37 upgrade). Run the accepted PostgreSQL suite in sequential batches of a few classes (one large Failsafe run can be stopped by the host for low memory), always excluding `DatabaseRolePrivilegesPostgreSqlIT` and `PostgreSqlTlsConnectionIT`:
+
+```powershell
+# From backend; repeat with each batch of class names
+.\mvnw.cmd -Ppostgres-it '-Dtest=NONE' '-Dsurefire.failIfNoSpecifiedTests=false' '-Dit.test=DeveloperBIntegratedMigrationPostgreSqlIT,SamplePlanningMigrationPostgreSqlIT,EstimatePlanningMigrationPostgreSqlIT,InventoryCatalogMigrationPostgreSqlIT' verify
+# Browser suites, sequentially. If 3100/8080 belong to another task, build Next with BACKEND_API_URL on a free
+# Spring port and set FINSIGHT_BROWSER_BASE_URL / FINSIGHT_BROWSER_BACKEND_PORT (F08 also reads F08_BROWSER_WEB_PORT / F08_BROWSER_API_PORT).
+.\mvnw.cmd '-Dtest=DevBIntegrationBrowserAcceptance' test
+```
+
+`DevBIntegrationBrowserAcceptance` checks every navigation entry, the sidebar collapse offset, the active business name, RTL arrows and the mobile `+` sheet (all ten actions at 390×844 and 390×600, EN and UR/RTL) with whole-row snapshots and write probes on financial and feature tables. Dashboard reads issue pre-existing no-op `score_results` UPDATEs (Hibernate dirty check); the harness requires those rows to remain identical and reports the count separately.
 
 ## Client-pilot hardening acceptance
 
