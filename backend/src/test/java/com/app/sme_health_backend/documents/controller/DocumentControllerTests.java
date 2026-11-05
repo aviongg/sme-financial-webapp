@@ -68,7 +68,7 @@ class DocumentControllerTests {
         doc.setContentType("image/png");
         doc.setProcessingStatus(DocumentStatus.pending);
 
-        when(uploadService.uploadSingle(eq(businessId), any(), eq("receipt"))).thenReturn(doc);
+        when(uploadService.uploadSingle(eq(businessId), eq(userId), any(), eq("receipt"))).thenReturn(doc);
 
         mockMvc.perform(multipart("/api/documents/upload")
                         .file(file)
@@ -95,7 +95,7 @@ class DocumentControllerTests {
         doc2.setUserId(businessId);
         doc2.setProcessingStatus(DocumentStatus.pending);
 
-        when(uploadService.uploadBulk(eq(businessId), anyList(), any())).thenReturn(List.of(doc1, doc2));
+        when(uploadService.uploadBulk(eq(businessId), eq(userId), anyList(), any())).thenReturn(List.of(doc1, doc2));
 
         mockMvc.perform(multipart("/api/documents/bulk")
                         .file(file1)
@@ -214,7 +214,7 @@ class DocumentControllerTests {
         doc.setProcessingStatus(DocumentStatus.confirmed);
         doc.setLinkedMonth("2026-03");
 
-        when(confirmationService.confirmDocument(eq(businessId), eq(docId), any())).thenReturn(doc);
+        when(confirmationService.confirmDocument(eq(businessId), eq(docId), eq(userId), any())).thenReturn(doc);
 
         mockMvc.perform(post("/api/documents/{id}/confirm", docId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -227,7 +227,7 @@ class DocumentControllerTests {
 
     @Test
     void confirmDuplicateDocumentReturns409Conflict() throws Exception {
-        when(confirmationService.confirmDocument(eq(businessId), eq(docId), any()))
+        when(confirmationService.confirmDocument(eq(businessId), eq(docId), eq(userId), any()))
                 .thenThrow(new DocumentAlreadyConfirmedException("Already confirmed"));
 
         mockMvc.perform(post("/api/documents/{id}/confirm", docId)
@@ -235,5 +235,29 @@ class DocumentControllerTests {
                         .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":12000.00,\"targetClassification\":\"operating_expenses\",\"cashFlowImpact\":\"cash_outflow\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("already_confirmed"));
+    }
+    @Test
+    void omittedOrNullDuplicateAcknowledgementDefaultsToFalse() throws Exception {
+        UploadedDocument doc = new UploadedDocument(); doc.setId(docId); doc.setUserId(businessId);
+        doc.setProcessingStatus(DocumentStatus.confirmed);
+        when(confirmationService.confirmDocument(eq(businessId), eq(docId), eq(userId), any())).thenReturn(doc);
+        for (String optionalField : List.of("", ",\"allowPotentialDuplicate\":null")) {
+            mockMvc.perform(post("/api/documents/{id}/confirm", docId).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":1.00,\"targetClassification\":\"revenue\"" + optionalField + "}"))
+                    .andExpect(status().isOk());
+        }
+        verify(confirmationService, times(2)).confirmDocument(eq(businessId), eq(docId), eq(userId),
+                argThat(request -> Boolean.FALSE.equals(request.allowPotentialDuplicate())));
+    }
+
+    @Test
+    void malformedConfirmationNumbersReturnSafe400WithoutCallingService() throws Exception {
+        for (String value : List.of("\"not-a-number\"", "1e9999999999", "{}")) {
+            mockMvc.perform(post("/api/documents/{id}/confirm", docId).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"targetMonth\":\"2026-03\",\"confirmedAmount\":" + value + ",\"targetClassification\":\"revenue\"}"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("invalid_request"))
+                    .andExpect(jsonPath("$.message").value("Request fields or numeric values are invalid."));
+        }
+        verifyNoInteractions(confirmationService);
     }
 }

@@ -1,6 +1,8 @@
 # FinSight — SME Financial Health Platform
 
-**`main` is the canonical branch for the complete current FinSight MVP.** It contains the integrated frontend, backend, security, OCR service and MVP refinements. A single checkout contains the application; no development branches need to be combined. Future development should branch from `main`.
+**`main` is the canonical branch for the complete current FinSight MVP.** It contains the integrated frontend, backend, security, OCR service and MVP refinements. A single checkout contains the application; no development branches need to be combined.
+
+**Developer B Phase 2 work uses the persistent `dev/fatima` branch**, which already contains integrated main. Read the [Phase 2 master plan](docs/phase2/MASTER_IMPLEMENTATION_PLAN.md), [current implementation state](docs/phase2/IMPLEMENTATION_STATE.md) and [Codex workflow](docs/phase2/CODEX_WORKFLOW.md). The onboarding provides audit, draft contracts, ownership, detailed package designs and setup; it does not implement Phase 2 features or approve financial policies. The generic main-based instructions below describe the MVP baseline and other future work, not a request to move B's work away from dev/fatima.
 
 FinSight provides monthly financial records, an explainable financial health score, deterministic English/Urdu insights and recommendations, cash-flow history and projection, reviewed document extraction, team access, WhatsApp delivery and a versioned Zakat preview. Live mode uses authenticated backend APIs; sample financial data is confined to explicit demo mode.
 
@@ -29,7 +31,7 @@ git pull --ff-only
 
 Use [frontend setup](frontend/README.md) for live/demo configuration and local commands, [OCR setup](ai-service/README.md) for the extraction service, and the [production runbook](docs/PRODUCTION_RUNBOOK.md) for matched services, required secrets, database roles and migrations. Database migration runs separately from the restricted runtime application. A checkout alone does not supply production credentials or verified external providers.
 
-For future work, start a new branch from an up-to-date `main`:
+For other future work, start a new branch from an up-to-date `main` when its task instructions require it. Developer B follows the dev/fatima workflow linked above:
 
 ```sh
 git switch main

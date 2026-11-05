@@ -18,18 +18,21 @@ public class DocumentStartupRecovery {
     private static final Logger log = LoggerFactory.getLogger(DocumentStartupRecovery.class);
 
     private final UploadedDocumentRepository repository;
+    private final ProcessingAttemptPolicy policy;
 
-    public DocumentStartupRecovery(UploadedDocumentRepository repository) {
+    public DocumentStartupRecovery(UploadedDocumentRepository repository, ProcessingAttemptPolicy policy) {
         this.repository = repository;
+        this.policy = policy;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void recoverStaleProcessingDocuments() {
-        int recovered = repository.resetAllByStatus(
+        int recovered = repository.recoverStaleProcessing(
                 DocumentStatus.processing,
                 DocumentStatus.failed,
-                "processing_interrupted"
+                "processing_interrupted",
+                policy.staleCutoff()
         );
         if (recovered > 0) {
             log.warn("DocumentStartupRecovery: Recovered {} interrupted document(s) stuck in 'processing' status across restart.", recovered);

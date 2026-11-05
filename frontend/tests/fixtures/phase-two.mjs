@@ -1,0 +1,11 @@
+/** Synthetic capability fixtures only. Production gets these values exclusively from Spring. */
+export function configurationFixture({ role = 'OWNER', operatingProfile = 'RETAIL_TRADE', operatingAnswers = { holdsInventory: ['MANUFACTURING', 'RETAIL_TRADE'].includes(operatingProfile), tracksProjects: operatingProfile === 'PROJECT_ORDER', sellsOnCredit: false }, requestedModules = ['core_finance', 'documents', 'whatsapp', 'ai'], version = 0, configured = false } = {}) {
+  const working = ['core_finance', 'documents', 'whatsapp', 'ai'];
+  const future = ['transactions', 'receivables', 'invoices', 'projects', 'costing', 'inventory', 'production', 'commissions', 'multi_currency', 'operations', 'reports'];
+  return { operatingProfile, operatingAnswers, requestedModules, version, configured, canManage: role === 'OWNER', registryVersion: 'f02-v1',
+    presetKey: { MANUFACTURING: 'manufacturing', RETAIL_TRADE: 'retail-trade', SERVICES: 'services', PROJECT_ORDER: 'project-order' }[operatingProfile],
+    terminology: { sales: operatingProfile === 'SERVICES' ? 'serviceRevenue' : operatingProfile === 'PROJECT_ORDER' ? 'projectRevenue' : 'sales', work: operatingProfile === 'SERVICES' ? 'services' : operatingProfile === 'PROJECT_ORDER' ? 'projects' : 'products' },
+    recommendedModules: [...(['SERVICES', 'PROJECT_ORDER'].includes(operatingProfile) ? ['core_finance', 'documents', 'ai'] : working), ...(operatingAnswers.holdsInventory ? ['inventory'] : []), ...(operatingAnswers.tracksProjects ? ['projects'] : []), ...(operatingAnswers.sellsOnCredit ? ['receivables'] : [])],
+    modules: [...working, ...future].map(key => { const implemented = working.includes(key), enabled = requestedModules.includes(key), permitted = key !== 'documents' || role !== 'VIEWER'; return { key, implemented, enabled, available: implemented && enabled && permitted, required: key === 'core_finance', dependencies: key === 'core_finance' ? [] : ['core_finance'], reason: !implemented ? 'NOT_IMPLEMENTED' : !permitted ? 'PERMISSION_REQUIRED' : !enabled ? 'DISABLED' : null }; }) };
+}
+export function aiStatusFixture(mode = 'disabled') { return { enabled: mode !== 'disabled', available: mode !== 'disabled', mode, reasonCode: mode === 'disabled' ? 'ai_disabled' : null, model: null, maxQuestionLength: 1000, maxConversationTurns: 8 }; }

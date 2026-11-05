@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { PageHeader } from "./PageHeader";
-import { useLanguage } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils/cn";
 
 export interface AppShellProps {
@@ -20,19 +19,23 @@ export function AppShell({
   subtitle,
   headerActions,
 }: AppShellProps) {
-  const { direction } = useLanguage();
-  const isRTL = direction === "rtl";
+  // Single source of truth for the desktop sidebar width; the content offset must always match it.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-canvas)] flex flex-col text-[var(--color-text-primary)]">
       {/* Desktop Persistent Sidebar */}
-      <Sidebar />
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+      />
 
       {/* Main Content Area */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-200",
-          isRTL ? "md:mr-[256px]" : "md:ml-[256px]",
+          "flex-1 flex flex-col min-w-0 transition-all duration-200",
+          // Logical inline-start margin follows document direction (left in LTR, right in RTL).
+          isSidebarCollapsed ? "md:ms-[72px]" : "md:ms-[256px]",
           "pb-20 md:pb-8" // Padding on mobile for bottom navigation bar
         )}
       >

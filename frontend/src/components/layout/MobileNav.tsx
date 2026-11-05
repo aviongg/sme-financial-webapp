@@ -12,6 +12,12 @@ import {
   Camera,
   UploadCloud,
   Edit3,
+  Calculator,
+  FolderKanban,
+  Receipt,
+  ReceiptText,
+  FlaskConical,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -20,13 +26,27 @@ import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
 import { recordsEn, recordsUr } from '@/components/records/records-copy';
 import { routePermission } from "@/lib/api/navigation";
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { estimatesCopy } from '@/lib/i18n/translations/estimates';
+import { reportsCopy } from '@/lib/i18n/translations/reports';
+import { projectsCopy } from '@/lib/i18n/translations/projects';
+import { samplesCopy } from '@/lib/i18n/translations/samples';
+import { commercialCopy } from '@/lib/i18n/translations/commercial';
+import { inventoryCopy } from '@/lib/i18n/translations/inventory';
 
 export function MobileNav() {
   const pathname = usePathname();
   const { can, business } = useSession();
-  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
+  const configuration = useConfiguration();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true)); };
   const router = useRouter();
   const { t, locale } = useLanguage();
+  const estimates = estimatesCopy(locale);
+  const reports = reportsCopy(locale);
+  const projects = projectsCopy(locale);
+  const commercial = commercialCopy(locale);
+  const samples = samplesCopy(locale);
+  const inventory = inventoryCopy(locale);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   const tabs = [
@@ -96,7 +116,7 @@ export function MobileNav() {
             <button
               type="button"
               onClick={() => setIsActionSheetOpen(true)}
-              disabled={!isDemoMode && !can("RECORD_CREATE_UPDATE") && !can("DOCUMENT_UPLOAD")}
+              disabled={!allowed('/records/new') && !allowed('/scan') && (isDemoMode || (!allowed('/estimates') && !allowed('/reports')))}
               aria-label={t.quickActions.title}
               className="w-12 h-12 -mt-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center shadow-md hover:bg-[var(--color-brand-hover)] active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]"
             >
@@ -139,6 +159,48 @@ export function MobileNav() {
         description={t.quickActions.actionSheetDesc}
       >
         <div className="space-y-3 pt-2">
+          {!isDemoMode && allowed('/projects') && <button type="button" onClick={() => handleActionSelect('/projects')}
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FolderKanban className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{projects.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{projects.planningBannerTitle}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/samples') && <button type="button" onClick={() => handleActionSelect('/samples')} data-testid="mobile-samples-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FlaskConical className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{samples.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{samples.planned}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/invoices') && <button type="button" onClick={() => handleActionSelect('/invoices')} data-testid="mobile-invoices-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Receipt className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{commercial.kinds.INVOICE.title}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{commercial.recordOnlyTitle}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/bills') && <button type="button" onClick={() => handleActionSelect('/bills')} data-testid="mobile-bills-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><ReceiptText className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{commercial.kinds.BILL.title}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{commercial.recordOnlyTitle}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/inventory') && <button type="button" onClick={() => handleActionSelect('/inventory')} data-testid="mobile-inventory-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Boxes className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{inventory.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{inventory.catalogBannerTitle}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/estimates') && <button type="button" onClick={() => handleActionSelect('/estimates')}
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><Calculator className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{estimates.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{estimates.planning}</p></div>
+          </button>}
+          {!isDemoMode && allowed('/reports') && <button type="button" onClick={() => handleActionSelect('/reports')} data-testid="mobile-reports-action"
+            className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
+            <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FileText className="w-5 h-5"/></div>
+            <div><p className="text-[14px] font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-primary)]">{reports.nav}</p>
+              <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{reports.reportTitle}</p></div>
+          </button>}
           <button
             disabled={!allowed('/records') || !isDemoMode && !(business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role))}
             type="button"

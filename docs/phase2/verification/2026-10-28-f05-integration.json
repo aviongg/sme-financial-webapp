@@ -1,0 +1,351 @@
+{
+  "recordedDate": "2026-10-28",
+  "verificationDates": [
+    "2026-10-26",
+    "2026-10-27"
+  ],
+  "timezone": "Asia/Karachi",
+  "branch": "dev/fatima",
+  "baseCommit": "ba2e3bc5f1884c00ebdf98070b17df3ed26a80cd",
+  "sourceCommit": "0323948acfb824c4be9d3328cabcb7ac9069a113",
+  "sourceSoleParent": "ea8e812f1d891c07362883a4374754e48485c884",
+  "deliveryIdentity": "Containing integration commit; exact post-push SHA is recorded in the external final handoff.",
+  "method": "Recovered already-applied cherry-pick --no-commit, resolved three conflicts semantically, committed the verified combined tree; source was not reapplied.",
+  "conflicts": {
+    "docs/phase2/IMPLEMENTATION_STATE.md": "Retained complete F12B and F05 historical sections and added current combined evidence.",
+    "frontend/src/components/layout/Sidebar.tsx": "Retained FileText/reportsCopy/Reports gated item; added FolderKanban/projectsCopy/Projects gated item and nested Projects highlighting; Estimates retained.",
+    "frontend/src/components/layout/MobileNav.tsx": "Retained Reports and existing actions; added Projects action with existing permission and live-mode gates.",
+    "cleanApplication": "frontend/src/lib/api/navigation.ts applied cleanly; /projects/new requires RECORD_CREATE_UPDATE and project read routes use FINANCIAL_DATA_READ."
+  },
+  "migration": {
+    "onlyAddition": "V30__project_planning_foundation.sql",
+    "versions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      29,
+      30
+    ],
+    "previousMigrationsUnchanged": true,
+    "sharedOrProductionDatabaseUsed": false,
+    "verified": [
+      "fresh migration",
+      "populated V29 to V30 upgrade",
+      "UUID tenant-scoped foreign keys",
+      "business-scoped unique project code",
+      "one DRAFT and one APPROVED budget",
+      "immutable APPROVED and SUPERSEDED history, including moving a line to a draft",
+      "draft deletion and cascade cleanup",
+      "finsight_app least privilege",
+      "finsight_backup read-only"
+    ],
+    "correction": "14-line UPDATE-only OLD-parent guard prevents moving a line out of APPROVED/SUPERSEDED history; regression reproduced before the fix and passed after it. No V31 or production migration."
+  },
+  "targeted": {
+    "ProjectBudgetCalculatorTests": 26,
+    "ProjectRequestReaderTests": 14,
+    "ProjectLifecycleTests": 2,
+    "ProjectPlanningMigrationPostgreSqlIT": 1,
+    "ProjectPlanningPostgreSqlIT": 4,
+    "DisposableDatabaseRolesIT": 6,
+    "BusinessFinancialReportAssemblerTests": 14,
+    "BusinessFinancialReportCsvTests": 8,
+    "ReportRequestReaderTests": 3,
+    "BusinessFinancialReportPostgreSqlIT": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fullBackend": {
+    "surefire": {
+      "suites": 96,
+      "tests": 1040,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "passed": 1039,
+      "existingSkip": "LocalFileSystemStorageServiceTests.symlinkEscapeOutsideStorageRootIsPrevented(Path): Windows symlink capability"
+    },
+    "localFailsafe": {
+      "suites": 32,
+      "tests": 168,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 168
+    },
+    "productionTargetExclusions": [
+      "DatabaseRolePrivilegesPostgreSqlIT",
+      "PostgreSqlTlsConnectionIT"
+    ],
+    "excludedProductionCases": 19,
+    "exclusionsAreNotAcceptance": true
+  },
+  "frontend": {
+    "node": "v24.22.1",
+    "scope": "Combined F05 plus F12B integration tree after semantic navigation conflict resolution",
+    "projectsUnit": {
+      "exitCode": 0,
+      "tests": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    "reportsUnit": {
+      "exitCode": 0,
+      "tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    "estimatesUnit": {
+      "exitCode": 0,
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fullUnit": {
+      "exitCode": 0,
+      "tests": 110,
+      "passed": 110,
+      "failed": 0,
+      "skipped": 0
+    },
+    "initialFailure": {
+      "reports": {
+        "passed": 12,
+        "failed": 1
+      },
+      "fullUnit": {
+        "passed": 109,
+        "failed": 1
+      },
+      "cause": "Original reports source assertion required Reports to remain its own !isDemoMode-gated spread. Initial semantic merge grouped estimates/reports/projects in one gated array.",
+      "resolution": "Parent preserved original separate Estimates and Reports gated spreads and added separate Projects gated spread; no assertions changed.",
+      "logs": [
+        "reports-unit-initial.log",
+        "full-unit-initial.log"
+      ]
+    },
+    "typescript": {
+      "exitCode": 0,
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "output": "none",
+      "buildTypeScriptAlsoPassed": true
+    },
+    "eslint": {
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 1,
+      "warning": "src/components/auth/SessionProvider.tsx:230:33 react-hooks/exhaustive-deps: revision.current may change before effect cleanup"
+    },
+    "productionWebpack": {
+      "exitCode": 0,
+      "next": "16.3.8",
+      "command": "node node_modules/next/dist/bin/next build --webpack",
+      "environment": {
+        "BACKEND_API_URL": "http://127.0.0.1:8080",
+        "NEXT_PUBLIC_DATA_MODE": "live"
+      },
+      "warnings": [
+        "middleware file convention deprecated in favor of proxy"
+      ],
+      "combinedRoutesPresent": [
+        "/reports",
+        "/projects",
+        "/projects/new",
+        "/projects/[id]"
+      ]
+    },
+    "staticReview": {
+      "reportsAndProjectsInDesktopAndMobileNavigation": true,
+      "readRoutesUsePermission": "FINANCIAL_DATA_READ",
+      "createProjectRouteUsesPermission": "RECORD_CREATE_UPDATE",
+      "projectComponentsHideWriteControlsWithoutPermission": true,
+      "sharedSessionAndActiveBusinessBoundaryPreserved": true,
+      "reportsAndProjectsFutureModulesNotSilentlyActivated": true,
+      "existingRoutesPresent": [
+        "/",
+        "/estimates",
+        "/ask-finsight",
+        "/business-setup",
+        "/records",
+        "/records/new",
+        "/records/[id]",
+        "/scan",
+        "/upload",
+        "/upload/[id]"
+      ],
+      "browserAccessibilityProof": "Separate real-browser acceptance by parent; this record covers source and build verification only."
+    },
+    "agentSourceEdits": false,
+    "agentBranchOperations": false
+  },
+  "browser": {
+    "runtime": "Production Next on loopback3100, real Spring/session/CSRF on loopback8080, disposable PostgreSQL, real Edge via Playwright, synthetic accounts; paid providers disabled.",
+    "gates": [
+      {
+        "suite": "F05ProjectsBrowserAcceptance",
+        "exitCode": 0,
+        "checks": 24,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:06:11.4769152+05:00",
+        "finished": "2026-10-27T16:06:45.4961836+05:00"
+      },
+      {
+        "suite": "F12bReportsBrowserAcceptance",
+        "exitCode": 0,
+        "checks": 15,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:12:04.8881730+05:00",
+        "finished": "2026-10-27T16:12:38.6304104+05:00"
+      },
+      {
+        "suite": "F02AiBrowserAcceptance",
+        "exitCode": 0,
+        "checks": 11,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:07:58.4844601+05:00",
+        "finished": "2026-10-27T16:08:33.9259697+05:00"
+      },
+      {
+        "suite": "F13BrowserAcceptance",
+        "exitCode": 0,
+        "checks": 16,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:08:34.3150654+05:00",
+        "finished": "2026-10-27T16:09:13.7519354+05:00"
+      },
+      {
+        "suite": "F06BrowserAcceptance",
+        "exitCode": 0,
+        "checks": 14,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:09:14.1158255+05:00",
+        "finished": "2026-10-27T16:09:46.8851098+05:00"
+      },
+      {
+        "suite": "PilotHardeningBrowserAcceptance",
+        "exitCode": 0,
+        "checks": 11,
+        "errors": 0,
+        "externalRequests": 0,
+        "started": "2026-10-27T16:09:47.2367122+05:00",
+        "finished": "2026-10-27T16:10:47.1191592+05:00"
+      }
+    ],
+    "f05Checks": [
+      "1. Authenticate through the real sign-in UI and session/CSRF backend",
+      "2. The authenticated session has the real active business selected",
+      "3. Open the real Projects route; Reports and all existing navigation remain present",
+      "4. Create PROJECT, JOB and ORDER records through the browser forms",
+      "5. All three persisted records survive reload and appear in the real server list",
+      "6. Open persisted project detail with explicit no-approved-budget state",
+      "7. Create a persisted DRAFT budget after a genuine backend validation error preserves inputs and allows retry",
+      "8. Five planned cost categories reconcile to their exact backend subtotals",
+      "9. Persisted backend-authoritative planned revenue is 1000.00 and is rendered in history",
+      "10. Persisted backend-authoritative planned cost is 800.00",
+      "11. Persisted backend-authoritative planned margin is 200.00 and margin rate is 0.2",
+      "12. Approve the first budget through the real confirmation UI and render the approved server values",
+      "13. Create a new persisted DRAFT revision while keeping the original approved summary",
+      "14. Approve the second revision and render its exact server-authoritative planned totals",
+      "15. Previous approved revision becomes SUPERSEDED with original financials/lines unchanged and server mutation rejected",
+      "16. Planning summary remains PLANNED_ONLY, actual financials unimplemented and F13 project-margin unavailable",
+      "17. English-to-Urdu language switch persists through the real profile API",
+      "18. Urdu project detail uses actual RTL layout",
+      "19. Approved plan and revision history remain available at the 390px mobile viewport",
+      "20. English desktop/mobile and Urdu mobile have no horizontal document overflow",
+      "21. Real VIEWER UI hides all mutation controls and create/budget/approval requests are forbidden server-side",
+      "22. Actual MonthlyRecord payloads remain identical and F05 sends zero financial posting requests; Java verifies full rows and zero DB write statements",
+      "23. Stored health-score-v1 payload remains identical; Java verifies complete score rows and zero DB write statements",
+      "24. F06 exact preview is unchanged; project journey performs no F06 writes or persisted estimate conversion"
+    ],
+    "financialBoundary": {
+      "wholeRowTablesCompared": 9,
+      "monthlyRecordWriteStatements": 0,
+      "scoreResultWriteStatements": 0,
+      "permittedMutation": "business_profiles language preference changes through the required English-to-Urdu journey",
+      "result": "PASS",
+      "database": "real disposable PostgreSQL; synthetic preexisting actual records and scores"
+    },
+    "screenshotsReviewed": [
+      "projects-list-desktop-en.png",
+      "project-detail-budget-desktop-en.png",
+      "project-mobile-en.png",
+      "project-detail-mobile-ur-rtl.png"
+    ],
+    "screenshotReview": "All four visually inspected: desktop list/detail, English mobile, Urdu RTL mobile. Planned labels, totals/categories, revision history and controls are readable; no horizontal overflow. Fixed mobile navigation appears at the viewport boundary within full-page captures; content is scrollable.",
+    "rawEvidenceRelativeToTaskWorkspace": "work/f05-integration; final F05 attempt-20261027-04 and final F12B attempt-20261027-02; prior attempts retained."
+  },
+  "resolvedFailedRuns": [
+    "Initial navigation merge tripped one existing reports source-shape assertion (reports12/13, full109/110); restored separate gated spreads without changing assertions. Final13/13 and110/110.",
+    "V30 line reassignment hole reproduced by stronger approved/superseded-history assertions, then fixed by the OLD-parent guard; all migration and endpoint tests passed.",
+    "First full Failsafe run had one older migration-count assertion expecting20 after adding V30. Updated to exact ordered1-19,29,30; all168 passed with append-only/privilege checks retained.",
+    "F05 browser attempt01 reached24 UI checks but detected advice snapshot changes caused by an ancillary full-dashboard read after Urdu. Used read-only /api/scores/latest for score comparison.",
+    "F05 attempts02/03 detected15 same-value score UPDATEs from the ancillary full /api/workspace dashboard load used to inspect widget availability. Used the dedicated /api/workspace/widgets metadata endpoint; no F13/scoring changes and no weakened zero-write assertions. Final attempt04 had9 identical table snapshots and zero record/score write statements.",
+    "Initial F12B browser run passed12 checks then timed out after business switching. Test waited only for ltr while language session revalidation was still busy, so focus was ignored. Removed swallowed click failure and waited for the returned Urdu toggle; unchanged assertions then passed all15 checks."
+  ],
+  "preservedBoundaries": {
+    "f12bProductionCodeAndContractUnchanged": true,
+    "f12bHarnessOnlyChange": "language completion synchronization",
+    "reportsAndProjectsNavigation": true,
+    "f05": "PLANNED_ONLY; actual financials NOT_IMPLEMENTED_PHASE_A",
+    "monthlyRecordAndHealthScoreV1ImplementationUnchanged": true,
+    "f06ImplementationUnchanged": true,
+    "f13ImplementationUnchanged": true,
+    "moduleRegistryProjectsAndReports": "future/unimplemented",
+    "f13ProjectMargin": "unavailable",
+    "main": "untouched",
+    "devSuleman": "untouched; no implementation inspected or imported",
+    "userDocxAndTmp": "preserved, not staged or cleaned"
+  },
+  "environment": {
+    "java": "26.0.1 (release21 compilation)",
+    "postgres": "14.22 disposable",
+    "node": "24.22.1",
+    "next": "16.3.8"
+  },
+  "limits": [
+    "Full F05 actual attribution/profitability/posting/conversion remains future scope.",
+    "Reciprocal financial review remains pending; no new financial policy approved.",
+    "Java21/PostgreSQL17/TLS, shared/production migrations, deployed/provider/client acceptance are not established by local checks.",
+    "Existing full-dashboard reads can issue same-value score updates; no change to that independent behavior is claimed. F05 journey verifies zero writes."
+  ],
+  "commands": {
+    "targeted": "mvn -o -B -Dtest=ProjectBudgetCalculatorTests,ProjectRequestReaderTests,ProjectLifecycleTests,BusinessFinancialReportAssemblerTests,BusinessFinancialReportCsvTests,ReportRequestReaderTests -Ppostgres-it -Dit.test=ProjectPlanningMigrationPostgreSqlIT,ProjectPlanningPostgreSqlIT,DisposableDatabaseRolesIT,BusinessFinancialReportPostgreSqlIT verify",
+    "fullBackend": "mvn -o -B -Ppostgres-it \"-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT\" verify",
+    "finalFailsafe": "mvn -o -B -Ppostgres-it \"-Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT\" test-compile failsafe:integration-test failsafe:verify",
+    "frontend": [
+      "node --test tests/projects.test.mjs",
+      "node --test tests/reports.test.mjs",
+      "node --test tests/estimates.test.mjs",
+      "node --test tests/*.test.mjs",
+      "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "node node_modules/eslint/bin/eslint.js .",
+      "node node_modules/next/dist/bin/next build --webpack"
+    ],
+    "browsers": "mvn -o -B -Dtest=<BrowserAcceptanceClass> test, each of six suites separately with production Next running and documented browser environment variables."
+  }
+}

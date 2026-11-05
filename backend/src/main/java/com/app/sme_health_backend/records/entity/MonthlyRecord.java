@@ -18,6 +18,14 @@ public class MonthlyRecord {
     @UuidGenerator
     private UUID id;
 
+    @jakarta.persistence.Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+    public Long getVersion() { return version; }
+
+    public void setVersion(Long version) { this.version = version; }
+
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 

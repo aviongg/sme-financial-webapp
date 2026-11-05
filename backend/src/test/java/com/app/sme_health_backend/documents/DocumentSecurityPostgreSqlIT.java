@@ -93,37 +93,7 @@ public class DocumentSecurityPostgreSqlIT extends com.app.sme_health_backend.tes
                 storageService.delete(path);
             } catch (Exception ignored) { }
         }
-        for (UUID docId : createdDocIds) {
-            try {
-                documentRepository.deleteById(docId);
-            } catch (Exception ignored) { }
-        }
-        for (UUID userId : createdUserIds) {
-            try {
-                jdbcTemplate.update("DELETE FROM uploaded_documents WHERE user_id = ?", userId);
-                jdbcTemplate.update("DELETE FROM monthly_records WHERE user_id = ?", userId);
-                jdbcTemplate.update("DELETE FROM business_memberships WHERE user_id = ?", userId);
-            } catch (Exception ignored) {}
-        }
-        for (UUID businessId : createdBusinessIds) {
-            try {
-                jdbcTemplate.update("DELETE FROM uploaded_documents WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM monthly_records WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM score_results WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM insights WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM recommendations WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM whatsapp_deliveries WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM business_memberships WHERE business_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM business_profiles WHERE user_id = ?", businessId);
-                jdbcTemplate.update("DELETE FROM businesses WHERE id = ?", businessId);
-            } catch (Exception ignored) {}
-        }
-        for (UUID userId : createdUserIds) {
-            try {
-                jdbcTemplate.update("DELETE FROM business_profiles WHERE user_id = ?", userId);
-                jdbcTemplate.update("DELETE FROM app_users WHERE id = ?", userId);
-            } catch (Exception ignored) {}
-        }
+        // Keep database fixtures until disposal: confirmed-source provenance is intentionally append-only.
         createdUserIds.clear();
         createdBusinessIds.clear();
         createdDocIds.clear();
@@ -261,6 +231,7 @@ public class DocumentSecurityPostgreSqlIT extends com.app.sme_health_backend.tes
         UploadedDocument doc = documentRepository.findById(docId).orElseThrow();
         assertEquals(businessA, doc.getUserId(), "Document must be owned by tenant Business A");
         createdStoragePaths.add(doc.getStoragePath());
+        assertUploadAudit(docId, userA.getId(), businessA);
 
         // 2. Storage entry corresponds to correct document/business and uses server-generated relative key
         assertTrue(storageService.exists(doc.getStoragePath()));
@@ -404,15 +375,63 @@ public class DocumentSecurityPostgreSqlIT extends com.app.sme_health_backend.tes
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.processingStatus").value("pending"));
 
-        // 5. Stale processing recovery
-        failedDoc.setProcessingStatus(DocumentStatus.processing);
-        failedDoc.setProcessingStartedAt(LocalDateTime.now().minusHours(2));
-        documentRepository.save(failedDoc);
+        // Recovery uses a separate row with no asynchronous dispatch. The retried worker above
+        // may still be running and must never race this deterministic stale fixture.
+        UUID staleId = UUID.randomUUID();
+        UploadedDocument staleDoc = new UploadedDocument();
+        staleDoc.setId(staleId); staleDoc.setUserId(businessId);
+        staleDoc.setFileUrl("/api/documents/" + staleId + "/file");
+        staleDoc.setProcessingStatus(DocumentStatus.processing);
+        staleDoc.setProcessingStartedAt(LocalDateTime.now().minusHours(2));
+        documentRepository.saveAndFlush(staleDoc);
 
         startupRecovery.recoverStaleProcessingDocuments();
 
-        UploadedDocument recovered = documentRepository.findById(failedId).orElseThrow();
+        UploadedDocument recovered = documentRepository.findById(staleId).orElseThrow();
         assertEquals(DocumentStatus.failed, recovered.getProcessingStatus());
         assertEquals("processing_interrupted", recovered.getFailureReason());
+    }
+
+    @Test
+    void ownerAndAccountantSingleAndBulkUploadsAuditSessionIdentityDespiteSpoofedParameters() throws Exception {
+        AppUser owner=createTestUser("OwnerAudit"); LoginSession ownerSession=loginUser(owner);
+        UUID business=createBusinessForSession(ownerSession,"retail");
+        AppUser accountant=createTestUser("AccountantAudit");
+        membershipRepository.saveAndFlush(new com.app.sme_health_backend.identity.entity.BusinessMembership(
+                accountant.getId(),business,com.app.sme_health_backend.identity.model.MembershipRole.ACCOUNTANT,
+                com.app.sme_health_backend.identity.model.MembershipStatus.ACTIVE));
+        LoginSession accountantSession=loginUser(accountant);
+        for(LoginSession session:java.util.List.of(ownerSession,accountantSession)) {
+            mockMvc.perform(withAuth(post("/api/businesses/active"),session).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"businessId\":\""+business+"\"}")).andExpect(status().isOk());
+            byte[] png={(byte)0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a};
+            MvcResult single=mockMvc.perform(withAuth(multipart("/api/documents/upload"),session)
+                    .file(new MockMultipartFile("file","single.png","image/png",png))
+                    .param("actorUserId",UUID.randomUUID().toString()).param("businessId",UUID.randomUUID().toString()))
+                    .andExpect(status().isCreated()).andReturn();
+            UUID id=UUID.fromString(new JsonMapper().readTree(single.getResponse().getContentAsString()).get("id").stringValue());
+            assertUploadAudit(id,session.user().getId(),business);
+            MvcResult bulk=mockMvc.perform(withAuth(multipart("/api/documents/bulk"),session)
+                    .file(new MockMultipartFile("files","one.png","image/png",png))
+                    .file(new MockMultipartFile("files","two.png","image/png",png))
+                    .param("actorUserId",UUID.randomUUID().toString()).param("userId",UUID.randomUUID().toString()))
+                    .andExpect(status().isAccepted()).andExpect(jsonPath("$.totalCount").value(2)).andReturn();
+            JsonNode result=new JsonMapper().readTree(bulk.getResponse().getContentAsString());
+            for(JsonNode item:result.get("documents")) {
+                UUID bulkId=UUID.fromString(item.get("id").stringValue());
+                assertUploadAudit(bulkId,session.user().getId(),business);
+            }
+        }
+        for(UploadedDocument row:documentRepository.findByUserIdOrderByUploadTimestampDesc(business)) {
+            createdStoragePaths.add(row.getStoragePath());
+        }
+        assertEquals(6,jdbcTemplate.queryForObject("SELECT count(*) FROM security_audit_events WHERE event_type='DOCUMENT_UPLOADED' AND business_id=?",Integer.class,business));
+    }
+
+    private void assertUploadAudit(UUID document,UUID actor,UUID business) {
+        java.util.Map<String,Object> event=jdbcTemplate.queryForMap("SELECT actor_user_id,business_id,is_system FROM security_audit_events WHERE event_type='DOCUMENT_UPLOADED' AND target_id=?",document.toString());
+        assertNotEquals(actor,business); assertEquals(actor,event.get("actor_user_id"));
+        assertEquals(business,event.get("business_id")); assertEquals(false,event.get("is_system"));
+        assertEquals(business,documentRepository.findById(document).orElseThrow().getUserId());
     }
 }

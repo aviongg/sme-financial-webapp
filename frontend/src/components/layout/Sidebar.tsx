@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,14 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
+  Calculator,
+  FileText,
+  FolderKanban,
+  Receipt,
+  ReceiptText,
+  FlaskConical,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
@@ -22,17 +30,29 @@ import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
 import { recordsEn, recordsUr } from '@/components/records/records-copy';
 import { routePermission } from "@/lib/api/navigation";
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { useAi } from '@/components/ai/AiProvider';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
+import { estimatesCopy } from '@/lib/i18n/translations/estimates';
+import { reportsCopy } from '@/lib/i18n/translations/reports';
+import { projectsCopy } from '@/lib/i18n/translations/projects';
+import { samplesCopy } from '@/lib/i18n/translations/samples';
+import { commercialCopy } from '@/lib/i18n/translations/commercial';
+import { inventoryCopy } from '@/lib/i18n/translations/inventory';
 
 export interface SidebarProps {
   className?: string;
+  /** Collapse state is owned by AppShell so the content offset always matches the sidebar width. */
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { can, business } = useSession();
-  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || !permission || can(permission); };
-  const { t, direction, locale } = useLanguage();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const configuration = useConfiguration(); const ai = useAi();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true) && (path !== '/ask-finsight' || ai?.available === true)); };
+  const { t, direction, locale } = useLanguage(); const copy = phaseTwoCopy(locale);
 
   const navItems = [
     {
@@ -50,6 +70,13 @@ export function Sidebar({ className }: SidebarProps) {
       href: "/health/components",
       icon: FileBarChart2,
     },
+    ...(!isDemoMode ? [{ label: estimatesCopy(locale).nav, href: '/estimates', icon: Calculator }] : []),
+    ...(!isDemoMode ? [{ label: reportsCopy(locale).nav, href: '/reports', icon: FileText }] : []),
+    ...(!isDemoMode ? [{ label: projectsCopy(locale).nav, href: '/projects', icon: FolderKanban }] : []),
+    ...(!isDemoMode ? [{ label: samplesCopy(locale).nav, href: '/samples', icon: FlaskConical }] : []),
+    ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.INVOICE.nav, href: '/invoices', icon: Receipt }] : []),
+    ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.BILL.nav, href: '/bills', icon: ReceiptText }] : []),
+    ...(!isDemoMode ? [{ label: inventoryCopy(locale).nav, href: '/inventory', icon: Boxes }] : []),
     {
       label: (locale === 'ur' ? recordsUr : recordsEn).add,
       href: "/records?add=1",
@@ -73,6 +100,7 @@ export function Sidebar({ className }: SidebarProps) {
   ];
 
   const secondaryNavItems = [
+    ...(!isDemoMode ? [{ label: copy.ask, href: '/ask-finsight', icon: MessageCircle }] : []),
     {
       label: t.nav.search,
       href: "/search",
@@ -128,7 +156,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* Sidebar Collapse Toggle Button */}
         <button
           type="button"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={onToggleCollapsed}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden lg:flex items-center justify-center w-7 h-7 rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
         >
@@ -142,8 +170,8 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-        {navItems.filter((item) => allowed(item.href) && (item.href !== '/records?add=1' || isDemoMode || business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role))).map((item) => {
-          const isActive = pathname === item.href || item.href === '/records' && pathname.startsWith('/records/');
+        {navItems.filter((item) => allowed(item.href) && (item.href !== '/records?add=1' || isDemoMode || (business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role)))).map((item) => {
+          const isActive = pathname === item.href || (item.href === '/records' && pathname.startsWith('/records/')) || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
 
           return (
@@ -169,7 +197,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Secondary Bottom Navigation (Settings & Help) */}
       <div className="p-2 border-t border-[var(--color-border-subtle)] space-y-1">
         {secondaryNavItems.filter((item) => allowed(item.href)).map((item) => {
-          const isActive = pathname === item.href || item.href === '/records' && pathname.startsWith('/records/');
+          const isActive = pathname === item.href;
           const Icon = item.icon;
 
           return (

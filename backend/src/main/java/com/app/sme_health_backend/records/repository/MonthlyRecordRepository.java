@@ -22,9 +22,16 @@ public interface MonthlyRecordRepository extends JpaRepository<MonthlyRecord, UU
 
     Optional<MonthlyRecord> findByUserIdAndMonth(UUID userId, String month);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM MonthlyRecord r WHERE r.userId = :userId AND r.month = :month")
+    Optional<MonthlyRecord> findByUserIdAndMonthForUpdate(@Param("userId") UUID userId, @Param("month") String month);
+
     List<MonthlyRecord> findByUserIdOrderByMonthDesc(UUID userId);
 
     List<MonthlyRecord> findByUserIdOrderByMonthAsc(UUID userId);
 
     List<MonthlyRecord> findTop6ByUserIdOrderByMonthDesc(UUID userId);
+
+    /** Read-only bounded range (inclusive, YYYY-MM sorts lexicographically) used by the stateless F12B report. */
+    List<MonthlyRecord> findByUserIdAndMonthBetweenOrderByMonthAsc(UUID userId, String fromMonth, String toMonth);
 }

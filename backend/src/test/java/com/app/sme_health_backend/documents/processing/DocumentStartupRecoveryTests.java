@@ -15,20 +15,21 @@ class DocumentStartupRecoveryTests {
     @Mock
     private UploadedDocumentRepository repository;
 
-    @InjectMocks
-    private DocumentStartupRecovery recovery;
+    private final ProcessingAttemptPolicy policy = new ProcessingAttemptPolicy(java.time.Clock.fixed(
+            java.time.Instant.parse("2026-10-01T12:00:00Z"), java.time.ZoneOffset.UTC));
 
     @Test
     void recoverStaleProcessingDocumentsResetsInterruptedDocumentsToFailed() {
-        when(repository.resetAllByStatus(DocumentStatus.processing, DocumentStatus.failed, "processing_interrupted"))
+        when(repository.recoverStaleProcessing(DocumentStatus.processing, DocumentStatus.failed, "processing_interrupted", policy.staleCutoff()))
                 .thenReturn(3);
 
-        recovery.recoverStaleProcessingDocuments();
+        new DocumentStartupRecovery(repository, policy).recoverStaleProcessingDocuments();
 
-        verify(repository).resetAllByStatus(
+        verify(repository).recoverStaleProcessing(
                 DocumentStatus.processing,
                 DocumentStatus.failed,
-                "processing_interrupted"
+                "processing_interrupted",
+                policy.staleCutoff()
         );
     }
 }

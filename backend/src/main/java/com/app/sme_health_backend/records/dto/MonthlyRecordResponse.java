@@ -9,11 +9,14 @@ import java.util.UUID;
 public class MonthlyRecordResponse {
 
     private UUID id;
+    private Long version;
+    public Long getVersion() { return version; }
     private UUID businessId;
     private String month;
 
     private BigDecimal cashInflow;
     private BigDecimal cashOutflow;
+    private BigDecimal netCashFlow;
     private BigDecimal revenue;
     private BigDecimal cogs;
     private BigDecimal operatingExpenses;
@@ -32,11 +35,15 @@ public class MonthlyRecordResponse {
         MonthlyRecordResponse response = new MonthlyRecordResponse();
 
         response.id = record.getId();
+        response.version = record.getVersion();
         response.businessId = record.getUserId();
         response.month = record.getMonth();
 
         response.cashInflow = record.getCashInflow();
         response.cashOutflow = record.getCashOutflow();
+        if (record.getCashInflow() != null && record.getCashOutflow() != null) {
+            response.netCashFlow = record.getCashInflow().subtract(record.getCashOutflow());
+        }
         response.revenue = record.getRevenue();
         response.cogs = record.getCogs();
         response.operatingExpenses = record.getOperatingExpenses();
@@ -72,6 +79,10 @@ public class MonthlyRecordResponse {
 
     public BigDecimal getCashOutflow() {
         return cashOutflow;
+    }
+
+    public BigDecimal getNetCashFlow() {
+        return netCashFlow;
     }
 
     public BigDecimal getRevenue() {

@@ -15,10 +15,12 @@ public record DocumentConfirmationRequest(
 
         @NotNull(message = "Confirmed amount is required")
         @DecimalMin(value = "0.01", message = "Confirmed amount must be greater than zero")
+        @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
         BigDecimal confirmedAmount,
 
         LocalDate confirmedDate,
 
+        @jakarta.validation.constraints.Size(max = 500)
         String confirmedParty,
 
         @NotBlank(message = "Target classification is required (revenue, operating_expenses, cogs, none)")
@@ -26,5 +28,18 @@ public record DocumentConfirmationRequest(
 
         String cashFlowImpact,
 
-        BigDecimal initialCashBalanceEom
-) {}
+        @jakarta.validation.constraints.Digits(integer = 12, fraction = 2)
+        @DecimalMin("0")
+        BigDecimal initialCashBalanceEom,
+
+        Boolean allowPotentialDuplicate
+) {
+    /** Legacy and explicit-null requests never acknowledge a duplicate. */
+    public DocumentConfirmationRequest {
+        allowPotentialDuplicate = Boolean.TRUE.equals(allowPotentialDuplicate);
+    }
+    public DocumentConfirmationRequest(String targetMonth, BigDecimal confirmedAmount, LocalDate confirmedDate,
+            String confirmedParty, String targetClassification, String cashFlowImpact, BigDecimal initialCashBalanceEom) {
+        this(targetMonth, confirmedAmount, confirmedDate, confirmedParty, targetClassification, cashFlowImpact, initialCashBalanceEom, false);
+    }
+}

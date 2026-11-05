@@ -12,6 +12,7 @@ import { HealthScoreHero } from '@/components/dashboard/HealthScoreHero';
 import { HealthComponents } from '@/components/dashboard/HealthComponents';
 import { useLanguage } from '@/lib/i18n/context';
 import { interpolate, liveLabel } from '@/lib/i18n/labels';
+import { AiExplanationPanel } from '@/components/ai/AiExplanation';
 export function LiveHealth() {
   const { t } = useLanguage();
   const [month, setMonth] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('month') || '');
@@ -35,7 +36,7 @@ function HealthMonth({ month }: { month: string }) {
     {presentation && <HealthScoreHero scoreResult={presentation} explanation={{ summary: explanation ? interpolate(t.live.scoreSummary, { months: explanation.historyMonthsAvailable }) : t.live.legacyScore, weakestReason: t.live.weakestReason }}/>}
     <Card padding="lg" className="space-y-2"><h2 className="font-semibold">{t.live.movement} · {month}</h2>{explanation?.previousMonth ? <><p><bdi dir="ltr">{explanation.previousMonth} → {month}: {explanation.previousScore ?? '—'} → {score.compositeScore ?? '—'}</bdi></p>{explanation.majorChanges.map(change => <p key={change.component}>{liveLabel(t, change.component)}: <bdi dir="ltr">{change.previousScore ?? '—'} → {change.currentScore ?? '—'}</bdi></p>)}</> : <p>{t.live.noPrevious}</p>}</Card>
     <HealthComponents componentScores={score.componentScores} weakestComponent={score.weakestComponent || undefined}/><ScoreEvidence score={score}/>
-    <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.insights}</h2>{insights.length ? insights.map(item => <p key={item.id} dir={item.language === 'ur' ? 'rtl' : 'ltr'}>{item.text}</p>) : <p>{t.live.noAdvice}</p>}</Card>
-    <Card padding="lg" className="space-y-4"><h2 className="font-semibold">{t.live.recommendations}</h2>{recommendations.length ? recommendations.map(item => <article key={item.id + item.sourceComputedAt} className="border-t pt-3 space-y-3"><p dir={item.language === 'ur' ? 'rtl' : 'ltr'}>{item.text}</p><RecommendationActions advice={item} onUpdated={resource.retry}/></article>) : <p>{t.live.noAdvice}</p>}</Card>
+    <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.insights}</h2>{insights.length ? insights.map(item => <article key={item.id + item.sourceComputedAt} className="space-y-3 border-t pt-3"><p dir={item.language === 'ur' ? 'rtl' : 'ltr'}>{item.text}</p><AiExplanationPanel type="insight" sourceId={item.id} month={month}/></article>) : <p>{t.live.noAdvice}</p>}</Card>
+    <Card padding="lg" className="space-y-4"><h2 className="font-semibold">{t.live.recommendations}</h2>{recommendations.length ? recommendations.map(item => <article key={item.id + item.sourceComputedAt} className="border-t pt-3 space-y-3"><p dir={item.language === 'ur' ? 'rtl' : 'ltr'}>{item.text}</p><RecommendationActions advice={item} onUpdated={resource.retry}/><AiExplanationPanel key={`${item.status}:${item.statusUpdatedAt}`} type="recommendation" sourceId={item.id} month={month}/></article>) : <p>{t.live.noAdvice}</p>}</Card>
   </div>;
 }

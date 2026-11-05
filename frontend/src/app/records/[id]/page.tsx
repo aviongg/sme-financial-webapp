@@ -105,6 +105,11 @@ function RecordEditor({ recordId }: { recordId: string }) {
               key={`${record.businessId ?? record.userId}:${record.month}`}
               initialData={record}
               isEditMode
+              onReload={() => {
+                setIsLoading(true);
+                setError(null);
+                setRetry(value => value + 1);
+              }}
             />
           )}
         </div>

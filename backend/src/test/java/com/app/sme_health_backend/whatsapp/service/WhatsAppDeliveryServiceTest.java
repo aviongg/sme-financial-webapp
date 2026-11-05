@@ -58,6 +58,8 @@ class WhatsAppDeliveryServiceTest {
     @Mock
     private WhatsAppClient whatsappClient;
 
+    @Mock private com.app.sme_health_backend.audit.service.SecurityAuditService audit;
+    @Mock private org.springframework.transaction.PlatformTransactionManager transactions;
     private WhatsAppDeliveryService service;
 
     private UUID userId;
@@ -73,7 +75,7 @@ class WhatsAppDeliveryServiceTest {
                 recommendationService,
                 summaryComposer,
                 whatsappClient,
-                "Asia/Karachi"
+                "Asia/Karachi", audit, transactions
         );
         userId = UUID.randomUUID();
         testDate = LocalDate.of(2026, 9, 23); // Wednesday of week 39
@@ -193,6 +195,8 @@ class WhatsAppDeliveryServiceTest {
         assertEquals("msg-123", delivery.getProviderMessageId());
         assertNotNull(delivery.getSentAt());
         assertEquals("fp123", delivery.getSourceFingerprint());
+        verify(audit).logSystemEvent(eq(com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_SENT), eq(userId),
+                eq("whatsapp_delivery"), eq(delivery.getId().toString()), any());
     }
 
     @Test
@@ -238,6 +242,8 @@ class WhatsAppDeliveryServiceTest {
         assertEquals(WhatsAppDeliveryStatus.INDETERMINATE, delivery.getDeliveryStatus());
         assertTrue(delivery.getFailureReason().contains("timeout"));
         assertNull(delivery.getSentAt());
+        verify(audit).logSystemFailure(eq(com.app.sme_health_backend.audit.model.AuditEventType.WHATSAPP_FAILED), eq(userId),
+                eq("whatsapp_delivery"), eq(delivery.getId().toString()), any(), any());
         // Verify sendSummary was called only once (no blind retries)
         verify(whatsappClient, times(1)).sendSummary(any());
     }

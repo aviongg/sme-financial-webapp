@@ -4,6 +4,8 @@ import React from "react";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useLanguage } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils/cn";
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 
 export interface CoreVitalsValues {
   cashInflow: number | null;
@@ -36,7 +38,9 @@ export function CoreVitalsSection({
   disabled = false,
   className,
 }: CoreVitalsSectionProps) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage(); const configuration = useConfiguration();
+  const salesTerm = configuration?.data?.terminology.sales;
+  const revenueLabel = salesTerm && salesTerm !== 'sales' ? phaseTwoCopy(locale)[salesTerm] : t.fields.revenue;
 
   return (
     <section className={cn("space-y-6 text-start", className)}>
@@ -84,7 +88,7 @@ export function CoreVitalsSection({
         <div>
           <CurrencyInput
             id="field-revenue"
-            label={t.fields.revenue}
+            label={revenueLabel}
             helperText={t.fields.revenueHelp}
             value={values.revenue}
             onValueChange={(val) => onChange("revenue", val)}

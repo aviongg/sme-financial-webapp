@@ -35,6 +35,8 @@ export interface Confirmation {
     targetClassification: string;
     cashFlowImpact: string;
     initialCashBalanceEom: number | null;
+    /** Only an explicit human acknowledgement may set this after a duplicate-source warning. */
+    allowPotentialDuplicate?: boolean;
 }
 export interface Correction {
     date: string | null;
@@ -46,6 +48,14 @@ export interface Correction {
 const idPath = (id: string) => { if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
     throw new Error('Invalid document reference.'); return `/documents/${id}`; };
 export const documentFilePath = (id: string) => `/api${idPath(id)}/file`;
+/** Confirmation never forwards caller-supplied actor/business authority or an implicit override. */
+export function confirmationPayload(input: Confirmation): Confirmation {
+    return { targetMonth: input.targetMonth, confirmedAmount: input.confirmedAmount,
+        confirmedDate: input.confirmedDate, confirmedParty: input.confirmedParty,
+        targetClassification: input.targetClassification, cashFlowImpact: input.cashFlowImpact,
+        initialCashBalanceEom: input.initialCashBalanceEom,
+        ...(input.allowPotentialDuplicate === true ? { allowPotentialDuplicate: true } : {}) };
+}
 export const documentsApi = {
     list: (signal?: AbortSignal) => apiClient<DocumentRecord[]>('/documents', { signal }),
     get: (id: string, signal?: AbortSignal) => apiClient<DocumentRecord>(idPath(id), { signal }),
@@ -54,5 +64,5 @@ export const documentsApi = {
     retry: (id: string) => apiClient<DocumentRecord>(`${idPath(id)}/retry`, { method: 'POST' }),
     remove: (id: string) => apiClient<void>(idPath(id), { method: 'DELETE' }),
     correct: (id: string, input: Correction) => apiClient<DocumentRecord>(idPath(id), { method: 'PATCH', body: JSON.stringify(input) }),
-    confirm: (id: string, input: Confirmation) => apiClient<DocumentRecord>(`${idPath(id)}/confirm`, { method: 'POST', body: JSON.stringify(input) }),
+    confirm: (id: string, input: Confirmation) => apiClient<DocumentRecord>(`${idPath(id)}/confirm`, { method: 'POST', body: JSON.stringify(confirmationPayload(input)) }),
 };

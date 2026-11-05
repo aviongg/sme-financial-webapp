@@ -1,0 +1,37 @@
+{
+  "feature": "F06 Phase B persisted estimates, approval and exact-fit F05 conversion",
+  "date": "2026-10-28",
+  "timezone": "Asia/Karachi",
+  "worktree": "C:/Users/Hp/FYP/wt-f06-persisted-estimates",
+  "branch": "claude/f06-persisted-estimates-phase-b (local only, not pushed)",
+  "baseCommit": "cae92058bca1063a948e4e67e6c8c2694f87aa58",
+  "producerCommit": "containing commit (git log -1 --format=%H claude/f06-persisted-estimates-phase-b)",
+  "migration": {
+    "added": "V33__persisted_estimates_and_conversion.sql",
+    "freshHistory": ["1-19", "29", "30", "31", "33"],
+    "v32": "absent in this isolated worktree (F09); not combined migration acceptance",
+    "unchanged": "V1-V31"
+  },
+  "precisionDecision": {
+    "persisted": "full f06-preview-v1 precision",
+    "conversion": "exact-fit only; conversion_precision_unrepresentable with field/line details; no rounding, truncation or normalization",
+    "p10": "OPEN"
+  },
+  "runtime": { "java": "26.0.1 compiling release 21", "maven": "3.9.16 (offline)", "postgresql": "14.22 disposable embedded", "node": "24.22.1", "pnpm": "11.25.0 frozen install, lockfile unchanged", "next": "16.3.8 webpack", "browser": "Edge via Playwright" },
+  "results": {
+    "phaseBUnit": { "command": "mvnw -Dtest=ProjectConversionValidatorTests,EstimatePersistenceParityTests,EstimateRequestReaderTests test", "run": 19, "failures": 0 },
+    "phaseBPostgreSql": { "classes": ["EstimatePlanningMigrationPostgreSqlIT (2)", "EstimatePlanningPostgreSqlIT (3)"], "run": 5, "failures": 0 },
+    "phaseAAndF05Regression": { "unit": "PricingCalculatorTests 31, EstimatePreviewBoundaryTests 2, ProjectBudgetCalculatorTests 26, ProjectRequestReaderTests 14, ProjectLifecycleTests 2", "postgresql": "EstimatePreviewPostgreSqlIT 8, ProjectPlanningPostgreSqlIT 4, ProjectPlanningMigrationPostgreSqlIT 1", "failures": 0 },
+    "backendDefault": { "command": "mvnw -B -o test", "run": 1073, "skipped": 1, "skipReason": "existing Windows storage symlink capability", "failures": 0, "errors": 0 },
+    "failsafeFull": { "command": "mvnw -B -o -Ppostgres-it -Dit.test=*IT,!DatabaseRolePrivilegesPostgreSqlIT,!PostgreSqlTlsConnectionIT verify", "classes": 36, "run": 178, "failures": 0, "errors": 0, "skipped": 0, "excludedProductionTargetCases": 19, "excludedStatus": "not executed, not accepted" },
+    "frontend": { "tests": 129, "newTests": 10, "typescript": "pass", "eslint": "0 errors, 1 existing SessionProvider warning", "build": "next build --webpack pass; existing middleware deprecation and Edge runtime warnings" },
+    "browserPhaseB": { "class": "F06PersistedEstimatesBrowserAcceptance", "checks": 22, "result": "PASS", "databaseBoundary": "12 full-table snapshots identical; zero write statements on monthly_records, score_results, document_financial_contributions, commercial tables; one F05 DRAFT budget 1500.2500; one lineage row", "defectFoundAndFixed": "mobile Urdu register header overflow 474px > 390px; quick-preview link moved out of the shared header" },
+    "browserRegressions": {
+      "F06PhaseA": "14 PASS (route /estimates/preview)",
+      "F04": "22 PASS", "F05": "24 PASS", "F12B": "15 PASS", "Pilot": "11 PASS", "F13": "16 PASS",
+      "F02": "FAILED 3 of 3 runs: 8 checks passed, then mobile-Urdu settings overflow assertion (scrollWidth 491, viewport 390, no overflowing element inside main) - same signature as the existing AppShell timing race recorded for F04; diff touches no layout/settings/auth/global-style file; not fixed, not accepted"
+    }
+  },
+  "notPerformed": ["push or remote branch", "integration into dev/fatima", "combined V31-V32-V33 verification", "production-target database role/TLS cases", "Java 21/PostgreSQL 17/TLS production stack", "reciprocal Developer A review", "client/production acceptance"],
+  "integratedCandidate": { "date": "2026-10-31", "branch": "claude/dev-b-integration-v35-v37 (local only, not pushed)", "commit": "dcafe76646ff85866e83a52981310d7537a694e7", "migration": "V36__persisted_estimates_and_conversion.sql (renumbered from isolated V33; SQL unchanged except one comment)", "freshHistory": ["1-17", "30-37"], "populatedUpgrade": "V35 -> V36 (EstimatePlanningMigrationPostgreSqlIT) and V34 -> V35 -> V36 -> V37 (DeveloperBIntegratedMigrationPostgreSqlIT)", "results": "ProjectConversionValidatorTests 10, EstimatePlanningPostgreSqlIT 3, F06PersistedEstimatesBrowserAcceptance 22, F06BrowserAcceptance 14; F02 now passes 11/11 with UX hardening", "evidence": "verification/2026-10-31-dev-b-integration-v35-v37.json" }
+}

@@ -32,10 +32,19 @@ class MonthlyRecordContributionTests {
     private MonthlyRecordService service;
     private final UUID userId = UUID.randomUUID();
     private final String month = "2026-03";
+    private final UUID actorId = UUID.randomUUID(), documentId = UUID.randomUUID();
+    private final com.app.sme_health_backend.audit.service.SecurityAuditService audit = mock(com.app.sme_health_backend.audit.service.SecurityAuditService.class);
+    private final com.app.sme_health_backend.identity.repository.BusinessRepository businesses = mock(com.app.sme_health_backend.identity.repository.BusinessRepository.class);
+    private final com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository contributions = mock(com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository.class);
+    private MonthlyRecord apply(UUID business, String targetMonth, String classification, String flow, BigDecimal amount, BigDecimal balance) {
+        return service.applyDocumentContribution(business, actorId, documentId,
+                new com.app.sme_health_backend.documents.dto.DocumentConfirmationRequest(targetMonth, amount, null, null, classification, flow, balance));
+    }
 
     @BeforeEach
     void setUp() {
-        service = new MonthlyRecordService(repository, scoringService);
+        service = new MonthlyRecordService(repository, scoringService, audit, businesses, contributions);
+        lenient().when(businesses.findByIdForUpdate(any())).thenAnswer(inv -> Optional.of(new com.app.sme_health_backend.identity.entity.Business(inv.getArgument(0))));
     }
 
     @Test
@@ -55,12 +64,12 @@ class MonthlyRecordContributionTests {
         existing.setInventoryValue(new BigDecimal("25000.00"));
         existing.setLoanOutstanding(new BigDecimal("80000.00"));
 
-        when(repository.findByUserIdAndMonth(userId, month)).thenReturn(Optional.of(existing));
-        when(repository.save(any(MonthlyRecord.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(repository.findByUserIdAndMonthForUpdate(userId, month)).thenReturn(Optional.of(existing));
+        when(repository.saveAndFlush(any(MonthlyRecord.class))).thenAnswer(inv -> inv.getArgument(0));
         when(repository.findByUserIdOrderByMonthAsc(userId)).thenReturn(List.of(existing));
 
         // Apply an operating expense of 5,000 with cash outflow of 5,000
-        MonthlyRecord updated = service.applyDocumentContribution(
+        MonthlyRecord updated = apply(
                 userId,
                 month,
                 "operating_expenses",
@@ -88,10 +97,10 @@ class MonthlyRecordContributionTests {
 
     @Test
     void rejectsContributionForNonExistentMonthWithoutInitialCashBalance() {
-        when(repository.findByUserIdAndMonth(userId, "2026-04")).thenReturn(Optional.empty());
+        when(repository.findByUserIdAndMonthForUpdate(userId, "2026-04")).thenReturn(Optional.empty());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                service.applyDocumentContribution(
+                apply(
                         userId,
                         "2026-04",
                         "revenue",
@@ -102,19 +111,19 @@ class MonthlyRecordContributionTests {
         );
 
         assertTrue(ex.getMessage().contains("initialCashBalanceEom"));
-        verify(repository, never()).save(any());
+        verify(repository, never()).saveAndFlush(any());
     }
 
     @Test
     void createsMinimalValidRecordWhenInitialCashBalanceIsProvided() {
-        when(repository.findByUserIdAndMonth(userId, "2026-04")).thenReturn(Optional.empty());
-        when(repository.save(any(MonthlyRecord.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(repository.findByUserIdAndMonthForUpdate(userId, "2026-04")).thenReturn(Optional.empty());
+        when(repository.saveAndFlush(any(MonthlyRecord.class))).thenAnswer(inv -> inv.getArgument(0));
         MonthlyRecord expectedRecord = new MonthlyRecord();
         expectedRecord.setUserId(userId);
         expectedRecord.setMonth("2026-04");
         when(repository.findByUserIdOrderByMonthAsc(userId)).thenReturn(List.of(expectedRecord));
 
-        MonthlyRecord created = service.applyDocumentContribution(
+        MonthlyRecord created = apply(
                 userId,
                 "2026-04",
                 "revenue",
@@ -132,20 +141,19 @@ class MonthlyRecordContributionTests {
         assertEquals(BigDecimal.ZERO, created.getCashOutflow());
         assertEquals("none", created.getFinancingType());
 
-        verify(repository).save(any(MonthlyRecord.class));
+        verify(repository).saveAndFlush(any(MonthlyRecord.class));
         verify(scoringService).calculateAndSaveScore(userId, "2026-04");
     }
 
     @Test
     void rejectsInvalidAmountOrNegativeCashBalance() {
         assertThrows(IllegalArgumentException.class, () ->
-                service.applyDocumentContribution(userId, month, "revenue", "none", BigDecimal.ZERO, null));
+                apply(userId, month, "revenue", "none", BigDecimal.ZERO, null));
 
         assertThrows(IllegalArgumentException.class, () ->
-                service.applyDocumentContribution(userId, month, "revenue", "none", new BigDecimal("-10.00"), null));
+                apply(userId, month, "revenue", "none", new BigDecimal("-10.00"), null));
 
-        when(repository.findByUserIdAndMonth(userId, "2026-05")).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () ->
-                service.applyDocumentContribution(userId, "2026-05", "revenue", "none", new BigDecimal("100.00"), new BigDecimal("-5.00")));
+                apply(userId, "2026-05", "revenue", "none", new BigDecimal("100.00"), new BigDecimal("-5.00")));
     }
 }

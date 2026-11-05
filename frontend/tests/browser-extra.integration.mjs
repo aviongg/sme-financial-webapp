@@ -1,3 +1,5 @@
+import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
+import { workspaceFixture } from './fixtures/workspace.mjs';
 // Production frontend browser checks using a synthetic API contract fixture.
 // This does not test the deployed Spring service, PostgreSQL, email or OCR providers.
 // Requires the current production Next build serving http://127.0.0.1:3100.
@@ -29,7 +31,7 @@ let doc = {
   linkedMonth: null, failureReason: null, confirmedAt: null,
 };
 const records = [{id: '33333333-3333-4333-8333-333333333333', businessId,
-  month: '2026-09', cashInflow: 1000, cashOutflow: 400, revenue: 1500, operatingExpenses: 300,
+  month: '2026-09', version: 0, cashInflow: 1000, cashOutflow: 400, revenue: 1500, operatingExpenses: 300,
   cashBalanceEom: 600, cogs: null, receivablesOutstanding: 0, payablesOutstanding: 0,
   inventoryValue: null, loanOutstanding: null, interestExpense: null, financingType: 'none',
   updatedAt: '2026-09-27T00:00:00'}];
@@ -89,6 +91,8 @@ const handler = async (req, res) => {
     return json(res, {message: 'Session expired', error: 'unauthorized'}, 401);
   if (url === '/api/businesses') return json(res, [business]);
   if (url === '/api/businesses/active') return json(res, business);
+  if (url === '/api/business-configuration') return json(res, configurationFixture());
+  if (url === '/api/ai/status') return json(res, aiStatusFixture());
   if (url === '/api/profile') return json(res, profile);
   if (url === '/api/memberships' || url === '/api/invitations') return json(res, []);
   if (url === `/api/documents/${documentId}/corrections`) return json(res,corrections);
@@ -111,9 +115,11 @@ const handler = async (req, res) => {
   }
   if (url === '/api/records/monthly') return json(res, records);
   if (url === '/api/records/monthly/query') return json(res, records[0]);
-  if (url === '/api/dashboard') return json(res, {businessId, profile, score: null, topInsight: null,
+  const dashboard = {businessId, profile, score: null, topInsight: null,
     topRecommendation: null, cashFlowHistory: [], hasHistory: true,
-    trendProjection: {projectedNetCashFlow: null, message: 'Need at least 3 months', historicalMonthsCount: 1}});
+    trendProjection: {projectedNetCashFlow: null, message: 'Need at least 3 months', historicalMonthsCount: 1}};
+  if (url === '/api/dashboard') return json(res, dashboard);
+  if (url === '/api/workspace') return json(res, workspaceFixture({dashboard, records}));
   if (url === '/api/zakat/monthly/preview' || url === '/api/zakat/preview')
     return json(res, {calculationStatus: 'INCOMPLETE_HAUL_CONFIRMATION_REQUIRED', zakatDue: null,
       nisabValue: 61236, netZakatableAssets: null, grossZakatableAssets: null, deductibleLiabilities: null,

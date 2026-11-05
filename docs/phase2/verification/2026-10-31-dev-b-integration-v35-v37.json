@@ -1,0 +1,111 @@
+{
+  "subject": "Local integrated Developer-B candidate: F09 Phase A (V35), F06 Phase B (V36), F08 Phase A (V37), frontend UX hardening",
+  "date": "2026-10-31",
+  "timezone": "Asia/Karachi",
+  "status": "FINAL_DEVELOPER_B_CANDIDATE_AUTHORIZED_FOR_DEV_FATIMA_FAST_FORWARD",
+  "source": {
+    "repository": "aviongg/sme-financial-webapp",
+    "worktree": "C:/Users/Hp/FYP/wt-dev-b-integration-v35-v37",
+    "branch": "claude/dev-b-integration-v35-v37 (local only; no remote branch)",
+    "base": "311de78f1b517aaaf09420914ebe6a32371280e1 (origin/dev/fatima, verified by fetch)",
+    "inputs": {
+      "F09": "f44fd6cf818b3ad2aa8260547439e5b305ceed83 (fast-forward, identity preserved)",
+      "F06": "8ac5da2366160c372364a0e879df79a67a924425 (cherry-picked as dcafe76646ff85866e83a52981310d7537a694e7; V33 renumbered V36)",
+      "F08": "cd0f6243329dffeda556768edf51fa78ba37839d (cherry-picked as 6088d611161de88940904a8acbfbdc9193766a3b)",
+      "UX": "f22a1ed71e880c7fd11178efbf146c90c547c970 (cherry-picked cleanly as 9cb1272055e97182ded3bc192a27e09591b2ad0f)"
+    },
+    "integrationFollowUp": "bd84142b603429515a9f6a8f0ac7cf9ea9d17479 test(integration): verify combined developer-b candidate v35-v37",
+    "deliveryIdentity": "This file's containing docs commit is the candidate HEAD; exact SHA reported externally.",
+    "pushed": false,
+    "integratedIntoDevFatima": false,
+    "developerAReview": "not performed / not claimed"
+  },
+  "migrations": {
+    "freshHistory": ["1-17", "30", "31", "32", "33", "34", "35", "36", "37"],
+    "owners": {
+      "V30": "business configuration", "V31": "dashboard preferences", "V32": "monthly record integrity",
+      "V33": "F05 project planning", "V34": "F04 commercial documents", "V35": "F09 sample cost planning",
+      "V36": "F06 persisted estimates (authored as isolated V33)", "V37": "F08 inventory catalog"
+    },
+    "duplicates": "none (asserted)",
+    "developerBV18toV29": "absent",
+    "v38": "absent",
+    "canonicalV1toV34": "unchanged from 311de78",
+    "f06Renumber": "git rename V33__persisted_estimates_and_conversion.sql -> V36__...; one SQL comment now names the F05 migration V33; no statement change"
+  },
+  "conflicts": [
+    {"step": "F06", "file": "CommercialDocumentMigrationPostgreSqlIT.java / MonthlyIntegrityMigrationPostgreSqlIT.java", "resolution": "keep canonical history and add 35, 36 (later 37); drop F06's pre-resequence 18/19/29/31/33 list"},
+    {"step": "F06", "file": "frontend/src/lib/api/navigation.ts", "resolution": "union: /samples/new and /estimates/new both require RECORD_CREATE_UPDATE"},
+    {"step": "F06", "file": "docs/phase2/IMPLEMENTATION_STATE.md", "resolution": "keep F09 sections and F06 isolated record (marked historical); V36 reservation row rewritten"},
+    {"step": "F06", "file": "EstimatePlanningMigrationPostgreSqlIT.java and comments (not textual conflicts)", "resolution": "fresh history V1-V17,V30-V37; populated V35 -> V36 upgrade; V30/V33 comment references corrected"},
+    {"step": "F08", "file": "AuditEventType.java", "resolution": "union: SAMPLE_* (8), ESTIMATE_* (9), INVENTORY_ITEM_* (3)"},
+    {"step": "F08", "file": "DisposableDatabaseRolesIT.java", "resolution": "union of estimate and inventory runtime-deny statements"},
+    {"step": "F08", "file": "Sidebar.tsx / MobileNav.tsx", "resolution": "union: FlaskConical Samples and Boxes Inventory imports, copy, nav items and mobile actions"},
+    {"step": "F08", "file": "CommercialDocumentMigrationPostgreSqlIT.java / MonthlyIntegrityMigrationPostgreSqlIT.java", "resolution": "exact V1-V17,V30-V37 list; F08's temporary version<=34 filter removed"},
+    {"step": "F08", "file": "SamplePlanningMigrationPostgreSqlIT / EstimatePlanningMigrationPostgreSqlIT / InventoryCatalogMigrationPostgreSqlIT (not textual conflicts)", "resolution": "exact combined history; InventoryCatalog upgrade asserts 34,35,36,37 applied in order"},
+    {"step": "F08", "file": "DEVELOPMENT_SETUP.md / FEATURE_REGISTER.md / IMPLEMENTATION_STATE.md", "resolution": "union of F09 and F08 sections; F08 row from F08, F09 row from F09; V37 row added"},
+    {"step": "UX", "file": "none", "resolution": "f22a1ed applied without conflict; its fixes were then extended to the F06 estimate register error token and sidebar nested-route highlighting"}
+  ],
+  "results": {
+    "backendDefault": {"command": "mvn -o -B test", "run": 1154, "failures": 0, "errors": 0, "skipped": 1, "skip": "existing Windows symlink case in LocalFileSystemStorageServiceTests", "log": "logs/integration/backend-default.log", "note": "Run on the tree including the EstimateRegister/Sidebar frontend alignment; the later test-only files are IT or opt-in browser classes outside the default suite and compiled in every later Maven run. Logged ERROR lines are intended negative tests (simulated SMTP rejection, production-profile startup refusal)"},
+    "postgresAccepted": {
+      "command": "mvn -o -B -Ppostgres-it -Dtest=NONE -Dit.test=<batch> verify, eight sequential memory-safe batches (logs/integration/run-pg.sh)",
+      "classes": 41, "run": 196, "failures": 0, "errors": 0, "skipped": 0,
+      "batches": {"targeted-1 migrations/roles": 20, "targeted-2 feature PostgreSQL": 30, "targeted-3 monthly/config/workspace/report": 46, "rest-1": 23, "rest-2": 26, "rest-3": 24, "rest-4": 19, "rest-5": 8},
+      "targetedClasses": ["DeveloperBIntegratedMigrationPostgreSqlIT 2", "SamplePlanningMigrationPostgreSqlIT 2", "SamplePlanningPostgreSqlIT 9", "EstimatePlanningMigrationPostgreSqlIT 2", "EstimatePlanningPostgreSqlIT 3", "EstimatePreviewPostgreSqlIT 8", "InventoryCatalogMigrationPostgreSqlIT 2", "InventoryCatalogPostgreSqlIT 3", "CommercialDocumentMigrationPostgreSqlIT 2", "MonthlyIntegrityMigrationPostgreSqlIT 2", "DisposableDatabaseRolesIT 6"],
+      "excludedProductionTarget": {"classes": ["DatabaseRolePrivilegesPostgreSqlIT", "PostgreSqlTlsConnectionIT"], "cases": 19, "status": "not executed, not accepted"},
+      "reconciliation": "F09 tree 36 classes/184 cases + F06 2 classes/5 + F08 2 classes/5 + DeveloperBIntegratedMigrationPostgreSqlIT 1 class/2 = 41/196"
+    },
+    "frontend": {"tests": 158, "failures": 0, "typescript": "exit 0", "eslint": "0 errors, 1 existing SessionProvider warning", "build": "next build --webpack pass (Next 16.3.8); existing middleware deprecation and Edge compile warnings"},
+    "browser": {
+      "environment": "production Next 3108 built with BACKEND_API_URL=http://127.0.0.1:8088, real Spring/session/CSRF on 8088, disposable PostgreSQL, Edge; port 3100 was held by an unrelated pre-existing server, which was left untouched",
+      "suites": {"DevBIntegrationBrowserAcceptance": 11, "F09SamplesBrowserAcceptance": 20, "F08InventoryBrowserAcceptance": 15, "F06PersistedEstimatesBrowserAcceptance": 22, "F06BrowserAcceptance": 14, "F05ProjectsBrowserAcceptance": 24, "F04CommercialBrowserAcceptance": 22, "F12bReportsBrowserAcceptance": 15, "F13BrowserAcceptance": 16, "F02AiBrowserAcceptance": 11, "PilotHardeningBrowserAcceptance": 11},
+      "totalChecks": 181, "failures": 0,
+      "f02Note": "F02 failed 3/3 in the isolated F06 Phase B run on the mobile-Urdu settings overflow; it passes here with the UX-hardening fixes",
+      "attempts": "DevBIntegrationBrowserAcceptance needed four harness-only corrections (duplicate logo link to /, mobile-hidden header name, arrow selector/Tailwind rotate property, then a pre-existing score no-op UPDATE classification) before passing; no application change"
+    },
+    "mobileActionSheet": {
+      "actions": 10,
+      "englishLabels": ["Projects & Orders", "Samples & Production Planning", "Customer invoices", "Supplier bills", "Inventory", "Costing & Pricing", "Reports", "Enter Monthly Figures", "Scan Document with Camera", "Upload Statement or Invoice"],
+      "geometry390x844": {"en": "panel 16-844, scroll 902/687", "ur": "panel 16-844, scroll 856/697"},
+      "geometry390x600": {"en": "panel 16-600, scroll 902/443", "ur": "panel 16-600, scroll 856/453"},
+      "result": "fits viewport, scrolls internally, every action visible and unobstructed after scrolling, close button persists, no horizontal overflow, EN and UR/RTL; Samples and Inventory actions navigate"
+    },
+    "financialIsolation": {
+      "integrationJourney": "18 protected tables (actuals, score, contributions, configuration, F05, F04, F09, F06, F08) whole-row identical; zero write statements except 77 no-op score_results UPDATEs",
+      "scoreNoOpClassification": "PRE-EXISTING: dashboard reads run inside class-level @Transactional AdviceContextService (unchanged since bb1b11f, before 311de78); Hibernate dirty-check flushes identical-value UPDATEs. No scoring/dashboard/advice source changed in this candidate. Rows proven identical.",
+      "F09": "15 tables unchanged; zero writes on records, score, projects, commercial",
+      "F08": "16 tables unchanged; zero writes on 8 probed tables; only inventory_items and audit",
+      "F06": "12 tables unchanged; zero record/score/contribution/commercial writes; exactly one F05 DRAFT planning budget 1500.25 plus lineage; unrepresentable revision refused",
+      "F04": "12 tables unchanged; zero record/score/contribution/project writes",
+      "healthScore": "health-score-v1 unchanged"
+    },
+    "f06Conversion": {"ProjectConversionValidatorTests": 10, "EstimatePlanningPostgreSqlIT": 3, "EstimatePersistenceParityTests": 4, "rule": "exact-fit only, conversion_precision_unrepresentable retained, no rounding, F05 target DRAFT/PLANNED_ONLY, replay/idempotency unchanged", "productionSourceDiffVs8ac5da2": "comments only (F05 migration named V33)"}
+  },
+  "preservation": {
+    "sourceWorktrees": "F09 f44fd6c, F06 8ac5da2, F08 cd0f624, UX f22a1ed: HEAD, status and stash lists unchanged from the pre-integration snapshot",
+    "persistentDevFatima": "311de78; only the protected DOCX and tmp/ untracked, unchanged",
+    "main": "b51e27696cccc59b94aa9d9c9388ad0faa5b4176", "devSuleman": "f2ed9bda671404598bd73729563c6e0ceb2b08d1",
+    "push": "none"
+  },
+  "laterIntegrationNotes": [
+    "Fast-forwardable onto origin/dev/fatima only while it remains 311de78.",
+    "Developer-A unified V18-V29 history and its fresh-history expectations must be merged with these V1-V17,V30-V37 assertions.",
+    "DatabaseRolePrivilegesPostgreSqlIT now defines F09 sample, F06 conversion and F08 inventory grants (finalization follow-up); it still must be executed in the production-target acceptance environment.",
+    "Any database that applied isolated F06 V33 or F09 V32 needs recreation.",
+    "Developer-A review of F06 conversion, F08 draft WAC policy and F09 planning remains pending."
+  ],
+  "finalization": {
+    "authorization": "User authorized final pre-publish cleanup and fast-forward publication of dev/fatima from 311de78 on 31 October 2026",
+    "followUpCommit": "test-only privilege definitions + docs/handoff; exact SHA reported externally",
+    "productionCodeOrMigrationChanged": false,
+    "privilegeDefinitions": {
+      "DatabaseRolePrivilegesPostgreSqlIT": "sample_activities, sample_cost_plan_versions, sample_cost_plan_lines: app SELECT/INSERT/UPDATE/DELETE, backup SELECT only; estimate_project_conversions: app SELECT/INSERT only; inventory_items: app SELECT/INSERT/UPDATE (no DELETE); backup read-only; ALTER/DROP/TRUNCATE denied on all five new entries. Compiled; NOT executed (production-target environment absent)",
+      "DisposableDatabaseRolesIT": "same coverage added inside existing methods; 6/6 pass",
+      "DeveloperBIntegratedMigrationPostgreSqlIT": "2/2 pass (re-run)",
+      "acceptedTotalsUnchanged": "41 classes / 196 cases (no new test methods)"
+    },
+    "port3100": "PID 13920 verified as the stale Codex F09 'next start --port 3100' server (Codex node runtime, launched by Codex pwsh logging to wt-f09-sampling-planning/logs/f09/production-next-server-oct31.log) and stopped",
+    "scoreNoOpUpdates": "Existing behaviour / technical debt: 77 no-op UPDATE score_results with identical rows; not a data-integrity failure; no numerical score mutation; AdviceContextService and score persistence intentionally unchanged"
+  }
+}

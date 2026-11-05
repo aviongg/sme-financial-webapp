@@ -32,8 +32,8 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
     List<UploadedDocument> findByUserIdAndProcessingStatusAndLinkedMonthOrderByUploadTimestampDesc(
             UUID userId, DocumentStatus status, String linkedMonth);
 
-    @Modifying
-    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.processingStartedAt = :now WHERE d.id = :id AND d.processingStatus = :expectedStatus")
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.processingStartedAt = :now, d.failureReason = null WHERE d.id = :id AND d.processingStatus = :expectedStatus")
     int claimStatus(
             @Param("id") UUID id,
             @Param("expectedStatus") DocumentStatus expectedStatus,
@@ -41,15 +41,16 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
             @Param("now") java.time.LocalDateTime now
     );
 
-    @Modifying
-    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.failureReason = :failureReason WHERE d.processingStatus = :expectedStatus")
-    int resetAllByStatus(
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.failureReason = :failureReason, d.processingStartedAt = null WHERE d.processingStatus = :expectedStatus AND (d.processingStartedAt IS NULL OR d.processingStartedAt < :cutoff)")
+    int recoverStaleProcessing(
             @Param("expectedStatus") DocumentStatus expectedStatus,
             @Param("targetStatus") DocumentStatus targetStatus,
-            @Param("failureReason") String failureReason
+            @Param("failureReason") String failureReason,
+            @Param("cutoff") java.time.LocalDateTime cutoff
     );
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus WHERE d.id = :id AND d.processingStatus = :expectedStatus")
     int updateStatusIfStatus(
             @Param("id") UUID id,
@@ -57,21 +58,23 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
             @Param("targetStatus") DocumentStatus targetStatus
     );
 
-    @Modifying
-    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.extractedData = COALESCE(d.extractedData, :extractedData) WHERE d.id = :id AND d.processingStatus = :expectedStatus")
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.extractedData = :extractedData, d.processingStartedAt = null, d.failureReason = null WHERE d.id = :id AND d.processingStatus = :expectedStatus AND d.processingStartedAt = :expectedStartedAt AND d.extractedData IS NULL AND d.reviewedData IS NULL")
     int saveDraftIfStatus(
             @Param("id") UUID id,
             @Param("expectedStatus") DocumentStatus expectedStatus,
             @Param("targetStatus") DocumentStatus targetStatus,
-            @Param("extractedData") String extractedData
+            @Param("extractedData") String extractedData,
+            @Param("expectedStartedAt") java.time.LocalDateTime expectedStartedAt
     );
 
-    @Modifying
-    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.failureReason = :failureReason WHERE d.id = :id AND d.processingStatus = :expectedStatus")
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE UploadedDocument d SET d.processingStatus = :targetStatus, d.failureReason = :failureReason, d.processingStartedAt = null WHERE d.id = :id AND d.processingStatus = :expectedStatus AND d.processingStartedAt = :expectedStartedAt AND d.extractedData IS NULL AND d.reviewedData IS NULL")
     int failIfStatus(
             @Param("id") UUID id,
             @Param("expectedStatus") DocumentStatus expectedStatus,
             @Param("targetStatus") DocumentStatus targetStatus,
-            @Param("failureReason") String failureReason
+            @Param("failureReason") String failureReason,
+            @Param("expectedStartedAt") java.time.LocalDateTime expectedStartedAt
     );
 }

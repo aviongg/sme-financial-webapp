@@ -109,13 +109,78 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     }
 
     @Test
-    @DisplayName("finsight_app DML allowed on domain tables")
+    @DisplayName("finsight_app DML allowed and finsight_backup read-only on domain, F02/F13, F04-F06, F08 and F09 tables")
     void testFinsightAppDmlAllowed() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM app_users")) {
-                assertTrue(rs.next());
-                assertTrue(rs.getInt(1) >= 0);
+            // V32 (monthly record integrity) is append-only; it intentionally has narrower grants than mutable domain tables.
+            for (String role : new String[] {"finsight_app", "finsight_backup"}) {
+                for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
+                    boolean allowed = privilege.equals("SELECT") || role.equals("finsight_app") && privilege.equals("INSERT");
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('" + role
+                            + "', 'public.document_financial_contributions', '" + privilege + "')")) {
+                        assertTrue(rs.next());
+                        assertEquals(allowed, rs.getBoolean(1), role + " " + privilege + " contribution provenance");
+                    }
+                }
+            }
+            try (ResultSet rs = stmt.executeQuery("SELECT version FROM monthly_records LIMIT 1")) {
+                if (rs.next()) {
+                    assertTrue(rs.getLong(1) >= 0);
+                    assertFalse(rs.wasNull());
+                }
+            }
+            for (String table : new String[] {
+                    "app_users",
+                    "business_configuration",
+                    "dashboard_preferences",
+                    "projects",
+                    "project_budget_versions",
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines"
+            }) {
+                try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM " + table)) {
+                    assertTrue(rs.next());
+                    assertTrue(rs.getInt(1) >= 0);
+                }
+                for (String allowed : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE"}) {
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_app', 'public." + table + "', '" + allowed + "')")) {
+                        assertTrue(rs.next());
+                        assertTrue(rs.getBoolean(1));
+                    }
+                }
+                try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_backup', 'public." + table + "', 'SELECT')")) {
+                    assertTrue(rs.next());
+                    assertTrue(rs.getBoolean(1));
+                }
+                for (String denied : new String[] {"INSERT", "UPDATE", "DELETE", "TRUNCATE"}) {
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_backup', 'public." + table + "', '" + denied + "')")) {
+                        assertTrue(rs.next());
+                        assertFalse(rs.getBoolean(1));
+                    }
+                }
+            }
+            // V36 conversion lineage is append-only and the V37 catalog has no runtime DELETE (archive is the only exit).
+            for (String[] grant : new String[][] {
+                    {"estimate_project_conversions", "SELECT,INSERT"},
+                    {"inventory_items", "SELECT,INSERT,UPDATE"}
+            }) {
+                java.util.List<String> runtime = java.util.List.of(grant[1].split(","));
+                for (String privilege : new String[] {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}) {
+                    try (ResultSet rs = stmt.executeQuery("SELECT has_table_privilege('finsight_app', 'public." + grant[0] + "', '" + privilege + "'),"
+                            + " has_table_privilege('finsight_backup', 'public." + grant[0] + "', '" + privilege + "')")) {
+                        assertTrue(rs.next());
+                        assertEquals(runtime.contains(privilege), rs.getBoolean(1), "finsight_app " + privilege + " on " + grant[0]);
+                        assertEquals(privilege.equals("SELECT"), rs.getBoolean(2), "finsight_backup " + privilege + " on " + grant[0]);
+                    }
+                }
             }
         }
     }
@@ -137,11 +202,32 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppAlterTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            SQLException ex = assertThrows(SQLException.class,
-                    () -> stmt.executeUpdate("ALTER TABLE app_users ADD COLUMN forbidden_col INT"));
-            assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
-                            ex.getMessage().toLowerCase().contains("permission denied"),
-                    "Expected owner or permission denied, got: " + ex.getMessage());
+            for (String table : new String[] {
+                    "app_users",
+                    "business_configuration",
+                    "dashboard_preferences",
+                    "document_financial_contributions",
+                    "projects",
+                    "project_budget_versions",
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
+            }) {
+                SQLException ex = assertThrows(SQLException.class,
+                        () -> stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN forbidden_col INT"));
+                assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
+                                ex.getMessage().toLowerCase().contains("permission denied"),
+                        "Expected owner or permission denied on " + table + ", got: " + ex.getMessage());
+            }
         }
     }
 
@@ -150,11 +236,32 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppDropTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            SQLException ex = assertThrows(SQLException.class,
-                    () -> stmt.executeUpdate("DROP TABLE app_users"));
-            assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
-                            ex.getMessage().toLowerCase().contains("permission denied"),
-                    "Expected owner or permission denied, got: " + ex.getMessage());
+            for (String table : new String[] {
+                    "app_users",
+                    "business_configuration",
+                    "dashboard_preferences",
+                    "document_financial_contributions",
+                    "projects",
+                    "project_budget_versions",
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
+            }) {
+                SQLException ex = assertThrows(SQLException.class,
+                        () -> stmt.executeUpdate("DROP TABLE " + table));
+                assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
+                                ex.getMessage().toLowerCase().contains("permission denied"),
+                        "Expected owner or permission denied on " + table + ", got: " + ex.getMessage());
+            }
         }
     }
 
@@ -163,11 +270,32 @@ public class DatabaseRolePrivilegesPostgreSqlIT extends com.app.sme_health_backe
     void testFinsightAppTruncateTableDenied() throws SQLException {
         try (Connection conn = createConnection(APP_USER, APP_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            SQLException ex = assertThrows(SQLException.class,
-                    () -> stmt.executeUpdate("TRUNCATE TABLE app_users"));
-            assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
-                            ex.getMessage().toLowerCase().contains("permission denied"),
-                    "Expected owner or permission denied, got: " + ex.getMessage());
+            for (String table : new String[] {
+                    "app_users",
+                    "business_configuration",
+                    "dashboard_preferences",
+                    "document_financial_contributions",
+                    "projects",
+                    "project_budget_versions",
+                    "project_budget_lines",
+                    "commercial_documents",
+                    "commercial_document_lines",
+                    "commercial_number_sequences",
+                    "estimates",
+                    "estimate_versions",
+                    "estimate_lines",
+                    "estimate_project_conversions",
+                    "sample_activities",
+                    "sample_cost_plan_versions",
+                    "sample_cost_plan_lines",
+                    "inventory_items"
+            }) {
+                SQLException ex = assertThrows(SQLException.class,
+                        () -> stmt.executeUpdate("TRUNCATE TABLE " + table));
+                assertTrue(ex.getMessage().toLowerCase().contains("must be owner") ||
+                                ex.getMessage().toLowerCase().contains("permission denied"),
+                        "Expected owner or permission denied on " + table + ", got: " + ex.getMessage());
+            }
         }
     }
 

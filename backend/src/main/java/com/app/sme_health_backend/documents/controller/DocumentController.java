@@ -63,7 +63,7 @@ public class DocumentController {
     ) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_UPLOAD);
 
-        UploadedDocument doc = uploadService.uploadSingle(context.businessId(), file, documentTypeHint);
+        UploadedDocument doc = uploadService.uploadSingle(context.businessId(), context.userId(), file, documentTypeHint);
         return ResponseEntity.status(HttpStatus.CREATED).body(DocumentMapper.toResponse(doc));
     }
 
@@ -75,7 +75,7 @@ public class DocumentController {
     ) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_UPLOAD);
 
-        List<UploadedDocument> docs = uploadService.uploadBulk(context.businessId(), files, documentTypeHint);
+        List<UploadedDocument> docs = uploadService.uploadBulk(context.businessId(), context.userId(), files, documentTypeHint);
         List<DocumentResponse> responses = docs.stream().map(DocumentMapper::toResponse).toList();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(new BulkUploadResponse(responses.size(), responses));
     }
@@ -191,7 +191,7 @@ public class DocumentController {
     ) {
         BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_CONFIRM);
 
-        UploadedDocument doc = confirmationService.confirmDocument(context.businessId(), id, confirmationRequest);
+        UploadedDocument doc = confirmationService.confirmDocument(context.businessId(), id, context.userId(), confirmationRequest);
         return ResponseEntity.ok(DocumentMapper.toResponse(doc));
     }
 

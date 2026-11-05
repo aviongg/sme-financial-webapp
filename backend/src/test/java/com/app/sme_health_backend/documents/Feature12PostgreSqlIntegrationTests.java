@@ -53,12 +53,18 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
     @Autowired
     private com.app.sme_health_backend.identity.repository.BusinessRepository businessRepository;
 
+    @Autowired private com.app.sme_health_backend.identity.repository.AppUserRepository userRepository;
+    private UUID actorUserId;
     private UUID testUserId;
     private final List<UUID> createdDocIds = new ArrayList<>();
     private final List<UUID> createdRecordIds = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
+        com.app.sme_health_backend.identity.entity.AppUser actor = new com.app.sme_health_backend.identity.entity.AppUser();
+        actor.setEmail("f12." + UUID.randomUUID() + "@example.test");
+        actor.setFullName("Feature 12 actor"); actor.setPasswordHash("test-only-unused-password");
+        actorUserId = userRepository.saveAndFlush(actor).getId();
         testUserId = UUID.randomUUID();
         businessRepository.save(new com.app.sme_health_backend.identity.entity.Business(testUserId, "ACTIVE"));
         BusinessProfile profile = new BusinessProfile();
@@ -70,29 +76,7 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
         businessProfileRepository.save(profile);
     }
 
-    @AfterEach
-    void tearDown() {
-        for (UUID docId : createdDocIds) {
-            try {
-                documentRepository.deleteById(docId);
-            } catch (Exception ignored) {}
-        }
-        for (UUID recId : createdRecordIds) {
-            try {
-                monthlyRecordRepository.deleteById(recId);
-            } catch (Exception ignored) {}
-        }
-        try {
-            List<ScoreResult> scores = scoreResultRepository.findByUserIdOrderByMonthDesc(testUserId);
-            scoreResultRepository.deleteAll(scores);
-        } catch (Exception ignored) {}
-        try {
-            businessProfileRepository.deleteById(testUserId);
-        } catch (Exception ignored) {}
-        try {
-            businessRepository.deleteById(testUserId);
-        } catch (Exception ignored) {}
-    }
+    // Immutable provenance fixtures live until the disposable PostgreSQL database is destroyed.
 
     @Test
     void verifyV7MetadataAndJsonbPersistenceSatisfiesV1Constraints() {
@@ -155,16 +139,17 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
         assertEquals(0, secondClaim, "Second claim on already processing document must return 0");
 
         // 2. Conditional transition: processing -> extracted succeeds
+        LocalDateTime attempt = documentRepository.findById(docId).orElseThrow().getProcessingStartedAt();
         String json = "{\"amount\":5000}";
-        int saveDraft = documentRepository.saveDraftIfStatus(docId, DocumentStatus.processing, DocumentStatus.extracted, json);
+        int saveDraft = documentRepository.saveDraftIfStatus(docId, DocumentStatus.processing, DocumentStatus.extracted, json, attempt);
         assertEquals(1, saveDraft, "Must transition processing -> extracted");
 
         // 3. Conditional transition from wrong state fails
-        int invalidSave = documentRepository.saveDraftIfStatus(docId, DocumentStatus.processing, DocumentStatus.extracted, json);
+        int invalidSave = documentRepository.saveDraftIfStatus(docId, DocumentStatus.processing, DocumentStatus.extracted, json, attempt);
         assertEquals(0, invalidSave, "Transition from processing -> extracted must fail when status is already extracted");
 
         // 4. failIfStatus conditional predicate
-        int invalidFail = documentRepository.failIfStatus(docId, DocumentStatus.processing, DocumentStatus.failed, "timeout");
+        int invalidFail = documentRepository.failIfStatus(docId, DocumentStatus.processing, DocumentStatus.failed, "timeout", attempt);
         assertEquals(0, invalidFail, "failIfStatus must return 0 when document is not in processing status");
     }
 
@@ -239,7 +224,7 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
         );
 
         // 1. First confirmation
-        UploadedDocument confirmedDoc = confirmationService.confirmDocument(testUserId, docId, confirmReq);
+        UploadedDocument confirmedDoc = confirmationService.confirmDocument(testUserId, docId, actorUserId, confirmReq);
         assertEquals(DocumentStatus.confirmed, confirmedDoc.getProcessingStatus());
         assertEquals(month, confirmedDoc.getLinkedMonth());
         assertNotNull(confirmedDoc.getConfirmedAt());
@@ -257,7 +242,7 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
 
         // 2. Duplicate confirmation attempt must be rejected idempotently
         assertThrows(DocumentAlreadyConfirmedException.class, () ->
-                confirmationService.confirmDocument(testUserId, docId, confirmReq)
+                confirmationService.confirmDocument(testUserId, docId, actorUserId, confirmReq)
         );
 
         // Verify monthly record was NOT double-posted
