@@ -21,6 +21,8 @@ export function RiskEvidenceList({ evidence, currency, copy }: RiskEvidenceListP
         return copy.ev_DAILY_FORECAST;
       case 'FINANCIAL_OBLIGATION':
         return copy.ev_FINANCIAL_OBLIGATION;
+      case 'FINANCIAL_ACCOUNT':
+        return copy.ev_FINANCIAL_ACCOUNT;
       case 'ACCOUNT_BALANCE':
         return copy.ev_ACCOUNT_BALANCE;
       case 'RECURRING_RULE':

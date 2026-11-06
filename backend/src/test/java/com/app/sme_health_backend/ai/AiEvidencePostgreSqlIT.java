@@ -1,9 +1,17 @@
 package com.app.sme_health_backend.ai;
 
+import com.app.sme_health_backend.accounting.entity.FinancialAccount;
+import com.app.sme_health_backend.accounting.model.AccountType;
+import com.app.sme_health_backend.accounting.repository.FinancialAccountRepository;
+import com.app.sme_health_backend.counterparty.Counterparty;
+import com.app.sme_health_backend.counterparty.CounterpartyRepository;
+import com.app.sme_health_backend.counterparty.CounterpartyType;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.entity.*;
 import com.app.sme_health_backend.identity.model.*;
 import com.app.sme_health_backend.identity.repository.*;
+import com.app.sme_health_backend.obligation.FinancialObligationService;
+import com.app.sme_health_backend.obligation.dto.ObligationCreateRequest;
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
 import com.app.sme_health_backend.records.entity.MonthlyRecord;
@@ -23,6 +31,7 @@ import jakarta.servlet.http.Cookie;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +55,9 @@ class AiEvidencePostgreSqlIT extends com.app.sme_health_backend.testsupport.Disp
     @Autowired RecommendationService recommendationService;
     @Autowired MvpFinancialEvidenceAdapter adapter;
     @Autowired AiExplanationService explanations;
+    @Autowired FinancialAccountRepository accountRepository;
+    @Autowired CounterpartyRepository counterpartyRepository;
+    @Autowired FinancialObligationService obligationService;
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
     @Autowired org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -136,5 +148,111 @@ class AiEvidencePostgreSqlIT extends com.app.sme_health_backend.testsupport.Disp
                 .andExpect(status().isOk()).andExpect(jsonPath("$.provenance.mode").value("simulated"));
         member.setStatus(MembershipStatus.SUSPENDED); memberships.saveAndFlush(member);
         mvc.perform(get("/api/ai/status").cookie(session)).andExpect(status().isConflict());
+    }
+
+    @Test void testAuthoritativeCashPositionFromRealPostgresData() {
+        var f = fixture(); UUID businessId = f.actor.businessId();
+        FinancialAccount acc = accountRepository.saveAndFlush(
+                new FinancialAccount(businessId, "Habib Bank", AccountType.BANK, "PKR", 2, new BigDecimal("150000.00"), LocalDate.now().minusDays(10))
+        );
+        var request = new AiTypes.Request("ask", "en", "What is my cash position?", null, null, null);
+        var response = explanations.explain(f.actor, request);
+
+        assertNotNull(response);
+        var evidence = response.evidence();
+        assertFalse(evidence.isEmpty());
+        var balanceFact = evidence.stream().filter(e -> e.id().equals("cash_position.PKR.balance")).findFirst().orElseThrow();
+        assertEquals("150000.00", balanceFact.value());
+        assertEquals("POSTED_ACTUAL", balanceFact.sourceMode());
+        assertEquals("PKR", balanceFact.unit());
+
+        var accFact = evidence.stream().filter(e -> e.id().equals("cash_position.acc." + acc.getId())).findFirst().orElseThrow();
+        assertEquals("150000.00", accFact.value());
+        assertEquals("POSTED_ACTUAL", accFact.sourceMode());
+        assertTrue(accFact.label().contains("Habib Bank"));
+
+        assertFalse(response.limitations().contains("snapshot"));
+    }
+
+    @Test void testAuthoritativeOverdueReceivablesFromRealPostgresData() {
+        var f = fixture(); UUID businessId = f.actor.businessId();
+        Counterparty cust = counterpartyRepository.saveAndFlush(
+                new Counterparty(businessId, "Atlas Logistics", CounterpartyType.CUSTOMER, null, null, null, null, null)
+        );
+        var ob = obligationService.createObligation(f.actor, new ObligationCreateRequest(
+                cust.getId(), "RECEIVABLE", "75000.00",
+                LocalDate.now().minusDays(30).toString(),
+                LocalDate.now().minusDays(10).toString(),
+                "INV-REAL-001", "Overdue invoice test", "MANUAL_DECLARATION", null
+        ));
+
+        var request = new AiTypes.Request("ask", "en", "What are my overdue receivables?", null, null, null);
+        var response = explanations.explain(f.actor, request);
+
+        assertNotNull(response);
+        var evidence = response.evidence();
+        assertFalse(evidence.isEmpty());
+
+        var totalFact = evidence.stream().filter(e -> e.id().equals("overdue_receivables.total")).findFirst().orElseThrow();
+        assertEquals("75000.00", totalFact.value());
+        assertEquals("POSTED_ACTUAL", totalFact.sourceMode());
+
+        var bucketFact = evidence.stream().filter(e -> e.id().equals("overdue_receivables.aging.overdue_1_30")).findFirst().orElseThrow();
+        assertEquals("75000.00", bucketFact.value());
+        assertEquals("POSTED_ACTUAL", bucketFact.sourceMode());
+    }
+
+    @Test void testTenantIsolationBetweenBusinessAAndBusinessB() {
+        var fixtureA = fixture(); UUID businessIdA = fixtureA.actor.businessId();
+        var fixtureB = fixture(); UUID businessIdB = fixtureB.actor.businessId();
+
+        FinancialAccount accA = accountRepository.saveAndFlush(
+                new FinancialAccount(businessIdA, "Tenant A Private Bank", AccountType.BANK, "PKR", 2, new BigDecimal("180000.00"), LocalDate.now().minusDays(5))
+        );
+        FinancialAccount accB = accountRepository.saveAndFlush(
+                new FinancialAccount(businessIdB, "Tenant B Vault Account", AccountType.BANK, "PKR", 2, new BigDecimal("25000.00"), LocalDate.now().minusDays(5))
+        );
+
+        var request = new AiTypes.Request("ask", "en", "cash position", null, null, null);
+
+        var responseA = explanations.explain(fixtureA.actor, request);
+        var responseB = explanations.explain(fixtureB.actor, request);
+
+        // Tenant A must only see 180,000.00 and accA
+        var balanceA = responseA.evidence().stream().filter(e -> e.id().equals("cash_position.PKR.balance")).findFirst().orElseThrow();
+        assertEquals("180000.00", balanceA.value());
+        assertTrue(responseA.evidence().stream().noneMatch(e -> e.id().contains(accB.getId().toString())));
+        assertTrue(responseA.evidence().stream().noneMatch(e -> "25000.00".equals(e.value())));
+
+        // Tenant B must only see 25,000.00 and accB
+        var balanceB = responseB.evidence().stream().filter(e -> e.id().equals("cash_position.PKR.balance")).findFirst().orElseThrow();
+        assertEquals("25000.00", balanceB.value());
+        assertTrue(responseB.evidence().stream().noneMatch(e -> e.id().contains(accA.getId().toString())));
+        assertTrue(responseB.evidence().stream().noneMatch(e -> "180000.00".equals(e.value())));
+    }
+
+    @Test void testFinancialDatabaseRemainsBitForBitIdenticalAcrossAiExplanationQueries() {
+        var f = fixture(); UUID businessId = f.actor.businessId();
+        accountRepository.saveAndFlush(
+                new FinancialAccount(businessId, "Reserve Bank", AccountType.BANK, "PKR", 2, new BigDecimal("99000.00"), LocalDate.now().minusDays(10))
+        );
+
+        long accountsBefore = jdbc.queryForObject("SELECT count(*) FROM financial_accounts", Long.class);
+        long movementsBefore = jdbc.queryForObject("SELECT count(*) FROM account_movements", Long.class);
+        long obligationsBefore = jdbc.queryForObject("SELECT count(*) FROM financial_obligations", Long.class);
+        long recordsBefore = jdbc.queryForObject("SELECT count(*) FROM monthly_records", Long.class);
+        long scoresBefore = jdbc.queryForObject("SELECT count(*) FROM score_results", Long.class);
+
+        // Execute multiple diverse AI explanations
+        explanations.explain(f.actor, new AiTypes.Request("ask", "en", "What is my cash position?", null, null, null));
+        explanations.explain(f.actor, new AiTypes.Request("ask", "en", "What are my overdue receivables?", null, null, null));
+        explanations.explain(f.actor, new AiTypes.Request("ask", "en", "Explain my score", null, "2026-09", null));
+        explanations.explain(f.actor, new AiTypes.Request("ask", "en", "Explain monthly records", null, "2026-09", null));
+
+        assertEquals(accountsBefore, jdbc.queryForObject("SELECT count(*) FROM financial_accounts", Long.class));
+        assertEquals(movementsBefore, jdbc.queryForObject("SELECT count(*) FROM account_movements", Long.class));
+        assertEquals(obligationsBefore, jdbc.queryForObject("SELECT count(*) FROM financial_obligations", Long.class));
+        assertEquals(recordsBefore, jdbc.queryForObject("SELECT count(*) FROM monthly_records", Long.class));
+        assertEquals(scoresBefore, jdbc.queryForObject("SELECT count(*) FROM score_results", Long.class));
     }
 }

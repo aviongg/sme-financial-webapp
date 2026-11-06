@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useLanguage } from "@/lib/i18n/context";
+import { FinancialWorkspaceLinks } from './FinancialWorkspaceLinks';
+import { unifiedCopy } from '@/lib/i18n/translations/unified';
+import { routeIsActive } from '@/lib/navigation/workspaces';
+import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Sheet } from "@/components/ui/Sheet";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
@@ -85,19 +89,20 @@ export function MobileNav() {
   return (
     <>
       <nav
-        aria-label="Mobile Navigation"
+        aria-label={unifiedCopy(locale).mobileNavigation}
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--color-surface-card)] border-t border-[var(--color-border-default)] shadow-[var(--elevation-2)] pb-[env(safe-area-inset-bottom)]"
       >
         <div className="h-16 flex items-center justify-around px-2 relative">
           {/* Left two tabs */}
           {tabs.slice(0, 2).map((tab) => {
-            const isActive = pathname === tab.href;
+            const isActive = routeIsActive(pathname, tab.href) || (tab.href === '/records' && pathname.startsWith('/finance/'));
             const Icon = tab.icon;
 
             return (
               <Link
                 key={tab.id}
                 href={tab.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 px-2 rounded-[var(--radius-md)] transition-colors select-none",
                   isActive
@@ -116,7 +121,7 @@ export function MobileNav() {
             <button
               type="button"
               onClick={() => setIsActionSheetOpen(true)}
-              disabled={!allowed('/records/new') && !allowed('/scan') && (isDemoMode || (!allowed('/estimates') && !allowed('/reports')))}
+              disabled={!allowed('/records') && !allowed('/scan')}
               aria-label={t.quickActions.title}
               className="w-12 h-12 -mt-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center shadow-md hover:bg-[var(--color-brand-hover)] active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]"
             >
@@ -129,13 +134,14 @@ export function MobileNav() {
 
           {/* Right two tabs */}
           {tabs.slice(2, 4).map((tab) => {
-            const isActive = pathname === tab.href;
+            const isActive = routeIsActive(pathname, tab.href) || (tab.href === '/records' && pathname.startsWith('/finance/'));
             const Icon = tab.icon;
 
             return (
               <Link
                 key={tab.id}
                 href={tab.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 px-2 rounded-[var(--radius-md)] transition-colors select-none",
                   isActive
@@ -159,6 +165,8 @@ export function MobileNav() {
         description={t.quickActions.actionSheetDesc}
       >
         <div className="space-y-3 pt-2">
+          <FinancialWorkspaceLinks onNavigate={() => setIsActionSheetOpen(false)} />
+          {!isDemoMode && allowed('/ask-finsight') && <button type="button" onClick={() => handleActionSelect('/ask-finsight')} className="w-full text-start rounded border p-3 focus-visible:outline-2">{phaseTwoCopy(locale).ask}</button>}
           {!isDemoMode && allowed('/projects') && <button type="button" onClick={() => handleActionSelect('/projects')}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">
             <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-brand-surface)] border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shrink-0"><FolderKanban className="w-5 h-5"/></div>

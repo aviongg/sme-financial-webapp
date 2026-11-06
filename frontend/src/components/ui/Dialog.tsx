@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useId, useRef } from "react";
+import { useModalFocus } from './useModalFocus';
+import { unifiedCopy } from '@/lib/i18n/translations/unified';
+import { useLanguage } from '@/lib/i18n/context';
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,23 +24,8 @@ export function Dialog({
   children,
   maxWidth = "md",
 }: DialogProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, onClose]);
+  const root = useRef<HTMLDivElement>(null), id = useId(), { locale } = useLanguage();
+  useModalFocus(isOpen, onClose, root);
 
   if (!isOpen) return null;
 
@@ -49,10 +37,12 @@ export function Dialog({
 
   return (
     <div
+      ref={root}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? "dialog-title" : undefined}
-      aria-describedby={description ? "dialog-description" : undefined}
+      aria-labelledby={title ? id + '-title' : undefined}
+      aria-describedby={description ? id + '-description' : undefined}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150"
     >
       <div
@@ -63,7 +53,7 @@ export function Dialog({
 
       <div
         className={cn(
-          "relative w-full bg-[var(--color-surface-card)] rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] p-6 shadow-[var(--elevation-2)] z-10 text-start",
+          "relative w-full min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[var(--color-surface-card)] rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] p-6 shadow-[var(--elevation-2)] z-10 text-start",
           widthStyles[maxWidth]
         )}
       >
@@ -71,7 +61,7 @@ export function Dialog({
           <div>
             {title && (
               <h2
-                id="dialog-title"
+                id={id + '-title'}
                 className="text-[18px] font-semibold text-[var(--color-text-primary)] font-heading"
               >
                 {title}
@@ -79,7 +69,7 @@ export function Dialog({
             )}
             {description && (
               <p
-                id="dialog-description"
+                id={id + '-description'}
                 className="text-[13px] text-[var(--color-text-muted)] mt-1"
               >
                 {description}
@@ -91,7 +81,7 @@ export function Dialog({
             type="button"
             onClick={onClose}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-[var(--radius-sm)] p-1 hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
-            aria-label="Close dialog"
+            aria-label={unifiedCopy(locale).closeDialog}
           >
             <X className="w-5 h-5" />
           </button>

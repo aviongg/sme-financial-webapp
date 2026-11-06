@@ -1,4 +1,5 @@
 "use client";
+import { formatPkr } from '@/lib/utils/decimal-display';
 
 import React from 'react';
 import { useLanguage } from '@/lib/i18n/context';
@@ -33,12 +34,6 @@ const BUCKET_COLORS: Record<AgingBucket, { bg: string; text: string; border: str
   OVERDUE_91_PLUS: { bg: 'bg-red-100 dark:bg-red-950/70', text: 'text-red-800 dark:text-red-200', border: 'border-red-300 dark:border-red-700' },
 };
 
-function formatPkr(val: number | string | undefined): string {
-  if (val === undefined || val === null) return '0.00';
-  const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '0.00';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export function ObligationAgingCard({
   aging,
@@ -91,8 +86,8 @@ export function ObligationAgingCard({
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
         {BUCKET_ORDER.map(bucketKey => {
           const bucketData = summary?.buckets ? summary.buckets[bucketKey] : null;
-          const count = bucketData?.count ?? 0;
-          const amount = bucketData?.totalOutstanding ?? 0;
+          const count = bucketData?.count ?? '—';
+          const amount = bucketData?.totalOutstanding;
           const colors = BUCKET_COLORS[bucketKey];
 
           return (

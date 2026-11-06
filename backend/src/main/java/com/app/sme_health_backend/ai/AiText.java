@@ -13,6 +13,9 @@ final class AiText {
             case "recommendation" -> choose(language, "These considerations explain existing FinSight recommendations. Their priority and completion status remain unchanged.", "یہ نکات موجودہ فن سائٹ تجاویز کی وضاحت کرتے ہیں۔ ان کی ترجیح اور تکمیل کی حالت تبدیل نہیں ہوئی۔");
             case "cashflow" -> choose(language, "The recorded cash history and score evidence below describe the selected financial snapshot.", "ذیل میں نقد تاریخ اور اسکور کے شواہد منتخب مالی ریکارڈ کی وضاحت کرتے ہیں۔");
             case "records" -> choose(language, "These are recorded monthly amounts. Missing values are unknown, not zero.", "یہ درج شدہ ماہانہ رقوم ہیں۔ غیر موجود اعداد نامعلوم ہیں، صفر نہیں۔");
+            case "cash_position" -> choose(language, "This explanation reflects the current authoritative cash and bank position from posted account movements.", "یہ وضاحت درج شدہ اکاؤنٹ لین دین سے تصدیق شدہ موجودہ نقد اور بینک پوزیشن پر مبنی ہے۔");
+            case "overdue_receivables" -> choose(language, "This explanation reflects overdue customer receivables based on canonical obligation aging.", "یہ وضاحت واجب الوصول گاہکوں کے بقایا جات کے مصدقہ ریکارڈ پر مبنی ہے۔");
+            case "upcoming_obligations" -> choose(language, "This explanation reflects scheduled obligations and projected recurring commitments over the selected period.", "یہ وضاحت منتخب مدت کے دوران طے شدہ واجبات اور متوقع بار بار ہونے والے اخراجات پر مبنی ہے۔");
             default -> choose(language, "This explanation is grounded in the recorded financial score and its supporting evidence.", "یہ وضاحت ریکارڈ شدہ مالی اسکور اور اس کے معاون شواہد پر مبنی ہے۔");
         };
     }
@@ -57,7 +60,29 @@ final class AiText {
         Map.entry("insight", new String[]{"Existing FinSight insight", "موجودہ فن سائٹ بصیرت"}),
         Map.entry("recommendation", new String[]{"Existing FinSight recommendation", "موجودہ فن سائٹ تجویز"}),
         Map.entry("priority", new String[]{"Existing priority", "موجودہ ترجیح"}),
-        Map.entry("status", new String[]{"Existing action status", "موجودہ کارروائی کی حالت"})
+        Map.entry("status", new String[]{"Existing action status", "موجودہ کارروائی کی حالت"}),
+        Map.entry("current_cash_balance", new String[]{"Current cash balance", "موجودہ نقد رقم"}),
+        Map.entry("opening_balance", new String[]{"Opening balance", "ابتدائی رقم"}),
+        Map.entry("net_movements", new String[]{"Net movements", "خالص لین دین"}),
+        Map.entry("total_accounts", new String[]{"Total financial accounts", "کل مالی اکاؤنٹس"}),
+        Map.entry("total_overdue", new String[]{"Total overdue amount", "کل واجب الوصول رقم"}),
+        Map.entry("overdue_count", new String[]{"Overdue count", "واجب الوصول تعداد"}),
+        Map.entry("upcoming_receivables", new String[]{"Upcoming receivables", "آنے والی متوقع وصولیاں"}),
+        Map.entry("upcoming_payables", new String[]{"Upcoming payables", "آنے والی واجب الادا ادائیگیاں"}),
+        Map.entry("recurring_projection", new String[]{"Projected recurring commitment", "متوقع بار بار ہونے والی ادائیگی"}),
+        Map.entry("aging_bucket", new String[]{"Aging bucket", "میعاد کا درجہ"}),
+        Map.entry("CURRENT", new String[]{"Current (not overdue)", "موجودہ (بروقت)"}),
+        Map.entry("DAYS_1_TO_30", new String[]{"1-30 days overdue", "1 تا 30 دن کی تاخیر"}),
+        Map.entry("DAYS_31_TO_60", new String[]{"31-60 days overdue", "31 تا 60 دن کی تاخیر"}),
+        Map.entry("DAYS_61_TO_90", new String[]{"61-90 days overdue", "61 تا 90 دن کی تاخیر"}),
+        Map.entry("DAYS_OVER_90", new String[]{"Over 90 days overdue", "90 دن سے زائد کی تاخیر"}),
+        Map.entry("NOT_YET_DUE", new String[]{"Not yet due", "ابھی واجب الادا نہیں"}),
+        Map.entry("DUE_TODAY", new String[]{"Due today", "آج واجب الادا"}),
+        Map.entry("OVERDUE_1_30", new String[]{"1-30 days overdue", "1 تا 30 دن کی تاخیر"}),
+        Map.entry("OVERDUE_31_60", new String[]{"31-60 days overdue", "31 تا 60 دن کی تاخیر"}),
+        Map.entry("OVERDUE_61_90", new String[]{"61-90 days overdue", "61 تا 90 دن کی تاخیر"}),
+        Map.entry("OVERDUE_91_PLUS", new String[]{"Over 90 days overdue", "90 دن سے زائد کی تاخیر"}),
+        Map.entry("UNKNOWN_DUE_DATE", new String[]{"Unknown due date", "نامعلوم تاریخ ادائیگی"})
     );
     static String label(String key, String language) {
         String[] value = LABELS.get(key);

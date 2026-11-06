@@ -1,6 +1,9 @@
 package com.app.sme_health_backend.ai;
 
 import com.app.sme_health_backend.cashflow.service.CashFlowService;
+import com.app.sme_health_backend.financialquery.FinancialQueryFacade;
+import com.app.sme_health_backend.financialquery.dto.*;
+import com.app.sme_health_backend.financialquery.model.CapabilityStatus;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.insight.repository.InsightRepository;
 import com.app.sme_health_backend.insight.service.InsightService;
@@ -11,6 +14,7 @@ import com.app.sme_health_backend.scoring.entity.ScoreResult;
 import com.app.sme_health_backend.scoring.service.ScoringService;
 import com.app.sme_health_backend.shared.advice.AdviceContextService;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +23,9 @@ import java.time.YearMonth;
 import java.util.*;
 
 /**
- * B-owned bounded read adapter, not C11 or a calculation authority. Reuses persisted scoring,
- * cashflow and monthly services plus pure existing advice rendering. Dashboard/AdviceContext
- * orchestration is intentionally not invoked: it refreshes advice and acquires write locks.
+ * B-owned bounded read adapter, integrating authoritative C11 FinancialQueryFacade queries
+ * with persisted scoring, cashflow and monthly services.
+ * Strict read-only safety: no ledger mutations, no score recalculations, no transactional side-effects.
  * The repeatable-read snapshot ends before any provider/network operation.
  */
 @Service
@@ -33,13 +37,23 @@ public class MvpFinancialEvidenceAdapter {
     private final RecommendationRepository recommendations;
     private final InsightService insightService;
     private final RecommendationService recommendationService;
+    private final FinancialQueryFacade financialQuery;
 
     public MvpFinancialEvidenceAdapter(ScoringService scoring, CashFlowService cashflow,
             MonthlyRecordService records, InsightRepository insights, RecommendationRepository recommendations,
             InsightService insightService, RecommendationService recommendationService) {
+        this(scoring, cashflow, records, insights, recommendations, insightService, recommendationService, null);
+    }
+
+    @Autowired
+    public MvpFinancialEvidenceAdapter(ScoringService scoring, CashFlowService cashflow,
+            MonthlyRecordService records, InsightRepository insights, RecommendationRepository recommendations,
+            InsightService insightService, RecommendationService recommendationService,
+            @Autowired(required = false) FinancialQueryFacade financialQuery) {
         this.scoring = scoring; this.cashflow = cashflow; this.records = records;
         this.insights = insights; this.recommendations = recommendations;
         this.insightService = insightService; this.recommendationService = recommendationService;
+        this.financialQuery = financialQuery;
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -106,6 +120,146 @@ public class MvpFinancialEvidenceAdapter {
                     b.fact(id + "balance", "cashflow", "balance", decimal(point.getRunningBalance()), "recorded_amount", point.getMonth(), "SNAPSHOT");
                 }
             }
+        }
+        if ("cash_position".equals(topic)) {
+            if (financialQuery == null) {
+                return b.finish("financial_query_unavailable");
+            }
+            String asOfDateStr = null;
+            if (request.month() != null) {
+                try {
+                    asOfDateStr = YearMonth.parse(request.month()).atEndOfMonth().toString();
+                } catch (Exception ignored) {}
+            }
+            FinancialQueryEnvelope<CashPositionResult> envelope = financialQuery.getCashPosition(
+                    actor, new CashPositionQuery(asOfDateStr, null));
+            if (envelope.status() == CapabilityStatus.UNAVAILABLE) {
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            CashPositionResult data = envelope.data();
+            if (data == null || data.accounts().isEmpty()) {
+                b.limitations.add("missing_data");
+            } else {
+                String asOf = data.asOfDate().toString();
+                b.revisions.add("cash_position:" + envelope.evaluatedAt() + ":" + envelope.businessId());
+                for (CurrencyCashSummary summary : data.currencySummaries()) {
+                    String ccy = summary.currency();
+                    b.fact("cash_position." + ccy + ".balance", "cash_position", "current_cash_balance", summary.currentBalance(), ccy, asOf, "POSTED_ACTUAL");
+                    b.fact("cash_position." + ccy + ".opening", "cash_position", "opening_balance", summary.openingBalance(), ccy, asOf, "POSTED_ACTUAL");
+                    b.fact("cash_position." + ccy + ".net_movements", "cash_position", "net_movements", summary.netMovements(), ccy, asOf, "POSTED_ACTUAL");
+                }
+                b.fact("cash_position.total_accounts", "cash_position", "total_accounts", String.valueOf(data.totalAccounts()), "count", asOf, "POSTED_ACTUAL");
+                for (AccountCashPosition acc : data.accounts()) {
+                    b.revisions.add("acc:" + acc.accountId());
+                    String factId = "cash_position.acc." + acc.accountId();
+                    b.fact(factId, "account", acc.accountName() + " (" + acc.maskedIdentifier() + ")", acc.currentBalance(), acc.currency(), asOf, "POSTED_ACTUAL");
+                }
+            }
+            b.limitations.remove("snapshot");
+        }
+        if ("overdue_receivables".equals(topic)) {
+            if (financialQuery == null) {
+                return b.finish("financial_query_unavailable");
+            }
+            String asOfDateStr = null;
+            if (request.month() != null) {
+                try {
+                    asOfDateStr = YearMonth.parse(request.month()).atEndOfMonth().toString();
+                } catch (Exception ignored) {}
+            }
+            FinancialQueryEnvelope<OverdueReceivablesResult> envelope = financialQuery.getOverdueReceivables(
+                    actor, new OverdueReceivablesQuery(asOfDateStr, 50, 0));
+            if (envelope.status() == CapabilityStatus.UNAVAILABLE) {
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            OverdueReceivablesResult data = envelope.data();
+            if (data == null) {
+                b.limitations.add("missing_data");
+            } else {
+                String asOf = data.asOfDate().toString();
+                String ccy = data.currency() != null ? data.currency() : "PKR";
+                b.revisions.add("overdue_receivables:" + envelope.evaluatedAt() + ":" + envelope.businessId());
+                b.fact("overdue_receivables.total", "overdue_receivables", "total_overdue", data.totalOverdueAmount(), ccy, asOf, "POSTED_ACTUAL");
+                b.fact("overdue_receivables.count", "overdue_receivables", "overdue_count", String.valueOf(data.overdueCount()), "count", asOf, "POSTED_ACTUAL");
+                for (AgingBucketSummary bucket : data.agingBuckets()) {
+                    String bucketKey = "overdue_receivables.aging." + bucket.bucketCode().toLowerCase();
+                    b.fact(bucketKey, "aging_bucket", bucket.bucketCode(), bucket.amount(), ccy, asOf, "POSTED_ACTUAL");
+                }
+                for (OverdueReceivableItem item : data.items().stream().limit(5).toList()) {
+                    b.revisions.add("obligation:" + item.obligationId());
+                    String itemKey = "overdue_receivables.item." + item.obligationId();
+                    String itemLabel = (item.counterpartyName() != null ? item.counterpartyName() : "Receivable")
+                            + " (" + item.overdueDays() + " " + AiText.choose(b.language, "days overdue", "دن تاخیر") + ")";
+                    b.fact(itemKey, "overdue_item", itemLabel, item.outstandingAmount(), ccy, item.dueDate().toString(), "POSTED_ACTUAL");
+                }
+            }
+            b.limitations.remove("snapshot");
+        }
+        if ("upcoming_obligations".equals(topic)) {
+            if (financialQuery == null) {
+                return b.finish("financial_query_unavailable");
+            }
+            FinancialQueryEnvelope<UpcomingObligationsResult> envelope = financialQuery.getUpcomingObligations(
+                    actor, new UpcomingObligationsQuery("ALL", null, null));
+            if (envelope.status() == CapabilityStatus.UNAVAILABLE) {
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            UpcomingObligationsResult data = envelope.data();
+            if (data == null) {
+                b.limitations.add("missing_data");
+            } else {
+                String period = data.startDate() + " to " + data.endDate();
+                String ccy = data.currency() != null ? data.currency() : "PKR";
+                b.revisions.add("upcoming_obligations:" + envelope.evaluatedAt() + ":" + envelope.businessId());
+                b.fact("upcoming_obligations.receivables", "upcoming_obligations", "upcoming_receivables", data.totalUpcomingReceivables(), ccy, period, "POSTED_ACTUAL");
+                b.fact("upcoming_obligations.payables", "upcoming_obligations", "upcoming_payables", data.totalUpcomingPayables(), ccy, period, "POSTED_ACTUAL");
+                b.fact("upcoming_obligations.overdue_receivables", "upcoming_obligations", "total_overdue", data.totalOverdueReceivables(), ccy, period, "POSTED_ACTUAL");
+                b.fact("upcoming_obligations.overdue_payables", "upcoming_obligations", "total_overdue", data.totalOverduePayables(), ccy, period, "POSTED_ACTUAL");
+                for (UpcomingObligationItem item : data.obligations().stream().limit(5).toList()) {
+                    b.revisions.add("obligation:" + item.obligationId());
+                    String key = "upcoming_obligations.item." + item.obligationId();
+                    String desc = item.notes() != null && !item.notes().isBlank() ? item.notes() : (item.referenceNumber() != null ? item.referenceNumber() : (item.counterpartyName() != null ? item.counterpartyName() : "Obligation"));
+                    b.fact(key, "obligation", desc, item.amount(), ccy, item.dueDate().toString(), "POSTED_ACTUAL");
+                }
+                if (!data.recurringProjections().isEmpty()) {
+                    b.limitations.add("projection");
+                    for (RecurringProjectionItem item : data.recurringProjections().stream().limit(3).toList()) {
+                        b.revisions.add("rule:" + item.ruleId());
+                        String key = "upcoming_obligations.recurring." + item.ruleId() + "." + item.expectedDate();
+                        String desc = (item.ruleName() != null ? item.ruleName() : "Recurring commitment")
+                                + " (" + AiText.choose(b.language, "projected", "متوقع") + ")";
+                        b.fact(key, "recurring_projection", desc, item.amount(), item.currency() != null ? item.currency() : ccy, item.expectedDate().toString(), "FORECAST");
+                    }
+                }
+            }
+            b.limitations.remove("snapshot");
+        }
+        if ("project_financials".equals(topic)) {
+            if (financialQuery != null) {
+                FinancialQueryEnvelope<Void> envelope = financialQuery.getProjectFinancials(actor, null);
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            return b.finish("unsupported_question");
+        }
+        if ("margin_drivers".equals(topic)) {
+            if (financialQuery != null) {
+                FinancialQueryEnvelope<Void> envelope = financialQuery.getMarginDrivers(actor, "");
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            return b.finish("unsupported_question");
+        }
+        if ("fx_impact".equals(topic)) {
+            if (financialQuery != null) {
+                FinancialQueryEnvelope<Void> envelope = financialQuery.getFxSettlementImpact(actor, "");
+                b.limitations.add("unsupported_modules");
+                return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
+            }
+            return b.finish("unsupported_question");
         }
         return b.finish(b.evidence.isEmpty() ? "insufficient_evidence" : null);
     }

@@ -1,4 +1,5 @@
 "use client";
+import { formatPkr } from '@/lib/utils/decimal-display';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/lib/i18n/context';
@@ -27,12 +28,6 @@ interface ObligationsWorkspaceProps {
   initialDirection?: ObligationDirection;
 }
 
-function formatPkr(val: number | string | undefined): string {
-  if (val === undefined || val === null) return '0.00';
-  const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '0.00';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: ObligationsWorkspaceProps) {
   const { locale, direction: textDir } = useLanguage();
@@ -164,7 +159,7 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {canEdit && (
             <>
               <Button
@@ -198,7 +193,7 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
             PKR {formatPkr(outstandingDisplay)}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {partiesCount ?? 0} {isReceivable ? copy.customersWithBalance : copy.suppliersWithBalance}
+            {partiesCount ?? '—'} {isReceivable ? copy.customersWithBalance : copy.suppliersWithBalance}
           </div>
         </div>
 
@@ -231,7 +226,7 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
             {isReceivable ? copy.customersWithBalance : copy.suppliersWithBalance}
           </div>
           <div className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1.5">
-            {partiesCount ?? 0}
+            {partiesCount ?? '—'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
             With non-zero exposure

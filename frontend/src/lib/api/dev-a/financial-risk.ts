@@ -12,14 +12,15 @@ export type RiskCategory =
   | 'DATA_INTEGRITY'
   | 'BANK_RECONCILIATION';
 
-export type RiskCompleteness = 'COMPLETE' | 'PARTIAL' | 'DATA_LIMITED';
+export type RiskCompleteness = 'COMPLETE' | 'PARTIAL' | 'INCOMPLETE' | 'NOT_ASSESSED' | 'DATA_LIMITED';
 
-export type Urgency = 'IMMEDIATE' | 'SHORT_TERM' | 'MEDIUM_TERM' | 'MONITOR';
+export type Urgency = 'IMMEDIATE' | 'SHORT_TERM' | 'PLANNING' | 'MEDIUM_TERM' | 'MONITOR';
 
 export type EvidenceType =
   | 'DAILY_FORECAST'
   | 'FINANCIAL_OBLIGATION'
   | 'ACCOUNT_BALANCE'
+  | 'FINANCIAL_ACCOUNT'
   | 'RECURRING_RULE'
   | 'RECORD_DRAFT'
   | 'BANK_STATEMENT_ENTRY'
@@ -106,6 +107,34 @@ export interface RiskQueryParams {
   severity?: string;
 }
 
+const severities: RiskSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'];
+function riskObject(value: unknown): Record<string, unknown> {
+ if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid financial risk response.');
+ return value as Record<string, unknown>;
+}
+export function parseRiskSummary(value: unknown): RiskSummary {
+ const raw = riskObject(value);
+ for (const key of ['criticalCount','highCount','mediumCount','lowCount','notAssessedCount','totalAssessedCategories','totalCategories','horizonDays']) {
+  if (!Number.isSafeInteger(raw[key]) || (raw[key] as number) < 0) throw new Error('Invalid financial risk summary.');
+ }
+ if (!severities.includes(raw.highestSeverity as RiskSeverity) || typeof raw.asOfDate !== 'string' || typeof raw.currency !== 'string' || typeof raw.hasDataCompletenessIssues !== 'boolean') throw new Error('Invalid financial risk summary.');
+ return { ...raw, overallSeverity: raw.highestSeverity, assessedCategoriesCount: raw.totalAssessedCategories } as unknown as RiskSummary;
+}
+export function parseRiskInsight(value: unknown): FinancialRiskInsight {
+ const raw = riskObject(value);
+ if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || typeof raw.summary !== 'string' || !severities.includes(raw.severity as RiskSeverity) || !Array.isArray(raw.evidence)) throw new Error('Invalid financial risk insight.');
+ return { ...raw, insightId: raw.id, headline: raw.title, explanation: raw.summary, metricValue: raw.affectedPercentage,
+  earliestImpactDate: raw.startDate, latestImpactDate: raw.endDate, dataCompleteness: raw.completeness,
+  evidence: raw.evidence.map(value => { const e = riskObject(value); return { ...e, sourceId: e.referenceId, relevantDate: e.eventDate }; }) } as unknown as FinancialRiskInsight;
+}
+export function parseRiskAssessment(value: unknown): RiskAssessmentResponse {
+ const raw = riskObject(value);
+ if (typeof raw.version !== 'string' || typeof raw.evaluatedAt !== 'string' || !Array.isArray(raw.categories) || !Array.isArray(raw.insights)) throw new Error('Invalid financial risk assessment.');
+ return { ...raw, contractVersion: raw.version, generatedAt: raw.evaluatedAt, summary: parseRiskSummary(raw.summary),
+  categories: raw.categories.map(value => { const c = riskObject(value); return { ...c, displayName: c.categoryName, notes: c.reason }; }),
+  insights: raw.insights.map(parseRiskInsight) } as unknown as RiskAssessmentResponse;
+}
+
 export const financialRiskApi = {
   getAssessment: async (
     params?: RiskQueryParams,
@@ -119,10 +148,10 @@ export const financialRiskApi = {
     if (params?.severity) query.set('severity', params.severity);
 
     const qs = query.toString() ? `?${query.toString()}` : '';
-    return apiClient<RiskAssessmentResponse>(`/finance/risk/assessment${qs}`, {
+    return parseRiskAssessment(await apiClient<unknown>(`/finance/risk/assessment${qs}`, {
       method: 'GET',
       signal,
-    });
+    }));
   },
 
   getInsights: async (
@@ -137,10 +166,12 @@ export const financialRiskApi = {
     if (params?.severity) query.set('severity', params.severity);
 
     const qs = query.toString() ? `?${query.toString()}` : '';
-    return apiClient<FinancialRiskInsight[]>(`/finance/risk/insights${qs}`, {
+    const raw = await apiClient<unknown>(`/finance/risk/insights${qs}`, {
       method: 'GET',
       signal,
     });
+    if (!Array.isArray(raw)) throw new Error('Invalid financial risk insights.');
+    return raw.map(parseRiskInsight);
   },
 
   getSummary: async (
@@ -153,9 +184,9 @@ export const financialRiskApi = {
     if (params?.currency) query.set('currency', params.currency);
 
     const qs = query.toString() ? `?${query.toString()}` : '';
-    return apiClient<RiskSummary>(`/finance/risk/summary${qs}`, {
+    return parseRiskSummary(await apiClient<unknown>(`/finance/risk/summary${qs}`, {
       method: 'GET',
       signal,
-    });
+    }));
   },
 };

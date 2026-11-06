@@ -189,7 +189,7 @@ test('navigation keeps reads on FINANCIAL_DATA_READ and creation on RECORD_CREAT
   for (const route of ['/invoices/new', '/bills/new', '/projects/new', '/records/new']) assert.equal(routePermission(route), 'RECORD_CREATE_UPDATE', route);
   assert.equal(routePermission('/projects'), 'FINANCIAL_DATA_READ');
   const sidebar = readFileSync(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8');
-  for (const href of ['/estimates', '/reports', '/projects', '/invoices', '/bills', '/records/new', '/scan']) assert.ok(sidebar.includes(`'${href}'`) || sidebar.includes(`"${href}"`), href);
+  for (const href of ['/estimates', '/reports', '/projects', '/invoices', '/bills', '/records?add=1', '/scan']) assert.ok(sidebar.includes(`'${href}'`) || sidebar.includes(`"${href}"`), href);
   const mobile = readFileSync(new URL('../src/components/layout/MobileNav.tsx', import.meta.url), 'utf8');
   for (const href of ['/projects', '/estimates', '/reports', '/invoices', '/bills']) assert.ok(mobile.includes(`allowed('${href}')`), href);
 });

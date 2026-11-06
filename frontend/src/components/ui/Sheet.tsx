@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useId, useRef } from "react";
+import { useModalFocus } from './useModalFocus';
+import { unifiedCopy } from '@/lib/i18n/translations/unified';
+import { useLanguage } from '@/lib/i18n/context';
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -24,30 +27,20 @@ export function Sheet({
   description,
   children,
 }: SheetProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, onClose]);
+  const root = useRef<HTMLDivElement>(null), id = useId(), { locale } = useLanguage();
+  useModalFocus(isOpen, onClose, root);
 
   if (!isOpen) return null;
 
   return (
     <div
+      ref={root}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={title ? id + '-title' : undefined}
+      aria-describedby={description ? id + '-description' : undefined}
+      aria-label={!title ? unifiedCopy(locale).workspaces : undefined}
       className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150"
     >
       <div
@@ -72,12 +65,12 @@ export function Sheet({
         <div className="flex items-start justify-between gap-4 mb-4 shrink-0">
           <div className="min-w-0">
             {title && (
-              <h2 className="text-[17px] font-semibold text-[var(--color-text-primary)] font-heading">
+              <h2 id={id + '-title'} className="text-[17px] font-semibold text-[var(--color-text-primary)] font-heading">
                 {title}
               </h2>
             )}
             {description && (
-              <p className="text-[13px] text-[var(--color-text-muted)] mt-1">
+              <p id={id + '-description'} className="text-[13px] text-[var(--color-text-muted)] mt-1">
                 {description}
               </p>
             )}
@@ -87,7 +80,7 @@ export function Sheet({
             type="button"
             onClick={onClose}
             className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-[var(--radius-sm)] p-1 hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
-            aria-label="Close sheet"
+            aria-label={unifiedCopy(locale).closeSheet}
           >
             <X className="w-5 h-5" />
           </button>

@@ -1,5 +1,8 @@
 import { Permission } from './session';
 export function routePermission(path: string): Permission | null {
+    const [pathname, query = ''] = path.split(/[?#]/);
+    if (pathname === '/records' && new URLSearchParams(query).get('add') === '1') return 'RECORD_CREATE_UPDATE';
+    path = pathname;
     if (path === '/samples/new' || path === '/records/new' || path === '/projects/new' || path === '/invoices/new' || path === '/bills/new' || path === '/estimates/new')
         return 'RECORD_CREATE_UPDATE';
     if (path === '/scan')

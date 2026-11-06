@@ -93,3 +93,11 @@ test('Financial Risk API client exposes expected functions', () => {
   assert.equal(typeof financialRiskApi.getInsights, 'function');
   assert.equal(typeof financialRiskApi.getSummary, 'function');
 });
+
+test('actual Java risk DTO fields map to presentation without replacing critical severity or amounts',()=>{
+ const {parseRiskSummary,parseRiskAssessment}=require(path.join(directory,'lib/api/dev-a/financial-risk.js'));
+ const summary={criticalCount:1,highCount:0,mediumCount:0,lowCount:0,notAssessedCount:1,totalAssessedCategories:7,totalCategories:8,asOfDate:'2026-11-06',horizonDays:30,currency:'PKR',highestSeverity:'CRITICAL',hasDataCompletenessIssues:false};
+ const parsed=parseRiskSummary(summary);assert.equal(parsed.overallSeverity,'CRITICAL');assert.equal(parsed.assessedCategoriesCount,7);assert.throws(()=>parseRiskSummary({...summary,highestSeverity:undefined}));assert.throws(()=>parseRiskSummary({...summary,criticalCount:-1}));
+ const wire={version:'1.0.0',evaluatedAt:'2026-11-06T01:00:00Z',summary,categories:[{category:'CASH_POSITION',categoryName:'Cash',reason:'Recorded accounts'}],insights:[{id:'risk-1',title:'Verify cash',summary:'Real risk evidence',severity:'CRITICAL',affectedAmount:'123.45',affectedPercentage:null,startDate:null,endDate:null,completeness:'PARTIAL',evidence:[{referenceId:'account-1',eventDate:'2026-11-06',amount:'123.45'}]}]};
+ const result=parseRiskAssessment(wire);assert.equal(result.insights[0].headline,'Verify cash');assert.equal(result.insights[0].affectedAmount,'123.45');assert.equal(result.insights[0].evidence[0].sourceId,'account-1');assert.equal(result.insights[0].evidence[0].relevantDate,'2026-11-06');assert.equal(result.categories[0].notes,'Recorded accounts');assert.equal(result.generatedAt,wire.evaluatedAt);
+});

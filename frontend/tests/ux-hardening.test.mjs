@@ -25,8 +25,9 @@ test('mobile action sheet is bounded by the viewport and scrolls internally with
   assert.match(sheet, /max-h-\[calc\(100dvh-1rem\)\]/);
   assert.match(sheet, /flex flex-col/);
   assert.match(sheet, /data-testid="sheet-scroll-region"[\s\S]*overflow-y-auto overflow-x-hidden overscroll-contain/);
-  assert.match(sheet, /aria-label="Close sheet"/);
-  assert.match(sheet, /e\.key === "Escape"/);
+  assert.match(sheet, /aria-label=\{unifiedCopy\(locale\)\.closeSheet\}/);
+  assert.match(sheet, /useModalFocus\(isOpen, onClose, root\)/);
+  assert.match(source('../src/components/ui/useModalFocus.ts'), /e\.key === "Escape"/);
   // The header (title + close) must not scroll away with the actions.
   assert.match(sheet, /justify-between gap-4 mb-4 shrink-0/);
 });

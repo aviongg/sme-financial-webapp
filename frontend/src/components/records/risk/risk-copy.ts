@@ -59,13 +59,13 @@ export const riskEn = {
   // Urgency labels
   urg_IMMEDIATE: 'Immediate',
   urg_SHORT_TERM: 'Short-term',
-  urg_MEDIUM_TERM: 'Medium-term',
+  urg_MEDIUM_TERM: 'Medium-term', urg_PLANNING: 'Planning',
   urg_MONITOR: 'Monitor',
 
   // Evidence types
   ev_DAILY_FORECAST: 'Daily Forecast Item',
   ev_FINANCIAL_OBLIGATION: 'Financial Obligation',
-  ev_ACCOUNT_BALANCE: 'Account Ledger Balance',
+  ev_ACCOUNT_BALANCE: 'Account Ledger Balance', ev_FINANCIAL_ACCOUNT: 'Financial account',
   ev_RECURRING_RULE: 'Recurring Rule Commitment',
   ev_RECORD_DRAFT: 'Unreviewed Draft / Receipt',
   ev_BANK_STATEMENT_ENTRY: 'Unmatched Bank Statement',
@@ -135,13 +135,13 @@ export const riskUr: RiskCopy = {
   // Urgency labels
   urg_IMMEDIATE: 'فوری',
   urg_SHORT_TERM: 'قلیل مدتی',
-  urg_MEDIUM_TERM: 'درمیانی مدت',
+  urg_MEDIUM_TERM: 'درمیانی مدت', urg_PLANNING: 'منصوبہ بندی',
   urg_MONITOR: 'نگرانی',
 
   // Evidence types
   ev_DAILY_FORECAST: 'روزانہ پیشگوئی کا ریکارڈ',
   ev_FINANCIAL_OBLIGATION: 'مالیاتی ذمہ داری',
-  ev_ACCOUNT_BALANCE: 'کھاتے کا اصل بیلنس',
+  ev_ACCOUNT_BALANCE: 'کھاتے کا اصل بیلنس', ev_FINANCIAL_ACCOUNT: 'مالی اکاؤنٹ',
   ev_RECURRING_RULE: 'تکراری اصول کا عزم',
   ev_RECORD_DRAFT: 'زیر التوا مسودہ / رسید',
   ev_BANK_STATEMENT_ENTRY: 'غیر مطابق شدہ بینک اندراج',

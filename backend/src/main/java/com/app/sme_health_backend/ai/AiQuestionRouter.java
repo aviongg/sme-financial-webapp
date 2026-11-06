@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public class AiQuestionRouter {
     private static final Pattern EXPLICIT_MONTH = Pattern.compile("(?<![\\p{L}\\d])([0-9]{4}-[0-9]{2})(?![\\p{L}\\d])");
     private static final Pattern BLOCKED = Pattern.compile(
-            "(?iu)(https?://|www\\.|\\b(sql|select|drop table|api key|system prompt|ignore|override|pretend|guarantee|transfer|delete|create invoice|post transaction|other business|another business|other tenant|all businesses|inventory|invoice|receivable|customer balance|project financial|payroll|competitor)\\b|پاس ورڈ|دوسرے کاروبار|رقم منتقل|انوائس|اسٹاک|خفیہ|ہدایات نظر انداز)"
+            "(?iu)(https?://|www\\.|\\b(sql|select|drop table|api key|system prompt|ignore|override|pretend|guarantee|transfer|delete|create invoice|post transaction|create account|settle obligation|other business|another business|other tenant|all businesses|inventory|invoice|project financial|payroll|competitor|by customer|customer balance)\\b|پاس ورڈ|دوسرے کاروبار|رقم منتقل|انوائس|اسٹاک|خفیہ|ہدایات نظر انداز)"
     );
     /** A specific requested month must never silently turn into a latest-data answer. */
     public AiTypes.Request normalize(AiTypes.Request request) {
@@ -59,7 +59,11 @@ public class AiQuestionRouter {
         if (contains(value, "insight", "بصیرت")) return "insight";
         // Explicit score intent takes precedence over supporting words such as "recorded amounts".
         if (contains(value, "score", "health", "component", "اسکور", "صحت")) return "score";
-        if (contains(value, "cash", "buffer", "liquidity", "نقد", "کیش")) return "cashflow";
+        if (contains(value, "buffer")) return "cashflow";
+        if (contains(value, "overdue", "receivable", "aging", "debtor", "unpaid sales", "واجب الوصول", "بقایا")) return "overdue_receivables";
+        if (contains(value, "upcoming", "obligation", "payable", "due date", "bills due", "payment schedule", "creditor", "واجب الادا", "ادائیگیوں کا شیڈول", "شیڈول")) return "upcoming_obligations";
+        if (contains(value, "cash position", "bank balance", "account balance", "current cash", "how much cash", "available cash", "cash in bank", "current balance", "پوزیشن", "بینک بیلنس", "اکاؤنٹ")) return "cash_position";
+        if (contains(value, "cash", "liquidity", "نقد", "کیش")) return "cashflow";
         if (contains(value, "revenue", "expense", "monthly", "record", "sales", "آمدن", "اخراجات", "ماہانہ", "ریکارڈ")) return "records";
         if (contains(value, "trend", "improv", "weaken", "deterior", "declin", "missing", "data", "رجحان", "کمی", "بہتر", "اعداد")) return "score";
         return "unsupported";

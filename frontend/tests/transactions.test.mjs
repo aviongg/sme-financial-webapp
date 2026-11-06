@@ -251,3 +251,12 @@ test('actual demo route mounts no live resource or private request for either lo
   }
   assert.equal(calls.length, 0);
 });
+
+test('settlement and advance history keeps exact read semantics without widening direct posting',()=>{
+ for(const[eventType,movementDirection]of [['RECEIVABLE_COLLECTION','INCREASE'],['PAYABLE_SETTLEMENT','DECREASE']]){
+  assert.equal(contracts.parseTransaction({...transaction(),eventType,movementDirection}).eventType,eventType);
+  assert.throws(()=>contracts.parseTransaction({...transaction(),eventType,movementDirection:movementDirection==='INCREASE'?'DECREASE':'INCREASE'}));
+  assert.throws(()=>contracts.parseTransaction({...transaction(),eventType,movementDirection,amount:'5000.001'}));
+  assert.throws(()=>contracts.transactionPostPayload({...draft(),event:eventType}));
+ }
+});

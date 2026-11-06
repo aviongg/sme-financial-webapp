@@ -4,7 +4,7 @@ import { postingChoices, isPositivePostingAmount, type PostingChoice, type Posti
 
 export const descriptionLimit = 255;
 export type MovementDirection = 'INCREASE' | 'DECREASE';
-export const transactionEventTypes = ['DIRECT_SALE_RECEIPT', 'OPERATING_EXPENSE_PAYMENT', 'INTERNAL_TRANSFER'] as const;
+export const transactionEventTypes = ['DIRECT_SALE_RECEIPT', 'OPERATING_EXPENSE_PAYMENT', 'INTERNAL_TRANSFER', 'RECEIVABLE_COLLECTION', 'PAYABLE_SETTLEMENT'] as const;
 export type TransactionEventType = typeof transactionEventTypes[number];
 export interface TransactionSummary {
   id: string; businessId: string; accountId: string; accountName: string; accountType: AccountType;
@@ -47,9 +47,9 @@ export function parseTransaction(value: unknown, expectedBusiness?: string): Tra
   ensure(typeof t.accountName === 'string' && t.accountName.length >= 1 && t.accountName.length <= 100 && t.accountName.trim() === t.accountName);
   ensure(accountTypes.includes(t.accountType as AccountType) && transactionEventTypes.includes(t.eventType as TransactionEventType));
   const isRev = Boolean(t.isReversal);
-  if (t.eventType === 'DIRECT_SALE_RECEIPT') {
+  if (t.eventType === 'DIRECT_SALE_RECEIPT' || t.eventType === 'RECEIVABLE_COLLECTION') {
     ensure(t.movementDirection === (isRev ? 'DECREASE' : 'INCREASE'));
-  } else if (t.eventType === 'OPERATING_EXPENSE_PAYMENT') {
+  } else if (t.eventType === 'OPERATING_EXPENSE_PAYMENT' || t.eventType === 'PAYABLE_SETTLEMENT') {
     ensure(t.movementDirection === (isRev ? 'INCREASE' : 'DECREASE'));
   } else if (t.eventType === 'INTERNAL_TRANSFER') {
     ensure(t.movementDirection === 'INCREASE' || t.movementDirection === 'DECREASE');

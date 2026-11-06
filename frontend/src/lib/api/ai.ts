@@ -10,7 +10,7 @@ export interface AiRequest {
   type: 'dashboard' | 'insight' | 'recommendation' | 'ask'; language: LanguagePreference;
   question?: string; sourceId?: string; month?: string; conversation?: ConversationMessage[];
 }
-export interface AiEvidence { id: string; kind: string; label: string; value: string | null; unit: string; period: string | null; sourceMode: 'SNAPSHOT' | 'PLAN' }
+export interface AiEvidence { id: string; kind: string; label: string; value: string | null; unit: string; period: string | null; sourceMode: 'SNAPSHOT' | 'PLAN' | 'POSTED_ACTUAL' | 'FORECAST' }
 export interface AiExplanation {
   schemaVersion: 'ai-explanation-v1'; language: LanguagePreference; summary: string;
   interpretation: string[]; considerations: string[]; limitations: string[]; evidence: AiEvidence[];
@@ -36,3 +36,12 @@ export const aiApi = {
   status: (signal?: AbortSignal) => apiClient<AiStatus>('/ai/status', { signal }),
   explain: (input: AiRequest, signal?: AbortSignal) => apiClient<AiExplanation>('/ai/explain', { method: 'POST', body: JSON.stringify(aiPayload(input)), signal }),
 };
+
+/** Unknown provenance is unavailable, never silently treated as a monthly snapshot. */
+export function aiEvidenceSourceLabel(source: unknown) {
+ if (source === 'POSTED_ACTUAL') return 'postedActual';
+ if (source === 'FORECAST') return 'forecastEvidence';
+ if (source === 'SNAPSHOT') return 'snapshot';
+ if (source === 'PLAN') return 'plan';
+ return 'unknownSource';
+}

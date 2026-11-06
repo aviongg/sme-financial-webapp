@@ -174,9 +174,9 @@ export function TransactionDetail({
 
           <div className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-subtle)] p-2.5 rounded">
             <span className="font-medium text-[var(--color-text-primary)]">
-              {t.eventType === 'DIRECT_SALE_RECEIPT'
+              {t.eventType === 'DIRECT_SALE_RECEIPT' || t.eventType === 'RECEIVABLE_COLLECTION'
                 ? copy.reverseImpactReceipt
-                : t.eventType === 'OPERATING_EXPENSE_PAYMENT'
+                : t.eventType === 'OPERATING_EXPENSE_PAYMENT' || t.eventType === 'PAYABLE_SETTLEMENT'
                 ? copy.reverseImpactExpense
                 : copy.reverseImpactTransfer}
             </span>

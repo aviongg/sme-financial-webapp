@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { apiClient, ApiError, allowPrivateRequests, invalidatePrivateRequests, resetCsrf } from '@/lib/api/client';
-import { AuthUser, BusinessSummary, Permission, hasPermission } from '@/lib/api/session';
+import { AuthUser, BusinessSummary, Permission, hasPermission, sameSessionBoundary } from '@/lib/api/session';
 import { BusinessProfileRequest } from '@/lib/api/contracts';
 import { isDemoMode } from '@/lib/api/config';
 type Status = 'loading' | 'anonymous' | 'challenge' | 'authenticated' | 'error';
@@ -93,26 +93,7 @@ export function SessionProvider({ children }: {
             }
             if (ticket !== revision.current)
                 return;
-            const sameUserBoundary = Boolean(
-                snapshot.user &&
-                user.id === snapshot.user.id &&
-                user.authStage === snapshot.user.authStage &&
-                user.accountStatus === snapshot.user.accountStatus &&
-                user.mustChangePassword === snapshot.user.mustChangePassword &&
-                user.platformRole === snapshot.user.platformRole
-            );
-            const sameBusinessBoundary =
-                (snapshot.business === null && business === null) ||
-                Boolean(
-                    snapshot.business &&
-                    business &&
-                    business.businessId === snapshot.business.businessId &&
-                    business.role === snapshot.business.role &&
-                    business.membershipStatus === snapshot.business.membershipStatus &&
-                    business.businessType === snapshot.business.businessType &&
-                    business.active === snapshot.business.active
-                );
-            if (!sameUserBoundary || !sameBusinessBoundary) {
+            if (!sameSessionBoundary(snapshot.user, user, snapshot.business, business)) {
                 await refresh();
                 return;
             }
@@ -162,14 +143,16 @@ export function SessionProvider({ children }: {
         }
     };
     const logout = async () => {
-        block();
+        const ticket = block();
         announce('start');
         try {
             await apiClient('/auth/logout', { method: 'POST' });
+            if (ticket !== revision.current) return;
             resetCsrf();
             setState(s => ({ ...initial, status: 'anonymous', epoch: s.epoch }));
         }
         catch (e) {
+            if (ticket !== revision.current) return;
             setState(s => ({ ...s, status: 'error', error: 'Sign-out could not be confirmed. Retry before leaving this device.' }));
             throw e;
         }

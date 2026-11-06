@@ -33,9 +33,11 @@ export function formatExactDecimal(value: string, currency: string, scale: numbe
     + (fraction === undefined ? '' : '.' + fraction);
 }
 
+/** Display-only compatibility for existing number DTOs; strings never pass through Number. */
 export function formatPkr(value: number | string | null | undefined): string {
-  if (value === undefined || value === null || value === '') return '0.00';
-  const num = typeof value === 'number' ? value : parseFloat(value);
-  if (isNaN(num)) return '0.00';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ if (value == null || value === '') return '—';
+ const text = typeof value === 'number' ? String(value) : value;
+ const match = /^(-?)(0|[1-9][0-9]*)(?:\.([0-9]{1,2}))?$/.exec(text);
+ if (!match || (match[1] && /^0(?:\.0+)?$/.test(text.slice(1)))) return '—';
+ return match[1] + match[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + (match[3] ?? '').padEnd(2, '0');
 }

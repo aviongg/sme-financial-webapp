@@ -1,4 +1,5 @@
 "use client";
+import { businessSelectionReturn } from '@/lib/navigation/workspaces';
 import { localizedError } from '@/lib/i18n/errors';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -24,10 +25,10 @@ export function BusinessSetup() {
     const [payment, setPayment] = useState('');
     const [tax, setTax] = useState('');
     const [registered, setRegistered] = useState('');
-    const run = async (action: () => Promise<void>, destination = '/') => { if (busy)
-        return; setBusy(true); setError(''); try {
+    const run = async (action: () => Promise<void>, destination?: string) => { if (busy)
+        return; const returnPath = businessSelectionReturn(window.location.pathname, window.location.search, destination); setBusy(true); setError(''); try {
         await action();
-        router.replace(destination);
+        router.replace(returnPath);
     }
     catch (e) {
         setError(localizedError(e, t));

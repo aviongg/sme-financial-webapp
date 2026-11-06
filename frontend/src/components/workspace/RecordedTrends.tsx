@@ -25,6 +25,6 @@ export function RecordedTrends({ records }: { records: MonthlyRecordResponse[] }
       <div className="flex flex-wrap gap-4 text-xs"><span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-[var(--color-brand-primary)]"/>{copy.revenue}</span><span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-slate-500"/>{copy.expenses}</span></div>
       <details className="text-sm"><summary className="cursor-pointer font-medium">{copy.viewRecords}</summary><div className="overflow-x-auto mt-3"><table className="w-full text-start"><thead><tr><th className="p-2 text-start">{copy.period}</th><th className="p-2 text-start">{copy.revenue}</th><th className="p-2 text-start">{copy.expenses}</th></tr></thead><tbody>{history.map(record => <tr key={record.month} className="border-t border-[var(--color-border-subtle)]"><th scope="row" className="p-2 text-start font-normal"><bdi>{record.month}</bdi></th><td className="p-2 whitespace-nowrap">{formatPKR(record.revenue, { locale })}</td><td className="p-2 whitespace-nowrap">{formatPKR(record.operatingExpenses, { locale })}</td></tr>)}</tbody></table></div></details>
     </>}
-    <Link href="/records" className="inline-block text-sm font-medium text-[var(--color-brand-primary)] underline underline-offset-4">{copy.viewRecords}</Link>
+    <Link href="/records/history" className="inline-block text-sm font-medium text-[var(--color-brand-primary)] underline underline-offset-4">{copy.viewRecords}</Link>
   </Card>;
 }

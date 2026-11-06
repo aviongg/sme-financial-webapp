@@ -50,6 +50,7 @@ export function RiskInsightCard({ insight, copy }: RiskInsightCardProps) {
         return 'bg-rose-600 text-white dark:bg-rose-500';
       case 'SHORT_TERM':
         return 'bg-amber-600 text-white dark:bg-amber-500';
+      case 'PLANNING':
       case 'MEDIUM_TERM':
         return 'bg-blue-600 text-white dark:bg-blue-500';
       case 'MONITOR':
@@ -65,6 +66,8 @@ export function RiskInsightCard({ insight, copy }: RiskInsightCardProps) {
         return copy.urg_IMMEDIATE;
       case 'SHORT_TERM':
         return copy.urg_SHORT_TERM;
+      case 'PLANNING':
+        return copy.urg_PLANNING;
       case 'MEDIUM_TERM':
         return copy.urg_MEDIUM_TERM;
       case 'MONITOR':

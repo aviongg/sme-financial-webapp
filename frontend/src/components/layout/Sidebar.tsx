@@ -31,7 +31,8 @@ import { useSession } from "@/components/auth/SessionProvider";
 import { recordsEn, recordsUr } from '@/components/records/records-copy';
 import { routePermission } from "@/lib/api/navigation";
 import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
-import { useAi } from '@/components/ai/AiProvider';
+import { FinancialWorkspaceLinks } from './FinancialWorkspaceLinks';
+import { unifiedCopy } from '@/lib/i18n/translations/unified';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { estimatesCopy } from '@/lib/i18n/translations/estimates';
 import { reportsCopy } from '@/lib/i18n/translations/reports';
@@ -50,8 +51,8 @@ export interface SidebarProps {
 export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { can, business } = useSession();
-  const configuration = useConfiguration(); const ai = useAi();
-  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true) && (path !== '/ask-finsight' || ai?.available === true)); };
+  const configuration = useConfiguration();
+  const allowed = (path:string) => { const permission=routePermission(path); return isDemoMode || ((!permission || can(permission)) && (configuration?.allowsRoute(path) ?? true)); };
   const { t, direction, locale } = useLanguage(); const copy = phaseTwoCopy(locale);
 
   const navItems = [
@@ -117,7 +118,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
 
   return (
     <aside
-      aria-label="Primary Navigation"
+      aria-label={unifiedCopy(locale).navigation}
       className={cn(
         "hidden md:flex flex-col fixed inset-y-0 z-30 bg-[var(--color-surface-card)] border-[var(--color-border-default)] transition-all duration-200",
         isRTL ? "right-0 border-l" : "left-0 border-r",
@@ -157,7 +158,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
         <button
           type="button"
           onClick={onToggleCollapsed}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={isCollapsed ? unifiedCopy(locale).expand : unifiedCopy(locale).collapse}
           className="hidden lg:flex items-center justify-center w-7 h-7 rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
         >
           {isCollapsed ? (
@@ -171,13 +172,15 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {navItems.filter((item) => allowed(item.href) && (item.href !== '/records?add=1' || isDemoMode || (business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role)))).map((item) => {
-          const isActive = pathname === item.href || (item.href === '/records' && pathname.startsWith('/records/')) || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`));
+          const isActive = !item.href.includes('?') && (pathname === item.href || (item.href === '/records' && pathname.startsWith('/records/')) || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`)));
           const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={item.label}
               title={isCollapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-[14px] font-medium transition-colors select-none",
@@ -192,6 +195,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
             </Link>
           );
         })}
+        {!isCollapsed && <FinancialWorkspaceLinks />}
       </nav>
 
       {/* Secondary Bottom Navigation (Settings & Help) */}
@@ -204,6 +208,8 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={item.label}
               title={isCollapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-[13px] font-medium transition-colors select-none",

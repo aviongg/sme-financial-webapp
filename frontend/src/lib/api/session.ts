@@ -29,3 +29,10 @@ const permissions: Record<Role, readonly Permission[]> = {
 export function hasPermission(business: BusinessSummary | null, permission: Permission) {
     return business?.membershipStatus === 'ACTIVE' && !!permissions[business.role]?.includes(permission);
 }
+
+/** Only a security-context change warrants discarding private forms and results. */
+export function sameSessionBoundary(previousUser: AuthUser | null, user: AuthUser, previousBusiness: BusinessSummary | null, business: BusinessSummary | null): boolean {
+ if (!previousUser || ['id', 'authStage', 'accountStatus', 'mustChangePassword', 'platformRole'].some(key => previousUser[key as keyof AuthUser] !== user[key as keyof AuthUser])) return false;
+ if (!previousBusiness || !business) return previousBusiness === business;
+ return ['businessId', 'role', 'membershipStatus', 'businessType', 'active'].every(key => previousBusiness[key as keyof BusinessSummary] === business[key as keyof BusinessSummary]);
+}
