@@ -4,5 +4,6 @@ public enum MembershipRole {
     OWNER,
     ACCOUNTANT,
     MANAGER,
-    VIEWER
+    VIEWER,
+    SALESPERSON
 }

@@ -365,6 +365,98 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
 
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.SalespersonValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleSalespersonValidation(
+            com.app.sme_health_backend.commission.exception.SalespersonValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST,
+                "Validation Failed",
+                exception.getMessage()
+        );
+        if (exception.getField() != null) {
+            response.put("errors", Map.of(exception.getField(), exception.getMessage()));
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.SalespersonConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleSalespersonConflict(
+            com.app.sme_health_backend.commission.exception.SalespersonConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(createBaseResponse(
+                HttpStatus.CONFLICT, "conflict", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.SalespersonNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSalespersonNotFound(
+            com.app.sme_health_backend.commission.exception.SalespersonNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createBaseResponse(
+                HttpStatus.NOT_FOUND, "not_found", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionRuleValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionRuleValidation(
+            com.app.sme_health_backend.commission.exception.CommissionRuleValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST, "Validation Failed", exception.getMessage());
+        if (exception.getField() != null) {
+            response.put("errors", Map.of(exception.getField(), exception.getMessage()));
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionRuleNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionRuleNotFound(
+            com.app.sme_health_backend.commission.exception.CommissionRuleNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createBaseResponse(
+                HttpStatus.NOT_FOUND, "not_found", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionEarningValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionEarningValidation(
+            com.app.sme_health_backend.commission.exception.CommissionEarningValidationException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.BAD_REQUEST, "Validation Failed", exception.getMessage());
+        if (exception.getField() != null) {
+            response.put("errors", Map.of(exception.getField(), exception.getMessage()));
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionEarningConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionEarningConflict(
+            com.app.sme_health_backend.commission.exception.CommissionEarningConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(createBaseResponse(
+                HttpStatus.CONFLICT, "conflict", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionEarningNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionEarningNotFound(
+            com.app.sme_health_backend.commission.exception.CommissionEarningNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createBaseResponse(
+                HttpStatus.NOT_FOUND, "not_found", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionSettlementValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionSettlementValidation(
+            com.app.sme_health_backend.commission.exception.CommissionSettlementValidationException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createBaseResponse(
+                HttpStatus.BAD_REQUEST, "Validation Failed", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionSettlementConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionSettlementConflict(
+            com.app.sme_health_backend.commission.exception.CommissionSettlementConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(createBaseResponse(
+                HttpStatus.CONFLICT, "conflict", exception.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.commission.exception.CommissionSettlementNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCommissionSettlementNotFound(
+            com.app.sme_health_backend.commission.exception.CommissionSettlementNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createBaseResponse(
+                HttpStatus.NOT_FOUND, "not_found", exception.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpectedException(
             Exception exception) {
