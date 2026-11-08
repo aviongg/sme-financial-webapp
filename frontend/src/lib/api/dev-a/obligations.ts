@@ -231,6 +231,94 @@ export function parseObligationSummary(value: unknown): ObligationSummaryRespons
   };
 }
 
+export function parseMulticurrencyObligationSummary(value: unknown): ObligationSummaryResponse {
+  const o = object(value);
+  ensure(uuid(o.id), 'Invalid obligation ID');
+  ensure(uuid(o.businessId), 'Invalid businessId');
+  ensure(uuid(o.counterpartyId), 'Invalid counterpartyId');
+  ensure(typeof o.counterpartyName === 'string', 'Invalid counterpartyName');
+  ensure(typeof o.counterpartyType === 'string', 'Invalid counterpartyType');
+  ensure(obligationDirections.includes(o.direction as ObligationDirection), 'Invalid direction');
+  ensure(typeof o.issueDate === 'string', 'Invalid issueDate');
+  ensure(typeof o.originalAmount === 'string', 'Invalid originalAmount');
+  ensure(typeof o.paidAmount === 'string', 'Invalid paidAmount');
+  ensure(typeof o.outstandingAmount === 'string', 'Invalid outstandingAmount');
+  ensure(typeof o.currency === 'string' && /^[A-Z]{3}$/.test(o.currency), 'Invalid currency');
+  ensure(obligationStatuses.includes(o.status as ObligationStatus), 'Invalid status');
+  ensure(obligationSettlementStatuses.includes(o.settlementStatus as ObligationSettlementStatus), 'Invalid settlementStatus');
+  ensure(isTransactionTimestamp(o.createdAt), 'Invalid createdAt');
+
+  return {
+    id: o.id as string,
+    businessId: o.businessId as string,
+    counterpartyId: o.counterpartyId as string,
+    counterpartyName: o.counterpartyName as string,
+    counterpartyType: o.counterpartyType as string,
+    direction: o.direction as ObligationDirection,
+    sourceType: (o.sourceType as ObligationSourceType) || 'MANUAL_DECLARATION',
+    sourceId: (o.sourceId as string) ?? null,
+    referenceNumber: (o.referenceNumber as string) ?? null,
+    issueDate: o.issueDate as string,
+    dueDate: (o.dueDate as string) ?? null,
+    originalAmount: o.originalAmount as string,
+    paidAmount: o.paidAmount as string,
+    outstandingAmount: o.outstandingAmount as string,
+    currency: o.currency as string,
+    status: o.status as ObligationStatus,
+    settlementStatus: o.settlementStatus as ObligationSettlementStatus,
+    agingBucket: (o.agingBucket as AgingBucket) || 'UNKNOWN_DUE_DATE',
+    daysOverdue: typeof o.daysOverdue === 'number' ? o.daysOverdue : null,
+    description: (o.description as string) ?? null,
+    createdAt: o.createdAt as string,
+  };
+}
+
+export function parseMulticurrencyObligationDetail(value: unknown): ObligationDetailResponse {
+  const summary = parseMulticurrencyObligationSummary(value);
+  const o = object(value);
+
+  const rawAllocs = Array.isArray(o.allocations) ? o.allocations : [];
+  const allocations: ObligationAllocationResponse[] = rawAllocs.map((item: unknown) => {
+    const a = object(item);
+    const txId = ((a.financialTransactionId || a.transactionId || '') as string);
+    return {
+      id: a.id as string,
+      financialTransactionId: txId,
+      transactionId: txId,
+      amount: a.amount as string,
+      effectiveDate: a.effectiveDate as string,
+      status: a.status as string,
+      reversalTransactionId: (a.reversalTransactionId as string) ?? null,
+      createdAt: a.createdAt as string,
+    };
+  });
+
+  return {
+    ...summary,
+    voidDate: (o.voidDate as string) ?? null,
+    voidReason: (o.voidReason as string) ?? null,
+    allocations,
+  };
+}
+
+export function parseMulticurrencyObligationList(value: unknown): ObligationListResponse {
+  const p = object(value);
+  ensure(Number.isSafeInteger(p.page) && (p.page as number) >= 0, 'Invalid page');
+  ensure(Number.isSafeInteger(p.size) && (p.size as number) >= 1, 'Invalid size');
+  ensure(Number.isSafeInteger(p.totalElements) && (p.totalElements as number) >= 0, 'Invalid totalElements');
+  ensure(Number.isSafeInteger(p.totalPages) && (p.totalPages as number) >= 0, 'Invalid totalPages');
+  ensure(Array.isArray(p.items), 'items must be an array');
+
+  const items = p.items.map(parseMulticurrencyObligationSummary);
+  return {
+    items,
+    page: p.page as number,
+    size: p.size as number,
+    totalElements: p.totalElements as number,
+    totalPages: p.totalPages as number,
+  };
+}
+
 export function parseObligationDetail(value: unknown): ObligationDetailResponse {
   const summary = parseObligationSummary(value);
   const o = object(value);
@@ -402,5 +490,17 @@ export const obligationsApi = {
     const qs = asOfDate ? '?asOfDate=' + encodeURIComponent(asOfDate) : '';
     const res = await apiClient<ObligationAgingResult>('/finance/obligations/aging' + qs, { signal });
     return res;
+  },
+
+  listMulticurrency: async (params?: ObligationFilterParams, signal?: AbortSignal): Promise<ObligationListResponse> => {
+    const qs = obligationQueryString(params);
+    const data = await apiClient<unknown>('/finance/obligations' + qs, { signal });
+    return parseMulticurrencyObligationList(data);
+  },
+
+  getMulticurrency: async (id: string, signal?: AbortSignal): Promise<ObligationDetailResponse> => {
+    if (!uuid(id)) throw new Error('Invalid obligation ID');
+    const data = await apiClient<unknown>('/finance/obligations/' + id, { signal });
+    return parseMulticurrencyObligationDetail(data);
   },
 };

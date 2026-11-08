@@ -23,5 +23,7 @@ public interface CounterpartyRepository extends JpaRepository<Counterparty, UUID
 
     boolean existsByBusinessIdAndDisplayNameIgnoreCase(UUID businessId, String displayName);
 
+    List<Counterparty> findByBusinessId(UUID businessId);
+
     List<Counterparty> findAllByBusinessIdAndStatusOrderByDisplayNameAsc(UUID businessId, CounterpartyStatus status);
 }
