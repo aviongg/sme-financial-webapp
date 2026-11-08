@@ -1,6 +1,7 @@
 "use client";
 import { localizedError, localizedSessionError } from '@/lib/i18n/errors';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSession } from './SessionProvider';
 import { apiClient, resetCsrf } from '@/lib/api/client';
 import { AuthUser } from '@/lib/api/session';
@@ -14,7 +15,10 @@ export function AuthScreen({ reset = false }: {
     const session = useSession();
     const { locale, toggleLocale, t } = useLanguage();
     const ur = locale === 'ur';
-    const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(reset ? 'forgot' : 'login');
+    // Public "Get Started" links open account creation; the hint only picks the first form and grants nothing.
+    const searchParams = useSearchParams();
+    const registerRequested = !reset && searchParams.get('auth') === 'register';
+    const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(reset ? 'forgot' : registerRequested ? 'register' : 'login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -38,6 +42,8 @@ export function AuthScreen({ reset = false }: {
             history.replaceState(null, '', window.location.pathname);
         }
     } }, [reset]);
+    useEffect(() => { if (registerRequested)
+        history.replaceState(null, '', window.location.pathname); }, [registerRequested]);
     const perform = async (action: () => Promise<void>) => { if (busy)
         return; setBusy(true); setError(''); setMessage(''); try {
         await action();

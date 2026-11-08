@@ -8,9 +8,12 @@ import { useLanguage } from '@/lib/i18n/context';
 import { BusinessSetup } from '@/components/auth/BusinessSetup';
 import { ConfigurationProvider } from '@/components/configuration/ConfigurationProvider';
 import { AiProvider } from '@/components/ai/AiProvider';
+import { isPublicRoute } from '@/lib/routing/public-routes';
 export function IntegrationBoundary({children}:{children:React.ReactNode}) {
   const { t } = useLanguage();
   const session=useSession();const pathname=usePathname();
+  // Explicit allow-list only: public marketing pages render no private data and never mount business providers.
+  if(isPublicRoute(pathname))return <>{children}</>;
   if(isDemoMode)return <><div role="status" className="bg-amber-100 text-amber-950 text-center p-2 text-sm">Demo mode — sample data. Changes are not saved to the backend.</div>{children}</>;
   if(pathname==='/reset-password')return <AuthScreen reset/>;
   if(session.status==='loading')return <main className="p-10" role="status">{t.live.sessionLoading}</main>;
