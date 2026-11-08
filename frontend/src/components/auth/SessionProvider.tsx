@@ -4,6 +4,8 @@ import { apiClient, ApiError, allowPrivateRequests, invalidatePrivateRequests, r
 import { AuthUser, BusinessSummary, Permission, hasPermission } from '@/lib/api/session';
 import { BusinessProfileRequest } from '@/lib/api/contracts';
 import { isDemoMode } from '@/lib/api/config';
+import { usePathname } from 'next/navigation';
+import { isPublicRoute } from '@/lib/routing/public-routes';
 type Status = 'loading' | 'anonymous' | 'challenge' | 'authenticated' | 'error';
 interface State {
     user: AuthUser | null;
@@ -32,6 +34,11 @@ export function SessionProvider({ children }: {
     const revision = useRef(0);
     const channel = useRef<BroadcastChannel | null>(null);
     const stateRef = useRef(state);
+    // Exact public routes (the marketing landing page) render no private data, so the initial identity probe is
+    // deferred there and runs the first time the visitor is on any other route. Status stays 'loading' meanwhile,
+    // which grants nothing: private routes still wait for the probe before IntegrationBoundary renders them.
+    const publicRoute = isPublicRoute(usePathname());
+    const probed = useRef(false);
     useEffect(() => { stateRef.current = state; }, [state]);
     const block = useCallback(() => {
         invalidatePrivateRequests();
@@ -206,7 +213,6 @@ export function SessionProvider({ children }: {
         }
         catch { }
         const initialize = () => void refresh();
-        queueMicrotask(initialize);
         const expired = () => { block(); setState(s => ({ ...s, status: 'anonymous', error: 'Your session expired. Please sign in again.' })); };
         const focus = () => void revalidate();
         const pageShow = (event: PageTransitionEvent) => {
@@ -227,8 +233,14 @@ export function SessionProvider({ children }: {
                     void refresh();
             };
         }
-        return () => { revision.current++; invalidatePrivateRequests(); window.removeEventListener('finsight-business-changed', initialize); window.removeEventListener('finsight-session-expired', expired); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', pageShow); channel.current?.close(); channel.current = null; };
+        return () => { revision.current++; probed.current = false; invalidatePrivateRequests(); window.removeEventListener('finsight-business-changed', initialize); window.removeEventListener('finsight-session-expired', expired); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', pageShow); channel.current?.close(); channel.current = null; };
     }, [refresh, block, revalidate]);
+    useEffect(() => {
+        if (isDemoMode || publicRoute || probed.current)
+            return;
+        probed.current = true;
+        queueMicrotask(() => void refresh());
+    }, [publicRoute, refresh]);
     return <Context.Provider value={{ ...state, refresh, revalidate, login, acceptUser, logout, switchBusiness: id => changeBusiness('/businesses/active', { businessId: id }), createBusiness: input => changeBusiness('/businesses', input), can: p => hasPermission(state.business, p) }}>{children}</Context.Provider>;
 }
 export function useSession() {

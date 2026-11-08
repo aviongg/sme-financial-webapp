@@ -34,8 +34,9 @@ export function LandingPage() {
         <SmesSection {...props} />
         <LanguageSection {...props} />
         <SecuritySection {...props} />
-        <AccessSection {...props} />
         <FaqSection {...props} />
+        {/* The single closing conversion CTA; the footer carries navigation only. */}
+        <AccessSection {...props} />
       </main>
       <LandingFooter copy={copy} />
     </div>
