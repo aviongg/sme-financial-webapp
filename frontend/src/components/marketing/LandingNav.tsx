@@ -22,11 +22,15 @@ export function landingNavItems(copy: LandingCopy) {
 }
 
 const MENU_ID = 'landing-mobile-menu';
+// Six section links plus language and both CTAs only fit without wrapping from 1280px (also in Urdu);
+// below that the section links live in the disclosure menu while the CTAs stay visible from md.
+const DESKTOP_QUERY = '(min-width: 1280px)';
 
 export function LandingNav({ copy }: { copy: LandingCopy }) {
   const { locale, setLocale } = useLanguage();
   const session = useSession();
   const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const items = landingNavItems(copy);
@@ -42,7 +46,7 @@ export function LandingNav({ copy }: { copy: LandingCopy }) {
     if (!open) return;
     menuRef.current?.querySelector<HTMLElement>('a, button')?.focus();
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close(true); };
-    const desktop = window.matchMedia('(min-width: 1024px)');
+    const desktop = window.matchMedia(DESKTOP_QUERY);
     const onResize = () => { if (desktop.matches) close(false); };
     document.addEventListener('keydown', onKey);
     desktop.addEventListener('change', onResize);
@@ -52,95 +56,114 @@ export function LandingNav({ copy }: { copy: LandingCopy }) {
     };
   }, [open, close]);
 
+  // Keyboard focus moving past the menu into the page closes it, so it never stays open behind the focus.
+  const onHeaderBlur = (event: React.FocusEvent<HTMLElement>) => {
+    if (open && event.relatedTarget instanceof Node && !headerRef.current?.contains(event.relatedTarget)) close(false);
+  };
+
   const languageButton = (extra?: string) => (
     <button
       type="button"
       onClick={() => setLocale(locale === 'en' ? 'ur' : 'en')}
       aria-label={copy.nav.languageLabel}
-      className={cn('inline-flex items-center gap-2 min-h-[44px] px-3 rounded-[var(--radius-lg)] text-[14px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--lp-navy)] transition-colors', extra)}
+      className={cn('inline-flex items-center gap-2 min-h-[44px] px-3 rounded-[var(--radius-lg)] text-[14px] font-semibold whitespace-nowrap text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--lp-navy)] transition-colors', extra)}
     >
       <Globe aria-hidden="true" className="w-4 h-4 shrink-0" />
       <span lang={locale === 'en' ? 'ur' : 'en'}>{copy.nav.language}</span>
     </button>
   );
 
+  const actions = signedIn
+    ? <CtaLink href={LANDING_LINKS.app} arrow>{copy.nav.openApp}</CtaLink>
+    : <>
+        <CtaLink href={LANDING_LINKS.signIn} variant="secondary">{copy.nav.signIn}</CtaLink>
+        <CtaLink href={LANDING_LINKS.getStarted}>{copy.nav.getStarted}</CtaLink>
+      </>;
+
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--color-border-default)]/70 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
-      <Shell className="flex h-16 items-center justify-between gap-4">
-        <a href="#top" className="rounded-[var(--radius-sm)] shrink-0" aria-label={copy.nav.home}>
-          <BrandLockup />
-        </a>
-
-        <nav aria-label={copy.nav.label} className="hidden lg:block">
-          <ul className="flex items-center gap-1">
-            {items.map(item => (
-              <li key={item.id}>
-                <a href={`#${item.id}`} className="inline-flex items-center min-h-[44px] px-3 rounded-[var(--radius-lg)] text-[14px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)] transition-colors">
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="hidden lg:flex items-center gap-2">
-          {languageButton()}
-          {signedIn ? (
-            <CtaLink href={LANDING_LINKS.app} arrow>{copy.nav.openApp}</CtaLink>
-          ) : (
-            <>
-              <CtaLink href={LANDING_LINKS.signIn} variant="secondary">{copy.nav.signIn}</CtaLink>
-              <CtaLink href={LANDING_LINKS.getStarted}>{copy.nav.getStarted}</CtaLink>
-            </>
-          )}
-        </div>
-
-        <button
-          ref={toggleRef}
-          type="button"
-          className="lg:hidden inline-flex items-center justify-center w-11 h-11 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)]"
-          aria-expanded={open}
-          aria-controls={MENU_ID}
-          aria-label={open ? copy.nav.closeMenu : copy.nav.openMenu}
-          onClick={() => setOpen(value => !value)}
-        >
-          {open ? <X aria-hidden="true" className="w-5 h-5" /> : <Menu aria-hidden="true" className="w-5 h-5" />}
-        </button>
-      </Shell>
-
+    <>
       {open && (
+        // Click/tap outside closes the menu. Not focusable; mousedown is prevented so focus does not jump to the page.
         <div
-          id={MENU_ID}
-          ref={menuRef}
-          data-testid="landing-mobile-menu"
-          className={cn('lg:hidden absolute inset-x-0 top-full border-b border-[var(--color-border-default)] bg-white shadow-[var(--lp-shadow-float)] max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain', styles.menu)}
-        >
-          <Shell className="py-4">
-            <nav aria-label={copy.nav.label}>
-              <ul className="grid gap-1">
-                {items.map(item => (
-                  <li key={item.id}>
-                    <a href={`#${item.id}`} onClick={() => close(false)} className="flex items-center min-h-[48px] px-3 rounded-[var(--radius-lg)] text-[16px] font-medium text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)]">
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)] grid gap-3">
-              {languageButton('justify-center border border-[var(--color-border-default)]')}
-              {signedIn ? (
-                <CtaLink href={LANDING_LINKS.app} arrow onClick={() => close(false)}>{copy.nav.openApp}</CtaLink>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <CtaLink href={LANDING_LINKS.signIn} variant="secondary" onClick={() => close(false)}>{copy.nav.signIn}</CtaLink>
-                  <CtaLink href={LANDING_LINKS.getStarted} onClick={() => close(false)}>{copy.nav.getStarted}</CtaLink>
-                </div>
-              )}
-            </div>
-          </Shell>
-        </div>
+          aria-hidden="true"
+          data-testid="landing-menu-backdrop"
+          className="fixed inset-0 z-30 bg-[rgba(3,14,46,0.28)] xl:hidden"
+          onMouseDown={event => event.preventDefault()}
+          onClick={() => close(true)}
+        />
       )}
-    </header>
+      <header ref={headerRef} onBlur={onHeaderBlur} className="sticky top-0 z-40 border-b border-[var(--color-border-default)]/70 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
+        <Shell className="flex h-16 items-center justify-between gap-3">
+          <a href="#top" className="rounded-[var(--radius-sm)] shrink-0" aria-label={copy.nav.home}>
+            <BrandLockup />
+          </a>
+
+          <nav aria-label={copy.nav.label} className="hidden xl:block">
+            <ul className="flex items-center gap-0.5">
+              {items.map(item => (
+                <li key={item.id}>
+                  <a href={`#${item.id}`} className="inline-flex items-center min-h-[44px] px-2.5 2xl:px-3 rounded-[var(--radius-lg)] text-[14px] font-medium whitespace-nowrap text-[var(--color-text-secondary)] hover:text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)] transition-colors">
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
+              {languageButton()}
+              {actions}
+            </div>
+            <button
+              ref={toggleRef}
+              type="button"
+              className="xl:hidden inline-flex items-center justify-center w-11 h-11 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)]"
+              aria-expanded={open}
+              aria-controls={MENU_ID}
+              aria-label={open ? copy.nav.closeMenu : copy.nav.openMenu}
+              onClick={() => setOpen(value => !value)}
+            >
+              {open ? <X aria-hidden="true" className="w-5 h-5" /> : <Menu aria-hidden="true" className="w-5 h-5" />}
+            </button>
+          </div>
+        </Shell>
+
+        {open && (
+          <div
+            id={MENU_ID}
+            ref={menuRef}
+            tabIndex={-1}
+            data-testid="landing-mobile-menu"
+            className={cn('xl:hidden absolute inset-x-0 top-full border-b border-[var(--color-border-default)] bg-white shadow-[var(--lp-shadow-float)] max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain focus:outline-none', styles.menu)}
+          >
+            <Shell className="py-4">
+              <nav aria-label={copy.nav.label}>
+                <ul className="grid gap-1 md:grid-cols-2">
+                  {items.map(item => (
+                    <li key={item.id}>
+                      <a href={`#${item.id}`} onClick={() => close(false)} className="flex items-center min-h-[48px] px-3 rounded-[var(--radius-lg)] text-[16px] font-medium text-[var(--lp-navy)] hover:bg-[var(--color-surface-hover)]">
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <div className="mt-4 pt-4 border-t border-[var(--color-border-default)] grid gap-3 md:hidden">
+                {languageButton('justify-center border border-[var(--color-border-default)]')}
+                {signedIn ? (
+                  <CtaLink href={LANDING_LINKS.app} arrow onClick={() => close(false)}>{copy.nav.openApp}</CtaLink>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <CtaLink href={LANDING_LINKS.signIn} variant="secondary" onClick={() => close(false)}>{copy.nav.signIn}</CtaLink>
+                    <CtaLink href={LANDING_LINKS.getStarted} onClick={() => close(false)}>{copy.nav.getStarted}</CtaLink>
+                  </div>
+                )}
+              </div>
+            </Shell>
+          </div>
+        )}
+      </header>
+    </>
   );
 }

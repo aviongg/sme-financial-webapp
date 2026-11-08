@@ -1,12 +1,15 @@
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, CheckCircle2, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, CheckCircle2, KeyRound, LockKeyhole, ScrollText, Sparkles, TrendingUp } from 'lucide-react';
 import type { LandingCopy } from '@/lib/i18n/translations/landing';
 import { cn } from '@/lib/utils/cn';
 import { SampleTag } from './LandingPrimitives';
 import styles from './landing.module.css';
 
-/* Every figure below is an illustrative sample value. Nothing here reads, derives or represents live data. */
+/* Every figure below is an illustrative sample value. Nothing here reads, derives or represents live data.
+   Accessibility: purely pictorial figures (hero preview, forecast chart) hide their drawing and carry one sr-only
+   figcaption; figures with readable rows (estimate, insight, team access) are named by their visible heading. */
 
-const money = (amount: string) => <span dir="ltr" className="tabular-nums">PKR {amount}</span>;
+/** Currency token: the code and the number never wrap apart, and digits keep a stable width. */
+export const money = (amount: string) => <span dir="ltr" className="whitespace-nowrap tabular-nums">PKR {amount}</span>;
 
 function Gauge({ value }: { value: number }) {
   return (
@@ -45,25 +48,26 @@ const outlookBars = [
 export function HeroPreview({ copy }: { copy: LandingCopy }) {
   const p = copy.preview;
   return (
-    <figure className="relative" aria-label={p.summary}>
+    <figure className="relative">
+      <figcaption className="sr-only">{p.summary}</figcaption>
       <div aria-hidden="true" className="absolute -inset-6 rounded-[32px] bg-[radial-gradient(closest-side,rgba(79,107,245,0.18),transparent)] blur-2xl" />
-      <div className={cn('relative rounded-[20px] border border-[var(--color-border-default)] bg-white shadow-[var(--lp-shadow-float)] overflow-hidden', styles.float)}>
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] px-4 py-3 bg-[var(--color-surface-subtle)]">
+      <div aria-hidden="true" className={cn('relative rounded-[20px] border border-[var(--color-border-default)] bg-white shadow-[var(--lp-shadow-float)] overflow-hidden', styles.float)}>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[var(--color-border-subtle)] px-4 py-3 bg-[var(--color-surface-subtle)]">
           <div className="flex items-center gap-2 min-w-0">
-            <span aria-hidden="true" className="hidden sm:flex gap-1.5 shrink-0">
+            <span className="hidden sm:flex gap-1.5 shrink-0">
               <span className="h-2.5 w-2.5 rounded-full bg-[#CBD5E1]" /><span className="h-2.5 w-2.5 rounded-full bg-[#CBD5E1]" /><span className="h-2.5 w-2.5 rounded-full bg-[#CBD5E1]" />
             </span>
-            <span className="sm:ms-2 truncate text-[13px] font-semibold text-[var(--lp-navy)]">{p.business}</span>
-            <span className="hidden sm:inline text-[12px] text-[var(--color-text-muted)]">· {p.period}</span>
+            <span className="sm:ms-2 whitespace-nowrap text-[13px] font-semibold text-[var(--lp-navy)]">{p.business}</span>
+            <span className="hidden sm:inline whitespace-nowrap text-[12px] text-[var(--color-text-muted)]">· {p.period}</span>
           </div>
           <SampleTag>{p.caption}</SampleTag>
         </div>
 
-        <div aria-hidden="true" className="grid gap-3 p-3 sm:p-4 sm:grid-cols-2">
+        <div data-testid="hero-preview-grid" className="grid gap-3 p-3 sm:p-4 sm:grid-cols-2">
           <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-default)] p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{p.health}</p>
-              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-health-stable-border)] bg-[var(--color-health-stable-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-health-stable)]">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-health-stable-border)] bg-[var(--color-health-stable-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-health-stable)]">
                 <CheckCircle2 className="w-3 h-3" />{p.band}
               </span>
             </div>
@@ -76,15 +80,15 @@ export function HeroPreview({ copy }: { copy: LandingCopy }) {
 
           <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-default)] p-4 flex flex-col">
             <p className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{p.cash}</p>
-            <p className="mt-2 font-heading text-[22px] sm:text-[24px] font-extrabold text-[var(--lp-navy)] leading-tight">{money('1,842,500')}</p>
+            <p data-testid="hero-cash" className="mt-2 font-heading text-[22px] sm:text-[24px] font-extrabold text-[var(--lp-navy)] leading-tight">{money('1,842,500')}</p>
             <p className="mt-1 text-[12px] font-semibold text-[var(--color-health-strong)]">{p.cashDelta}</p>
             <div className="mt-auto pt-3" dir="ltr"><Sparkline /></div>
           </div>
 
           <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-default)] p-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <p className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{p.outlook}</p>
-              <p className="text-[11px] text-[var(--color-text-secondary)]">{p.lowest}: <span className="font-semibold text-[var(--color-health-attention)]">{p.lowestWhen}</span></p>
+              <p className="text-[11px] text-[var(--color-text-secondary)]">{p.lowest}: <span className="whitespace-nowrap font-semibold text-[var(--color-health-attention)]">{p.lowestWhen}</span></p>
             </div>
             <div dir="ltr" className="mt-3 flex h-20 items-end gap-1.5">
               {outlookBars.map(([inflow, outflow], index) => (
@@ -104,14 +108,14 @@ export function HeroPreview({ copy }: { copy: LandingCopy }) {
             <p className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{p.upcoming}</p>
             <ul className="mt-2 divide-y divide-[var(--color-border-subtle)]">
               {p.items.map(item => (
-                <li key={item.label} className="flex items-center gap-3 py-2">
+                <li key={item.label} data-testid="hero-obligation" className="flex items-center gap-3 py-2">
                   <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', item.direction === 'in' ? 'bg-[var(--color-health-strong-bg)] text-[var(--color-health-strong)]' : 'bg-[var(--lp-tint)] text-[var(--lp-blue)]')}>
                     {item.direction === 'in' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="min-w-0 text-[12px] font-semibold text-[var(--lp-navy)]">{item.label}</span>
-                      <span className="shrink-0 text-[12px] font-semibold text-[var(--lp-navy)]">{money(item.amount)}</span>
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span data-part="label" className="min-w-0 text-[12px] font-semibold text-[var(--lp-navy)]">{item.label}</span>
+                      <span data-part="amount" className="shrink-0 text-[12px] font-semibold text-[var(--lp-navy)]">{money(item.amount)}</span>
                     </span>
                     <span className="block text-[11px] text-[var(--color-text-secondary)]">{item.when}</span>
                   </span>
@@ -127,18 +131,20 @@ export function HeroPreview({ copy }: { copy: LandingCopy }) {
 
 /* Cash section: a 30-day projected balance with a visible dip in week three. */
 const balance = [62, 64, 63, 66, 68, 67, 70, 69, 66, 63, 60, 56, 52, 47, 42, 37, 33, 30, 31, 36, 42, 49, 55, 58, 61, 63, 64, 66, 67, 69];
+const pressureStart = 0.43, pressureEnd = 0.63;
 
 export function ForecastVisual({ copy }: { copy: LandingCopy }) {
   const c = copy.cash;
   const width = 300, height = 120;
   const points = balance.map((value, index) => `${(index / (balance.length - 1)) * width},${height - value * 1.4}`).join(' ');
   return (
-    <figure aria-label={c.chartSummary} className="relative rounded-[20px] border border-white/10 bg-[var(--lp-navy-raised)] p-4 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-heading text-[16px] font-semibold text-white">{c.chartTitle}</p>
-        <SampleTag tone="dark">{c.chartCaption}</SampleTag>
-      </div>
+    <figure className="relative rounded-[20px] border border-white/10 bg-[var(--lp-navy-raised)] p-4 sm:p-6 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]">
+      <figcaption className="sr-only">{c.chartSummary}</figcaption>
       <div aria-hidden="true">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="font-heading text-[16px] font-semibold text-white">{c.chartTitle}</p>
+          <SampleTag tone="dark">{c.chartCaption}</SampleTag>
+        </div>
         <div dir="ltr" className="relative mt-5">
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[150px] sm:h-[190px]" preserveAspectRatio="none">
             <defs>
@@ -146,12 +152,25 @@ export function ForecastVisual({ copy }: { copy: LandingCopy }) {
                 <stop offset="0" stopColor="#60A5FA" stopOpacity="0.35" />
                 <stop offset="1" stopColor="#60A5FA" stopOpacity="0" />
               </linearGradient>
+              <linearGradient id="lp-pressure" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="#FBBF24" stopOpacity="0.14" />
+                <stop offset="1" stopColor="#FBBF24" stopOpacity="0.02" />
+              </linearGradient>
             </defs>
             {[30, 60, 90].map(y => <line key={y} x1="0" x2={width} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />)}
-            <rect x={width * 0.43} y="0" width={width * 0.2} height={height} fill="rgba(245,158,11,0.16)" />
+            <rect data-testid="pressure-window" x={width * pressureStart} y="0" width={width * (pressureEnd - pressureStart)} height={height} fill="url(#lp-pressure)" />
+            {[pressureStart, pressureEnd].map(edge => (
+              <line key={edge} x1={width * edge} x2={width * edge} y1="0" y2={height} stroke="rgba(251,191,36,0.55)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+            ))}
             <polygon points={`0,${height} ${points} ${width},${height}`} fill="url(#lp-forecast)" />
             <polyline points={points} fill="none" stroke="#93C5FD" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           </svg>
+          <span
+            className="absolute top-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/40 bg-[var(--lp-navy-raised)]/90 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
+            style={{ left: `${((pressureStart + pressureEnd) / 2) * 100}%` }}
+          >
+            {c.legendPressure}
+          </span>
           <div dir="ltr" className="mt-2 flex justify-between text-[11px] text-slate-400 tabular-nums"><span>1</span><span>10</span><span>20</span><span>30</span></div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -161,7 +180,6 @@ export function ForecastVisual({ copy }: { copy: LandingCopy }) {
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-300">
             <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#93C5FD]" />{c.legendBalance}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-3 rounded-sm bg-amber-400/40" />{c.legendPressure}</span>
           </div>
         </div>
       </div>
@@ -172,15 +190,15 @@ export function ForecastVisual({ copy }: { copy: LandingCopy }) {
 export function EstimateVisual({ copy }: { copy: LandingCopy }) {
   const e = copy.planning;
   return (
-    <figure aria-label={`${e.estimateLabel} · ${e.estimateCaption}`} className={cn('rounded-[20px] border border-[var(--color-border-default)] bg-white p-5 sm:p-6 shadow-[var(--lp-shadow-float)]', styles.lift)}>
+    <figure aria-labelledby="lp-estimate-title lp-estimate-caption" className={cn('rounded-[20px] border border-[var(--color-border-default)] bg-white p-5 sm:p-6 shadow-[var(--lp-shadow-float)]', styles.lift)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[12px] font-semibold text-[var(--color-text-secondary)]">{e.estimateLabel}</p>
-          <p className="font-heading text-[18px] font-bold text-[var(--lp-navy)]">{e.estimateRef}</p>
-        </div>
+        <p id="lp-estimate-title" className="min-w-0">
+          <span className="block text-[12px] font-semibold text-[var(--color-text-secondary)]">{e.estimateLabel}</span>
+          <span className="block font-heading text-[18px] font-bold text-[var(--lp-navy)]">{e.estimateRef}</span>
+        </p>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-health-strong-border)] bg-[var(--color-health-strong-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-health-strong)]"><CheckCircle2 className="w-3 h-3" aria-hidden="true" />{e.estimateStatus}</span>
-          <SampleTag>{e.estimateCaption}</SampleTag>
+          <span id="lp-estimate-caption"><SampleTag>{e.estimateCaption}</SampleTag></span>
         </div>
       </div>
       <dl className="mt-5 divide-y divide-[var(--color-border-subtle)] text-[14px]">
@@ -195,16 +213,17 @@ export function EstimateVisual({ copy }: { copy: LandingCopy }) {
           <dd className="font-semibold text-[var(--lp-navy)]">{money(e.totalCostAmount)}</dd>
         </div>
       </dl>
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <dl className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-[var(--radius-xl)] bg-[var(--lp-tint)] p-3">
-          <p className="text-[12px] text-[var(--color-text-secondary)]">{e.price}</p>
-          <p className="mt-1 font-heading text-[17px] font-bold text-[var(--lp-blue)]">{money(e.priceAmount)}</p>
+          <dt className="text-[12px] text-[var(--color-text-secondary)]">{e.price}</dt>
+          <dd className="mt-1 font-heading text-[17px] font-bold text-[var(--lp-blue)]">{money(e.priceAmount)}</dd>
         </div>
         <div className="rounded-[var(--radius-xl)] bg-[var(--color-health-strong-bg)] p-3">
-          <p className="text-[12px] text-[var(--color-text-secondary)]">{e.margin}</p>
-          <p dir="ltr" className="mt-1 font-heading text-[17px] font-bold text-[var(--color-health-strong)] tabular-nums text-start">{e.marginValue}</p>
+          <dt className="text-[12px] text-[var(--color-text-secondary)]">{e.margin}</dt>
+          {/* The block follows the page direction; only the numeric token is forced LTR. */}
+          <dd data-testid="planned-margin" className="mt-1 font-heading text-[17px] font-bold text-[var(--color-health-strong)]"><span dir="ltr" className="whitespace-nowrap tabular-nums">{e.marginValue}</span></dd>
         </div>
-      </div>
+      </dl>
     </figure>
   );
 }
@@ -218,17 +237,17 @@ const reasonTone: Record<number, string> = {
 export function InsightVisual({ copy }: { copy: LandingCopy }) {
   const i = copy.intelligence;
   return (
-    <figure aria-label={`${i.scoreLabel} · ${i.assistant} · ${i.previewCaption}`} className="relative grid gap-4">
+    <figure aria-labelledby="lp-insight-title lp-insight-caption" className="relative grid gap-4">
       <div className={cn('rounded-[20px] border border-[var(--color-border-default)] bg-white p-5 shadow-[var(--lp-shadow-card)]', styles.lift)}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-heading text-[16px] font-semibold text-[var(--lp-navy)]">{i.scoreLabel}</p>
-          <SampleTag>{i.previewCaption}</SampleTag>
+          <p id="lp-insight-title" className="font-heading text-[16px] font-semibold text-[var(--lp-navy)]">{i.scoreLabel}</p>
+          <span id="lp-insight-caption"><SampleTag>{i.previewCaption}</SampleTag></span>
         </div>
         <ul className="mt-4 grid gap-2.5">
           {i.reasons.map((reason, index) => (
             <li key={reason.label} className="flex items-center justify-between gap-3">
               <span className="text-[14px] text-[var(--color-text-secondary)]">{reason.label}</span>
-              <span className={cn('rounded-full border px-2.5 py-0.5 text-[12px] font-semibold', reasonTone[index])}>{reason.state}</span>
+              <span className={cn('shrink-0 rounded-full border px-2.5 py-0.5 text-[12px] font-semibold', reasonTone[index])}>{reason.state}</span>
             </li>
           ))}
         </ul>
@@ -238,6 +257,47 @@ export function InsightVisual({ copy }: { copy: LandingCopy }) {
         <p className="mt-3 ms-auto w-fit max-w-[90%] rounded-[16px] rounded-se-[4px] bg-[var(--lp-blue)] px-4 py-2.5 text-[14px] text-white">{i.question}</p>
         <p className="mt-3 max-w-[95%] rounded-[16px] rounded-ss-[4px] bg-[var(--color-surface-hover)] px-4 py-3 text-[14px] leading-[1.6] text-[var(--color-text-primary)]">{i.answer}</p>
       </div>
+    </figure>
+  );
+}
+
+const cueIcons = [LockKeyhole, KeyRound, ScrollText];
+
+/** Team-access panel built from the real role model (lib/api/session.ts); no certification or encryption claims. */
+export function AccessVisual({ copy }: { copy: LandingCopy }) {
+  const s = copy.security;
+  return (
+    <figure aria-labelledby="lp-access-title lp-access-caption" data-testid="security-roles" className={cn('mt-10 rounded-[20px] border border-[var(--color-border-default)] bg-white p-5 shadow-[var(--lp-shadow-card)] sm:p-6', styles.lift)}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="min-w-0">
+          <span id="lp-access-title" className="block font-heading text-[16px] font-semibold text-[var(--lp-navy)]">{s.panelTitle}</span>
+          <span className="block text-[12px] text-[var(--color-text-secondary)]">{s.panelBusiness}</span>
+        </p>
+        <span id="lp-access-caption"><SampleTag>{s.panelCaption}</SampleTag></span>
+      </div>
+      <ul className="mt-4 divide-y divide-[var(--color-border-subtle)]">
+        {s.roles.map((role, index) => (
+          <li key={role.role} className="flex items-center gap-3 py-3">
+            <span aria-hidden="true" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold', index === 0 ? 'bg-[var(--lp-navy)] text-white' : 'bg-[var(--lp-tint)] text-[var(--lp-blue)]')}>
+              {role.role.charAt(0)}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-semibold text-[var(--lp-navy)]"><span lang="en" dir="ltr">{role.role}</span></span>
+              <span className="block text-[13px] text-[var(--color-text-secondary)]">{role.access}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ul className="mt-4 flex flex-wrap gap-2 border-t border-[var(--color-border-subtle)] pt-4">
+        {s.cues.map((cue, index) => {
+          const Icon = cueIcons[index];
+          return (
+            <li key={cue} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-secondary)]">
+              <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--lp-blue)]" />{cue}
+            </li>
+          );
+        })}
+      </ul>
     </figure>
   );
 }

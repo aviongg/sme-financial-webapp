@@ -23,6 +23,13 @@
   --focus-outline-color: #93C5FD;
 }
 
+/* Urdu Nastaliq guard: tall ascenders and deep descenders need ~1.9 line-height. Utility leading values chosen for
+   English (1.08–1.7) would otherwise apply directly to these elements and make multi-line Urdu text collide.
+   Numeric LTR tokens (scores, margins) keep their own compact metrics. */
+.root[lang="ur"] :is(h1, h2, h3, p, li, summary, dt, dd):not([dir="ltr"], [lang="en"] *) {
+  line-height: 1.9;
+}
+
 .heroBackdrop {
   background:
     radial-gradient(60rem 28rem at 85% -10%, rgba(79, 107, 245, 0.14), transparent 60%),
