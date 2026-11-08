@@ -43,6 +43,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -533,7 +534,7 @@ class FxSettlementPostgreSqlIT extends DisposablePostgres {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        List<?> items = json.readValue(res.getResponse().getContentAsString(), List.class);
+        java.util.List<?> items = json.readValue(res.getResponse().getContentAsString(), java.util.List.class);
         assertThat(items).isEmpty();
     }
 

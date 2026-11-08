@@ -591,6 +591,141 @@ export function downloadSettlementsCsvUrl(filter: FxSettlementReportFilter = {})
   return `/api/finance/fx/analytics/report/csv${qs}`;
 }
 
+// F11E: Cross-Currency Internal Account Transfers
+export type FxTransferFeePlacement = 'DESTINATION_DEDUCTED' | 'SOURCE_CHARGED' | 'NO_FEE';
+
+export interface FxTransferPreviewRequest {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  sourceAmount: number | string;
+  exchangeRate: number | string;
+  feeAmount?: number | string;
+  feePlacement?: FxTransferFeePlacement;
+}
+
+export interface FxTransferPreviewResponse {
+  sourceAccountId: string;
+  sourceAccountName: string;
+  sourceCurrency: string;
+  destinationAccountId: string;
+  destinationAccountName: string;
+  destinationCurrency: string;
+  sourceAmount: number;
+  exchangeRate: number;
+  convertedDestinationPrincipal: number;
+  feeAmount: number;
+  feeCurrency: string;
+  feePlacement: FxTransferFeePlacement;
+  netDestinationAmount: number;
+  totalSourceDebit: number;
+  effectiveRate: number;
+  explanation: string;
+}
+
+export interface FxTransferPostRequest {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  sourceAmount: string;
+  exchangeRate: string;
+  feeAmount?: string;
+  feePlacement?: FxTransferFeePlacement;
+  transferDate: string;
+  notes?: string;
+}
+
+export interface FxTransferResponse {
+  id: string;
+  businessId: string;
+  sourceAccountId: string;
+  sourceAccountName: string;
+  sourceCurrency: string;
+  destinationAccountId: string;
+  destinationAccountName: string;
+  destinationCurrency: string;
+  sourceAmount: number;
+  exchangeRate: number;
+  convertedDestinationPrincipal: number;
+  feeAmount: number;
+  feeCurrency: string;
+  feePlacement: FxTransferFeePlacement;
+  netDestinationAmount: number;
+  totalSourceAmount: number;
+  financialTransactionId: string;
+  sourceMovementId: string;
+  destinationMovementId: string;
+  transferDate: string;
+  status: 'SETTLED' | 'REVERSED';
+  reversalTransactionId?: string | null;
+  reversalReason?: string | null;
+  reversedAt?: string | null;
+  notes?: string | null;
+  createdByUserId: string;
+  createdAt: string;
+}
+
+export interface FxTransferReverseRequest {
+  reason?: string;
+}
+
+export async function previewFxTransfer(
+  request: FxTransferPreviewRequest,
+  signal?: AbortSignal
+): Promise<FxTransferPreviewResponse> {
+  return apiClient<FxTransferPreviewResponse>('/finance/fx/transfers/preview', {
+    method: 'POST',
+    body: JSON.stringify(request),
+    signal,
+  });
+}
+
+export async function postFxTransfer(
+  request: FxTransferPostRequest,
+  idempotencyKey: string,
+  signal?: AbortSignal
+): Promise<FxTransferResponse> {
+  return apiClient<FxTransferResponse>('/finance/fx/transfers', {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify(request),
+    signal,
+  });
+}
+
+export async function listFxTransfers(
+  status?: string,
+  signal?: AbortSignal
+): Promise<FxTransferResponse[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiClient<FxTransferResponse[]>(`/finance/fx/transfers${qs}`, {
+    method: 'GET',
+    signal,
+  });
+}
+
+export async function getFxTransfer(
+  id: string,
+  signal?: AbortSignal
+): Promise<FxTransferResponse> {
+  return apiClient<FxTransferResponse>(`/finance/fx/transfers/${id}`, {
+    method: 'GET',
+    signal,
+  });
+}
+
+export async function reverseFxTransfer(
+  id: string,
+  reason?: string,
+  signal?: AbortSignal
+): Promise<FxTransferResponse> {
+  return apiClient<FxTransferResponse>(`/finance/fx/transfers/${id}/reverse`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+    signal,
+  });
+}
+
 export const fxApi = {
   getCurrencies: fetchSupportedCurrencies,
   preview: previewFxConversion,
@@ -610,4 +745,9 @@ export const fxApi = {
   getPeriodicTrends: getPeriodicTrends,
   getSettlementsReport: getSettlementsReport,
   downloadSettlementsCsvUrl: downloadSettlementsCsvUrl,
+  previewTransfer: previewFxTransfer,
+  postTransfer: postFxTransfer,
+  listTransfers: listFxTransfers,
+  getTransfer: getFxTransfer,
+  reverseTransfer: reverseFxTransfer,
 };

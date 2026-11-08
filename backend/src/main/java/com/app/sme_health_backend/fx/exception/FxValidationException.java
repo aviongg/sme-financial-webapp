@@ -12,6 +12,11 @@ public class FxValidationException extends RuntimeException {
         this.errors = List.of(message);
     }
 
+    public FxValidationException(String field, String message) {
+        super(field + ": " + message);
+        this.errors = List.of(field + ": " + message);
+    }
+
     public FxValidationException(String message, List<String> errors) {
         super(message);
         this.errors = errors != null ? Collections.unmodifiableList(errors) : List.of(message);

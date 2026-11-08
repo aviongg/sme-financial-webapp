@@ -78,13 +78,12 @@ export function FxCurrencyExposureTable({ exposures, copy }: Props) {
 
                     <td
                       data-testid={`exposure-net-${item.currency}`}
-                      className={`py-3 text-right font-bold ${
-                        isNetPositive
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : isNetNegative
+                      className={`py-3 text-right font-bold ${isNetPositive
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : isNetNegative
                           ? 'text-rose-600 dark:text-rose-400'
                           : 'text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       {isNetPositive ? '+' : ''}
                       {formatNativeMoney(item.netExposure, item.currency, item.minorUnits)}

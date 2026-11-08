@@ -28,6 +28,8 @@ import { FxReconciliationTable } from './FxReconciliationTable';
 import { FxCurrencyExposureTable } from './FxCurrencyExposureTable';
 import { FxPeriodicTrendCard } from './FxPeriodicTrendCard';
 import { FxSettlementReportView } from './FxSettlementReportView';
+import { FxTransferForm } from './FxTransferForm';
+import { FxTransferHistoryTable } from './FxTransferHistoryTable';
 
 const DEFAULT_CURRENCIES: CurrencyInfo[] = [
   { code: 'PKR', displayName: 'Pakistani Rupee', symbol: '₨', minorUnit: 2, active: true },
@@ -48,8 +50,9 @@ export function FxWorkspace() {
   const session = useSession();
   const isAuthorized = session.status === 'authenticated' && session.can('FINANCIAL_DATA_READ');
 
-  const [activeTab, setActiveTab] = useState<'calculator' | 'settlements' | 'reconciliation' | 'analytics'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'settlements' | 'reconciliation' | 'analytics' | 'transfers'>('calculator');
   const [settlementRefreshTrigger, setSettlementRefreshTrigger] = useState(0);
+  const [transferRefreshTrigger, setTransferRefreshTrigger] = useState(0);
 
   const [reconciliations, setReconciliations] = useState<FxSettlementReconciliationResponse[]>([]);
   const [summary, setSummary] = useState<FxPeriodSummaryResponse | null>(null);
@@ -287,6 +290,20 @@ export function FxWorkspace() {
         >
           {copy.tabAnalytics}
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'transfers'}
+          onClick={() => setActiveTab('transfers')}
+          className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'transfers'
+              ? 'border-primary text-primary font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+          data-testid="tab-fx-transfers"
+        >
+          {copy.tabTransfers}
+        </button>
       </div>
 
       {activeTab === 'analytics' ? (
@@ -329,6 +346,14 @@ export function FxWorkspace() {
         <div className="space-y-6">
           <FxSettlementForm onSettlementPosted={() => setSettlementRefreshTrigger((t) => t + 1)} />
           <FxSettlementHistoryTable refreshTrigger={settlementRefreshTrigger} />
+        </div>
+      ) : activeTab === 'transfers' ? (
+        <div className="space-y-6" data-testid="fx-transfers-workspace">
+          <FxTransferForm onTransferPosted={() => setTransferRefreshTrigger((t) => t + 1)} />
+          <FxTransferHistoryTable
+            refreshTrigger={transferRefreshTrigger}
+            onTransferReversed={() => setTransferRefreshTrigger((t) => t + 1)}
+          />
         </div>
       ) : (
         <>

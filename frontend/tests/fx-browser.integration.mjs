@@ -1209,6 +1209,130 @@ public class FxLiveRuntime {
   });
   mark('Journey 31: Urdu RTL layout verified — dir="rtl", Urdu headings, exposure table headers rendered correctly');
 
+  // JOURNEY 32: Mount FX Transfers Tab and Live Preview Breakdown (F11E)
+  console.log('Executing Journey 32: Mount FX Transfers Tab and Live Preview...');
+  const usdAccId = randomUUID();
+  await execSql(`INSERT INTO financial_accounts (id, business_id, account_name, account_type, currency, currency_decimals, opening_balance, opening_date, status, created_at, updated_at) VALUES ('${usdAccId}', '${businessId}', 'Meezan USD Treasury', 'BANK', 'USD', 2, 1000.0000, '2026-01-01', 'ACTIVE', now(), now())`);
+
+  // Navigate to /finance/fx and click Transfers tab
+  await page.goto(`${origin}/finance/fx`, { waitUntil: 'networkidle' });
+  await page.click('[data-testid="tab-fx-transfers"]');
+  await page.waitForSelector('[data-testid="fx-transfer-form-card"]');
+
+  // Select source USD account and destination PKR account
+  await page.selectOption('[data-testid="select-transfer-source-account"]', usdAccId);
+  await page.selectOption('[data-testid="select-transfer-destination-account"]', pkrAccountId);
+
+  // Fill in Case A values: USD 100 @ 278.50, Fee PKR 150, DESTINATION_DEDUCTED
+  await page.fill('[data-testid="input-transfer-source-amount"]', '100.00');
+  await page.fill('[data-testid="input-transfer-rate"]', '278.50');
+  await page.fill('[data-testid="input-transfer-fee"]', '150.00');
+  await page.selectOption('[data-testid="select-transfer-fee-placement"]', 'DESTINATION_DEDUCTED');
+
+  await page.waitForSelector('[data-testid="fx-transfer-preview-card"]');
+
+  const grossDestText = await page.textContent('[data-testid="preview-gross-destination"]');
+  assert.ok(grossDestText.includes('27,850') || grossDestText.includes('27850'), 'Preview gross destination must be 27,850: ' + grossDestText);
+
+  const netDestText = await page.textContent('[data-testid="preview-net-destination"]');
+  assert.ok(netDestText.includes('27,700') || netDestText.includes('27700'), 'Preview net destination must be 27,700: ' + netDestText);
+
+  const totalSourceText = await page.textContent('[data-testid="preview-total-source"]');
+  assert.ok(totalSourceText.includes('100'), 'Preview total source debit must be 100: ' + totalSourceText);
+  mark('Journey 32: FX Transfers tab mounts and live preview calculates 27,850 PKR gross, 150 fee, 27,700 net credit, 100 USD debit');
+
+  // JOURNEY 33: Post Case A Internal Transfer via Browser UI (F11E)
+  console.log('Executing Journey 33: Post Case A Internal Transfer via UI...');
+  const preUsdRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${usdAccId}`);
+  assert.equal(preUsdRes.status, 200);
+  const preUsdBal = parseFloat(preUsdRes.json.currentBalance);
+  assert.equal(preUsdBal, 1000.0);
+
+  const prePkrRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${pkrAccountId}`);
+  assert.equal(prePkrRes.status, 200);
+  const prePkrBal = parseFloat(prePkrRes.json.currentBalance);
+
+  await page.click('[data-testid="btn-post-fx-transfer"]');
+  await page.waitForSelector('[data-testid="fx-transfer-success"]');
+
+  const postUsdRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${usdAccId}`);
+  assert.equal(postUsdRes.status, 200);
+  const postUsdBal = parseFloat(postUsdRes.json.currentBalance);
+  assert.equal(postUsdBal, 900.0, 'USD balance must be debited exactly 100.00 USD');
+
+  const postPkrRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${pkrAccountId}`);
+  assert.equal(postPkrRes.status, 200);
+  const postPkrBal = parseFloat(postPkrRes.json.currentBalance);
+  assert.equal(postPkrBal, prePkrBal + 27700.0, 'PKR balance must be credited exactly 27,700.00 PKR');
+  mark('Journey 33: Case A posted via UI: USD account debited 100 USD, PKR account credited 27,700 PKR');
+
+  // JOURNEY 34: Transfer History Table Displays Auditable Locked Evidence (F11E)
+  console.log('Executing Journey 34: Transfer History Table Audit Evidence...');
+  await page.waitForSelector('[data-testid="fx-transfer-history-table"]');
+
+  const transfersListRes = await apiCall(ownerJar, ownerXsrf, 'GET', '/finance/fx/transfers');
+  assert.equal(transfersListRes.status, 200);
+  assert.ok(transfersListRes.json.length >= 1, 'At least 1 transfer record must exist');
+  const transferA = transfersListRes.json[0];
+  const transferAId = transferA.id;
+
+  await page.waitForSelector(`[data-testid="fx-transfer-row-${transferAId}"]`);
+  const transferRowText = await page.textContent(`[data-testid="fx-transfer-row-${transferAId}"]`);
+  assert.ok(transferRowText.includes('100') && transferRowText.includes('USD'), 'Row must display 100 USD source debit: ' + transferRowText);
+  assert.ok(transferRowText.includes('27,700') || transferRowText.includes('27700'), 'Row must display 27,700 PKR destination credit: ' + transferRowText);
+  assert.ok(transferRowText.includes('278.5'), 'Row must display locked rate 278.5: ' + transferRowText);
+
+  const statusBadge = await page.textContent(`[data-testid="transfer-status-${transferAId}"]`);
+  assert.ok(statusBadge.toLowerCase().includes('settled'), 'Status badge must be SETTLED: ' + statusBadge);
+  mark('Journey 34: Transfer history table displays auditable row with locked rate 278.50, fee evidence, and SETTLED status');
+
+  // JOURNEY 35: Reversal via UI Restores Dual Balances Without Duplicate Fee Deductions (F11E)
+  console.log('Executing Journey 35: Reversal via UI Restores Balances...');
+  await page.click(`[data-testid="btn-reverse-transfer-${transferAId}"]`);
+  await page.waitForSelector('[data-testid="input-transfer-reversal-reason"]');
+  await page.fill('[data-testid="input-transfer-reversal-reason"]', 'Reversal test for Case A');
+  await page.click('[data-testid="btn-confirm-reverse-transfer"]');
+  await page.waitForSelector('[data-testid="fx-transfer-history-success"]');
+
+  // Verify account balances restored
+  const revUsdRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${usdAccId}`);
+  assert.equal(revUsdRes.status, 200);
+  assert.equal(parseFloat(revUsdRes.json.currentBalance), 1000.0, 'USD balance must be fully restored to 1,000.00 USD');
+
+  const revPkrRes = await apiCall(ownerJar, ownerXsrf, 'GET', `/finance/accounts/${pkrAccountId}`);
+  assert.equal(revPkrRes.status, 200);
+  assert.equal(parseFloat(revPkrRes.json.currentBalance), prePkrBal, 'PKR balance must be fully restored to pre-transfer balance');
+
+  // Verify status badge changed to REVERSED
+  const transferRevStatusBadge = await page.textContent(`[data-testid="transfer-status-${transferAId}"]`);
+  assert.ok(transferRevStatusBadge.toLowerCase().includes('reversed'), 'Status badge must be REVERSED: ' + transferRevStatusBadge);
+
+  // Verify re-reversal rejected
+  const reRevRes = await apiCall(ownerJar, ownerXsrf, 'POST', `/finance/fx/transfers/${transferAId}/reverse`, { reason: 'Duplicate reversal attempt' });
+  assert.equal(reRevRes.status, 409, 'Duplicate reversal must be rejected with 409 Conflict');
+  mark('Journey 35: Transfer reversal restored USD to 1,000.00 and PKR balance without duplicate fees; duplicate reversal blocked with 409');
+
+  // JOURNEY 36: Urdu / RTL Localization of Internal FX Transfers Workspace (F11E)
+  console.log('Executing Journey 36: Urdu / RTL Localization of FX Transfers...');
+  await page.evaluate(() => {
+    localStorage.setItem('finsight_locale', 'ur');
+  });
+  await page.goto(`${origin}/finance/fx`, { waitUntil: 'networkidle' });
+  await page.click('[data-testid="tab-fx-transfers"]');
+  await page.waitForSelector('[data-testid="fx-transfer-form-card"]');
+
+  const xferHtmlDir = await page.getAttribute('html', 'dir');
+  assert.equal(xferHtmlDir, 'rtl', 'Document direction must be rtl in Urdu mode');
+
+  const formCardText = await page.textContent('[data-testid="fx-transfer-form-card"]');
+  assert.ok(formCardText.includes('بین الخاتہ'), 'Form heading must contain Urdu transfer text: ' + formCardText);
+
+  // Reset locale back to English
+  await page.evaluate(() => {
+    localStorage.setItem('finsight_locale', 'en');
+  });
+  mark('Journey 36: Urdu RTL layout verified for internal transfers with dir="rtl", Urdu headers, and translated controls');
+
   console.log(`\nALL ${checks.length} REAL BROWSER INTEGRATION JOURNEYS PASSED SUCCESSFULLY!`);
 } finally {
   if (browser) await browser.close();

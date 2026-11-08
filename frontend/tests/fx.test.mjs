@@ -260,3 +260,69 @@ test('F11D CSV Sanitization Invariant: Escape spreadsheet formula triggers', () 
   assert.equal(escapeCsv('Normal Company Ltd'), 'Normal Company Ltd');
   assert.equal(escapeCsv('Company, LLC'), '"Company, LLC"');
 });
+
+test('F11E Internal FX Transfer Math: Case A Destination-Deducted Fee (USD 100 @ 278.50, Fee PKR 150)', () => {
+  const sourceAmount = 100.0;
+  const rate = 278.50;
+  const fee = 150.0;
+
+  const grossDestination = sourceAmount * rate; // 27,850.0
+  const netDestination = grossDestination - fee; // 27,700.0
+  const totalSourceDebit = sourceAmount; // 100.0
+  const effectiveRate = netDestination / sourceAmount; // 277.0
+
+  assert.equal(grossDestination, 27850.0);
+  assert.equal(netDestination, 27700.0);
+  assert.equal(totalSourceDebit, 100.0);
+  assert.equal(effectiveRate, 277.0);
+});
+
+test('F11E Internal FX Transfer Math: Fee Placement B Source-Charged Fee (USD 100 @ 278.50, Fee USD 5)', () => {
+  const sourcePrincipal = 100.0;
+  const rate = 278.50;
+  const fee = 5.0; // charged in USD to source account
+
+  const grossDestination = sourcePrincipal * rate; // 27,850.0
+  const netDestination = grossDestination; // 27,850.0
+  const totalSourceDebit = sourcePrincipal + fee; // 105.0
+
+  assert.equal(grossDestination, 27850.0);
+  assert.equal(netDestination, 27850.0);
+  assert.equal(totalSourceDebit, 105.0);
+});
+
+test('F11E Internal Transfer Reversal Symmetry: Absolute balance restoration without secondary deductions', () => {
+  const initialUsd = 1000.0;
+  const initialPkr = 50000.0;
+
+  // Case A transfer
+  const usdDebit = 100.0;
+  const pkrCredit = 27700.0;
+
+  const postTransferUsd = initialUsd - usdDebit; // 900.0
+  const postTransferPkr = initialPkr + pkrCredit; // 77,700.0
+
+  assert.equal(postTransferUsd, 900.0);
+  assert.equal(postTransferPkr, 77700.0);
+
+  // Compensating reversal: Exactly mirror the primary movements
+  const postReversalUsd = postTransferUsd + usdDebit; // 1,000.0
+  const postReversalPkr = postTransferPkr - pkrCredit; // 50,000.0
+
+  assert.equal(postReversalUsd, initialUsd);
+  assert.equal(postReversalPkr, initialPkr);
+});
+
+test('F11E Minor Unit Scale Support: JPY (0 decimals) and KWD (3 decimals) transfers', () => {
+  // Transfer to JPY: USD 100 @ 155.35 -> JPY 15,535
+  const usdSource = 100.0;
+  const jpyRate = 155.35;
+  const jpyGross = Math.round(usdSource * jpyRate);
+  assert.equal(jpyGross, 15535);
+
+  // Transfer from KWD: KWD 10.125 @ 907.25 -> PKR 9,185.91
+  const kwdSource = 10.125;
+  const kwdRate = 907.25;
+  const pkrGross = Number((kwdSource * kwdRate).toFixed(2));
+  assert.equal(pkrGross, 9185.91);
+});

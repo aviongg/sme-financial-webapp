@@ -8,6 +8,7 @@ import com.app.sme_health_backend.accounting.entity.AccountMovement;
 import com.app.sme_health_backend.accounting.entity.FinancialAccount;
 import com.app.sme_health_backend.accounting.entity.FinancialTransaction;
 import com.app.sme_health_backend.accounting.exception.TransactionValidationException;
+import com.app.sme_health_backend.accounting.model.CurrencyRegistry;
 import com.app.sme_health_backend.accounting.model.MovementDirection;
 import com.app.sme_health_backend.accounting.model.TransactionEventType;
 import com.app.sme_health_backend.accounting.repository.AccountMovementRepository;
@@ -107,7 +108,7 @@ public class TransactionReadService {
                         m.getId(),
                         m.getAccountId(),
                         m.getMovementDirection().name(),
-                        m.getAmount().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                        m.getAmount().setScale(CurrencyRegistry.isSupported(m.getCurrency()) ? CurrencyRegistry.getScale(m.getCurrency()) : 2, RoundingMode.HALF_UP).toPlainString(),
                         m.getCurrency(),
                         m.getEffectiveDate(),
                         ISO_INSTANT_FORMATTER.format(m.getCreatedAt().truncatedTo(ChronoUnit.SECONDS))
@@ -144,9 +145,9 @@ public class TransactionReadService {
                 account.getAccountType().name(),
                 tx.getEventType().name(),
                 tx.getMovementDirection().name(),
-                tx.getAmount().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                tx.getAmount().setScale(CurrencyRegistry.isSupported(tx.getCurrency()) ? CurrencyRegistry.getScale(tx.getCurrency()) : 2, RoundingMode.HALF_UP).toPlainString(),
                 tx.getCurrency(),
-                tx.getBaseAmountPkr().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                tx.getBaseAmountPkr().setScale(2, RoundingMode.HALF_UP).toPlainString(),
                 tx.getEffectiveDate(),
                 tx.getDescription(),
                 resultingBalance,
@@ -327,7 +328,8 @@ public class TransactionReadService {
 
                     BigDecimal opening = dstAcc != null ? dstAcc.getOpeningBalance() : BigDecimal.ZERO;
                     BigDecimal net = netMovementsByAccount.getOrDefault(dstId, BigDecimal.ZERO);
-                    rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                    int dstScale = dstAcc != null && CurrencyRegistry.isSupported(dstAcc.getCurrency()) ? CurrencyRegistry.getScale(dstAcc.getCurrency()) : 2;
+                    rowResultingBalance = opening.add(net).setScale(dstScale, RoundingMode.HALF_UP).toPlainString();
                 } else {
                     rowAccountId = srcId;
                     rowAccountName = srcName;
@@ -336,7 +338,8 @@ public class TransactionReadService {
 
                     BigDecimal opening = srcAcc != null ? srcAcc.getOpeningBalance() : BigDecimal.ZERO;
                     BigDecimal net = netMovementsByAccount.getOrDefault(srcId, BigDecimal.ZERO);
-                    rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                    int srcScale = srcAcc != null && CurrencyRegistry.isSupported(srcAcc.getCurrency()) ? CurrencyRegistry.getScale(srcAcc.getCurrency()) : 2;
+                    rowResultingBalance = opening.add(net).setScale(srcScale, RoundingMode.HALF_UP).toPlainString();
                 }
             } else {
                 FinancialAccount account = accountsMap.get(tx.getAccountId());
@@ -347,12 +350,14 @@ public class TransactionReadService {
 
                 BigDecimal opening = account != null ? account.getOpeningBalance() : BigDecimal.ZERO;
                 BigDecimal net = netMovementsByAccount.getOrDefault(tx.getAccountId(), BigDecimal.ZERO);
-                rowResultingBalance = opening.add(net).setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+                int accScale = account != null && CurrencyRegistry.isSupported(account.getCurrency()) ? CurrencyRegistry.getScale(account.getCurrency()) : 2;
+                rowResultingBalance = opening.add(net).setScale(accScale, RoundingMode.HALF_UP).toPlainString();
             }
 
             com.app.sme_health_backend.counterparty.Counterparty rowCp = tx.getCounterpartyId() != null
                     ? counterpartiesMap.get(tx.getCounterpartyId()) : null;
 
+            int txScale = CurrencyRegistry.isSupported(tx.getCurrency()) ? CurrencyRegistry.getScale(tx.getCurrency()) : 2;
             return new TransactionDetailResponse(
                     tx.getId(),
                     tx.getBusinessId(),
@@ -361,9 +366,9 @@ public class TransactionReadService {
                     rowAccountType,
                     tx.getEventType().name(),
                     rowMovementDirection,
-                    tx.getAmount().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                    tx.getAmount().setScale(txScale, RoundingMode.HALF_UP).toPlainString(),
                     tx.getCurrency(),
-                    tx.getBaseAmountPkr().setScale(2, RoundingMode.UNNECESSARY).toPlainString(),
+                    tx.getBaseAmountPkr().setScale(2, RoundingMode.HALF_UP).toPlainString(),
                     tx.getEffectiveDate(),
                     tx.getDescription(),
                     rowResultingBalance,
@@ -658,6 +663,7 @@ public class TransactionReadService {
             }
         }
         BigDecimal current = account.getOpeningBalance().add(totalIncrease).subtract(totalDecrease);
-        return current.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+        int accScale = CurrencyRegistry.isSupported(account.getCurrency()) ? CurrencyRegistry.getScale(account.getCurrency()) : 2;
+        return current.setScale(accScale, RoundingMode.HALF_UP).toPlainString();
     }
 }

@@ -163,7 +163,7 @@ public class FxAnalyticsService {
 
             // Filter settlements strictly to those whose account currency matches the reporting currency policy
             List<FxObligationSettlement> active = list.stream()
-                    .filter(s -> s.getStatus() == FxSettlementStatus.SETTLED && s.getAccountCurrency().equalsIgnoreCase(repCurr))
+                    .filter(s -> s.getStatus() == FxSettlementStatus.SETTLED && (s.getAccountCurrency() == null || s.getAccountCurrency().equalsIgnoreCase(repCurr)))
                     .toList();
 
             int count = active.size();

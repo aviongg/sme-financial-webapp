@@ -808,7 +808,7 @@ public class FxSettlementService {
                 .count();
 
         List<FxObligationSettlement> active = filtered.stream()
-                .filter(s -> s.getStatus() == FxSettlementStatus.SETTLED && (s.getAccountCurrency() == null || s.getAccountCurrency().equalsIgnoreCase("PKR")))
+                .filter(s -> s.getStatus() == FxSettlementStatus.SETTLED && s.getAccountCurrency().equalsIgnoreCase("PKR"))
                 .toList();
 
         BigDecimal totalPrincipal = currencyMetadataService.round("PKR", active.stream()

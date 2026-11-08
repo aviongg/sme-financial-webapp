@@ -1,22 +1,23 @@
-# F11 Multicurrency Foundation, Cross-Currency Settlements, Realized FX Reconciliation & Multicurrency Reporting (F11A–F11D Complete)
+# F11 Multicurrency Foundation, Cross-Currency Settlements, Realized FX Reconciliation, Multicurrency Reporting & Internal Transfers (F11A–F11E Complete)
 
-**Task ID:** `DEV-A-F11D-MULTICURRENCY-INTEGRATION` (incorporating `F11A`, `F11B`, `F11C`, and `F11D`)  
-**Priority:** `HIGH`  
-**Feature Owner:** Google Antigravity (Sole Full-Stack Developer A Engineer & Financial Systems Architect)  
-**Date:** 8 November 2026  
-**Status:** COMPLETE — READY FOR FINAL F11 CHECKPOINT  
+**Task ID:** `DEV-A-F11E-INTERNAL-FX-TRANSFERS` (incorporating `F11A`, `F11B`, `F11C`, `F11D`, and `F11E`)
+**Priority:** `HIGH`
+**Feature Owner:** Google Antigravity (Sole Full-Stack Developer A Engineer & Financial Systems Architect)
+**Date:** 8 November 2026
+**Status:** COMPLETE — READY FOR FINAL F11 CHECKPOINT
 
 ---
 
 ## 1. Executive Summary & Verification Matrix
 
-F11 delivers FinSight's **Central Currency Metadata Foundation**, **Exchange Rate Model**, **Deterministic Pure Java FX Calculation Engine**, **Authoritative Cross-Currency Settlements**, **Realized FX Differences & Settlement Accounting Evidence Engine**, and **Multicurrency Reporting & Exposure Analytics Workspace**.
+F11 delivers FinSight's **Central Currency Metadata Foundation**, **Exchange Rate Model**, **Deterministic Pure Java FX Calculation Engine**, **Authoritative Cross-Currency Settlements**, **Realized FX Differences & Settlement Accounting Evidence Engine**, **Multicurrency Reporting & Exposure Analytics Workspace**, and **Cross-Currency Internal Account Transfers**.
 
 The implementation spans:
 1. **F11A (Non-Posting):** Stateless preview calculator, 10 supported currencies, direction-aware fee math, effective rates, scenario variance, and bilingual UI at `/finance/fx`.
 2. **F11B (Authoritative Posting):** Authoritative cross-currency settlements for payables and receivables, Flyway migration V39, ledger posting in account currency, obligation decrement in native currency, locked exchange rates, effective rate auditing, compensating reversals, and idempotency protection.
 3. **F11C (Realized FX & Reconciliation Evidence):** Historical obligation recognition evidence (Flyway V40), realized exchange-rate differences engine, strict bank fee separation from FX differences, multi-tranche partial settlements with cumulative residual book value allocation, fail-closed missing evidence reporting, reversal accounting preserving audit totals, and UI reconciliation workspace.
 4. **F11D (Multicurrency Reporting & Integration):** Currency risk exposure grouping (separate native currency balances without synthetic conflation), periodic monthly trends, audit-grade settlement statements, formula-injection-safe CSV export (RFC 4180), multicurrency obligation visibility, and owner-facing `/finance/fx` Analytics workspace.
+5. **F11E (Cross-Currency Internal Transfers):** Dual-movement atomic posting in respective account currencies, Flyway migration V41, explicit fee placement (`DESTINATION_DEDUCTED`, `SOURCE_CHARGED`, `NO_FEE`), compensating reversal symmetry restoring dual balances without secondary fee deductions, zero commercial revenue generation, and UI tab workspace at `/finance/fx`.
 
 ### Comprehensive Verification Summary
 | Verification Layer | Test Target / Command | Results |
@@ -26,14 +27,16 @@ The implementation spans:
 | **Backend Settlement Service** | `FxSettlementServiceTest` (7 tests) | **7 / 7 PASSED** |
 | **Backend Reconciliation Service** | `FxReconciliationServiceTest` (6 tests) | **6 / 6 PASSED** |
 | **Backend Analytics & Reporting Service** | `FxAnalyticsServiceTest` (3 tests) | **3 / 3 PASSED** |
+| **Backend Transfer Service** | `FxTransferServiceTest` (6 tests) | **6 / 6 PASSED** |
 | **Backend MockMvc REST API** | `FxControllerTest` (4 tests) | **4 / 4 PASSED** |
 | **PostgreSQL Preview IT** | `FxPostgreSqlIT` (4 tests on Dynamic Port) | **4 / 4 PASSED** |
-| **PostgreSQL Settlement IT** | `FxSettlementPostgreSqlIT` (8 tests on Dynamic Port, including IT-FX-SETTLE-06, 07, 08) | **8 / 8 PASSED** |
+| **PostgreSQL Settlement IT** | `FxSettlementPostgreSqlIT` (8 tests on Dynamic Port) | **8 / 8 PASSED** |
 | **PostgreSQL Reconciliation IT** | `FxReconciliationPostgreSqlIT` (1 test on Dynamic Port) | **1 / 1 PASSED** |
-| **Total Backend Test Suite** | `./mvnw.cmd test -Dtest=com.app.sme_health_backend.fx.**` | **57 / 57 PASSED** |
-| **Full Frontend Regression Suite** | `npm --prefix frontend test` | **404 / 404 PASSED** (0 failures) |
+| **PostgreSQL Internal Transfer IT** | `FxTransferPostgreSqlIT` (7 tests on Dynamic Port, including concurrency race conditions) | **7 / 7 PASSED** |
+| **Total Backend Test Suite** | `./mvnw.cmd test -Dtest=com.app.sme_health_backend.fx.**` | **70 / 70 PASSED** |
+| **Full Frontend Regression Suite** | `npm --prefix frontend test` | **408 / 408 PASSED** (0 failures) |
 | **Next.js Production Build** | `npm --prefix frontend run build` | **EXIT 0 (SUCCESS)** |
-| **Real Full-Stack Browser & API** | `node frontend/tests/fx-browser.integration.mjs` | **31 / 31 PASSED** |
+| **Real Full-Stack Browser & API** | `node frontend/tests/fx-browser.integration.mjs` | **36 / 36 PASSED** |
 
 ---
 
