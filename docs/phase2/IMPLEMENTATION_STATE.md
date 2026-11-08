@@ -1,5 +1,11 @@
 # Current Phase 2 implementation state
 
+## FinSight PK public landing page (`/landing`) — 9 November 2026 (Asia/Karachi), LOCAL ONLY
+
+Frontend-only marketing slice in isolated worktree `C:/Users/Hp/FYP/wt-finsight-landing`, local branch `claude/finsight-pk-landing`, based exactly on `dev/fatima` `228e593cda645a5203073ff7e4241a72ff09473c`; `dev/suleman` `cca8de3ce6f1f6f7dbfefdb506f211495707fd14` was inspected read-only for copy accuracy. **Not pushed, not integrated.** No backend, API, migration, financial calculation or score change. `/` remains the authenticated application entry; the root-route swap waits for A+B integration.
+
+Shared-file editing reservations (only these existing files change): `frontend/src/components/layout/IntegrationBoundary.tsx` (explicit public-route allow-list check), `frontend/src/components/auth/AuthScreen.tsx` (optional `?auth=register` initial mode for the Get Started CTA) and this file. New files live under `frontend/src/app/landing/`, `frontend/src/components/marketing/`, `frontend/src/lib/routing/public-routes.ts`, `frontend/src/lib/i18n/translations/landing.ts`, `frontend/tests/landing*.mjs` and `docs/landing/`. Contract and evidence: [FIN_SIGHT_PK_LANDING_IMPLEMENTATION.md](../landing/FIN_SIGHT_PK_LANDING_IMPLEMENTATION.md).
+
 ## Final Developer-B candidate on `dev/fatima` (F09 V35, F06 V36, F08 V37, UX hardening) — 31 October 2026 (Asia/Karachi)
 
 **Status:** the integrated candidate, built locally on `311de78f1b517aaaf09420914ebe6a32371280e1` and verified below, was authorized for publication to `dev/fatima` by **fast-forward only**, after `origin/dev/fatima` was re-checked as `311de78`. The publishing commit is the one that adds [DEVELOPER_B_FINAL_HANDOFF.md](DEVELOPER_B_FINAL_HANDOFF.md); its exact SHA is reported externally and is visible in `git log`. **No Developer-A review, production acceptance or full accounting scope is claimed.** The temporary integration branch `claude/dev-b-integration-v35-v37` was never pushed. Evidence: [integrated candidate JSON](verification/2026-10-31-dev-b-integration-v35-v37.json).

@@ -1,0 +1,84 @@
+/* Landing-page scope only. Colours reuse the FinSight logo blues and the existing navy token;
+   spacing, radius, type and motion tokens come from src/styles/tokens.css. */
+.root {
+  --lp-navy: var(--color-brand-navy);
+  --lp-navy-raised: #0A1840;
+  --lp-blue: #253DBA;
+  --lp-blue-hover: #1E3299;
+  --lp-blue-600: #3B54E6;
+  --lp-blue-500: #4F6BF5;
+  --lp-sky: #60A5FA;
+  --lp-tint: #EEF2FF;
+  --lp-tint-strong: #E0E7FF;
+  --lp-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --lp-shadow-float: 0 2px 4px rgba(3, 14, 46, 0.06), 0 24px 48px -20px rgba(3, 14, 46, 0.28);
+  --focus-outline-color: var(--lp-blue-600);
+  /* Decorative layers may extend past the edge; clip (not hidden) keeps sticky navigation working. */
+  overflow-x: clip;
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.dark {
+  --focus-outline-color: #93C5FD;
+}
+
+.heroBackdrop {
+  background:
+    radial-gradient(60rem 28rem at 85% -10%, rgba(79, 107, 245, 0.14), transparent 60%),
+    radial-gradient(40rem 24rem at 0% 10%, rgba(96, 165, 250, 0.10), transparent 60%),
+    linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 100%);
+}
+
+.gridPattern {
+  background-image: radial-gradient(rgba(37, 61, 186, 0.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 75%);
+}
+
+.darkBackdrop {
+  background:
+    radial-gradient(50rem 26rem at 100% 0%, rgba(79, 107, 245, 0.28), transparent 60%),
+    radial-gradient(36rem 20rem at 0% 100%, rgba(96, 165, 250, 0.14), transparent 60%),
+    var(--lp-navy);
+}
+
+.tintBackdrop {
+  background: linear-gradient(180deg, #F8FAFC 0%, #F3F6FF 100%);
+}
+
+.lift {
+  transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out);
+}
+
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--lp-shadow-float);
+}
+
+@keyframes lpRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes lpFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes lpMenu {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rise { animation: lpRise 700ms var(--ease-out) both; }
+.rise2 { animation: lpRise 700ms var(--ease-out) 90ms both; }
+.rise3 { animation: lpRise 700ms var(--ease-out) 180ms both; }
+.rise4 { animation: lpRise 800ms var(--ease-out) 260ms both; }
+.float { animation: lpFloat 8s ease-in-out 1.2s infinite; }
+.menu { animation: lpMenu 180ms var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .rise2, .rise3, .rise4, .float, .menu { animation: none !important; }
+  .lift, .lift:hover { transition: none; transform: none; }
+}
