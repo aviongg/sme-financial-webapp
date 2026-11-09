@@ -57,6 +57,9 @@ public class TransactionReverseService {
     private final com.app.sme_health_backend.reconciliation.repository.BankReconciliationMatchRepository matchRepository;
     private final com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository;
     private final com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository;
+    private final com.app.sme_health_backend.projectattribution.repository.ProjectFinancialAttributionRepository projectAttributionRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.app.sme_health_backend.projectattribution.repository.ProjectOcrEvidenceLinkRepository projectOcrEvidenceLinkRepository;
     private final ObjectMapper objectMapper;
 
     public TransactionReverseService(
@@ -71,7 +74,7 @@ public class TransactionReverseService {
             com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository,
             ObjectMapper objectMapper
     ) {
-        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, advanceRepository, matchRepository, statementEntryRepository, null, objectMapper);
+        this(accountRepository, transactionRepository, movementRepository, idempotencyRepository, securityAuditRepository, allocationRepository, advanceRepository, matchRepository, statementEntryRepository, null, null, objectMapper);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -87,6 +90,8 @@ public class TransactionReverseService {
             com.app.sme_health_backend.reconciliation.repository.BankStatementEntryRepository statementEntryRepository,
             @org.springframework.beans.factory.annotation.Autowired(required = false)
             com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            com.app.sme_health_backend.projectattribution.repository.ProjectFinancialAttributionRepository projectAttributionRepository,
             ObjectMapper objectMapper
     ) {
         this.accountRepository = accountRepository;
@@ -99,6 +104,7 @@ public class TransactionReverseService {
         this.matchRepository = matchRepository;
         this.statementEntryRepository = statementEntryRepository;
         this.recurringOccurrenceRepository = recurringOccurrenceRepository;
+        this.projectAttributionRepository = projectAttributionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -507,6 +513,7 @@ public class TransactionReverseService {
 
         cancelReconciliationMatchesForReversal(context.businessId(), original.getId(), reversalTx.getId(), context.userId(), trimmedReason);
         updateRecurringOccurrenceForReversal(context.businessId(), original.getId(), reversalTx.getId());
+        invalidateProjectAttributionsForReversal(context.businessId(), original.getId(), context.userId(), trimmedReason);
 
         // 6. Build response DTO
         List<MovementDetailResponse> movementDtos = createdMovements.stream()
@@ -763,5 +770,42 @@ public class TransactionReverseService {
                     occ.setReversedAt(Instant.now());
                     recurringOccurrenceRepository.saveAndFlush(occ);
                 });
+    }
+
+    private void invalidateProjectAttributionsForReversal(UUID businessId, UUID originalTxId, UUID userId, String reason) {
+        if (projectAttributionRepository == null) {
+            return;
+        }
+        List<com.app.sme_health_backend.projectattribution.entity.ProjectFinancialAttribution> attributions =
+                projectAttributionRepository.findByBusinessIdAndSourceTypeAndSourceIdAndStatus(
+                        businessId,
+                        com.app.sme_health_backend.projectattribution.model.AttributionSourceType.TRANSACTION,
+                        originalTxId,
+                        com.app.sme_health_backend.projectattribution.model.AttributionStatus.ACTIVE
+                );
+        for (var attr : attributions) {
+            attr.setStatus(com.app.sme_health_backend.projectattribution.model.AttributionStatus.REVERSED);
+            attr.setReversalReason("Underlying financial transaction reversed: " + (reason != null ? reason : "Source reversed"));
+            attr.setReversedAt(Instant.now());
+            attr.setReversedBy(userId);
+            projectAttributionRepository.saveAndFlush(attr);
+        }
+
+        if (projectOcrEvidenceLinkRepository != null) {
+            List<com.app.sme_health_backend.projectattribution.entity.ProjectOcrEvidenceLink> links =
+                    projectOcrEvidenceLinkRepository.findByBusinessIdAndFinancialSourceTypeAndFinancialSourceId(
+                            businessId,
+                            com.app.sme_health_backend.projectattribution.model.AttributionSourceType.TRANSACTION,
+                            originalTxId
+                    );
+            for (var link : links) {
+                if (link.getEvidenceStatus() != com.app.sme_health_backend.projectattribution.model.ProjectOcrEvidenceStatus.INVALIDATED) {
+                    link.setEvidenceStatus(com.app.sme_health_backend.projectattribution.model.ProjectOcrEvidenceStatus.REVERSED);
+                    link.setDiscrepancyNotes("Source transaction reversed: " + (reason != null ? reason : "Source reversed"));
+                    link.setUpdatedAt(Instant.now());
+                    projectOcrEvidenceLinkRepository.saveAndFlush(link);
+                }
+            }
+        }
     }
 }

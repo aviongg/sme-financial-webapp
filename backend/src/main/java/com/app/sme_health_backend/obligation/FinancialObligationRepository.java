@@ -28,6 +28,8 @@ public interface FinancialObligationRepository extends JpaRepository<FinancialOb
 
     boolean existsByBusinessIdAndSourceTypeAndSourceId(UUID businessId, ObligationSourceType sourceType, String sourceId);
 
+    List<FinancialObligation> findByBusinessIdAndSourceId(UUID businessId, String sourceId);
+
     List<FinancialObligation> findByBusinessId(UUID businessId);
 
     List<FinancialObligation> findByBusinessIdAndDirection(UUID businessId, ObligationDirection direction);
