@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSession } from '@/components/auth/SessionProvider';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { lifecycleApi, type Lifecycle } from '@/lib/api/product';
@@ -15,10 +16,13 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
   const copy = productCopy(locale);
   const c = copy.lifecycle;
   const canPost = useCanPost();
+  const { can } = useSession();
+  const canWrite = can('RECORD_CREATE_UPDATE');
   const { data, loading, error, reload } = useLoad<Lifecycle>(signal => lifecycleApi.get(documentId, signal), [documentId]);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [voidReason, setVoidReason] = useState('');
+  const [evidenceId, setEvidenceId] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
 
@@ -103,6 +107,22 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
                 onClick={() => { if (window.confirm(c.voidHelp)) void run('void', () => lifecycleApi.voidRecognized(documentId, voidReason.trim())); }}>{c.voidAction}</Button>
             </div>
           </section>}
+
+          <section className="space-y-2" data-testid="lifecycle-evidence">
+            <h3 className="font-semibold">{c.evidenceTitle}</h3>
+            <p className="text-xs text-[var(--color-text-secondary)]">{c.evidenceHelp}</p>
+            <Table empty={copy.common.empty} head={[c.evidenceId, copy.common.status, copy.common.date, '']} rows={(data.evidence ?? []).map(e => [
+              <Link key="u" className="underline" href={`/upload/${e.uploadedDocumentId}`}><bdi dir="ltr" className="font-mono">{e.uploadedDocumentId.slice(0, 8)}</bdi></Link>,
+              e.status, <bdi key="d" dir="ltr">{e.linkedAt?.slice(0, 10) ?? '—'}</bdi>,
+              e.status === 'ACTIVE' && canWrite ? <Button key="x" size="sm" variant="ghost" disabled={busy !== null}
+                onClick={() => { const why = window.prompt(copy.common.reason); if (why) void run('evidence', () => lifecycleApi.unlinkEvidence(documentId, e.id, why)); }}>{c.unlinkEvidence}</Button> : <span key="x"/>,
+            ])}/>
+            {canWrite && data.status !== 'VOID' && <form className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_auto] sm:items-end"
+              onSubmit={event => { event.preventDefault(); void run('evidence', () => lifecycleApi.linkEvidence(documentId, evidenceId.trim()).then(() => setEvidenceId(''))); }}>
+              <Input label={c.evidenceId} dir="ltr" value={evidenceId} onChange={e => setEvidenceId(e.target.value)} required data-testid="lifecycle-evidence-id"/>
+              <Button type="submit" variant="secondary" disabled={busy !== null} data-testid="lifecycle-evidence-submit">{c.linkEvidence}</Button>
+            </form>}
+          </section>
 
           <Link href={`/operations/relationships?kind=DOCUMENT&id=${documentId}`} className="text-sm underline" data-testid="lifecycle-related">{copy.common.related}</Link>
           {message && <p role={message.tone === 'bad' ? 'alert' : 'status'} className={`text-sm ${message.tone === 'bad' ? 'text-[var(--color-status-error)]' : ''}`} data-testid="lifecycle-message">{message.text}</p>}

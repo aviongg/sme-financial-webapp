@@ -150,4 +150,34 @@ class CommercialLifecyclePostgreSqlIT extends ProductApiTestBase {
         getJson(other, "/api/commercial/documents/" + invoice + "/lifecycle", 404);
         postJson(other, "/api/commercial/documents/" + invoice + "/adjustments", map("amount", "1.00", "reason", "x"), key(), 404);
     }
+
+    @Test
+    void onlyReviewedSameBusinessOcrEvidenceCanBeLinkedAndLinkingNeverPosts() throws Exception {
+        Actor owner = owner();
+        UUID invoice = finalizedDocument(owner, "invoices", TODAY, List.<Object[]>of(new Object[] {"Item", "1", "100.00", null}));
+        UUID unreviewed = UUID.randomUUID(), reviewed = UUID.randomUUID();
+        jdbc.update("INSERT INTO uploaded_documents(id, user_id, file_url, processing_status) VALUES (?, ?, 'stored/u1', 'extracted')", unreviewed, owner.businessId());
+        jdbc.update("INSERT INTO uploaded_documents(id, user_id, file_url, processing_status) VALUES (?, ?, 'stored/u2', 'confirmed')", reviewed, owner.businessId());
+        assertEquals("evidence_not_reviewed", postJson(owner, "/api/commercial/documents/" + invoice + "/evidence",
+                map("uploadedDocumentId", unreviewed), null, 409).get("error").asText());
+        JsonNode linked = postJson(owner, "/api/commercial/documents/" + invoice + "/evidence", map("uploadedDocumentId", reviewed), null, 200);
+        assertEquals(1, linked.get("evidence").size());
+        assertEquals("confirmed", linked.get("evidence").get(0).get("reviewStatus").asText());
+        assertFalse(linked.get("recognized").asBoolean(), "Linking evidence never recognizes or posts");
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM financial_obligations WHERE business_id = ?", Integer.class, owner.businessId()));
+        assertEquals("evidence_already_linked", postJson(owner, "/api/commercial/documents/" + invoice + "/evidence",
+                map("uploadedDocumentId", reviewed), null, 409).get("error").asText());
+
+        Actor other = owner();
+        UUID foreign = UUID.randomUUID();
+        jdbc.update("INSERT INTO uploaded_documents(id, user_id, file_url, processing_status) VALUES (?, ?, 'stored/u3', 'confirmed')", foreign, other.businessId());
+        postJson(owner, "/api/commercial/documents/" + invoice + "/evidence", map("uploadedDocumentId", foreign), null, 404);
+        Actor viewer = actor(owner.businessId(), MembershipRole.VIEWER);
+        postJson(viewer, "/api/commercial/documents/" + invoice + "/evidence", map("uploadedDocumentId", reviewed), null, 403);
+
+        String linkId = linked.get("evidence").get(0).get("id").asText();
+        JsonNode unlinked = postJson(owner, "/api/commercial/documents/" + invoice + "/evidence/" + linkId + "/unlink", map("reason", "Wrong scan"), null, 200);
+        assertEquals("UNLINKED", unlinked.get("evidence").get(0).get("status").asText());
+        assertThrows(Exception.class, () -> jdbc.update("DELETE FROM commercial_document_evidence_links WHERE id = ?", UUID.fromString(linkId)));
+    }
 }

@@ -42,12 +42,15 @@ export interface Lifecycle {
   effectiveStockMovements: number; inventoryLinkedLines: number; projectLinks: { projectId: string; allocatedAmount: string }[];
   actions: { canRecognize: boolean; canAdjust: boolean; canVoid: boolean; voidRequiresFinancialReversal: boolean; canReceiveStock: boolean; canFulfilFromStock: boolean };
   voidBlockers: string[];
+  evidence: { id: string; uploadedDocumentId: string; status: string; reviewStatus: string; typeHint: string | null; linkedAt: string | null }[];
 }
 
 export const lifecycleApi = {
   get: (id: string, signal?: AbortSignal) => get<Lifecycle>(`/commercial/documents/${id}/lifecycle`, signal),
   adjust: (id: string, body: { amount: string; reason: string; adjustmentDate?: string }) => post<Adjustment>(`/commercial/documents/${id}/adjustments`, body, true),
   cancel: (adjustmentId: string, reason: string) => post<Adjustment>(`/commercial/adjustments/${adjustmentId}/cancel`, { reason }),
+  linkEvidence: (id: string, uploadedDocumentId: string) => post<Lifecycle>(`/commercial/documents/${id}/evidence`, { uploadedDocumentId }),
+  unlinkEvidence: (id: string, linkId: string, reason: string) => post<Lifecycle>(`/commercial/documents/${id}/evidence/${linkId}/unlink`, { reason }),
   voidRecognized: (id: string, reason: string) => post<Lifecycle>(`/commercial/documents/${id}/void-recognized`, { reason }),
   receiveBill: (id: string, movementDate?: string) => post<{ movements: Movement[] }>(`/inventory/documents/bills/${id}/receive`, { movementDate }, true),
   fulfilInvoice: (id: string, projectId?: string, movementDate?: string) => post<{ movements: Movement[] }>(`/inventory/documents/invoices/${id}/fulfil`, { projectId, movementDate }, true),

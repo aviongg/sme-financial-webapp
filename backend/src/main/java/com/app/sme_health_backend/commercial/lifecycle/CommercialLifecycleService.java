@@ -123,6 +123,21 @@ public class CommercialLifecycleService {
                 ctx.businessId(), documentId).stream().map(r -> Map.of("projectId", r.get("project_id"),
                 "allocatedAmount", Money.str((BigDecimal) r.get("allocated_amount")))).toList());
 
+        body.put("evidence", jdbc.queryForList("""
+                SELECT l.id, l.uploaded_document_id, l.status, l.created_at, u.processing_status, u.document_type_hint
+                FROM commercial_document_evidence_links l
+                JOIN uploaded_documents u ON u.id = l.uploaded_document_id AND u.user_id = l.business_id
+                WHERE l.business_id = ? AND l.document_id = ? ORDER BY l.created_at
+                """, ctx.businessId(), documentId).stream().map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", r.get("id"));
+            m.put("uploadedDocumentId", r.get("uploaded_document_id"));
+            m.put("status", r.get("status"));
+            m.put("reviewStatus", r.get("processing_status"));
+            m.put("typeHint", r.get("document_type_hint"));
+            m.put("linkedAt", str(r.get("created_at")));
+            return m;
+        }).toList());
         boolean finalized = "FINALIZED".equals(doc.get("status"));
         boolean obligationOpen = recognized && "OPEN".equals(obligation.get("status"));
         Map<String, Object> actions = new LinkedHashMap<>();
@@ -281,6 +296,43 @@ public class CommercialLifecycleService {
         }
         audit.record(ctx, AuditEventType.COMMERCIAL_RECOGNIZED_DOCUMENT_VOIDED, "COMMERCIAL_DOCUMENT", documentId,
                 Map.of("documentNumber", number, "obligationVoided", obligation != null));
+        return lifecycle(ctx, documentId);
+    }
+
+    /**
+     * Attaches REVIEWED OCR evidence (processing_status = confirmed) of the same business. Provenance only: no
+     * recognition, posting or amount change. Unreviewed extractions must first be reviewed in the document workflow.
+     */
+    @Transactional
+    public Map<String, Object> linkEvidence(BusinessAccessContext ctx, UUID documentId, UUID uploadedDocumentId) {
+        if (uploadedDocumentId == null) throw DomainException.invalid("uploadedDocumentId", "required");
+        Map<String, Object> doc = document(ctx.businessId(), documentId, true);
+        if ("VOID".equals(doc.get("status"))) throw DomainException.conflict("document_void", "Void documents cannot receive evidence.");
+        List<String> status = jdbc.queryForList("SELECT processing_status FROM uploaded_documents WHERE id = ? AND user_id = ?",
+                String.class, uploadedDocumentId, ctx.businessId());
+        if (status.isEmpty()) throw DomainException.notFound("Uploaded document");
+        if (!"confirmed".equals(status.get(0))) {
+            throw DomainException.conflict("evidence_not_reviewed", "Review and confirm the scanned document before linking it as evidence.");
+        }
+        Integer existing = jdbc.queryForObject("SELECT count(*) FROM commercial_document_evidence_links WHERE business_id = ? "
+                + "AND document_id = ? AND uploaded_document_id = ? AND status = 'ACTIVE'", Integer.class, ctx.businessId(), documentId, uploadedDocumentId);
+        if (existing != null && existing > 0) throw DomainException.conflict("evidence_already_linked", "This evidence is already linked.");
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO commercial_document_evidence_links(id, business_id, document_id, uploaded_document_id, created_by) "
+                + "VALUES (?, ?, ?, ?, ?)", id, ctx.businessId(), documentId, uploadedDocumentId, ctx.userId());
+        audit.record(ctx, AuditEventType.COMMERCIAL_ADJUSTMENT_ISSUED, "COMMERCIAL_EVIDENCE_LINK", id,
+                Map.of("documentId", documentId.toString(), "uploadedDocumentId", uploadedDocumentId.toString(), "action", "LINKED"));
+        return lifecycle(ctx, documentId);
+    }
+
+    @Transactional
+    public Map<String, Object> unlinkEvidence(BusinessAccessContext ctx, UUID documentId, UUID linkId, String reason) {
+        String clean = reason(reason, "reason");
+        int n = jdbc.update("UPDATE commercial_document_evidence_links SET status = 'UNLINKED', unlinked_by = ?, unlinked_at = now(), "
+                + "unlink_reason = ?, version = version + 1 WHERE business_id = ? AND document_id = ? AND id = ? AND status = 'ACTIVE'",
+                ctx.userId(), clean.length() > 300 ? clean.substring(0, 300) : clean, ctx.businessId(), documentId, linkId);
+        if (n != 1) throw DomainException.notFound("Active evidence link");
+        audit.record(ctx, AuditEventType.COMMERCIAL_ADJUSTMENT_CANCELLED, "COMMERCIAL_EVIDENCE_LINK", linkId, Map.of("action", "UNLINKED"));
         return lifecycle(ctx, documentId);
     }
 

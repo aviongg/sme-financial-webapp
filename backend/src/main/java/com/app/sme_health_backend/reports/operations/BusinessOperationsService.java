@@ -150,6 +150,9 @@ public class BusinessOperationsService {
                 for (Map<String, Object> s : jdbc.queryForList("SELECT sample_id, amount FROM sample_recovery_links WHERE business_id = ? "
                         + "AND document_id = ? AND status = 'ACTIVE'", b, id))
                     related.add(rel("SAMPLE", (UUID) s.get("sample_id"), "Sample recovery", amt(s.get("amount")), "RECOVERS_SAMPLE"));
+                for (Map<String, Object> e : jdbc.queryForList("SELECT uploaded_document_id FROM commercial_document_evidence_links "
+                        + "WHERE business_id = ? AND document_id = ? AND status = 'ACTIVE'", b, id))
+                    related.add(rel("OCR_EVIDENCE", (UUID) e.get("uploaded_document_id"), "Reviewed scan", null, "EVIDENCED_BY"));
                 for (Map<String, Object> e : jdbc.queryForList("SELECT estimate_id FROM estimate_commercial_links WHERE business_id = ? AND document_id = ?", b, id))
                     related.add(rel("ESTIMATE", (UUID) e.get("estimate_id"), "Quotation source", null, "QUOTED_FROM"));
             }

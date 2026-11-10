@@ -21,7 +21,7 @@ const en = {
     receive: 'Receive stock from this bill', fulfil: 'Fulfil from stock (records cost of goods sold)', stockDone: 'Stock movements recorded.',
     voidTitle: 'Void recognized document', voidHelp: 'Voiding reverses the receivable/payable through compensating records. Settlements and stock movements must be reversed first.',
     voidAction: 'Void by compensation', blockers: { SETTLEMENTS_MUST_BE_REVERSED: 'Reverse the settlements first (Transactions → Reverse).', STOCK_MOVEMENTS_MUST_BE_REVERSED: 'Reverse the stock movements first (Stock & COGS).' } as Record<string, string>,
-    allocations: 'Settlement history', net: 'Net document amount', projectLinks: 'Linked projects', stockMoves: 'Active stock movements',
+    evidenceTitle: 'Scanned evidence', evidenceHelp: 'Link a reviewed (confirmed) scan by its upload ID. Linking never posts or changes amounts.', evidenceId: 'Upload ID', linkEvidence: 'Link evidence', unlinkEvidence: 'Unlink', allocations: 'Settlement history', net: 'Net document amount', projectLinks: 'Linked projects', stockMoves: 'Active stock movements',
   },
   stock: {
     title: 'Stock & cost of goods sold', register: 'Stock register', total: 'Inventory value', belowReorder: 'Below reorder level',
@@ -124,7 +124,7 @@ const ur: ProductCopy = {
     receive: 'اس بل سے اسٹاک وصول کریں', fulfil: 'اسٹاک سے فراہم کریں (فروخت شدہ مال کی لاگت درج ہو گی)', stockDone: 'اسٹاک کی نقل و حرکت درج ہو گئی۔',
     voidTitle: 'درج شدہ دستاویز منسوخ کریں', voidHelp: 'منسوخی جوابی اندراجات کے ذریعے ہوتی ہے۔ پہلے ادائیگیاں اور اسٹاک کی نقل و حرکت واپس کریں۔',
     voidAction: 'جوابی اندراج سے منسوخ کریں', blockers: { SETTLEMENTS_MUST_BE_REVERSED: 'پہلے ادائیگیاں واپس کریں (لین دین ← واپسی)۔', STOCK_MOVEMENTS_MUST_BE_REVERSED: 'پہلے اسٹاک کی نقل و حرکت واپس کریں۔' },
-    allocations: 'ادائیگیوں کی تاریخ', net: 'خالص دستاویز رقم', projectLinks: 'منسلک منصوبے', stockMoves: 'فعال اسٹاک نقل و حرکت',
+    evidenceTitle: 'اسکین شدہ ثبوت', evidenceHelp: 'تصدیق شدہ اسکین کو اپ لوڈ شناخت سے منسلک کریں۔ اس سے کوئی رقم درج یا تبدیل نہیں ہوتی۔', evidenceId: 'اپ لوڈ شناخت', linkEvidence: 'ثبوت منسلک کریں', unlinkEvidence: 'علیحدہ کریں', allocations: 'ادائیگیوں کی تاریخ', net: 'خالص دستاویز رقم', projectLinks: 'منسلک منصوبے', stockMoves: 'فعال اسٹاک نقل و حرکت',
   },
   stock: {
     title: 'اسٹاک اور فروخت شدہ مال کی لاگت', register: 'اسٹاک رجسٹر', total: 'اسٹاک کی مالیت', belowReorder: 'دوبارہ آرڈر سطح سے نیچے',

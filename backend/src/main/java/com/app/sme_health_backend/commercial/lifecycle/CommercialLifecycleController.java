@@ -40,6 +40,23 @@ public class CommercialLifecycleController {
 
     public record ReasonBody(String reason) { }
 
+    public record EvidenceBody(UUID uploadedDocumentId) { }
+
+    @PostMapping("/documents/{id}/evidence")
+    public ResponseEntity<?> linkEvidence(@PathVariable("id") UUID id, @RequestBody EvidenceBody body, HttpServletRequest request) {
+        BusinessAccessContext ctx = authorization.requirePermission(request, BusinessPermission.RECORD_CREATE_UPDATE);
+        return ResponseEntity.ok().header("Cache-Control", "no-store")
+                .body(lifecycle.linkEvidence(ctx, id, body == null ? null : body.uploadedDocumentId()));
+    }
+
+    @PostMapping("/documents/{id}/evidence/{linkId}/unlink")
+    public ResponseEntity<?> unlinkEvidence(@PathVariable("id") UUID id, @PathVariable("linkId") UUID linkId,
+                                            @RequestBody ReasonBody body, HttpServletRequest request) {
+        BusinessAccessContext ctx = authorization.requirePermission(request, BusinessPermission.RECORD_CREATE_UPDATE);
+        return ResponseEntity.ok().header("Cache-Control", "no-store")
+                .body(lifecycle.unlinkEvidence(ctx, id, linkId, body == null ? null : body.reason()));
+    }
+
     @GetMapping("/documents/{id}/lifecycle")
     public ResponseEntity<?> lifecycle(@PathVariable("id") UUID id, HttpServletRequest request) {
         BusinessAccessContext ctx = authorization.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
