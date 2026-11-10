@@ -178,7 +178,8 @@ public class InventoryLedgerService {
     @Transactional
     public List<Result> receiveBill(BusinessAccessContext ctx, String key, UUID billId, LocalDate date) {
         Map<String, Object> bill = lockDocument(ctx.businessId(), billId, "BILL");
-        LocalDate effective = date != null ? date : (LocalDate) toLocalDate(bill.get("document_date"));
+        // Stock moves on the day it is physically received (default today), never silently back-dated.
+        LocalDate effective = date;
         List<Map<String, Object>> lines = itemLines(ctx.businessId(), billId);
         if (lines.isEmpty()) {
             throw DomainException.conflict("no_inventory_lines", "This bill has no lines linked to inventory items.");
@@ -206,7 +207,8 @@ public class InventoryLedgerService {
     @Transactional
     public List<Result> fulfilInvoice(BusinessAccessContext ctx, String key, UUID invoiceId, LocalDate date, UUID projectId) {
         Map<String, Object> invoice = lockDocument(ctx.businessId(), invoiceId, "INVOICE");
-        LocalDate effective = date != null ? date : (LocalDate) toLocalDate(invoice.get("document_date"));
+        // COGS is recognized when goods leave stock (default today), which may differ from the invoice date.
+        LocalDate effective = date;
         List<Map<String, Object>> lines = itemLines(ctx.businessId(), invoiceId);
         if (lines.isEmpty()) {
             throw DomainException.conflict("no_inventory_lines", "This invoice has no lines linked to inventory items.");

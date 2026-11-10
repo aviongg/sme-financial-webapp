@@ -12,6 +12,7 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger UNEXPECTED_LOG = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(com.app.sme_health_backend.mfa.service.MfaAlreadyEnabledException.class)
     public ResponseEntity<Map<String, Object>> handleMfaAlreadyEnabled(
@@ -474,6 +475,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpectedException(
             Exception exception) {
+        // Server-side diagnostics only; the client still receives the generic body below.
+        UNEXPECTED_LOG.error("Unhandled exception", exception);
 
         Map<String, Object> response = createBaseResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
