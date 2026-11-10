@@ -128,7 +128,7 @@ public class FinancialQueryController {
     }
 
     @GetMapping("/margin-drivers")
-    public ResponseEntity<FinancialQueryEnvelope<Void>> getMarginDrivers(
+    public ResponseEntity<FinancialQueryEnvelope<java.util.Map<String, Object>>> getMarginDrivers(
             @RequestParam(name = "query", required = false) String query,
             HttpServletRequest request
     ) {

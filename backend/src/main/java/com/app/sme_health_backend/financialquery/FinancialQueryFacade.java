@@ -42,9 +42,24 @@ public interface FinancialQueryFacade {
     FinancialQueryEnvelope<ProjectFundingGapResult> getProjectFundingGap(BusinessAccessContext context, UUID projectId);
 
     /**
-     * Tool 6 (UNAVAILABLE): Margin drivers & COGS (F08).
+     * Tool 6: Margin drivers & COGS (F08 inventory authority + accrual P&L).
      */
-    FinancialQueryEnvelope<Void> getMarginDrivers(BusinessAccessContext context, String query);
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getMarginDrivers(BusinessAccessContext context, String query);
+
+    /** Tool 9: Accrual profit and loss for one month (pnl-accrual-v1). */
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getProfitAndLoss(BusinessAccessContext context, String yearMonth);
+
+    /** Tool 10: Authoritative perpetual inventory position (f08-wac-v1). */
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getInventoryPosition(BusinessAccessContext context);
+
+    /** Tool 11: Active budgets variance and goal progress. */
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getBudgetAndGoalStatus(BusinessAccessContext context);
+
+    /** Tool 12: Deterministic break-even for one month (break-even-v1). */
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getBreakEven(BusinessAccessContext context, String yearMonth);
+
+    /** Tool 13: Actual project profitability (f05-profitability-v1). */
+    FinancialQueryEnvelope<java.util.Map<String, Object>> getProjectProfitability(BusinessAccessContext context, UUID projectId);
 
     /**
      * Tool 7: Realized FX settlement impact (F11/C03).
