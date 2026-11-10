@@ -27,6 +27,13 @@ posting calculation, monthly bridge or account calculation.
 * `FinancialQueryFacade`: `getMarginDrivers` now returns data; five new read tools (P&L, inventory, budgets/goals,
   break-even, project profitability) injected optionally via setter so existing constructors/tests are unchanged.
 
+## A4b. Pre-existing Developer-A defects fixed (read-side only) — REVIEW REQUIRED
+* `FinancialQueryFacadeService.getProjectFinancials/getProjectFundingGap`: tenant-scoped project existence pre-check.
+  Before, a missing project made an inner `@Transactional` call mark the read transaction rollback-only, so the
+  typed UNAVAILABLE envelope was lost (`UnexpectedRollbackException`, HTTP 500).
+* `MonthlyLedgerProjectionService` draft summary: only drafts dated inside the projected month are counted (all open
+  drafts previously leaked into every month, which made `MonthlyLedgerProjectionPostgreSqlIT` fixture C date-dependent).
+
 ## A5. Optional future bridge contract (NOT implemented — Developer A decision)
 `c02-bridge-v1` remains cash-basis. If accrual figures should feed `MonthlyRecord`/health score, the bridge would
 read `ProfitAndLossService.statement(...)` (revenue, cost of sales, operating expenses) and
