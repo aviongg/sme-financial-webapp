@@ -46,6 +46,7 @@ function Workspace() {
      <Link className="underline focus-visible:outline-2" aria-current={view === 'risks' ? 'page' : undefined} href={link('risks')}>{copy.risks}</Link>
      <Link className="underline focus-visible:outline-2" aria-current={view === 'review' ? 'page' : undefined} href={link('review')}>{locale === 'ur' ? draftUr.toReview : draftEn.toReview}</Link>
      <Link className="underline focus-visible:outline-2" href={'/records/history?returnTo=' + encodeURIComponent(currentContext)}>{copy.historical}</Link>
+     <Link className="underline focus-visible:outline-2" href={'/records/bridge'}>{locale === 'ur' ? 'لیجر کٹ اوور' : 'Ledger Cutover'}</Link>
    </nav>
    <Link className="inline-block underline rounded focus-visible:outline-2" href={"/records/import?returnTo=" + encodeURIComponent(currentContext)}>{unifiedCopy(locale).imports}</Link>
    {(isDemoMode || view === 'accounts') && <Link id="records-scan" href={scanHref} className="inline-block rounded bg-[var(--color-brand-primary)] text-white px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2">{copy.scan}</Link>}

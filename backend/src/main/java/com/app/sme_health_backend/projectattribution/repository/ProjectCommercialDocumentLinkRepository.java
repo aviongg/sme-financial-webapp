@@ -18,6 +18,10 @@ public interface ProjectCommercialDocumentLinkRepository extends JpaRepository<P
             UUID businessId, UUID projectId, String linkStatus
     );
 
+    List<ProjectCommercialDocumentLink> findByBusinessIdAndDocumentIdAndLinkStatus(
+            UUID businessId, UUID documentId, String linkStatus
+    );
+
     List<ProjectCommercialDocumentLink> findByBusinessIdAndProjectIdOrderByCreatedAtDesc(
             UUID businessId, UUID projectId
     );

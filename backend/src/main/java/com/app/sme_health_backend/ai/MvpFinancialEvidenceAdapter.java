@@ -239,7 +239,7 @@ public class MvpFinancialEvidenceAdapter {
         }
         if ("project_financials".equals(topic)) {
             if (financialQuery != null) {
-                FinancialQueryEnvelope<Void> envelope = financialQuery.getProjectFinancials(actor, null);
+                FinancialQueryEnvelope<?> envelope = financialQuery.getProjectFinancials(actor, null);
                 b.limitations.add("unsupported_modules");
                 return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
             }
@@ -247,7 +247,7 @@ public class MvpFinancialEvidenceAdapter {
         }
         if ("margin_drivers".equals(topic)) {
             if (financialQuery != null) {
-                FinancialQueryEnvelope<Void> envelope = financialQuery.getMarginDrivers(actor, "");
+                FinancialQueryEnvelope<?> envelope = financialQuery.getMarginDrivers(actor, "");
                 b.limitations.add("unsupported_modules");
                 return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
             }
@@ -255,7 +255,7 @@ public class MvpFinancialEvidenceAdapter {
         }
         if ("fx_impact".equals(topic)) {
             if (financialQuery != null) {
-                FinancialQueryEnvelope<Void> envelope = financialQuery.getFxSettlementImpact(actor, "");
+                FinancialQueryEnvelope<?> envelope = financialQuery.getFxSettlementImpact(actor, "");
                 b.limitations.add("unsupported_modules");
                 return b.finish(envelope.unavailableReason() != null ? envelope.unavailableReason() : "unsupported_question");
             }

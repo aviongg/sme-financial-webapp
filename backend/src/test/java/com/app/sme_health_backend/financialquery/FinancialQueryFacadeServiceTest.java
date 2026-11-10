@@ -8,6 +8,9 @@ import com.app.sme_health_backend.accounting.model.TransactionEventType;
 import com.app.sme_health_backend.accounting.repository.AccountMovementRepository;
 import com.app.sme_health_backend.accounting.repository.AccountMovementSum;
 import com.app.sme_health_backend.accounting.repository.FinancialAccountRepository;
+import com.app.sme_health_backend.bridge.dto.LedgerCompletenessReport;
+import com.app.sme_health_backend.bridge.dto.LedgerMonthlyProjectionResponse;
+import com.app.sme_health_backend.bridge.service.LedgerMonthlyBridgeService;
 import com.app.sme_health_backend.counterparty.Counterparty;
 import com.app.sme_health_backend.counterparty.CounterpartyRepository;
 import com.app.sme_health_backend.counterparty.CounterpartyType;
@@ -15,6 +18,9 @@ import com.app.sme_health_backend.financialquery.dto.*;
 import com.app.sme_health_backend.financialquery.exception.FinancialQueryValidationException;
 import com.app.sme_health_backend.financialquery.model.CapabilityStatus;
 import com.app.sme_health_backend.financialquery.model.DataCompleteness;
+import com.app.sme_health_backend.fx.dto.FxAnalyticsOverviewResponse;
+import com.app.sme_health_backend.fx.dto.FxPeriodSummaryResponse;
+import com.app.sme_health_backend.fx.service.FxAnalyticsService;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.model.MembershipRole;
 import com.app.sme_health_backend.obligation.FinancialObligation;
@@ -25,6 +31,8 @@ import com.app.sme_health_backend.obligation.PaymentPlanService;
 import com.app.sme_health_backend.obligation.aging.*;
 import com.app.sme_health_backend.obligation.dto.PaymentCalendarItemResponse;
 import com.app.sme_health_backend.obligation.dto.PaymentCalendarResponse;
+import com.app.sme_health_backend.projectattribution.dto.ProjectCommitmentsSummaryResponse;
+import com.app.sme_health_backend.projectattribution.service.ProjectCommitmentService;
 import com.app.sme_health_backend.recurring.entity.RecurringRule;
 import com.app.sme_health_backend.recurring.entity.RecurringRuleOccurrence;
 import com.app.sme_health_backend.recurring.model.RecurringFrequency;
@@ -69,6 +77,12 @@ class FinancialQueryFacadeServiceTest {
     private RecurringRuleOccurrenceRepository recurringOccurrenceRepository;
     @Mock
     private RecurringRuleRepository recurringRuleRepository;
+    @Mock
+    private ProjectCommitmentService projectCommitmentService;
+    @Mock
+    private FxAnalyticsService fxAnalyticsService;
+    @Mock
+    private LedgerMonthlyBridgeService ledgerMonthlyBridgeService;
 
     private FinancialQueryFacadeService facadeService;
 
@@ -92,14 +106,14 @@ class FinancialQueryFacadeServiceTest {
     }
 
     @Test
-    @DisplayName("getCapabilities exposes 7 tools with exact available/unavailable statuses")
+    @DisplayName("getCapabilities exposes 8 tools with exact available/unavailable statuses")
     void testGetCapabilities() {
         CapabilitiesResponse resp = facadeService.getCapabilities(context);
 
         assertNotNull(resp);
         assertEquals("1.0", resp.contractVersion());
         assertEquals(businessId, resp.businessId());
-        assertEquals(7, resp.capabilities().size());
+        assertEquals(8, resp.capabilities().size());
 
         Map<String, CapabilityStatus> statusMap = new HashMap<>();
         for (CapabilityItem item : resp.capabilities()) {
@@ -114,6 +128,7 @@ class FinancialQueryFacadeServiceTest {
         assertEquals(CapabilityStatus.UNAVAILABLE, statusMap.get("getProjectFundingGap"));
         assertEquals(CapabilityStatus.UNAVAILABLE, statusMap.get("getMarginDrivers"));
         assertEquals(CapabilityStatus.UNAVAILABLE, statusMap.get("getFxSettlementImpact"));
+        assertEquals(CapabilityStatus.UNAVAILABLE, statusMap.get("getAvailableFinancialHealthEvidence"));
     }
 
     @Test
@@ -499,6 +514,7 @@ class FinancialQueryFacadeServiceTest {
         assertThrows(AccessDeniedException.class, () -> facadeService.getProjectFundingGap(null, null));
         assertThrows(AccessDeniedException.class, () -> facadeService.getMarginDrivers(null, null));
         assertThrows(AccessDeniedException.class, () -> facadeService.getFxSettlementImpact(null, null));
+        assertThrows(AccessDeniedException.class, () -> facadeService.getAvailableFinancialHealthEvidence(null, null));
 
         // Role denied by BusinessAuthorizationService (e.g., restricted role lacking financial read permission) must throw AccessDeniedException
         com.app.sme_health_backend.identity.service.BusinessAuthorizationService denyAuth =
@@ -516,6 +532,7 @@ class FinancialQueryFacadeServiceTest {
         assertThrows(AccessDeniedException.class, () -> deniedFacade.getProjectFundingGap(context, null));
         assertThrows(AccessDeniedException.class, () -> deniedFacade.getMarginDrivers(context, null));
         assertThrows(AccessDeniedException.class, () -> deniedFacade.getFxSettlementImpact(context, null));
+        assertThrows(AccessDeniedException.class, () -> deniedFacade.getAvailableFinancialHealthEvidence(context, null));
 
         // Authorized read roles (OWNER, ACCOUNTANT, MANAGER, VIEWER) all succeed
         for (MembershipRole role : List.of(MembershipRole.OWNER, MembershipRole.ACCOUNTANT, MembershipRole.MANAGER, MembershipRole.VIEWER)) {
@@ -523,6 +540,106 @@ class FinancialQueryFacadeServiceTest {
             assertNotNull(facadeService.getCapabilities(roleCtx));
             assertEquals(CapabilityStatus.UNAVAILABLE, facadeService.getProjectFinancials(roleCtx, null).status());
         }
+    }
+
+    @Test
+    @DisplayName("Connected authoritative tools (project financials, funding gap, FX settlement, and health bridge) return typed AVAILABLE envelopes")
+    void testConnectedAuthoritativeTools() {
+        FinancialQueryFacadeService connected = new FinancialQueryFacadeService(
+                accountRepository, movementRepository, obligationService, obligationRepository,
+                paymentPlanService, counterpartyRepository, recurringOccurrenceRepository, recurringRuleRepository,
+                projectCommitmentService, fxAnalyticsService, ledgerMonthlyBridgeService
+        );
+
+        // 1. Verify Capabilities
+        CapabilitiesResponse caps = connected.getCapabilities(context);
+        assertEquals(8, caps.capabilities().size());
+        Map<String, CapabilityStatus> capMap = new HashMap<>();
+        for (CapabilityItem c : caps.capabilities()) {
+            capMap.put(c.toolName(), c.status());
+        }
+        assertEquals(CapabilityStatus.AVAILABLE, capMap.get("getProjectFinancials"));
+        assertEquals(CapabilityStatus.AVAILABLE, capMap.get("getProjectFundingGap"));
+        assertEquals(CapabilityStatus.AVAILABLE, capMap.get("getFxSettlementImpact"));
+        assertEquals(CapabilityStatus.AVAILABLE, capMap.get("getAvailableFinancialHealthEvidence"));
+        assertEquals(CapabilityStatus.UNAVAILABLE, capMap.get("getMarginDrivers"));
+
+        // 2. Project Financials & Funding Gap
+        UUID projId = UUID.randomUUID();
+        ProjectCommitmentsSummaryResponse mockProjectSummary = new ProjectCommitmentsSummaryResponse(
+                projId, "PRJ-001", "Office Tower Construction", "PKR",
+                new BigDecimal("1000000.00"), new BigDecimal("1500000.00"),
+                new BigDecimal("400000.00"), new BigDecimal("600000.00"),
+                new BigDecimal("600000.00"), // cash headroom = 1000k - 400k = 600k
+                new BigDecimal("200000.00"), new BigDecimal("100000.00"),
+                BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal("50000.00"), BigDecimal.ZERO,
+                new BigDecimal("200000.00"), // total outstanding commitments
+                new BigDecimal("200000.00"), BigDecimal.ZERO, new BigDecimal("200000.00"),
+                2, 0, 0, "PROFITABLE", null, "All evidence verified"
+        );
+        when(projectCommitmentService.getCommitmentsSummary(businessId, projId)).thenReturn(mockProjectSummary);
+
+        FinancialQueryEnvelope<ProjectFinancialsResult> pFin = connected.getProjectFinancials(context, projId);
+        assertEquals(CapabilityStatus.AVAILABLE, pFin.status());
+        assertEquals(DataCompleteness.COMPLETE, pFin.completeness());
+        assertNotNull(pFin.data());
+        assertEquals("PRJ-001", pFin.data().projectCode());
+        assertEquals(new BigDecimal("1000000.00"), pFin.data().plannedCost());
+        assertEquals(new BigDecimal("400000.00"), pFin.data().attributedCashOutflows());
+        assertEquals(1, pFin.evidence().size());
+
+        FinancialQueryEnvelope<ProjectFundingGapResult> pGap = connected.getProjectFundingGap(context, projId);
+        assertEquals(CapabilityStatus.AVAILABLE, pGap.status());
+        assertNotNull(pGap.data());
+        assertEquals("SURPLUS", pGap.data().fundingStatus());
+        assertFalse(pGap.data().requiresFunding());
+        assertEquals(new BigDecimal("600000.00"), pGap.data().cashHeadroom());
+
+        // 3. FX Settlement Impact
+        FxAnalyticsOverviewResponse mockFx = new FxAnalyticsOverviewResponse(
+                businessId, "PKR", Collections.emptyList(),
+                new FxPeriodSummaryResponse(
+                        businessId, "PKR", 5, 3, 0, 0,
+                        new BigDecimal("500000.00"), new BigDecimal("12500.00"), BigDecimal.ZERO,
+                        new BigDecimal("12500.00"), BigDecimal.ZERO, new BigDecimal("512500.00"),
+                        java.time.Instant.now()
+                ),
+                Collections.emptyList(), 5, 2, java.time.Instant.now()
+        );
+        when(fxAnalyticsService.getAnalyticsOverview(context)).thenReturn(mockFx);
+
+        FinancialQueryEnvelope<FxSettlementImpactResult> fxEnv = connected.getFxSettlementImpact(context, null);
+        assertEquals(CapabilityStatus.AVAILABLE, fxEnv.status());
+        assertNotNull(fxEnv.data());
+        assertEquals(new BigDecimal("12500.00"), fxEnv.data().netRealizedGainLoss());
+        assertEquals(5, fxEnv.data().totalForeignObligationsCount());
+        assertEquals(2, fxEnv.data().openForeignObligationsCount());
+
+        // 4. Financial Health Evidence (Bridge)
+        LedgerMonthlyProjectionResponse mockProjection = new LedgerMonthlyProjectionResponse(
+                businessId,
+                "2026-11",
+                new BigDecimal("500000.00"), new BigDecimal("350000.00"), new BigDecimal("150000.00"),
+                new BigDecimal("600000.00"), new BigDecimal("250000.00"),
+                new BigDecimal("80000.00"), new BigDecimal("60000.00"),
+                new BigDecimal("450000.00"),
+                false,
+                null,
+                new LedgerCompletenessReport(true, true, true, true, true, true, false, false, false, "READY", Collections.emptyList(), Collections.emptyList()),
+                "1.0",
+                "Reconciled"
+        );
+        when(ledgerMonthlyBridgeService.getMonthlyProjection(context, "2026-11")).thenReturn(mockProjection);
+
+        FinancialQueryEnvelope<FinancialHealthEvidenceResult> healthEnv = connected.getAvailableFinancialHealthEvidence(context, "2026-11");
+        assertEquals(CapabilityStatus.AVAILABLE, healthEnv.status());
+        assertNotNull(healthEnv.data());
+        assertEquals("2026-11", healthEnv.data().yearMonth());
+        assertEquals(new BigDecimal("500000.00"), healthEnv.data().ledgerCashInflow());
+        assertEquals(new BigDecimal("350000.00"), healthEnv.data().ledgerCashOutflow());
+        assertEquals("READY", healthEnv.data().readinessStatus());
+        assertFalse(healthEnv.data().hasExistingRecord());
     }
 
     private void setEntityId(Object entity, UUID id) {

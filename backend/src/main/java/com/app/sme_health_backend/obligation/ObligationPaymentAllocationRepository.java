@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,14 @@ public interface ObligationPaymentAllocationRepository extends JpaRepository<Obl
     @Query("SELECT COALESCE(SUM(a.amount), 0) FROM ObligationPaymentAllocation a " +
             "WHERE a.businessId = :businessId AND a.obligationId = :obligationId AND a.status = 'EFFECTIVE'")
     BigDecimal sumEffectiveAllocations(@Param("businessId") UUID businessId, @Param("obligationId") UUID obligationId);
+
+    @Query("SELECT COALESCE(SUM(a.amount), 0) FROM ObligationPaymentAllocation a " +
+            "WHERE a.businessId = :businessId AND a.obligationId = :obligationId AND a.status = 'EFFECTIVE' AND a.effectiveDate <= :cutoffDate")
+    BigDecimal sumEffectiveAllocationsAsOf(
+            @Param("businessId") UUID businessId,
+            @Param("obligationId") UUID obligationId,
+            @Param("cutoffDate") LocalDate cutoffDate
+    );
 
     @Query("SELECT a.obligationId, SUM(a.amount) FROM ObligationPaymentAllocation a " +
             "WHERE a.businessId = :businessId AND a.obligationId IN :obligationIds AND a.status = 'EFFECTIVE' " +

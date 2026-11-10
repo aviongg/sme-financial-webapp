@@ -32,14 +32,14 @@ public interface FinancialQueryFacade {
     FinancialQueryEnvelope<UpcomingObligationsResult> getUpcomingObligations(BusinessAccessContext context, UpcomingObligationsQuery query);
 
     /**
-     * Tool 4 (UNAVAILABLE): Project financial tracking (F05).
+     * Tool 4: Project financial tracking (F05/C05).
      */
-    FinancialQueryEnvelope<Void> getProjectFinancials(BusinessAccessContext context, UUID projectId);
+    FinancialQueryEnvelope<ProjectFinancialsResult> getProjectFinancials(BusinessAccessContext context, UUID projectId);
 
     /**
-     * Tool 5 (UNAVAILABLE): Project funding gap analysis (F07).
+     * Tool 5: Project funding gap analysis (F07/C05).
      */
-    FinancialQueryEnvelope<Void> getProjectFundingGap(BusinessAccessContext context, UUID projectId);
+    FinancialQueryEnvelope<ProjectFundingGapResult> getProjectFundingGap(BusinessAccessContext context, UUID projectId);
 
     /**
      * Tool 6 (UNAVAILABLE): Margin drivers & COGS (F08).
@@ -47,7 +47,12 @@ public interface FinancialQueryFacade {
     FinancialQueryEnvelope<Void> getMarginDrivers(BusinessAccessContext context, String query);
 
     /**
-     * Tool 7 (UNAVAILABLE): Realized FX settlement impact (F11).
+     * Tool 7: Realized FX settlement impact (F11/C03).
      */
-    FinancialQueryEnvelope<Void> getFxSettlementImpact(BusinessAccessContext context, String query);
+    FinancialQueryEnvelope<FxSettlementImpactResult> getFxSettlementImpact(BusinessAccessContext context, String query);
+
+    /**
+     * Tool 8: Financial Health Evidence (C02/Bridge).
+     */
+    FinancialQueryEnvelope<FinancialHealthEvidenceResult> getAvailableFinancialHealthEvidence(BusinessAccessContext context, String yearMonth);
 }

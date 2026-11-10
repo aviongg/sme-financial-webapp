@@ -82,11 +82,18 @@ function MonthlySummaries({ returnHref }: { returnHref: string }) {
       title={copy.monthly}
       subtitle={isDemoMode ? t.records.historySubtitle : (locale === "ur" ? "آپ کے محفوظ ماہانہ مالی ریکارڈ۔" : "Your saved monthly financial records.")}
       headerActions={
-        <Link href={returnHref}>
-          <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />}>
-            {copy.back}
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/records/bridge">
+            <Button variant="secondary" size="sm">
+              {locale === "ur" ? "لیجر کٹ اوور" : "Ledger Cutover"}
+            </Button>
+          </Link>
+          <Link href={returnHref}>
+            <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />}>
+              {copy.back}
+            </Button>
+          </Link>
+        </div>
       }
     >
 

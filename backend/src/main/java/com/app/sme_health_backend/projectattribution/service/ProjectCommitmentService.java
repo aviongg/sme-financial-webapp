@@ -283,6 +283,55 @@ public class ProjectCommitmentService {
         return mapToObligationItemResponse(saved, obligation, projectId);
     }
 
+    /**
+     * Synchronizes a commercial document recognition into project financial obligations.
+     * When a commercial document that was linked to one or more projects is authoritatively recognized
+     * into a FinancialObligation, this method auto-links the obligation to those projects
+     * with the corresponding allocated amounts.
+     */
+    @Transactional
+    public void syncCommercialDocumentRecognition(
+            UUID businessId,
+            UUID documentId,
+            UUID obligationId,
+            UUID actorUserId
+    ) {
+        List<ProjectCommercialDocumentLink> activeDocLinks = commercialDocumentLinkRepository
+                .findByBusinessIdAndDocumentIdAndLinkStatus(businessId, documentId, "ACTIVE");
+        if (activeDocLinks == null || activeDocLinks.isEmpty()) {
+            return;
+        }
+
+        FinancialObligation obligation = obligationRepository.findByIdAndBusinessId(obligationId, businessId).orElse(null);
+        if (obligation == null) {
+            return;
+        }
+
+        for (ProjectCommercialDocumentLink docLink : activeDocLinks) {
+            UUID projectId = docLink.getProjectId();
+            Optional<ProjectFinancialObligationLink> existingLink = obligationLinkRepository
+                    .findByBusinessIdAndProjectIdAndObligationIdAndLinkStatus(businessId, projectId, obligationId, "ACTIVE");
+            if (existingLink.isEmpty()) {
+                ProjectFinancialObligationLink newLink = new ProjectFinancialObligationLink();
+                newLink.setBusinessId(businessId);
+                newLink.setProjectId(projectId);
+                newLink.setObligationId(obligationId);
+                newLink.setDirection(obligation.getDirection().name());
+                newLink.setOriginalAmount(obligation.getOriginalAmount());
+                newLink.setAllocatedAmount(docLink.getAllocatedAmount().min(obligation.getOriginalAmount()));
+                newLink.setCurrency(obligation.getCurrency() != null ? obligation.getCurrency() : "PKR");
+                newLink.setLinkStatus("ACTIVE");
+                newLink.setLinkProvenance("COMMERCIAL_DOCUMENT_RECOGNITION");
+                newLink.setNotes("Auto-linked upon recognition of commercial document " +
+                        (docLink.getDocumentNumber() != null ? docLink.getDocumentNumber() : documentId.toString()));
+                newLink.setCreatedByUserId(actorUserId);
+                newLink.setCreatedAt(Instant.now());
+                newLink.setUpdatedAt(Instant.now());
+                obligationLinkRepository.save(newLink);
+            }
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<ProjectObligationItemResponse> listProjectObligations(UUID businessId, UUID projectId) {
         projectRepository.findById(businessId, projectId)

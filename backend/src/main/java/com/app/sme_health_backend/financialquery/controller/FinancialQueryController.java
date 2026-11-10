@@ -78,7 +78,7 @@ public class FinancialQueryController {
     }
 
     @GetMapping("/project-financials")
-    public ResponseEntity<FinancialQueryEnvelope<Void>> getProjectFinancials(
+    public ResponseEntity<FinancialQueryEnvelope<ProjectFinancialsResult>> getProjectFinancials(
             @RequestParam(name = "projectId", required = false) String projectId,
             HttpServletRequest request
     ) {
@@ -90,7 +90,7 @@ public class FinancialQueryController {
     }
 
     @GetMapping("/project-funding-gap")
-    public ResponseEntity<FinancialQueryEnvelope<Void>> getProjectFundingGap(
+    public ResponseEntity<FinancialQueryEnvelope<ProjectFundingGapResult>> getProjectFundingGap(
             @RequestParam(name = "projectId", required = false) String projectId,
             HttpServletRequest request
     ) {
@@ -139,7 +139,7 @@ public class FinancialQueryController {
     }
 
     @GetMapping("/fx-settlement-impact")
-    public ResponseEntity<FinancialQueryEnvelope<Void>> getFxSettlementImpact(
+    public ResponseEntity<FinancialQueryEnvelope<FxSettlementImpactResult>> getFxSettlementImpact(
             @RequestParam(name = "query", required = false) String query,
             HttpServletRequest request
     ) {
@@ -147,5 +147,16 @@ public class FinancialQueryController {
                 request, BusinessPermission.FINANCIAL_DATA_READ
         );
         return ResponseEntity.ok(financialQueryFacade.getFxSettlementImpact(context, query));
+    }
+
+    @GetMapping("/health-evidence")
+    public ResponseEntity<FinancialQueryEnvelope<FinancialHealthEvidenceResult>> getFinancialHealthEvidence(
+            @RequestParam(name = "yearMonth", required = false) String yearMonth,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(
+                request, BusinessPermission.FINANCIAL_DATA_READ
+        );
+        return ResponseEntity.ok(financialQueryFacade.getAvailableFinancialHealthEvidence(context, yearMonth));
     }
 }

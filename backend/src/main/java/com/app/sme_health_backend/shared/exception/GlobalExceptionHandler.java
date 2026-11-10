@@ -457,6 +457,20 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND, "not_found", exception.getMessage()));
     }
 
+    @ExceptionHandler(com.app.sme_health_backend.records.service.FinancialConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleFinancialConflictException(
+            com.app.sme_health_backend.records.service.FinancialConflictException exception) {
+        Map<String, Object> response = createBaseResponse(
+                HttpStatus.CONFLICT,
+                "conflict",
+                exception.getMessage()
+        );
+        if (exception.errors() != null && !exception.errors().isEmpty()) {
+            response.put("errors", exception.errors());
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpectedException(
             Exception exception) {

@@ -1,7 +1,11 @@
 package com.app.sme_health_backend.records.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
 import java.util.Map;
 
+@ResponseStatus(HttpStatus.CONFLICT)
 public class FinancialConflictException extends RuntimeException {
     private final String code;
     private final Map<String, String> errors;

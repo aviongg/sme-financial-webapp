@@ -9,12 +9,15 @@ import com.app.sme_health_backend.accounting.model.TransactionEventType;
 import com.app.sme_health_backend.accounting.repository.AccountMovementRepository;
 import com.app.sme_health_backend.accounting.repository.AccountMovementSum;
 import com.app.sme_health_backend.accounting.repository.FinancialAccountRepository;
+import com.app.sme_health_backend.bridge.service.LedgerMonthlyBridgeService;
 import com.app.sme_health_backend.counterparty.Counterparty;
 import com.app.sme_health_backend.counterparty.CounterpartyRepository;
 import com.app.sme_health_backend.financialquery.dto.*;
 import com.app.sme_health_backend.financialquery.exception.FinancialQueryValidationException;
 import com.app.sme_health_backend.financialquery.model.CapabilityStatus;
 import com.app.sme_health_backend.financialquery.model.DataCompleteness;
+import com.app.sme_health_backend.fx.dto.FxAnalyticsOverviewResponse;
+import com.app.sme_health_backend.fx.service.FxAnalyticsService;
 import com.app.sme_health_backend.identity.dto.BusinessAccessContext;
 import com.app.sme_health_backend.identity.model.BusinessPermission;
 import com.app.sme_health_backend.identity.service.BusinessAuthorizationService;
@@ -28,6 +31,8 @@ import com.app.sme_health_backend.obligation.aging.ObligationAgingResult;
 import com.app.sme_health_backend.obligation.aging.ObligationDirection;
 import com.app.sme_health_backend.obligation.dto.PaymentCalendarItemResponse;
 import com.app.sme_health_backend.obligation.dto.PaymentCalendarResponse;
+import com.app.sme_health_backend.projectattribution.dto.ProjectCommitmentsSummaryResponse;
+import com.app.sme_health_backend.projectattribution.service.ProjectCommitmentService;
 import com.app.sme_health_backend.recurring.calculator.RecurrenceCalculator;
 import com.app.sme_health_backend.recurring.entity.RecurringRule;
 import com.app.sme_health_backend.recurring.entity.RecurringRuleOccurrence;
@@ -48,6 +53,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -73,6 +79,9 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     private final RecurringRuleOccurrenceRepository recurringOccurrenceRepository;
     private final RecurringRuleRepository recurringRuleRepository;
     private final BusinessAuthorizationService authorizationService;
+    private final ProjectCommitmentService projectCommitmentService;
+    private final FxAnalyticsService fxAnalyticsService;
+    private final LedgerMonthlyBridgeService ledgerMonthlyBridgeService;
 
     @Autowired
     public FinancialQueryFacadeService(
@@ -84,7 +93,10 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
             CounterpartyRepository counterpartyRepository,
             @Autowired(required = false) RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
             @Autowired(required = false) RecurringRuleRepository recurringRuleRepository,
-            @Autowired(required = false) BusinessAuthorizationService authorizationService
+            @Autowired(required = false) BusinessAuthorizationService authorizationService,
+            @Autowired(required = false) ProjectCommitmentService projectCommitmentService,
+            @Autowired(required = false) FxAnalyticsService fxAnalyticsService,
+            @Autowired(required = false) LedgerMonthlyBridgeService ledgerMonthlyBridgeService
     ) {
         this.accountRepository = accountRepository;
         this.movementRepository = movementRepository;
@@ -95,6 +107,9 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
         this.recurringOccurrenceRepository = recurringOccurrenceRepository;
         this.recurringRuleRepository = recurringRuleRepository;
         this.authorizationService = authorizationService != null ? authorizationService : new BusinessAuthorizationService(null);
+        this.projectCommitmentService = projectCommitmentService;
+        this.fxAnalyticsService = fxAnalyticsService;
+        this.ledgerMonthlyBridgeService = ledgerMonthlyBridgeService;
     }
 
     public FinancialQueryFacadeService(
@@ -116,7 +131,66 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                 counterpartyRepository,
                 recurringOccurrenceRepository,
                 recurringRuleRepository,
-                new BusinessAuthorizationService(null)
+                new BusinessAuthorizationService(null),
+                null,
+                null,
+                null
+        );
+    }
+
+    public FinancialQueryFacadeService(
+            FinancialAccountRepository accountRepository,
+            AccountMovementRepository movementRepository,
+            FinancialObligationService obligationService,
+            FinancialObligationRepository obligationRepository,
+            PaymentPlanService paymentPlanService,
+            CounterpartyRepository counterpartyRepository,
+            RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
+            RecurringRuleRepository recurringRuleRepository,
+            BusinessAuthorizationService authorizationService
+    ) {
+        this(
+                accountRepository,
+                movementRepository,
+                obligationService,
+                obligationRepository,
+                paymentPlanService,
+                counterpartyRepository,
+                recurringOccurrenceRepository,
+                recurringRuleRepository,
+                authorizationService,
+                null,
+                null,
+                null
+        );
+    }
+
+    public FinancialQueryFacadeService(
+            FinancialAccountRepository accountRepository,
+            AccountMovementRepository movementRepository,
+            FinancialObligationService obligationService,
+            FinancialObligationRepository obligationRepository,
+            PaymentPlanService paymentPlanService,
+            CounterpartyRepository counterpartyRepository,
+            RecurringRuleOccurrenceRepository recurringOccurrenceRepository,
+            RecurringRuleRepository recurringRuleRepository,
+            ProjectCommitmentService projectCommitmentService,
+            FxAnalyticsService fxAnalyticsService,
+            LedgerMonthlyBridgeService ledgerMonthlyBridgeService
+    ) {
+        this(
+                accountRepository,
+                movementRepository,
+                obligationService,
+                obligationRepository,
+                paymentPlanService,
+                counterpartyRepository,
+                recurringOccurrenceRepository,
+                recurringRuleRepository,
+                new BusinessAuthorizationService(null),
+                projectCommitmentService,
+                fxAnalyticsService,
+                ledgerMonthlyBridgeService
         );
     }
 
@@ -145,15 +219,15 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                 ),
                 new CapabilityItem(
                         "getProjectFinancials",
-                        CapabilityStatus.UNAVAILABLE,
-                        "Project financial tracking (F05) is owned by Developer B and not yet integrated into authoritative financial services",
-                        "Project finance domain (F05) is not yet integrated into FinSight authoritative services."
+                        projectCommitmentService != null ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
+                        "Authoritative project actuals, obligations, and commitment summary",
+                        projectCommitmentService != null ? null : "Project finance domain (F05) is not yet integrated into FinSight authoritative services."
                 ),
                 new CapabilityItem(
                         "getProjectFundingGap",
-                        CapabilityStatus.UNAVAILABLE,
-                        "Project funding gap analysis (F07) requires an approved persisted project plan integration",
-                        "Project funding gap calculations require an approved persisted project financial plan, which is currently unintegrated."
+                        projectCommitmentService != null ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
+                        "Project budget vs cash headroom and commitments funding gap analysis",
+                        projectCommitmentService != null ? null : "Project funding gap calculations require an approved persisted project financial plan, which is currently unintegrated."
                 ),
                 new CapabilityItem(
                         "getMarginDrivers",
@@ -163,9 +237,15 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                 ),
                 new CapabilityItem(
                         "getFxSettlementImpact",
-                        CapabilityStatus.UNAVAILABLE,
-                        "Multi-currency realized FX settlement impact (F11) is not yet implemented",
-                        "Multi-currency realized FX settlement impact (F11) is not yet implemented."
+                        fxAnalyticsService != null ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
+                        "Multi-currency realized FX settlement impact and currency exposures",
+                        fxAnalyticsService != null ? null : "Multi-currency realized FX settlement impact (F11) is not yet implemented."
+                ),
+                new CapabilityItem(
+                        "getAvailableFinancialHealthEvidence",
+                        ledgerMonthlyBridgeService != null ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
+                        "Authoritative posted ledger reconciliation and health score bridge evidence",
+                        ledgerMonthlyBridgeService != null ? null : "Ledger monthly bridge service (C02) is not configured in this context."
                 )
         );
 
@@ -625,27 +705,156 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     }
 
     @Override
-    public FinancialQueryEnvelope<Void> getProjectFinancials(BusinessAccessContext context, UUID projectId) {
+    public FinancialQueryEnvelope<ProjectFinancialsResult> getProjectFinancials(BusinessAccessContext context, UUID projectId) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
-
-        return FinancialQueryEnvelope.unavailable(
-                "getProjectFinancials",
-                CONTRACT_VERSION,
-                context.businessId(),
-                "Project finance domain (F05) is owned by Developer B and has not yet been integrated into authoritative financial services."
-        );
+        if (projectId == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFinancials",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project finance domain (F05) requires a valid project ID."
+            );
+        }
+        if (projectCommitmentService == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFinancials",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project finance domain (F05) is owned by Developer B and has not yet been integrated into authoritative financial services."
+            );
+        }
+        try {
+            ProjectCommitmentsSummaryResponse summary = projectCommitmentService.getCommitmentsSummary(context.businessId(), projectId);
+            ProjectFinancialsResult result = new ProjectFinancialsResult(
+                    summary.projectId(),
+                    summary.projectCode(),
+                    summary.projectName(),
+                    summary.baseCurrency(),
+                    summary.plannedCost(),
+                    summary.plannedRevenue(),
+                    summary.attributedCashOutflows(),
+                    summary.attributedCashInflows(),
+                    summary.cashHeadroom(),
+                    summary.outstandingSupplierPayables(),
+                    summary.outstandingCustomerReceivables(),
+                    summary.unpostedCommercialBills(),
+                    summary.unpostedCommercialInvoices(),
+                    summary.recognizedCommissionCost(),
+                    summary.nonCashFxImpact(),
+                    summary.totalOutstandingCommitments(),
+                    summary.authoritativeFinancialOutstanding(),
+                    summary.commercialUnpostedExposure(),
+                    summary.verifiedCombinedExposure(),
+                    summary.linkedObligationsCount(),
+                    summary.linkedCommercialDocumentsCount(),
+                    summary.unmatchedCommercialDocumentsCount(),
+                    summary.profitabilityStatus()
+            );
+            List<FinancialEvidenceReference> evidence = new ArrayList<>();
+            evidence.add(new FinancialEvidenceReference(
+                    "PROJECT_COMMITMENT_SUMMARY",
+                    projectId.toString(),
+                    "Authoritative project financial commitment summary for " + summary.projectCode(),
+                    Instant.now()
+            ));
+            return FinancialQueryEnvelope.available(
+                    "getProjectFinancials",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    LocalDate.now(BUSINESS_ZONE).toString(),
+                    DataCompleteness.COMPLETE,
+                    Collections.emptyList(),
+                    evidence,
+                    result
+            );
+        } catch (Exception ex) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFinancials",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project finance domain (F05) project not found or unintegrated: " + ex.getMessage()
+            );
+        }
     }
 
     @Override
-    public FinancialQueryEnvelope<Void> getProjectFundingGap(BusinessAccessContext context, UUID projectId) {
+    public FinancialQueryEnvelope<ProjectFundingGapResult> getProjectFundingGap(BusinessAccessContext context, UUID projectId) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (projectId == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFundingGap",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project funding gap analysis (F07) requires a valid project ID."
+            );
+        }
+        if (projectCommitmentService == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFundingGap",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project funding gap analysis (F07) requires an approved persisted project financial plan, which is currently unintegrated."
+            );
+        }
+        try {
+            ProjectCommitmentsSummaryResponse summary = projectCommitmentService.getCommitmentsSummary(context.businessId(), projectId);
+            BigDecimal plannedCost = summary.plannedCost() != null ? summary.plannedCost() : BigDecimal.ZERO;
+            BigDecimal attributedOutflows = summary.attributedCashOutflows() != null ? summary.attributedCashOutflows() : BigDecimal.ZERO;
+            BigDecimal cashHeadroom = summary.cashHeadroom() != null ? summary.cashHeadroom() : plannedCost.subtract(attributedOutflows);
+            BigDecimal totalCommitments = summary.totalOutstandingCommitments() != null ? summary.totalOutstandingCommitments() : BigDecimal.ZERO;
 
-        return FinancialQueryEnvelope.unavailable(
-                "getProjectFundingGap",
-                CONTRACT_VERSION,
-                context.businessId(),
-                "Project funding gap analysis (F07) requires an approved persisted project financial plan, which is currently unintegrated."
-        );
+            BigDecimal fundingGap = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+            if (cashHeadroom.compareTo(BigDecimal.ZERO) < 0) {
+                fundingGap = cashHeadroom.abs().add(totalCommitments);
+            } else if (totalCommitments.compareTo(cashHeadroom) > 0) {
+                fundingGap = totalCommitments.subtract(cashHeadroom);
+            }
+
+            boolean requiresFunding = fundingGap.compareTo(BigDecimal.ZERO) > 0;
+            String status = requiresFunding ? "DEFICIT" : (cashHeadroom.compareTo(BigDecimal.ZERO) > 0 ? "SURPLUS" : "BALANCED");
+            String explanation = requiresFunding
+                    ? "Project commitments exceed cash headroom by " + fundingGap + " " + summary.baseCurrency()
+                    : "Project is adequately funded with cash headroom of " + cashHeadroom + " " + summary.baseCurrency();
+
+            ProjectFundingGapResult result = new ProjectFundingGapResult(
+                    summary.projectId(),
+                    summary.projectCode(),
+                    summary.projectName(),
+                    summary.baseCurrency(),
+                    plannedCost,
+                    attributedOutflows,
+                    cashHeadroom,
+                    totalCommitments,
+                    fundingGap,
+                    requiresFunding,
+                    status,
+                    explanation
+            );
+            List<FinancialEvidenceReference> evidence = new ArrayList<>();
+            evidence.add(new FinancialEvidenceReference(
+                    "PROJECT_FUNDING_GAP",
+                    projectId.toString(),
+                    "Funding gap analysis for project " + summary.projectCode() + ": status " + status,
+                    Instant.now()
+            ));
+            return FinancialQueryEnvelope.available(
+                    "getProjectFundingGap",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    LocalDate.now(BUSINESS_ZONE).toString(),
+                    DataCompleteness.COMPLETE,
+                    Collections.emptyList(),
+                    evidence,
+                    result
+            );
+        } catch (Exception ex) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getProjectFundingGap",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Project funding gap analysis (F07) requires an approved persisted project financial plan, which is currently unintegrated: " + ex.getMessage()
+            );
+        }
     }
 
     @Override
@@ -662,16 +871,133 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     }
 
     @Override
-    public FinancialQueryEnvelope<Void> getFxSettlementImpact(BusinessAccessContext context, String query) {
+    public FinancialQueryEnvelope<FxSettlementImpactResult> getFxSettlementImpact(BusinessAccessContext context, String query) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
         validateOptionalQueryParam(query);
 
-        return FinancialQueryEnvelope.unavailable(
-                "getFxSettlementImpact",
-                CONTRACT_VERSION,
-                context.businessId(),
-                "Multi-currency realized FX settlement impact (F11) is not yet implemented."
-        );
+        if (fxAnalyticsService == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getFxSettlementImpact",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Multi-currency realized FX settlement impact (F11) is not yet implemented."
+            );
+        }
+        try {
+            FxAnalyticsOverviewResponse overview = fxAnalyticsService.getAnalyticsOverview(context);
+            String reportingCurrency = overview.reportingCurrency() != null ? overview.reportingCurrency() : "PKR";
+            BigDecimal netRealizedGainLoss = overview.performanceSummary() != null && overview.performanceSummary().netRealizedFx() != null
+                    ? overview.performanceSummary().netRealizedFx()
+                    : BigDecimal.ZERO;
+            int totalForeign = overview.totalForeignObligationsCount();
+            int openForeign = overview.openForeignObligationsCount();
+            int currencyCount = overview.currencyExposures() != null ? overview.currencyExposures().size() : 0;
+
+            String summary = "Realized FX Impact: " + netRealizedGainLoss + " " + reportingCurrency
+                    + " across " + currencyCount + " currency exposures and " + totalForeign + " foreign obligations.";
+
+            FxSettlementImpactResult result = new FxSettlementImpactResult(
+                    reportingCurrency,
+                    netRealizedGainLoss,
+                    totalForeign,
+                    openForeign,
+                    currencyCount,
+                    summary
+            );
+            List<FinancialEvidenceReference> evidence = new ArrayList<>();
+            evidence.add(new FinancialEvidenceReference(
+                    "FX_SETTLEMENT_OVERVIEW",
+                    context.businessId().toString(),
+                    summary,
+                    Instant.now()
+            ));
+            return FinancialQueryEnvelope.available(
+                    "getFxSettlementImpact",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    LocalDate.now(BUSINESS_ZONE).toString(),
+                    DataCompleteness.COMPLETE,
+                    Collections.emptyList(),
+                    evidence,
+                    result
+            );
+        } catch (Exception ex) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getFxSettlementImpact",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Multi-currency realized FX settlement impact (F11) is not yet implemented."
+            );
+        }
+    }
+
+    @Override
+    public FinancialQueryEnvelope<FinancialHealthEvidenceResult> getAvailableFinancialHealthEvidence(BusinessAccessContext context, String yearMonth) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+
+        if (ledgerMonthlyBridgeService == null) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getAvailableFinancialHealthEvidence",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Ledger monthly bridge service (C02) is not configured in this context."
+            );
+        }
+        String targetMonth = (yearMonth != null && !yearMonth.isBlank())
+                ? yearMonth.trim()
+                : LocalDate.now(BUSINESS_ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+        try {
+            var projection = ledgerMonthlyBridgeService.getMonthlyProjection(context, targetMonth);
+            var completeness = projection.completeness();
+            List<String> warnings = completeness != null && completeness.warnings() != null
+                    ? completeness.warnings()
+                    : Collections.emptyList();
+            String readiness = completeness != null && completeness.readinessStatus() != null
+                    ? completeness.readinessStatus()
+                    : "UNKNOWN";
+
+            FinancialHealthEvidenceResult result = new FinancialHealthEvidenceResult(
+                    projection.yearMonth(),
+                    projection.ledgerCashInflow(),
+                    projection.ledgerCashOutflow(),
+                    projection.ledgerNetCashFlow(),
+                    projection.ledgerOperatingRevenue(),
+                    projection.ledgerOperatingExpenses(),
+                    projection.currentCashBalanceEom(),
+                    projection.asOfReceivablesOutstanding(),
+                    projection.asOfPayablesOutstanding(),
+                    readiness,
+                    projection.hasExistingMonthlyRecord(),
+                    warnings
+            );
+
+            List<FinancialEvidenceReference> evidence = new ArrayList<>();
+            evidence.add(new FinancialEvidenceReference(
+                    "LEDGER_MONTHLY_PROJECTION",
+                    context.businessId() + ":" + targetMonth,
+                    "Authoritative posted transactions bridge evidence for month " + targetMonth,
+                    Instant.now()
+            ));
+
+            return FinancialQueryEnvelope.available(
+                    "getAvailableFinancialHealthEvidence",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    targetMonth,
+                    warnings.isEmpty() ? DataCompleteness.COMPLETE : DataCompleteness.PARTIAL,
+                    warnings,
+                    evidence,
+                    result
+            );
+        } catch (Exception ex) {
+            return FinancialQueryEnvelope.unavailable(
+                    "getAvailableFinancialHealthEvidence",
+                    CONTRACT_VERSION,
+                    context.businessId(),
+                    "Unable to derive ledger monthly health evidence for " + targetMonth + ": " + ex.getMessage()
+            );
+        }
     }
 
     private void collectRecurringProjections(

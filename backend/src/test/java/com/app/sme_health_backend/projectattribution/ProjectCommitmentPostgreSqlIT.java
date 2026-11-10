@@ -29,6 +29,8 @@ import com.app.sme_health_backend.identity.repository.BusinessMembershipReposito
 import com.app.sme_health_backend.identity.repository.BusinessRepository;
 import com.app.sme_health_backend.obligation.*;
 import com.app.sme_health_backend.obligation.aging.ObligationDirection;
+import com.app.sme_health_backend.obligation.dto.CommercialRecognitionRequest;
+import com.app.sme_health_backend.obligation.dto.CommercialRecognitionResponse;
 import com.app.sme_health_backend.projectattribution.dto.*;
 import com.app.sme_health_backend.projectattribution.entity.ProjectCommercialDocumentLink;
 import com.app.sme_health_backend.projectattribution.entity.ProjectFinancialObligationLink;
@@ -114,6 +116,9 @@ class ProjectCommitmentPostgreSqlIT extends DisposablePostgres {
 
     @Autowired
     private ProjectCommitmentService commitmentService;
+
+    @Autowired
+    private CommercialRecognitionService recognitionService;
 
     @Autowired
     private TransactionPostService postService;
@@ -450,6 +455,79 @@ class ProjectCommitmentPostgreSqlIT extends DisposablePostgres {
                 org.springframework.dao.DataAccessException.class,
                 () -> jdbc.execute("DELETE FROM project_commercial_document_links")
         );
+    }
+
+    @Test
+    @DisplayName("Stage 2: Bill linked -> unposted 100k -> recognized -> unposted 0, obligation 100k -> 40k paid -> cash 40k, outstanding 60k")
+    void testCommercialBillRecognitionAndCommitmentTransition() throws Exception {
+        UUID businessId = ownerFixture.businessId();
+        UUID projectId = insertProject(businessId, "PRJ-REC-TRANS", "Recognition Transition Project", "PKR");
+        BusinessAccessContext ctx = new BusinessAccessContext(ownerFixture.user().getId(), businessId, MembershipRole.OWNER);
+
+        // 1. Create counterparty & bank account
+        Counterparty supplier = createCounterparty(businessId, "Premier Supplier Ltd", CounterpartyType.SUPPLIER);
+        FinancialAccount bank = createAccount(businessId, "Primary Bank", AccountType.BANK, "PKR", 2, "500000.00");
+
+        // 2. Draft and finalize commercial bill of PKR 100,000
+        var billDraft = commercialDocumentService.createDraft(ctx, CommercialDocumentKind.BILL, new CommercialDocumentDraftRequest(
+                "Premier Supplier Ltd",
+                LocalDate.now().toString(),
+                LocalDate.now().plusDays(30).toString(),
+                "Raw materials for project",
+                List.of(new CommercialLineRequest("Industrial Material", "100.00", "units", "1000.00")),
+                null
+        ));
+        var finalizedBill = commercialDocumentService.finalizeDraft(ctx, CommercialDocumentKind.BILL, billDraft.id(), new CommercialTransitionRequest(0L, null));
+
+        // 3. Link commercial bill to project
+        commitmentService.linkCommercialDocument(
+                businessId,
+                projectId,
+                new CommercialDocumentLinkRequest(finalizedBill.id(), new BigDecimal("100000.0000"), "Project bill link"),
+                ownerFixture.user().getId()
+        );
+
+        // 4. Verify before recognition: unposted exposure = 100k, obligation = 0, total = 100k
+        ProjectCommitmentsSummaryResponse summaryBefore = commitmentService.getCommitmentsSummary(businessId, projectId);
+        assertThat(summaryBefore.unpostedCommercialBills()).isEqualByComparingTo("100000.0000");
+        assertThat(summaryBefore.outstandingSupplierPayables()).isEqualByComparingTo("0.0000");
+        assertThat(summaryBefore.totalOutstandingCommitments()).isEqualByComparingTo("100000.0000");
+        assertThat(summaryBefore.linkedCommercialDocumentsCount()).isEqualTo(1);
+        assertThat(summaryBefore.unmatchedCommercialDocumentsCount()).isEqualTo(1);
+
+        // 5. Authoritatively recognize commercial bill into financial obligation
+        CommercialRecognitionResponse recResponse = recognitionService.recognizeCommercialDocument(
+                ctx,
+                "rec-transition-" + UUID.randomUUID(),
+                new CommercialRecognitionRequest(finalizedBill.id(), CommercialDocumentKind.BILL, supplier.getId(), null, "Recognized for project"),
+                null
+        );
+        assertThat(recResponse).isNotNull();
+        assertThat(recResponse.originalAmount()).isEqualByComparingTo("100000.0000");
+
+        // 6. Verify after recognition: unposted exposure = 0, authoritative obligation = 100k, total = 100k (ZERO double counting!)
+        ProjectCommitmentsSummaryResponse summaryAfter = commitmentService.getCommitmentsSummary(businessId, projectId);
+        assertThat(summaryAfter.unpostedCommercialBills()).isEqualByComparingTo("0.0000");
+        assertThat(summaryAfter.outstandingSupplierPayables()).isEqualByComparingTo("100000.0000");
+        assertThat(summaryAfter.totalOutstandingCommitments()).isEqualByComparingTo("100000.0000");
+        assertThat(summaryAfter.linkedCommercialDocumentsCount()).isEqualTo(1);
+        assertThat(summaryAfter.unmatchedCommercialDocumentsCount()).isEqualTo(0);
+        assertThat(summaryAfter.linkedObligationsCount()).isEqualTo(1);
+
+        // 7. Partial payment of 40,000 against the recognized obligation
+        UUID paymentTxId = postPayment(businessId, bank.getId(), new BigDecimal("40000.00"), "Partial bill settlement");
+        FinancialObligation ob = obligationRepository.findByBusinessIdAndSourceId(businessId, finalizedBill.id().toString()).get(0);
+        createAllocation(businessId, ob.getId(), paymentTxId, new BigDecimal("40000.0000"));
+
+        // Attribute the cash outflow to project
+        attributeSourceViaApi(ownerFixture, projectId, paymentTxId, AttributionSourceType.TRANSACTION, new BigDecimal("40000.00"), AttributionCostCategory.MATERIAL);
+
+        // 8. Verify after partial payment: cash paid = 40k, outstanding payables = 60k, unposted exposure = 0
+        ProjectCommitmentsSummaryResponse summaryFinal = commitmentService.getCommitmentsSummary(businessId, projectId);
+        assertThat(summaryFinal.attributedCashOutflows()).isEqualByComparingTo("40000.0000");
+        assertThat(summaryFinal.outstandingSupplierPayables()).isEqualByComparingTo("60000.0000");
+        assertThat(summaryFinal.unpostedCommercialBills()).isEqualByComparingTo("0.0000");
+        assertThat(summaryFinal.totalOutstandingCommitments()).isEqualByComparingTo("60000.0000");
     }
 
     // =========================================================================

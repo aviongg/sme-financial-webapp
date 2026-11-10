@@ -216,7 +216,7 @@ class MvpFinancialEvidenceAdapterTests {
         assertEquals("FORECAST", c.evidence().stream().filter(e -> e.id().startsWith("upcoming_obligations.recurring.")).findFirst().orElseThrow().sourceMode());
     }
     @Test void unavailableFinancialToolReturnsTypedUnavailableReason() {
-        FinancialQueryEnvelope<Void> env = FinancialQueryEnvelope.unavailable(
+        FinancialQueryEnvelope<com.app.sme_health_backend.financialquery.dto.ProjectFinancialsResult> env = FinancialQueryEnvelope.unavailable(
                 "getProjectFinancials", "1.0", actor.businessId(), "Project finance domain (F05) is owned by Developer B"
         );
         when(financialQuery.getProjectFinancials(eq(actor), any())).thenReturn(env);
