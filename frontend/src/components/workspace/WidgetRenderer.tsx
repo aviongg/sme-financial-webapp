@@ -19,6 +19,8 @@ import { RecommendationActions } from '@/components/integration/RecommendationAc
 import { CashFlowTrend } from '@/components/dashboard/CashFlowTrend';
 import { AiExplanationPanel } from '@/components/ai/AiExplanation';
 import { RecordedTrends } from './RecordedTrends';
+import { dashboardFinanceCopy } from '@/lib/i18n/translations/dashboard-finance';
+import { FinancialOverview } from './FinancialOverview';
 
 export function WidgetRenderer({ widgetKey, workspace, preview, onUpdated }: { widgetKey: string; workspace: DashboardWorkspaceResponse; preview: boolean; onUpdated: () => void }) {
   const { locale, t } = useLanguage(), copy = workspaceCopy(locale), { can } = useSession();
@@ -35,7 +37,7 @@ export function WidgetRenderer({ widgetKey, workspace, preview, onUpdated }: { w
     case 'recommendation': return <Card padding="md" className="h-full space-y-3"><h2 className="font-semibold">{copy.names.recommendation}</h2>{recommendation ? <div className="space-y-3"><p className="text-sm" dir={recommendation.language === 'ur' ? 'rtl' : 'ltr'}>{recommendation.text}</p><RecommendationActions key={recommendation.id + recommendation.sourceComputedAt} advice={recommendation} readOnly={preview} onUpdated={onUpdated}/></div> : <p>{t.live.noAdvice}</p>}<Link href="/health/components" className="text-sm underline text-[var(--color-brand-primary)]">{copy.recommendations}</Link></Card>;
     case 'cash-flow': return <CashFlowTrend records={records} authoritative={{ summaryByPeriod: workspace.cashSummaryByPeriod, history: workspace.cashHistory }}/ >;
     case 'cash-projection': return <Card padding="md" className="h-full space-y-3"><h2 className="font-semibold">{t.live.projection}</h2>{projection?.projectedNetCashFlow != null ? <><p><bdi>{projection.projectedMonth}</bdi>: <strong>{formatPKR(projection.projectedNetCashFlow, { locale })}</strong></p><p className="text-sm">{liveLabel(t, projection.trendDirection)} · {t.live.confidence}: {liveLabel(t, projection.confidence)} · {t.live.monthsUsed}: {projection.historicalMonthsCount}</p><p className="text-xs text-[var(--color-text-muted)]">{t.live.projectionHelp}</p></> : <p className="text-sm">{t.live.projectionPending}</p>}</Card>;
-    case 'financial-summary': return <RecordedTrends records={records}/>;
+    case 'financial-summary': return <div className="space-y-4 min-w-0"><FinancialOverview preview={preview}/><details className="rounded-lg border border-[var(--color-border-default)] p-3"><summary className="cursor-pointer text-sm font-semibold">{dashboardFinanceCopy(locale).snapshot}</summary><RecordedTrends records={records}/></details></div>;
     case 'ai-explanation': return workspace.aiStatus.available ? preview ? <Card padding="md"><h2 className="font-semibold mb-2">{copy.names['ai-explanation']}</h2><p className="text-sm">{copy.explanationPreview}</p></Card> : <AiExplanationPanel key={`${score?.computedAt}:${records.map(record => record.updatedAt).join(',')}`} type="dashboard" month={score?.month}/> : null;
     case 'document-workflow': return can('DOCUMENT_READ') ? <Card padding="md" className="h-full space-y-3"><FileText className="h-6 w-6 text-[var(--color-brand-primary)]" aria-hidden="true"/><h2 className="font-semibold">{copy.names['document-workflow']}</h2><p className="text-sm text-[var(--color-text-muted)]">{copy.documentHelp}</p><Link href="/upload" className="text-sm underline text-[var(--color-brand-primary)]">{copy.viewDocuments}</Link></Card> : null;
     default: return null;

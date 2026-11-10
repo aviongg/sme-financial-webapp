@@ -22,7 +22,7 @@ export const workspaceEn = {
   names: {
     'health-score': 'Financial health', 'health-components': 'Health components', 'score-completeness': 'Score completeness', 'cash-flow': 'Cash flow history',
     'cash-projection': 'Cash flow outlook', 'financial-evidence': 'Financial evidence', 'next-step': 'Your next step', 'recommendation': 'Recommendation actions',
-    'financial-summary': 'Revenue and expenses', 'ai-explanation': 'Financial explanation', 'document-workflow': 'Document history',
+    'financial-summary': 'Financial overview', 'ai-explanation': 'Financial explanation', 'document-workflow': 'Document history',
     'inventory': 'Inventory and materials', 'receivables': 'Customer receivables', 'payables': 'Supplier payments', 'projects': 'Active projects',
     'costing': 'Estimates and costing', 'profitability': 'Profitability', 'budgets': 'Budgets', 'funding-gap': 'Funding gaps',
     'transactions': 'Transactions and accounts', 'invoices': 'Invoices and billing', 'production': 'Production and samples', 'commissions': 'Commissions', 'multi-currency': 'Foreign currency', 'reports': 'Business reports',
@@ -60,7 +60,7 @@ export const workspaceUr: Copy = {
   names: {
     'health-score': 'مالی صحت', 'health-components': 'مالی صحت کے اجزا', 'score-completeness': 'اسکور کی تکمیل', 'cash-flow': 'نقد بہاؤ کی تاریخ',
     'cash-projection': 'نقد بہاؤ کا تخمینہ', 'financial-evidence': 'مالی شواہد', 'next-step': 'آپ کا اگلا قدم', 'recommendation': 'سفارش پر کارروائی',
-    'financial-summary': 'آمدنی اور اخراجات', 'ai-explanation': 'مالی وضاحت', 'document-workflow': 'دستاویزات کی تاریخ',
+    'financial-summary': 'مالی جائزہ', 'ai-explanation': 'مالی وضاحت', 'document-workflow': 'دستاویزات کی تاریخ',
     'inventory': 'اسٹاک اور مواد', 'receivables': 'گاہکوں سے وصولیاں', 'payables': 'سپلائر ادائیگیاں', 'projects': 'جاری منصوبے',
     'costing': 'تخمینے اور لاگت', 'profitability': 'منافع', 'budgets': 'بجٹ', 'funding-gap': 'فنڈنگ کی کمی',
     'transactions': 'لین دین اور کھاتے', 'invoices': 'انوائسز اور بلنگ', 'production': 'پیداوار اور نمونے', 'commissions': 'کمیشن', 'multi-currency': 'غیر ملکی کرنسی', 'reports': 'کاروباری رپورٹس',

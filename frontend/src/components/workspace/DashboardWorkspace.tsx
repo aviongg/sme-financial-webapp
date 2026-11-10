@@ -58,7 +58,7 @@ export function DashboardWorkspace({ initial, retry }: { initial: DashboardWorks
     .filter(widget => !widget.hidden && catalog.get(widget.key)?.available && implementedWidgetKeys.has(widget.key))
     .sort((a, b) => a.order - b.order);
   const preview = editing || presetKey !== null;
-  const empty = current.records.length === 0 && !current.dashboard.score && !preview;
+  const empty = current.records.length === 0 && !current.dashboard.score && !preview && !widgets.some(widget => widget.key === 'financial-summary');
   const versions = { version: saved.preferenceVersion, registryVersion: saved.registryVersion, configurationVersion: saved.configurationVersion };
   const startEditing = () => { setDraft(editableLayout(saved)); setDraftPreview(false); setError(''); setMessage(''); setConflict(false); setResetConfirm(false); };
   const cancel = () => { setDraft(null); setDraftPreview(false); setError(''); setMessage(''); setConflict(false); };

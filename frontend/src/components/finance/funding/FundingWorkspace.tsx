@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/components/auth/SessionProvider';
 import { useLanguage } from '@/lib/i18n/context';
 import { fundingCopy } from '@/lib/i18n/translations/funding';
-import { ApiError } from '@/lib/api/client';
 import { normalizeAmountInput } from '@/lib/utils/amount-input';
 import { formatPkr } from '@/lib/utils/decimal-display';
 import { isCalendarDate } from '@/lib/api/dev-a/account-contracts';
@@ -15,7 +14,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { CashEventEditor } from './CashEventEditor';
 import { FundingResults, type FundingComparisonView } from './FundingResults';
 import { cloneEvents, endDate, eventErrors, type FundingAssumptions, type PlannedEvent } from './funding-input';
-import { compareFundingScenarios } from '@/lib/api/dev-a/funding';
+import { compareFundingScenarios, fundingError } from '@/lib/api/dev-a/funding';
 /** Editor input is not a wire DTO. Mapping must follow the published C06 contract. */
 export type FundingEditorInput = { assumptions: FundingAssumptions; baseline: PlannedEvent[]; alternative: PlannedEvent[] };
 export type FundingCompare = (input: FundingEditorInput, signal: AbortSignal) => Promise<FundingComparisonView>;
@@ -51,13 +50,12 @@ function FundingForm({ compare, authorized }: { compare?: FundingCompare; author
    setResult(response); requestAnimationFrame(() => resultRegion.current?.focus());
   } catch (error) {
    if (controller.signal.aborted || request.current !== controller) return;
-   setMessage(error instanceof ApiError ? error.status === 403 ? 'forbidden' : error.status === 401 ? 'expired' : error.status === 400 ? 'invalid' : error.status === 409 ? 'unavailableLedger' : 'error' : error instanceof Error && error.name === 'InvalidFundingResponse' ? 'malformed' : 'error');
+   setMessage(fundingError(error));
   } finally { if (!controller.signal.aborted && request.current === controller) { request.current = null; setBusy(false); } }
  };
  return <div className="min-w-0 space-y-6">
   <p className="text-[var(--color-text-secondary)]">{copy.intro}</p>
   <Card className="border-s-4 border-s-[var(--color-brand-primary)]"><p className="text-sm">{copy.notice}</p></Card>
-  {!compare && <p role="status" className="text-sm">{copy.contractPending}</p>}
   <form ref={form} noValidate aria-label={copy.assumptions} onSubmit={e => { e.preventDefault(); void submit(); }} className="min-w-0 space-y-5">
    <Card className="space-y-4"><h2 className="text-lg font-semibold">{copy.assumptions}</h2><fieldset disabled={busy || !authorized} className="grid min-w-0 gap-4 sm:grid-cols-2">
     <Input label={copy.start} type="date" dir="ltr" value={assumptions.startDate} onChange={e => updateAssumptions({startDate:e.target.value})} error={errors && !isCalendarDate(assumptions.startDate) ? copy.validDate : undefined} />

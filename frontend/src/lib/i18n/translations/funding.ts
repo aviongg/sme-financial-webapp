@@ -1,5 +1,5 @@
 export const fundingEn = {
- title: 'Funding & scenarios', intro: 'Explore planned receipts, payments and timing before making a decision.',
+ peakDate: 'Peak deficit date', interpretation: 'How to read this plan', netting: 'Same-day events are netted at the end of each day. You may need cash earlier within that day.', noAutomaticSources: 'Only the events you entered are projected here. Invoices, obligations and other schedules are not added automatically.', serverNotes: 'Original server evidence and limitations (English)', title: 'Funding & scenarios', intro: 'Explore planned receipts, payments and timing before making a decision.',
  notice: 'Planning only. Comparing scenarios does not post transactions, change account balances or arrange financing.',
  assumptions: 'Scenario assumptions', start: 'Forecast starts', horizon: 'Forecast horizon', days: 'days', currency: 'Currency',
  source: 'Opening liquidity source', ledger: 'Posted account cash', manual: 'User assumption', opening: 'Assumed opening liquidity',
@@ -27,7 +27,7 @@ export const fundingEn = {
 };
 export type FundingCopy = { [K in keyof typeof fundingEn]: string };
 export const fundingUr: FundingCopy = {
- title: 'فنڈنگ اور مالی منظرنامے', intro: 'فیصلے سے پہلے منصوبہ بند وصولیوں، ادائیگیوں اور اوقات کا جائزہ لیں۔',
+ peakDate: 'سب سے زیادہ کمی کی تاریخ', interpretation: 'منصوبہ کیسے سمجھیں', netting: 'ایک دن کے واقعات کا اثر دن کے اختتام پر ملایا جاتا ہے۔ دن کے دوران پہلے نقد رقم درکار ہو سکتی ہے۔', noAutomaticSources: 'یہاں صرف آپ کے درج کردہ منصوبہ بند واقعات شامل ہیں۔ انوائس، واجبات اور دیگر شیڈول خودکار طور پر شامل نہیں ہوتے۔', serverNotes: 'سرور کے اصل شواہد اور حدود (انگریزی)', title: 'فنڈنگ اور مالی منظرنامے', intro: 'فیصلے سے پہلے منصوبہ بند وصولیوں، ادائیگیوں اور اوقات کا جائزہ لیں۔',
  notice: 'صرف منصوبہ بندی۔ موازنہ کوئی لین دین درج نہیں کرتا، اکاؤنٹ کا بیلنس نہیں بدلتا اور قرض کا انتظام نہیں کرتا۔',
  assumptions: 'منظرنامے کے مفروضے', start: 'پیشگوئی کا آغاز', horizon: 'پیشگوئی کی مدت', days: 'دن', currency: 'کرنسی', source: 'ابتدائی نقد رقم کا ماخذ', ledger: 'درج شدہ اکاؤنٹ کی نقد رقم', manual: 'صارف کا مفروضہ', opening: 'فرض کردہ ابتدائی نقد رقم',
  openingHelp: 'یہ مفروضہ ہے، تصدیق شدہ اکاؤنٹ کی رقم نہیں۔ غیر منفی رقم درج کریں۔', ledgerHelp: 'سرور آپ کے فعال کاروبار کی مجاز درج شدہ نقد رقم لیتا ہے۔ غیر دستیاب معلومات کو صفر نہیں سمجھا جاتا۔',

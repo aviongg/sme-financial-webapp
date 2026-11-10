@@ -6,8 +6,8 @@ export type FundingAssumptions = { startDate: string; horizonDays: number; sourc
 export type EventErrors = Partial<Record<'date' | 'description' | 'amountText', 'validDate' | 'outside' | 'required' | 'tooLong' | 'positive'>>;
 /** Calendar helpers and exact input normalization only; no financial projections are calculated here. */
 export function endDate(start: string, days: number): string {
- if (!isCalendarDate(start) || !Number.isInteger(days) || days < 1 || days > 366) return '';
- const date = new Date(start + 'T00:00:00Z'); date.setUTCDate(date.getUTCDate() + days - 1); return date.toISOString().slice(0, 10);
+ if (!isCalendarDate(start) || !Number.isInteger(days) || days < 0 || days > 366) return '';
+ const date = new Date(start + 'T00:00:00Z'); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10);
 }
 export function eventErrors(event: PlannedEvent, start: string, end: string): EventErrors {
  const errors: EventErrors = {};

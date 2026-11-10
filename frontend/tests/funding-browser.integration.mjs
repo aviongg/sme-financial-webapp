@@ -69,6 +69,7 @@ let nextProc;
 let gatewayServer;
 let browser;
 let javaOutput = '';
+let acceptancePage;
 let nextOutput = '';
 
 async function runCommand(executable, args, options = {}) {
@@ -150,6 +151,7 @@ public class FundingLiveRuntime {
                 "--app.whatsapp.scheduler.enabled=false", "--finsight.crypto.keys.k1=" + key,
                 "--app.security.cors.allowed-origins=${origin}", "--logging.level.root=WARN");
 
+            try(var c=pg.getPostgresDatabase().getConnection();var st=c.createStatement();var rr=st.executeQuery("SELECT current_database(), inet_server_port(), inet_server_addr(), (SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1)")) { rr.next();System.out.println("LIVE_IDENTITY:"+rr.getString(1)+":"+rr.getString(2)+":"+rr.getString(3)+":V"+rr.getString(4)); }
             System.out.println("LIVE_READY");
             System.out.println("LIVE_DB_PORT:" + pg.getPort());
             System.out.flush();
@@ -199,7 +201,7 @@ public class FundingLiveRuntime {
   });
 
   await waitFor(() => javaOutput.includes('LIVE_READY'), 'Spring Boot backend', 120000);
-  console.log('Spring Boot backend is LIVE_READY!');
+  console.log('Spring Boot backend is LIVE_READY!');writeFileSync(path.join(outDir,'runtime-identity.txt'),javaOutput.match(/LIVE_IDENTITY:[^\r\n]+/)?.[0]??'Identity unavailable');
 
   async function queryMutationCounts(tag) {
     const offset = javaOutput.length;
@@ -236,7 +238,7 @@ public class FundingLiveRuntime {
   for (const item of neededBuildArtifacts) {
     const src = path.join(frontendDir, '.next', item);
     const dst = path.join(isolatedNext, item);
-    if (existsSync(src) && !existsSync(dst)) {
+    if (existsSync(src)) {
       cpSync(src, dst, { recursive: true });
     }
   }
@@ -283,8 +285,7 @@ public class FundingLiveRuntime {
   // 4. Start transparent reverse gateway on port 3580
   console.log('Starting reverse gateway on port', gatewayPort);
   gatewayServer = http.createServer((req, res) => {
-    const isApi = req.url.startsWith('/api/') || req.url === '/api';
-    const targetPort = isApi ? backendPort : nextPort;
+    const targetPort = nextPort; // All API calls pass through the production Next rewrite to Spring.
     const upstream = http.request(
       {
         hostname: '127.0.0.1',
@@ -453,6 +454,9 @@ public class FundingLiveRuntime {
   // Switch back to Business A
   await apiCall('POST', '/businesses/active', { businessId: businessAId });
 
+  const emptyBiz=await apiCall('POST','/businesses',{businessName:'Funding no-account test',businessType:'services',languagePreference:'en',whatsappOptIn:false});
+  assert.equal(emptyBiz.status,201);const emptyBusinessId=emptyBiz.json.businessId;
+  await apiCall('POST','/businesses/active',{businessId:businessAId});
   // Baseline mutation counts
   const baselineMutationCounts = await queryMutationCounts('baseline');
   console.log('Baseline database row counts:', baselineMutationCounts);
@@ -479,7 +483,7 @@ public class FundingLiveRuntime {
   }));
   await browserContext.addCookies(cookiesToInject);
 
-  const page = await browserContext.newPage();
+  const page = await browserContext.newPage();acceptancePage=page;
   const browserErrors = [];
   page.on('pageerror', (e) => {
     console.log('PAGE ERROR:', e.message);
@@ -541,6 +545,7 @@ public class FundingLiveRuntime {
   const baseInflowDesc2 = baselineCard.getByLabel('Description').nth(2);
   await baseInflowDesc2.fill('Customer payment installment 2');
 
+  const comparisonResponses=[];page.on('response',async r=>{if(r.url().endsWith('/api/finance/funding/scenarios/compare')&&r.request().method()==='POST'&&r.status()===200)comparisonResponses.push(await r.json());});
   // Submit Compare
   await page.getByRole('button', { name: 'Compare scenarios' }).click();
   await page.getByRole('heading', { name: 'Scenario comparison' }).waitFor({ timeout: 15000 });
@@ -573,12 +578,29 @@ public class FundingLiveRuntime {
   await page.getByRole('button', { name: 'Compare scenarios' }).click();
   await page.getByRole('heading', { name: 'Scenario comparison' }).waitFor({ timeout: 15000 });
 
+  const alternativeEditor=page.getByRole('form',{name:'Scenario assumptions',exact:true}).locator('div',{has:page.getByRole('heading',{name:'Alternative',exact:true})}).last();
+  await alternativeEditor.getByLabel('Amount (PKR)').first().fill('30000');
+  const changedResponse=page.waitForResponse(r=>r.url().endsWith('/api/finance/funding/scenarios/compare')&&r.request().method()==='POST');
+  await page.getByRole('button',{name:'Compare scenarios',exact:true}).click();
+  const changed=await changedResponse;assert.equal(changed.status(),200);const comparison=await changed.json();
+  assert.equal(comparison.baseline.peakFundingRequirement,'60000.00');assert.equal(comparison.alternative.peakFundingRequirement,'30000.00');
+  assert.equal(comparison.comparison.peakFundingDifference,'-30000.00');assert.equal(comparison.alternative.closingProjectedLiquidity,'40000.00');
+  await page.getByRole('heading',{name:'Scenario comparison',exact:true}).waitFor();
+  writeFileSync(path.join(outDir,'actual-c06-response.json'),JSON.stringify(comparison,null,2));
   // Verify SVG Chart renders 2 polylines (baseline + alternative)
   const svg = page.locator('svg[role="img"]').first();
   await svg.waitFor();
   const polylines = svg.locator('polyline');
   assert.equal(await polylines.count(), 2, 'Must render 2 polylines (baseline and alternative)');
-  mark('Scenario 6: Baseline versus alternative comparison rendered with SVG curves and zero delta');
+  mark('Scenario 6: Baseline versus alternative comparison rendered with actual -30000.00 funding delta, 40000.00 alternative closing and SVG curves');
+  await page.getByRole('button',{name:'Copy baseline to alternative',exact:true}).click();
+  const replaceDialog=page.getByRole('dialog',{name:'Replace the alternative?',exact:true});await replaceDialog.waitFor();await page.keyboard.press('Escape');await replaceDialog.waitFor({state:'hidden'});
+  assert.equal(await alternativeEditor.getByLabel('Amount (PKR)').first().inputValue(),'30000');
+  mark('Funding keyboard: cancel replacement dialog preserves alternative edits');
+  await page.getByText('Daily numerical values',{exact:true}).click();await page.getByText('-60,000.00 PKR',{exact:true}).first().waitFor();
+  await page.screenshot({path:path.join(outDir,'funding-manual-comparison.png'),fullPage:true});
+  await page.getByText('Daily numerical values',{exact:true}).click();
+
 
   // --- SCENARIO 7: LEDGER_CASH sourced from real posted financial accounts in PostgreSQL ---
   await sourceSelect.selectOption('LEDGER');
@@ -734,6 +756,62 @@ public class FundingLiveRuntime {
   assert.deepEqual(browserErrors, [], `Expected zero browser errors, got: ${JSON.stringify(browserErrors)}`);
   mark('Scenario 11: English/Urdu RTL and mobile 390x844 presentation verified with zero horizontal overflow');
 
+  async function switchBrowserBusiness(businessId){
+   const csrf=await (await browserContext.request.get(origin+'/api/auth/csrf')).json();
+   const response=await browserContext.request.post(origin+'/api/businesses/active',{data:{businessId},headers:{[csrf.headerName]:csrf.token}});assert.equal(response.status(),200);
+   await page.evaluate(()=>window.dispatchEvent(new Event('finsight-business-changed')));
+  }
+  // Real F13 dashboard evidence; no layout/preferences writes.
+  await page.setViewportSize({width:1440,height:900});
+  if(await page.locator('html').getAttribute('dir')==='rtl')await page.getByRole('button',{name:'English',exact:true}).click();
+  const requests=[];page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/'))requests.push({method:r.method(),path:new URL(r.url()).pathname});});
+  await page.goto(origin+'/');
+  const finance=page.getByTestId('dashboard-live-finance');await finance.waitFor();
+  await finance.getByRole('heading',{name:'Cash position by currency',exact:true}).waitFor();
+  await finance.getByText('105,000.00 PKR',{exact:true}).first().waitFor();
+  const cash=await apiCall('GET','/finance/query/cash-position');
+  assert.equal(cash.status,200);assert.equal(cash.json.data.currencySummaries.find(c=>c.currency==='PKR').currentBalance,'105000.00');
+  const forecast=await apiCall('GET','/finance/forecast/daily?currency=PKR&horizonDays=30');assert.equal(forecast.status,200);
+  const metric=forecast.json.summary.maximumExpectedShortfall;await finance.getByText(metric.replace(/\B(?=(\d{3})+(?!\d))/g,',')+' PKR',{exact:true}).first().waitFor();
+  await page.screenshot({path:path.join(outDir,'dashboard-desktop-en.png'),fullPage:true});
+  assert.equal(requests.some(r=>r.path==='/api/workspace/preferences'&&r.method!=='GET'),false);
+  mark('Dashboard: F13 financial-summary renders posted cash, forecast funding and source labels without changing saved preferences');
+  await page.getByRole('button',{name:'اردو',exact:true}).click();await page.waitForFunction(()=>document.documentElement.dir==='rtl');await page.getByRole('heading',{name:'تازہ مالی جائزہ',exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);await page.screenshot({path:path.join(outDir,'dashboard-mobile-ur.png'),fullPage:true});
+  mark('Dashboard: Urdu RTL and 390x844 layout without horizontal overflow');
+  await page.setViewportSize({width:1440,height:900});
+  await page.getByRole('button',{name:'English',exact:true}).click();
+  // Switch the real authenticated context, notify the established provider and verify new cash replaces old cash.
+  await switchBrowserBusiness(businessBId);
+  await page.getByTestId('dashboard-live-finance').getByText('50,000.00 PKR',{exact:true}).first().waitFor();
+  assert.equal(await page.getByTestId('dashboard-live-finance').getByText('105,000.00 PKR',{exact:true}).count(),0);
+  await switchBrowserBusiness(businessAId);
+  await page.getByTestId('dashboard-live-finance').getByText('105,000.00 PKR',{exact:true}).first().waitFor();
+  mark('Dashboard: real business transition discards old financial evidence');
+  writeFileSync(path.join(outDir,'dashboard-api-evidence.json'),JSON.stringify({cash:cash.json,forecast:forecast.json.summary,requests,financialMocks:false},null,2));
+
+  // True backend validation and missing-evidence states; no fabricated responses.
+  const invalidRequest={currency:'USD',asOfDate:'2026-11-01',horizonDays:30,openingLiquidity:{source:'MANUAL_ASSUMPTION',manualAmount:'0.00'},baselineScenario:{scenarioName:'Baseline',events:[]}};
+  assert.equal((await apiCall('POST','/finance/funding/scenarios/compare',invalidRequest)).status,400);
+  assert.equal((await apiCall('POST','/finance/funding/scenarios/compare',{...invalidRequest,currency:'PKR',horizonDays:91})).status,400);
+  await switchBrowserBusiness(emptyBusinessId);
+  await page.goto(origin+'/finance/funding');
+  const missingResponse=page.waitForResponse(r=>r.url().endsWith('/api/finance/funding/scenarios/compare')&&r.request().method()==='POST');
+  await page.getByRole('button',{name:'Compare scenarios',exact:true}).click();assert.equal((await missingResponse).status(),400);
+  await page.getByText('Posted cash evidence is unavailable. Review your accounts or choose an explicit user assumption.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Scenario comparison',exact:true}).count(),0);
+  await switchBrowserBusiness(businessAId);
+  mark('Real error states: unsupported currency/horizon 400; unavailable ledger evidence is visible and never zero');
+  // Isolated account-free manual case genuinely never recovers; not a fabricated result fixture.
+  await page.goto(origin+'/finance/funding');
+  await page.getByLabel('Opening liquidity source',{exact:true}).selectOption('MANUAL');await page.getByLabel('Assumed opening liquidity',{exact:true}).fill('0');
+  const noRecoveryEditor=page.getByRole('form',{name:'Scenario assumptions',exact:true}).locator('div',{has:page.getByRole('heading',{name:'Baseline',exact:true})}).last();
+  await noRecoveryEditor.getByRole('button',{name:'Add planned outflow',exact:true}).click();await noRecoveryEditor.getByLabel('Amount (PKR)',{exact:true}).fill('100');await noRecoveryEditor.getByLabel('Description',{exact:true}).fill('No recovery test');
+  const nonRecovering=page.waitForResponse(r=>r.url().endsWith('/api/finance/funding/scenarios/compare')&&r.request().method()==='POST');await page.getByRole('button',{name:'Compare scenarios',exact:true}).click();
+  const deficitResponse=await nonRecovering;assert.equal(deficitResponse.status(),200);assert.equal((await deficitResponse.json()).baseline.recoveryDate,null);await page.getByText('No recovery within this horizon',{exact:true}).waitFor();
+  mark('Funding real no-recovery state: 100.00 payment and no receipts remains a projected deficit');
+
+
   // --- SCENARIO 12: Zero financial database mutations ---
   const closureMutationCounts = await queryMutationCounts('closure');
   console.log('Closure database row counts:', closureMutationCounts);
@@ -744,14 +822,21 @@ public class FundingLiveRuntime {
   );
   mark('Scenario 12: Zero financial database mutations verified before and after all scenario runs');
 
+  assert.deepEqual(browserErrors,[], 'No browser exceptions or CSP failures after dashboard/error journeys');
   writeFileSync(
     path.join(outDir, 'results.json'),
-    JSON.stringify({ checks, errors: browserErrors, status: 'SUCCESS' }, null, 2)
+    JSON.stringify({ checks, comparisonResponses, errors: browserErrors, status: 'SUCCESS' }, null, 2)
   );
 
   console.log('\n===============================================================');
-  console.log('--- ALL 12 REAL FULL-STACK HTTP INTEGRATION SCENARIOS PASSED ---');
+  console.log('--- ALL '+checks.length+' REAL FULL-STACK CHECKS PASSED ---');
   console.log('===============================================================\n');
+} catch(error) {
+  const failure={status:'FAILED',checks,error:error.message,mockedFinancialAPIs:false};
+  writeFileSync(path.join(outDir,'failure.json'),JSON.stringify(failure,null,2));
+  writeFileSync(path.join(outDir,'results.json'),JSON.stringify(failure,null,2));
+  if(acceptancePage)await acceptancePage.screenshot({path:path.join(outDir,'failure.png'),fullPage:true}).catch(()=>{});
+  throw error;
 } finally {
   console.log('Cleaning up processes and resources...');
   if (browser) {
