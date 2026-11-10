@@ -95,7 +95,7 @@ public class ProjectFinancialAttributionService {
 
             BigDecimal activeAttributed = attributionRepository.sumAttributedAmountBySource(
                     businessId, AttributionSourceType.TRANSACTION, txId, AttributionStatus.ACTIVE
-            );
+            ).add(otherAuthorityClaims(businessId, txId));
             BigDecimal remaining = totalAmount.subtract(activeAttributed);
             if (remaining.compareTo(BigDecimal.ZERO) > 0) {
                 eligibleItems.add(new EligibleSourceItem(
@@ -288,9 +288,14 @@ public class ProjectFinancialAttributionService {
         }
 
         // 3. Enforce Split Allocation Limits Across All Projects
+        if (request.sourceType() == AttributionSourceType.TRANSACTION) {
+            // Same advisory lock as F09 sample attribution: one payment, one total attribution budget.
+            jdbcTemplate.queryForList("SELECT pg_advisory_xact_lock(hashtext(?))", "ledger-tx:" + request.sourceId());
+        }
         BigDecimal currentActiveAttributed = attributionRepository.sumAttributedAmountBySource(
                 businessId, request.sourceType(), request.sourceId(), AttributionStatus.ACTIVE
-        );
+        ).add(request.sourceType() == AttributionSourceType.TRANSACTION
+                ? otherAuthorityClaims(businessId, request.sourceId()) : BigDecimal.ZERO);
         BigDecimal remainingEligible = sourceEligibleAmount.subtract(currentActiveAttributed);
         if (request.amount().compareTo(remainingEligible) > 0) {
             throw new AttributionValidationException(
@@ -408,5 +413,21 @@ public class ProjectFinancialAttributionService {
             a.setReversedBy(userId);
             attributionRepository.save(a);
         }
+    }
+
+    /**
+     * Product-completion guard: amounts of a ledger payment already claimed by F09 sample actual costs or
+     * capitalized into F08 inventory cannot also be attributed to a project (no double counting).
+     */
+    private BigDecimal otherAuthorityClaims(UUID businessId, UUID transactionId) {
+        BigDecimal samples = jdbcTemplate.queryForObject("SELECT COALESCE(sum(amount), 0) FROM sample_actual_costs "
+                + "WHERE business_id = ? AND transaction_id = ? AND status = 'EFFECTIVE'", BigDecimal.class, businessId, transactionId);
+        BigDecimal capitalized = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(sum(m.value_delta), 0) FROM inventory_movements m
+                WHERE m.business_id = ? AND m.source_type = 'TRANSACTION' AND m.source_id = ? AND m.movement_type = 'RECEIPT'
+                  AND NOT EXISTS (SELECT 1 FROM inventory_movements x WHERE x.business_id = m.business_id
+                                  AND x.related_movement_id = m.id AND x.movement_type = 'REVERSAL')
+                """, BigDecimal.class, businessId, transactionId);
+        return (samples == null ? BigDecimal.ZERO : samples).add(capitalized == null ? BigDecimal.ZERO : capitalized);
     }
 }

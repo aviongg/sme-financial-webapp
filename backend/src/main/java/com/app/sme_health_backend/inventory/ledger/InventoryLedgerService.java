@@ -430,8 +430,16 @@ public class InventoryLedgerService {
             throw DomainException.conflict("transaction_not_capitalizable",
                     "Only an un-reversed operating payment can be capitalized into inventory.");
         }
+        jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext(?))", "ledger-tx:" + spec.sourceId());
+        BigDecimal otherClaims = jdbc.queryForObject("""
+                SELECT COALESCE((SELECT sum(amount) FROM sample_actual_costs WHERE business_id = ? AND transaction_id = ?
+                                 AND status = 'EFFECTIVE'), 0)
+                     + COALESCE((SELECT sum(base_amount) FROM project_financial_attributions WHERE business_id = ?
+                                 AND source_type = 'TRANSACTION' AND source_id = ? AND status = 'ACTIVE'), 0)
+                """, BigDecimal.class, businessId, spec.sourceId(), businessId, spec.sourceId());
         BigDecimal capacity = ((BigDecimal) tx.get("base_amount_pkr"))
-                .subtract(repository.effectiveCapitalizedFromTransaction(businessId, spec.sourceId()));
+                .subtract(repository.effectiveCapitalizedFromTransaction(businessId, spec.sourceId()))
+                .subtract(otherClaims == null ? BigDecimal.ZERO : otherClaims);
         if (spec.value().compareTo(capacity) > 0) {
             throw DomainException.conflict("capitalization_exceeds_payment",
                     "The receipt value exceeds the uncapitalized amount of the payment (" + capacity.stripTrailingZeros().toPlainString() + ").");
