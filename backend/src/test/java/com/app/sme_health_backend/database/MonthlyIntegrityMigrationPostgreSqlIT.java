@@ -75,7 +75,7 @@ class MonthlyIntegrityMigrationPostgreSqlIT extends DisposablePostgres {
             try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
                 List<String> versions = new ArrayList<>();
                 while (rs.next()) versions.add(rs.getString(1));
-                assertEquals(java.util.stream.IntStream.rangeClosed(1, 37).mapToObj(String::valueOf).toList(), versions,
+                assertEquals(com.app.sme_health_backend.testsupport.MigrationHistory.expected(), versions,
                         "The unified schema contains V1-V37 contiguous");
             }
             assertPrivileges(admin, "public");

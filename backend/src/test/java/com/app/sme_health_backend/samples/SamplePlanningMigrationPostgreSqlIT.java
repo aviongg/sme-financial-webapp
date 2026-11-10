@@ -22,7 +22,7 @@ class SamplePlanningMigrationPostgreSqlIT extends DisposablePostgres {
         try(var connection=POSTGRES.getPostgresDatabase().getConnection();var sql=connection.createStatement()) {
             List<String> versions=new ArrayList<>();
             try(var rows=sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {while(rows.next())versions.add(rows.getString(1));}
-            List<String> expected=new ArrayList<>();for(int i=1;i<=37;i++)expected.add(String.valueOf(i));
+            List<String> expected=com.app.sme_health_backend.testsupport.MigrationHistory.expected();
             assertEquals(expected,versions);privileges(sql,"public");
         }
     }

@@ -582,11 +582,10 @@ class FinancialQueryPostgreSqlIT extends DisposablePostgres {
         assertNull(p2.data());
         assertTrue(p2.unavailableReason().contains("F07"));
 
+        // Product completion: margin drivers are backed by F08 + accrual P&L (no longer UNAVAILABLE).
         var p3 = financialQueryFacade.getMarginDrivers(contextA, "cogs");
-        assertEquals(CapabilityStatus.UNAVAILABLE, p3.status());
-        assertEquals(DataCompleteness.EMPTY, p3.completeness());
-        assertNull(p3.data());
-        assertTrue(p3.unavailableReason().contains("F08"));
+        assertEquals(CapabilityStatus.AVAILABLE, p3.status());
+        assertNotNull(p3.data());
 
         var p4 = financialQueryFacade.getFxSettlementImpact(contextA, "fx");
         assertEquals(CapabilityStatus.UNAVAILABLE, p4.status());
@@ -634,7 +633,7 @@ class FinancialQueryPostgreSqlIT extends DisposablePostgres {
             mockMvc.perform(withSession(get("/api/finance/query/capabilities"), session))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.businessId").value(businessIdA.toString()))
-                    .andExpect(jsonPath("$.capabilities.length()").value(7));
+                    .andExpect(jsonPath("$.capabilities.length()").value(13));
 
             mockMvc.perform(withSession(get("/api/finance/query/cash-position")
                             .param("businessId", businessIdB.toString())

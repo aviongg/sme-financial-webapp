@@ -33,7 +33,7 @@ class EstimatePlanningMigrationPostgreSqlIT extends DisposablePostgres {
             try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
                 while (rs.next()) versions.add(rs.getString(1));
             }
-            assertEquals(java.util.stream.IntStream.rangeClosed(1, 37).mapToObj(String::valueOf).toList(), versions);
+            assertEquals(com.app.sme_health_backend.testsupport.MigrationHistory.expected(), versions);
             for (String table : TABLES) {
                 try (var rs = sql.executeQuery("SELECT to_regclass('public." + table + "') IS NOT NULL")) {
                     assertTrue(rs.next());

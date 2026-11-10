@@ -23,10 +23,11 @@ class EstimatePreviewBoundaryTests {
         when(authorization.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ)).thenThrow(new AccessDeniedException("Denied"));
         assertThrows(AccessDeniedException.class, () -> new EstimatePreviewController(authorization, calculator).preview(request));
         verifyNoInteractions(calculator);
-        // There is no disallowed active business-role enum in this MVP: every current role has FINANCIAL_DATA_READ.
+        // Every business role except the row-scoped SALESPERSON (F10) has FINANCIAL_DATA_READ.
         var realAuthorization = new BusinessAuthorizationService(mock(ActiveBusinessContext.class));
         assertFalse(realAuthorization.hasRolePermission(null, BusinessPermission.FINANCIAL_DATA_READ));
-        for (var role : MembershipRole.values()) assertTrue(realAuthorization.hasRolePermission(role, BusinessPermission.FINANCIAL_DATA_READ));
+        for (var role : MembershipRole.values()) assertEquals(role != MembershipRole.SALESPERSON,
+                realAuthorization.hasRolePermission(role, BusinessPermission.FINANCIAL_DATA_READ), role.name());
     }
     @Test void unknownContentLengthBodyStillHasHardByteBoundBeforeJsonParsing() throws Exception {
         var request = new MockHttpServletRequest() { @Override public long getContentLengthLong() { return -1; } };

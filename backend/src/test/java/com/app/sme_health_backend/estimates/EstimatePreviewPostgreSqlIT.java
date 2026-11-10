@@ -102,7 +102,8 @@ class EstimatePreviewPostgreSqlIT extends com.app.sme_health_backend.testsupport
     @Test void everyExistingFinancialReadRoleIsAllowedButSuspendedAndRemovedMembershipsAreDenied() throws Exception {
         var f = fixture(); var session = login(f);
         var membership = memberships.findByUserIdAndBusinessId(f.user.getId(), f.businessId).orElseThrow();
-        for (MembershipRole role : MembershipRole.values()) {
+        // SALESPERSON (F10) is row-scoped to commissions and has no FINANCIAL_DATA_READ.
+        for (MembershipRole role : java.util.EnumSet.complementOf(java.util.EnumSet.of(MembershipRole.SALESPERSON))) {
             membership.setRole(role); memberships.saveAndFlush(membership);
             preview(session, VALID).andExpect(status().isOk());
         }
