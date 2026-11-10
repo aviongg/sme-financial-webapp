@@ -100,6 +100,8 @@ public class SecurityConfig {
                         .csrfTokenRepository(tokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers("/api/auth/password-reset/**")
+                        // Meta webhook: no browser session; authenticated by X-Hub-Signature-256 HMAC instead.
+                        .ignoringRequestMatchers("/api/whatsapp/webhook")
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -119,6 +121,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/change-password").permitAll()
                         .requestMatchers("/api/auth/mfa/**").permitAll()
+                        .requestMatchers("/api/whatsapp/webhook").permitAll()
                         .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
