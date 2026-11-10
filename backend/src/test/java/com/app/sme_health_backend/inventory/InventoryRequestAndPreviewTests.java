@@ -67,9 +67,9 @@ class InventoryRequestAndPreviewTests {
         assertFalse(response.authoritative());
         assertFalse(response.persisted());
         assertEquals("NONE", response.financialEffect());
-        assertEquals("f08-wac-draft-1", response.policy().version());
-        assertEquals("DRAFT_NOT_APPROVED_ACCOUNTING_POLICY", response.policy().status());
-        assertEquals("HALF_EVEN", response.policy().valueRounding());
+        assertEquals("f08-wac-v1", response.policy().version());
+        assertEquals("APPROVED", response.policy().status());
+        assertEquals("HALF_UP", response.policy().valueRounding());
         assertEquals(new ValuationPreviewResponse.State("10", "1000.0000", "100.000000"), response.opening());
         assertEquals(new ValuationPreviewResponse.State("20", "3000.0000", "150.000000"), response.steps().get(0).after());
         assertEquals("2000.0000", response.steps().get(0).receiptValue());
