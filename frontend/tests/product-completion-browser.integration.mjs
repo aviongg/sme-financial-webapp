@@ -174,6 +174,9 @@ public class ProductRuntime {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.addCookies(cookies);
   const page = await context.newPage();
+  // The app's CSP forbids eval, so poll locators from Node instead of page.waitForFunction.
+  const waitText = (testId, pattern) => waitFor(async () => pattern.test(await page.getByTestId(testId).first().innerText().catch(() => '')),
+    testId + ' ' + pattern, 30000);
   // F04: credit note through the lifecycle panel reduces outstanding.
   await page.goto(`${origin}/invoices/${invoiceId}`);
   await page.getByTestId('lifecycle-outstanding').waitFor();
@@ -181,11 +184,11 @@ public class ProductRuntime {
   await page.getByTestId('lifecycle-note-amount').fill('100.00');
   await page.getByTestId('lifecycle-note-reason').fill('Damaged bag discount');
   await page.getByTestId('lifecycle-note-submit').click();
-  await page.waitForFunction(() => document.querySelector('[data-testid="lifecycle-outstanding"]')?.textContent?.includes('3,500.00'), null, { timeout: 30000 });
+  await waitText('lifecycle-outstanding', /3,500\.00/);
   mark('F04 credit note issued in the browser reduces the authoritative outstanding to 3,500.00');
   // F08: fulfil from stock records COGS and the stock register reflects it.
   await page.getByTestId('lifecycle-fulfil-stock').click();
-  await page.waitForFunction(() => document.querySelector('[data-testid="lifecycle-stock-count"]')?.textContent === '1', null, { timeout: 30000 });
+  await waitText('lifecycle-stock-count', /^1$/);
   await page.goto(`${origin}/inventory/stock`);
   await page.getByTestId('stock-qty-BRW-1').waitFor();
   assert.match(await page.getByTestId('stock-qty-BRW-1').innerText(), /^6 bag/);
@@ -197,7 +200,7 @@ public class ProductRuntime {
   await page.getByTestId('stock-quantity').fill('2');
   await page.getByTestId('stock-value').fill('1100.00');
   await page.getByTestId('stock-value').press('Enter');
-  await page.waitForFunction(() => document.querySelector('[data-testid="stock-qty-BRW-1"]')?.textContent?.startsWith('8'), null, { timeout: 30000 });
+  await waitText('stock-qty-BRW-1', /^8/);
   mark('F08 receipt recorded from the form by keyboard (Enter) updates the register to 8 bags');
   // Planning: P&L uses recognized revenue, not cash collections.
   await page.goto(`${origin}/planning`);
@@ -205,8 +208,10 @@ public class ProductRuntime {
   assert.match(await page.getByTestId('pnl-revenue').innerText(), /4,734\.00/);
   await page.getByTestId('planning-tab-breakEven').click();
   await page.getByTestId('break-even-status').waitFor();
-  assert.equal(await page.getByTestId('break-even-status').innerText(), 'UNAVAILABLE');
-  mark('Planning: accrual revenue 4,734.00 (3,600 invoice − 100 note + 1,234 cash sale); break-even refuses unclassified costs');
+  // No operating expenses exist: variable = COGS 2,000 (policy), fixed = 0, so break-even revenue is exactly 0.00.
+  assert.equal(await page.getByTestId('break-even-status').innerText(), 'AVAILABLE');
+  assert.match(await page.getByTestId('break-even-revenue').innerText(), /^0\.00$/);
+  mark('Planning: accrual revenue 4,734.00 (3,600 invoice − 100 note + 1,234 cash sale); break-even 0.00 with only policy-variable COGS');
   // Copilot grounded answer, keyboard only.
   await page.goto(`${origin}/ask-finsight`);
   await page.getByTestId('copilot-question').waitFor();
