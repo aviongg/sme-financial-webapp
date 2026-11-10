@@ -587,11 +587,10 @@ class FinancialQueryPostgreSqlIT extends DisposablePostgres {
         assertEquals(CapabilityStatus.AVAILABLE, p3.status());
         assertNotNull(p3.data());
 
+        // F11 FX analytics is implemented (C09), so the tool is available with an evidence-backed payload.
         var p4 = financialQueryFacade.getFxSettlementImpact(contextA, "fx");
-        assertEquals(CapabilityStatus.UNAVAILABLE, p4.status());
-        assertEquals(DataCompleteness.EMPTY, p4.completeness());
-        assertNull(p4.data());
-        assertTrue(p4.unavailableReason().contains("F11"));
+        assertEquals(CapabilityStatus.AVAILABLE, p4.status());
+        assertNotNull(p4.data());
     }
 
     @Test

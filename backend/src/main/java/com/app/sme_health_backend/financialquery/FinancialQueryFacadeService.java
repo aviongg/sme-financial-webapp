@@ -720,6 +720,11 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                     "Project finance domain (F05) requires a valid project ID."
             );
         }
+        if (!projectExists(context, projectId)) {
+            // Pre-check: a failing inner @Transactional call would mark this read transaction rollback-only.
+            return FinancialQueryEnvelope.unavailable("getProjectFinancials", CONTRACT_VERSION, context.businessId(),
+                    "Project finance domain (F05): the project does not exist in the active business.");
+        }
         if (projectCommitmentService == null) {
             return FinancialQueryEnvelope.unavailable(
                     "getProjectFinancials",
@@ -785,6 +790,10 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     @Override
     public FinancialQueryEnvelope<ProjectFundingGapResult> getProjectFundingGap(BusinessAccessContext context, UUID projectId) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (projectId != null && !projectExists(context, projectId)) {
+            return FinancialQueryEnvelope.unavailable("getProjectFundingGap", CONTRACT_VERSION, context.businessId(),
+                    "Project funding gap analysis (F07): the project does not exist in the active business.");
+        }
         if (projectId == null) {
             return FinancialQueryEnvelope.unavailable(
                     "getProjectFundingGap",
@@ -1013,6 +1022,21 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
         this.planningService = planningService;
         this.breakEvenService = breakEvenService;
         this.projectProfitabilityService = projectProfitabilityService;
+    }
+
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired(required = false)
+    void setJdbcTemplate(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /** Tenant-scoped existence check; true when no JDBC is wired (unit-test constructors keep prior behaviour). */
+    private boolean projectExists(BusinessAccessContext context, UUID projectId) {
+        if (jdbcTemplate == null) return true;
+        Integer n = jdbcTemplate.queryForObject("SELECT count(*) FROM projects WHERE business_id = ? AND id = ?",
+                Integer.class, context.businessId(), projectId);
+        return n != null && n > 0;
     }
 
     private boolean productReady() {

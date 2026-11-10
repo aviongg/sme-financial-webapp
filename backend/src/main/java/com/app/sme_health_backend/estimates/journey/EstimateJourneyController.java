@@ -51,4 +51,28 @@ public class EstimateJourneyController {
         BusinessAccessContext ctx = authorization.requirePermission(request, BusinessPermission.FINANCIAL_DATA_READ);
         return ResponseEntity.ok().header("Cache-Control", "no-store").body(journeys.feedback(ctx, estimateId));
     }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(com.app.sme_health_backend.estimates.service.ConversionPrecisionException.class)
+    public ResponseEntity<?> unrepresentable(com.app.sme_health_backend.estimates.service.ConversionPrecisionException e) {
+        return ResponseEntity.status(e.status()).header("Cache-Control", "no-store").body(java.util.Map.of(
+                "status", e.status(), "error", e.code(), "message", e.getMessage(), "estimateValid", true, "details", e.issues()));
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(com.app.sme_health_backend.estimates.service.EstimateValidationException.class)
+    public ResponseEntity<?> invalid(com.app.sme_health_backend.estimates.service.EstimateValidationException e) {
+        return ResponseEntity.badRequest().header("Cache-Control", "no-store").body(java.util.Map.of(
+                "status", 400, "error", "estimate_invalid", "message", e.getMessage(), "errors", e.errors()));
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(com.app.sme_health_backend.estimates.service.EstimateException.class)
+    public ResponseEntity<?> domain(com.app.sme_health_backend.estimates.service.EstimateException e) {
+        return ResponseEntity.status(e.status()).header("Cache-Control", "no-store").body(java.util.Map.of(
+                "status", e.status(), "error", e.code(), "message", e.getMessage()));
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(com.app.sme_health_backend.projects.service.ProjectException.class)
+    public ResponseEntity<?> project(com.app.sme_health_backend.projects.service.ProjectException e) {
+        return ResponseEntity.status(e.status()).header("Cache-Control", "no-store").body(java.util.Map.of(
+                "status", e.status(), "error", e.code(), "message", e.getMessage()));
+    }
 }

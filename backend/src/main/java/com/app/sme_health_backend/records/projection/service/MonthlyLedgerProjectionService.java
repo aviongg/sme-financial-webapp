@@ -516,7 +516,12 @@ public class MonthlyLedgerProjectionService {
         int draftCount = 0;
         BigDecimal draftAmount = BigDecimal.ZERO;
         if (recordDraftRepository != null) {
-            List<RecordDraft> drafts = recordDraftRepository.findByBusinessIdAndStatus(context.businessId(), DraftStatus.DRAFT);
+            // Only drafts dated inside the projected month belong to this month's estimate (undated drafts are kept,
+            // as their month is unknown); previously every open draft of the business leaked into every month.
+            List<RecordDraft> drafts = recordDraftRepository.findByBusinessIdAndStatus(context.businessId(), DraftStatus.DRAFT).stream()
+                    .filter(d -> d.getEffectiveDate() == null
+                            || (!d.getEffectiveDate().isBefore(startDate) && !d.getEffectiveDate().isAfter(endDate)))
+                    .toList();
             draftCount = drafts.size();
             for (RecordDraft d : drafts) {
                 if (d.getAmountInput() != null) {

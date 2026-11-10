@@ -113,7 +113,7 @@ class FinancialQueryFacadeServiceTest {
         assertNotNull(resp);
         assertEquals("1.0", resp.contractVersion());
         assertEquals(businessId, resp.businessId());
-        assertEquals(8, resp.capabilities().size());
+        assertEquals(13, resp.capabilities().size());
 
         Map<String, CapabilityStatus> statusMap = new HashMap<>();
         for (CapabilityItem item : resp.capabilities()) {
@@ -553,7 +553,7 @@ class FinancialQueryFacadeServiceTest {
 
         // 1. Verify Capabilities
         CapabilitiesResponse caps = connected.getCapabilities(context);
-        assertEquals(8, caps.capabilities().size());
+        assertEquals(13, caps.capabilities().size());
         Map<String, CapabilityStatus> capMap = new HashMap<>();
         for (CapabilityItem c : caps.capabilities()) {
             capMap.put(c.toolName(), c.status());

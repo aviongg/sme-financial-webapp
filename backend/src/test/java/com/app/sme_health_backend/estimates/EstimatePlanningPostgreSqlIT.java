@@ -285,7 +285,7 @@ class EstimatePlanningPostgreSqlIT extends DisposablePostgres {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("stale_project_version"));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM project_budget_versions WHERE project_id=?", Integer.class, target),
                 "A failed conversion creates no F05 budget");
-        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM estimate_project_conversions", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM estimate_project_conversions WHERE estimate_id = ?", Integer.class, estimateId));
         mvc.perform(mutate(post("/api/estimates/" + estimateId + "/versions/" + r2 + "/convert-to-project"), session,
                         "{\"targetProjectId\":\"" + target + "\",\"expectedProjectVersion\":0,\"plannedRevenue\":\"1\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.request").value("unknown_field"));
@@ -310,7 +310,7 @@ class EstimatePlanningPostgreSqlIT extends DisposablePostgres {
         UUID budgetId = UUID.fromString(converted.at("/budget/id").asText());
         assertEquals("F06/EST-ORDER-1/R2/" + r2, jdbc.queryForObject("SELECT source_estimate_ref FROM project_budget_versions WHERE id=?", String.class, budgetId));
         assertEquals(List.of(target + "|" + budgetId + "|" + r2), jdbc.queryForList(
-                "SELECT project_id || '|' || project_budget_version_id || '|' || estimate_version_id FROM estimate_project_conversions", String.class));
+                "SELECT project_id || '|' || project_budget_version_id || '|' || estimate_version_id FROM estimate_project_conversions WHERE estimate_id = ?", String.class, estimateId));
         mvc.perform(get("/api/projects/" + target + "/budgets").cookie(session))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andExpect(jsonPath("$[0].sourceEstimateRef").value("F06/EST-ORDER-1/R2/" + r2));

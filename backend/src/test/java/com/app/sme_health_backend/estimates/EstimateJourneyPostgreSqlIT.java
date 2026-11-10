@@ -69,6 +69,8 @@ class EstimateJourneyPostgreSqlIT extends ProductApiTestBase {
                 .post("/api/estimates/" + e[0] + "/versions/" + e[1] + "/convert-to-new-project").cookie(owner.session())
                 .with(csrf(owner.session())).contentType("application/json")
                 .content(json.writeValueAsString(map("code", "PRJ-ORPHAN", "name", "Should roll back")))).andReturn().getResponse();
+        assertTrue(response.getStatus() == 201 || (response.getStatus() >= 400 && response.getStatus() < 500),
+                "A non-representable estimate is a typed client error, never a 500: " + response.getStatus());
         if (response.getStatus() >= 400) {
             assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM projects WHERE business_id = ? AND code = 'PRJ-ORPHAN'",
                     Integer.class, owner.businessId()), "Atomic: a failed conversion leaves no project");

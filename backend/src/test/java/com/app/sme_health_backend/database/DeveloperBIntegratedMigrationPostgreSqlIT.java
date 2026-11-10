@@ -98,7 +98,8 @@ class DeveloperBIntegratedMigrationPostgreSqlIT extends DisposablePostgres {
             sql.executeUpdate("INSERT INTO inventory_items(business_id,sku,name,unit,item_kind,created_by,updated_by) VALUES ('"
                     + business + "','RM-INT','Integration item','kg','RAW_MATERIAL','" + user + "','" + user + "')");
             assertEquals(afterV36, snapshot(sql, carried), "Catalog writes leave every other table unchanged");
-            assertEquals(EXPECTED_HISTORY, history(sql));
+            // This upgrade schema is migrated to the V37 target only; later versions are verified elsewhere.
+            assertEquals(EXPECTED_HISTORY.subList(0, 37), history(sql));
         }
     }
 
