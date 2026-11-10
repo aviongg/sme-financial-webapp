@@ -284,6 +284,31 @@ No page errors, hydration errors, CSP violations or external requests occurred.
 
 **Artifacts:** `C:/Users/Hp/FYP/wt-finsight-landing/tmp/landing-browser/` (viewport, full-page and menu-open PNGs, `sections/` captures at 1440/1024/390/360 in EN and UR, `results.json`) and `tmp/landing-browser-run.log`. These are local only and not committed.
 
+### Final production-runtime acceptance (10 November 2026)
+
+The follow-up checks above did not record which Next runtime they ran against. This run re-ran them on the production runtime against unchanged source `a67eefa`. No source change was needed.
+
+* **Base and product truth:** the base `origin/dev/fatima` is still `228e593`. `origin/dev/suleman` `b585dda` was inspected read-only and no landing claim is now inaccurate:
+  * accounts and transfers, FX, obligations, payment cycles, recurring rules and reconciliation all exist
+  * the forecast UI offers 7/30/60/90-day horizons and is built from obligations and recurring rules
+  * scenarios do not modify actuals
+  * the new C05 project-finance actuals are not claimed
+  * the new `SALESPERSON` role is not listed in the four invited roles, but the list is not presented as exhaustive
+* **Build:** `next build --webpack` with `BACKEND_API_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_DATA_MODE=live`. The full suite passed 182/182, TypeScript passed, and ESLint reported 0 errors and the 1 existing warning.
+* **Runtime:** the Docker-equivalent standalone server (`.next/standalone/server.js` with `.next/static` and `public` copied alongside), started with `NODE_ENV=production`, `PORT=3100` and `HOSTNAME=127.0.0.1`. It is not `next dev`. The served CSP is nonce-based with no `unsafe-eval`. Headless Edge used Playwright 1.62.1 against the synthetic session fixture on 8080. **No Spring, PostgreSQL or providers were used.**
+* **`tests/browser-landing.integration.mjs`:** **20/20**.
+* **Supplementary read-only probes** were run from an uncommitted script, at 10 viewport/locale combinations:
+  * HTTP 200 and zero `/api` requests on anonymous `/landing`
+  * cumulative layout shift of at most 0.028
+  * no 4xx/5xx responses (other than `/favicon.ico`), failed requests, external requests, console or page errors
+  * one h1 with no skipped heading levels
+  * 5 figures, each with one accessible name
+  * no dead anchors, and route links limited to `/` and `/?auth=register`
+  * exactly one `#access` closing CTA
+  * zero horizontal overflow, correct `dir`, and no private UI
+  * anonymous `/`, `/records` and `/settings` each probe the session and show "Sign in to FinSight" without the app shell
+* **Artifacts:** `C:/Users/Hp/FYP/wt-finsight-landing/tmp/landing-production-browser/` (harness PNGs and `results.json`, plus `sections/` hero, section, footer and menu captures and `extra-results.json`) and `tmp/landing-production-browser-run.log`. These are local only and not committed.
+
 ### Still for visual/product approval
 
 * The logo blue on this page vs the teal app buttons.
