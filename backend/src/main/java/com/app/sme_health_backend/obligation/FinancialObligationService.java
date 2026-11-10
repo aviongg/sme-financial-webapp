@@ -1002,8 +1002,10 @@ public class FinancialObligationService {
         List<ObligationAllocationResponse> allocDtos = allocations.stream().map(a -> {
             FinancialTransaction tx = a.getFinancialTransactionId() != null ? txMap.get(a.getFinancialTransactionId()) : null;
             FinancialAccount acc = (tx != null) ? accMap.get(tx.getAccountId()) : null;
-            String desc = tx != null ? tx.getDescription() : (a.getAllocationType() == AllocationType.ADVANCE ? "Applied from Advance" : null);
-            String accountName = acc != null ? acc.getAccountName() : (a.getAllocationType() == AllocationType.ADVANCE ? "Advance Balance" : "Unknown Account");
+            String desc = tx != null ? tx.getDescription() : (a.getAllocationType() == AllocationType.ADVANCE ? "Applied from Advance"
+                    : a.getAllocationType() == AllocationType.CREDIT_NOTE ? "Credit/debit note adjustment" : null);
+            String accountName = acc != null ? acc.getAccountName() : (a.getAllocationType() == AllocationType.ADVANCE ? "Advance Balance"
+                    : a.getAllocationType() == AllocationType.CREDIT_NOTE ? "Non-cash adjustment" : "Unknown Account");
             UUID accountId = acc != null ? acc.getId() : null;
 
             return new ObligationAllocationResponse(

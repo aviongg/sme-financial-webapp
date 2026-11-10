@@ -42,8 +42,14 @@ public record CommercialDocumentRecord(
             BigDecimal quantity,
             String unit,
             BigDecimal unitPrice,
-            BigDecimal lineAmount
-    ) { }
+            BigDecimal lineAmount,
+            UUID inventoryItemId
+    ) {
+        public LineRecord(UUID id, int lineNumber, String description, BigDecimal quantity, String unit,
+                          BigDecimal unitPrice, BigDecimal lineAmount) {
+            this(id, lineNumber, description, quantity, unit, unitPrice, lineAmount, null);
+        }
+    }
 
     public CommercialDocumentRecord withLines(List<LineRecord> loaded) {
         return new CommercialDocumentRecord(id, businessId, kind, status, documentNumber, counterpartyName,

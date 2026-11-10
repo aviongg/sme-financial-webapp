@@ -51,7 +51,8 @@ public record CommercialDocumentResponse(
             String quantity,
             String unit,
             String unitPrice,
-            String lineAmount
+            String lineAmount,
+            UUID inventoryItemId
     ) { }
 
     public static CommercialDocumentResponse from(CommercialDocumentRecord record, List<String> finalizeBlockers) {
@@ -76,7 +77,8 @@ public record CommercialDocumentResponse(
                         CommercialDocumentCalculator.quantity(line.quantity()),
                         line.unit(),
                         CommercialDocumentCalculator.amount(line.unitPrice()),
-                        CommercialDocumentCalculator.amount(line.lineAmount())
+                        CommercialDocumentCalculator.amount(line.lineAmount()),
+                        line.inventoryItemId()
                 )).toList(),
                 CommercialDocumentCalculator.FINANCIAL_EFFECT,
                 CommercialDocumentCalculator.SETTLEMENT_AVAILABILITY,

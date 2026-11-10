@@ -43,7 +43,8 @@ public class CommercialDocumentRepository {
             rs.getBigDecimal("quantity"),
             rs.getString("unit"),
             rs.getBigDecimal("unit_price"),
-            rs.getBigDecimal("line_amount")
+            rs.getBigDecimal("line_amount"),
+            rs.getObject("inventory_item_id", UUID.class)
     );
 
     private final JdbcTemplate jdbc;
@@ -116,7 +117,7 @@ public class CommercialDocumentRepository {
 
     private List<LineRecord> findLines(UUID businessId, UUID documentId) {
         return jdbc.query("""
-                SELECT id, line_number, description, quantity, unit, unit_price, line_amount
+                SELECT id, line_number, description, quantity, unit, unit_price, line_amount, inventory_item_id
                 FROM commercial_document_lines
                 WHERE business_id = ? AND document_id = ?
                 ORDER BY line_number
@@ -286,10 +287,21 @@ public class CommercialDocumentRepository {
         if (lines.isEmpty()) {
             return;
         }
+        for (CalculatedLine line : lines) {
+            if (line.inventoryItemId() != null) {
+                Integer active = jdbc.queryForObject("SELECT count(*) FROM inventory_items WHERE business_id = ? "
+                        + "AND id = ? AND status = 'ACTIVE'", Integer.class, businessId, line.inventoryItemId());
+                if (active == null || active == 0) {
+                    throw new com.app.sme_health_backend.commercial.service.CommercialValidationException(
+                            "lines[" + (line.lineNumber() - 1) + "].inventoryItemId", "inventory_item_invalid");
+                }
+            }
+        }
         jdbc.batchUpdate("""
                 INSERT INTO commercial_document_lines (
-                    id, business_id, document_id, line_number, description, quantity, unit, unit_price, line_amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, business_id, document_id, line_number, description, quantity, unit, unit_price, line_amount,
+                    inventory_item_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 lines.stream().map(line -> new Object[] {
                         UUID.randomUUID(),
@@ -300,7 +312,8 @@ public class CommercialDocumentRepository {
                         line.quantity(),
                         line.unit(),
                         line.unitPrice(),
-                        line.lineAmount()
+                        line.lineAmount(),
+                        line.inventoryItemId()
                 }).toList()
         );
     }

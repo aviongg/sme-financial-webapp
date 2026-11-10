@@ -46,7 +46,7 @@ public final class CommercialDocumentRequestReader {
             "counterpartyName", "documentDate", "dueDate", "notes", "lines", "expectedVersion"
     );
     private static final Set<String> PREVIEW_FIELDS = Set.of("lines");
-    private static final Set<String> LINE_FIELDS = Set.of("description", "quantity", "unit", "unitPrice");
+    private static final Set<String> LINE_FIELDS = Set.of("description", "quantity", "unit", "unitPrice", "inventoryItemId");
     private static final Set<String> FINALIZE_FIELDS = Set.of("expectedVersion");
     private static final Set<String> VOID_FIELDS = Set.of("expectedVersion", "reason");
 
@@ -111,7 +111,8 @@ public final class CommercialDocumentRequestReader {
                     string(line, "description", path + ".description", false),
                     string(line, "quantity", path + ".quantity", false),
                     string(line, "unit", path + ".unit", true),
-                    string(line, "unitPrice", path + ".unitPrice", false)
+                    string(line, "unitPrice", path + ".unitPrice", false),
+                    string(line, "inventoryItemId", path + ".inventoryItemId", true)
             ));
         }
         return List.copyOf(parsed);
