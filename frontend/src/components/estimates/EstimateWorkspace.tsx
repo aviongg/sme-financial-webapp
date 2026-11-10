@@ -1,5 +1,6 @@
 "use client";
 
+import { EstimateJourneyPanel } from '@/components/product/ActualsPanels';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -395,6 +396,7 @@ export function EstimateWorkspace({ estimateId }: { estimateId?: string }) {
         <DialogActions plan={plan} confirm={plan.conversion.confirm} testId="estimate-convert-confirm" onConfirm={convert} onCancel={() => setDialog(null)}/>
       </div>}
     </Dialog>
+    {estimate && estimateId && <EstimateJourneyPanel estimateId={estimateId} approvedVersionId={approvedRevision?.id ?? null}/>}
   </LivePage>;
 }
 

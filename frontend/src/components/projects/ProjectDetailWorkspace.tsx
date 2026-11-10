@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useSession } from '@/components/auth/SessionProvider';
+import { ProjectProfitabilityPanel } from '@/components/product/ActualsPanels';
 import { LivePage } from '@/components/integration/LivePage';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -1462,6 +1463,7 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }) {
           </Card>
         )}
       </div>
+      <ProjectProfitabilityPanel projectId={project.id}/>
     </LivePage>
   );
 }

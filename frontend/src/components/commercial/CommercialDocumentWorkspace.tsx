@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, Ban, CheckCircle2, Lock, Trash2 } from 'lucide-react';
 import { useSession } from '@/components/auth/SessionProvider';
+import { CommercialLifecyclePanel } from '@/components/product/CommercialLifecyclePanel';
 import { LivePage } from '@/components/integration/LivePage';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -647,6 +648,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
           </div>
         </div>
       </Dialog>
+
+      {document && document.status !== 'DRAFT' && <CommercialLifecyclePanel documentId={document.id} kind={kind}/>}
 
       <Dialog isOpen={dialog === 'delete'} onClose={() => busy === null && setDialog(null)} title={copy.remove.title}>
         <div className="space-y-3 text-sm" data-testid="commercial-delete-dialog">

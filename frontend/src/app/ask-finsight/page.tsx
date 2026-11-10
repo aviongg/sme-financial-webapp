@@ -1,3 +1,3 @@
 "use client";
-import { AskFinSight } from '@/components/ai/AskFinSight';
-export default function AskFinSightPage() { return <AskFinSight/>; }
+import { CopilotChat } from '@/components/product/OperationsViews';
+export default function AskFinSightPage() { return <CopilotChat/>; }
