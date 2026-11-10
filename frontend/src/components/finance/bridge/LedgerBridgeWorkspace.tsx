@@ -94,9 +94,9 @@ export function LedgerBridgeWorkspace({
         confirmationNote: confirmationNote || 'Authoritative cutover applied via Ledger Bridge',
       };
       const res = await ledgerBridgeApi.applyLedgerProjection(req);
-      setSuccessMessage(res.message);
       setIsConfirmOpen(false);
       await fetchProjection(yearMonth);
+      setSuccessMessage(res.message);
       if (onCutoverSuccess) onCutoverSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Cutover failed';
@@ -110,11 +110,11 @@ export function LedgerBridgeWorkspace({
   const isUrdu = locale === 'ur';
 
   return (
-    <div dir={direction} className="space-y-6">
+    <div dir={direction} className="space-y-6" data-testid="ledger-bridge-workspace">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 className="text-xl font-bold text-gray-900" data-testid="bridge-workspace-title">
             {isUrdu ? 'لیجر ٹو ہیلتھ ریکارڈ برج' : 'Ledger-to-Health Record Bridge'}
           </h2>
           <p className="text-sm text-gray-600">
@@ -130,6 +130,7 @@ export function LedgerBridgeWorkspace({
           </label>
           <input
             id="bridge-period"
+            data-testid="bridge-period-input"
             type="month"
             value={yearMonth}
             onChange={(e) => setYearMonth(e.target.value)}
@@ -138,6 +139,7 @@ export function LedgerBridgeWorkspace({
           <Button
             variant="secondary"
             size="sm"
+            data-testid="bridge-refresh-btn"
             onClick={() => fetchProjection(yearMonth)}
             disabled={loading}
             aria-label={isUrdu ? 'دوبارہ لوڈ کریں' : 'Refresh'}
@@ -149,13 +151,13 @@ export function LedgerBridgeWorkspace({
 
       {/* Notifications */}
       {error && (
-        <AlertBanner variant="error">
+        <AlertBanner variant="error" data-testid="bridge-error-alert">
           <p>{error}</p>
         </AlertBanner>
       )}
 
       {successMessage && (
-        <AlertBanner variant="success">
+        <AlertBanner variant="success" data-testid="bridge-success-alert">
           <p>{successMessage}</p>
         </AlertBanner>
       )}
@@ -166,6 +168,7 @@ export function LedgerBridgeWorkspace({
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div className="flex items-center gap-2">
               <span
+                data-testid="readiness-badge"
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                   projection.completeness.readinessStatus === 'READY_FOR_PREVIEW'
                     ? 'bg-green-100 text-green-800'
@@ -176,7 +179,7 @@ export function LedgerBridgeWorkspace({
               >
                 {projection.completeness.readinessStatus}
               </span>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-gray-700" data-testid="readiness-explanation">
                 {projection.explanation}
               </span>
             </div>
@@ -202,7 +205,7 @@ export function LedgerBridgeWorkspace({
       {projection && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Ledger Derived Figures */}
-          <Card className="p-5 border-blue-200 bg-blue-50/30">
+          <Card className="p-5 border-blue-200 bg-blue-50/30" data-testid="ledger-derived-card">
             <h3 className="text-base font-semibold text-blue-900 mb-4 pb-2 border-b border-blue-200 flex items-center justify-between">
               <span>{isUrdu ? 'لیجر سے اخذ شدہ اعدادوشمار' : 'Ledger Derived Figures'}</span>
               <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
@@ -212,41 +215,41 @@ export function LedgerBridgeWorkspace({
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'کیش آمد (ان فلو):' : 'Cash Inflow:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.ledgerCashInflow)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-inflow">{formatPKR(projection.ledgerCashInflow)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'کیش اخراج (آؤٹ فلو):' : 'Cash Outflow:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.ledgerCashOutflow)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-outflow">{formatPKR(projection.ledgerCashOutflow)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'نیٹ کیش فلو:' : 'Net Cash Flow:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.ledgerNetCashFlow)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-net-flow">{formatPKR(projection.ledgerNetCashFlow)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'آپریٹنگ ریونیو:' : 'Operating Revenue:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.ledgerOperatingRevenue)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-revenue">{formatPKR(projection.ledgerOperatingRevenue)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'آپریٹنگ اخراجات:' : 'Operating Expenses:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.ledgerOperatingExpenses)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-opex">{formatPKR(projection.ledgerOperatingExpenses)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'اوپن وصولیاں (AR):' : 'Open Receivables (AR):'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.asOfReceivablesOutstanding)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-ar">{formatPKR(projection.asOfReceivablesOutstanding)}</dd>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100">
                 <dt className="text-gray-600">{isUrdu ? 'اوپن ادائیگیاں (AP):' : 'Open Payables (AP):'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.asOfPayablesOutstanding)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-ap">{formatPKR(projection.asOfPayablesOutstanding)}</dd>
               </div>
               <div className="flex justify-between py-1">
                 <dt className="text-gray-600">{isUrdu ? 'اختتامی کیش بیلنس:' : 'End Cash Balance:'}</dt>
-                <dd className="font-semibold text-gray-900">{formatPKR(projection.currentCashBalanceEom)}</dd>
+                <dd className="font-semibold text-gray-900" data-testid="ledger-cash-balance">{formatPKR(projection.currentCashBalanceEom)}</dd>
               </div>
             </dl>
           </Card>
 
           {/* Current Saved Monthly Record Comparison */}
-          <Card className="p-5 border-gray-200">
+          <Card className="p-5 border-gray-200" data-testid="saved-record-card">
             <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200 flex items-center justify-between">
               <span>{isUrdu ? 'موجودہ محفوظ شدہ ریکارڈ' : 'Current Saved Monthly Record'}</span>
               <span className={`text-xs px-2 py-0.5 rounded ${projection.hasExistingMonthlyRecord ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'}`}>
@@ -274,13 +277,13 @@ export function LedgerBridgeWorkspace({
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-100">
                   <dt className="text-gray-600">{isUrdu ? 'فروخت شدہ مال کی لاگت (COGS):' : 'COGS:'}</dt>
-                  <dd className="font-medium text-gray-800">
+                  <dd className="font-medium text-gray-800" data-testid="manual-record-cogs">
                     {projection.existingMonthlyRecord.cogs != null ? formatPKR(projection.existingMonthlyRecord.cogs) : '—'}
                   </dd>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-100">
                   <dt className="text-gray-600">{isUrdu ? 'انوینٹری ویلیو:' : 'Inventory Value:'}</dt>
-                  <dd className="font-medium text-gray-800">
+                  <dd className="font-medium text-gray-800" data-testid="manual-record-inventory">
                     {projection.existingMonthlyRecord.inventoryValue != null ? formatPKR(projection.existingMonthlyRecord.inventoryValue) : '—'}
                   </dd>
                 </div>
@@ -292,11 +295,11 @@ export function LedgerBridgeWorkspace({
                 </div>
                 <div className="flex justify-between py-1">
                   <dt className="text-gray-600">{isUrdu ? 'ورژن نمبر:' : 'Version:'}</dt>
-                  <dd className="font-mono text-gray-700">v{projection.existingMonthlyRecord.version}</dd>
+                  <dd className="font-mono text-gray-700" data-testid="manual-record-version">v{projection.existingMonthlyRecord.version}</dd>
                 </div>
               </dl>
             ) : (
-              <div className="text-center py-10 text-gray-500">
+              <div className="text-center py-10 text-gray-500" data-testid="no-saved-record-notice">
                 <p>{isUrdu ? 'اس مہینے کا کوئی سابقہ دستی ریکارڈ موجود نہیں ہے۔' : 'No existing manual record for this month.'}</p>
                 <p className="text-xs mt-1 text-gray-400">
                   {isUrdu ? 'کٹ اوور کرنے سے ایک نیا آفیشل ہیلتھ ریکارڈ بن جائے گا۔' : 'Applying cutover will create a fresh official monthly record.'}
@@ -326,6 +329,7 @@ export function LedgerBridgeWorkspace({
             <input
               type="number"
               step="0.01"
+              data-testid="input-manual-cogs"
               value={manualCogs}
               onChange={(e) => setManualCogs(e.target.value)}
               placeholder="0.00"
@@ -340,6 +344,7 @@ export function LedgerBridgeWorkspace({
             <input
               type="number"
               step="0.01"
+              data-testid="input-manual-inventory"
               value={manualInventory}
               onChange={(e) => setManualInventory(e.target.value)}
               placeholder="0.00"
@@ -354,6 +359,7 @@ export function LedgerBridgeWorkspace({
             <input
               type="number"
               step="0.01"
+              data-testid="input-manual-loan"
               value={manualLoan}
               onChange={(e) => setManualLoan(e.target.value)}
               placeholder="0.00"
@@ -368,6 +374,7 @@ export function LedgerBridgeWorkspace({
             <input
               type="number"
               step="0.01"
+              data-testid="input-manual-interest"
               value={manualInterest}
               onChange={(e) => setManualInterest(e.target.value)}
               placeholder="0.00"
@@ -381,6 +388,7 @@ export function LedgerBridgeWorkspace({
             </label>
             <select
               value={financingType}
+              data-testid="select-financing-type"
               onChange={(e) => setFinancingType(e.target.value)}
               className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm bg-white"
             >
@@ -396,6 +404,7 @@ export function LedgerBridgeWorkspace({
             </label>
             <input
               type="text"
+              data-testid="input-confirmation-note"
               value={confirmationNote}
               onChange={(e) => setConfirmationNote(e.target.value)}
               placeholder={isUrdu ? 'مثلاً: نومبر کا آفیشل کٹ اوور' : 'e.g. November Ledger Cutover'}
@@ -408,6 +417,7 @@ export function LedgerBridgeWorkspace({
         <div className="mt-6 flex justify-end">
           <Button
             variant="primary"
+            data-testid="open-cutover-dialog-btn"
             disabled={!projection || !canCutover || submitting}
             onClick={() => setIsConfirmOpen(true)}
             rightIcon={<ArrowRight className="w-4 h-4" />}
@@ -423,7 +433,7 @@ export function LedgerBridgeWorkspace({
         onClose={() => setIsConfirmOpen(false)}
         title={isUrdu ? 'کٹ اوور کی حتمی تصدیق' : 'Confirm Authoritative Ledger Cutover'}
       >
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="cutover-confirmation-modal">
           <p className="text-sm text-gray-700">
             {isUrdu
               ? `کیا آپ واقعی ${yearMonth} کے لیجر اعدادوشمار کو آفیشل ماہانہ ریکارڈ میں منتقل کرنا چاہتے ہیں؟ اس عمل کے نتیجے میں ہیلتھ اسکور v1 دوبارہ خودکار طور پر کیلکولیٹ ہوگا۔`
@@ -444,6 +454,7 @@ export function LedgerBridgeWorkspace({
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <Button
               variant="secondary"
+              data-testid="cancel-cutover-btn"
               onClick={() => setIsConfirmOpen(false)}
               disabled={submitting}
             >
@@ -451,6 +462,7 @@ export function LedgerBridgeWorkspace({
             </Button>
             <Button
               variant="primary"
+              data-testid="confirm-cutover-btn"
               onClick={handleApplyCutover}
               disabled={submitting}
               leftIcon={<CheckCircle2 className="w-4 h-4" />}

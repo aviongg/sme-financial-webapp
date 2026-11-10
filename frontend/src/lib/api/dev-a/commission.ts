@@ -379,20 +379,20 @@ export async function terminateAssignment(
 
 export async function listRules(status?: CommissionRuleStatus, signal?: AbortSignal): Promise<CommissionRule[]> {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
-  const rawList = await apiClient<any[]>(`/finance/commissions/rules${query}`, { signal });
+  const rawList = await apiClient<Record<string, unknown>[]>(`/finance/commissions/rules${query}`, { signal });
   return rawList.map((r) => ({
-    ...r,
-    name: r.ruleName ?? r.name,
-    ruleName: r.ruleName ?? r.name,
+    ...(r as unknown as CommissionRule),
+    name: (r.ruleName as string) ?? (r.name as string),
+    ruleName: (r.ruleName as string) ?? (r.name as string),
   }));
 }
 
 export async function getRule(id: string, signal?: AbortSignal): Promise<CommissionRule> {
-  const r = await apiClient<any>(`/finance/commissions/rules/${encodeURIComponent(id)}`, { signal });
+  const r = await apiClient<Record<string, unknown>>(`/finance/commissions/rules/${encodeURIComponent(id)}`, { signal });
   return {
-    ...r,
-    name: r.ruleName ?? r.name,
-    ruleName: r.ruleName ?? r.name,
+    ...(r as unknown as CommissionRule),
+    name: (r.ruleName as string) ?? (r.name as string),
+    ruleName: (r.ruleName as string) ?? (r.name as string),
   };
 }
 
@@ -408,16 +408,16 @@ export async function createRule(input: CommissionRuleCreateInput, signal?: Abor
     effectiveStartDate: input.effectiveStartDate,
     effectiveEndDate: input.effectiveEndDate || null,
   };
-  const raw = await apiClient<any>('/finance/commissions/rules', {
+  const raw = await apiClient<Record<string, unknown>>('/finance/commissions/rules', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
     signal,
   });
   return {
-    ...raw,
-    name: raw.ruleName ?? raw.name,
-    ruleName: raw.ruleName ?? raw.name,
+    ...(raw as unknown as CommissionRule),
+    name: (raw.ruleName as string) ?? (raw.name as string),
+    ruleName: (raw.ruleName as string) ?? (raw.name as string),
   };
 }
 
@@ -426,35 +426,35 @@ export async function updateRuleStatus(
   status: CommissionRuleStatus,
   signal?: AbortSignal
 ): Promise<CommissionRule> {
-  const raw = await apiClient<any>(`/finance/commissions/rules/${encodeURIComponent(id)}/status`, {
+  const raw = await apiClient<Record<string, unknown>>(`/finance/commissions/rules/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
     signal,
   });
   return {
-    ...raw,
-    name: raw.ruleName ?? raw.name,
-    ruleName: raw.ruleName ?? raw.name,
+    ...(raw as unknown as CommissionRule),
+    name: (raw.ruleName as string) ?? (raw.name as string),
+    ruleName: (raw.ruleName as string) ?? (raw.name as string),
   };
 }
 
 // --- Eligible Collections & Preview API ---
 
 export async function listEligibleCollections(signal?: AbortSignal): Promise<EligibleCollection[]> {
-  const rawList = await apiClient<any[]>('/finance/commissions/eligible-collections', { signal });
+  const rawList = await apiClient<Record<string, unknown>[]>('/finance/commissions/eligible-collections', { signal });
   return rawList.map((item) => ({
-    ...item,
+    ...(item as unknown as EligibleCollection),
     allocatedAmount: Number(item.collectionAmount ?? item.allocatedAmount ?? 0),
     collectionAmount: Number(item.collectionAmount ?? item.allocatedAmount ?? 0),
-    ruleId: item.applicableRuleId ?? item.ruleId,
-    applicableRuleId: item.applicableRuleId ?? item.ruleId,
-    ruleName: item.applicableRuleName ?? item.ruleName,
-    applicableRuleName: item.applicableRuleName ?? item.ruleName,
+    ruleId: ((item.applicableRuleId ?? item.ruleId) as string) ?? '',
+    applicableRuleId: ((item.applicableRuleId ?? item.ruleId) as string) ?? '',
+    ruleName: ((item.applicableRuleName ?? item.ruleName) as string) ?? '',
+    applicableRuleName: ((item.applicableRuleName ?? item.ruleName) as string) ?? '',
     estimatedCommission: Number(item.estimatedCommission ?? item.estimatedCommissionAmount ?? 0),
     estimatedCommissionAmount: Number(item.estimatedCommission ?? item.estimatedCommissionAmount ?? 0),
-    earningId: item.existingEarningId ?? item.earningId ?? null,
-    existingEarningId: item.existingEarningId ?? item.earningId ?? null,
+    earningId: ((item.existingEarningId ?? item.earningId ?? null) as string | null),
+    existingEarningId: ((item.existingEarningId ?? item.earningId ?? null) as string | null),
   }));
 }
 
@@ -519,15 +519,15 @@ export async function getCommissionSummary(
   signal?: AbortSignal
 ): Promise<CommissionSummary> {
   const query = salespersonId ? `?salespersonId=${encodeURIComponent(salespersonId)}` : '';
-  const raw = await apiClient<any>(`/finance/commissions/summary${query}`, { signal });
-  const earned = Number(raw.totalEarnedAmount ?? raw.totalEarned ?? 0);
-  const approved = Number(raw.totalApprovedAmount ?? 0);
-  const advancesPaid = Number(raw.totalAdvancesPaidAmount ?? 0);
-  const advancesApplied = Number(raw.totalAdvancesAppliedAmount ?? 0);
-  const cashPaid = Number(raw.totalCashPaidAmount ?? 0);
-  const paid = Number(raw.totalPaidAmount ?? raw.totalPaid ?? 0);
-  const pending = Number(raw.totalPendingAmount ?? raw.pendingSettlement ?? 0);
-  const count = Number(raw.earningsCount ?? raw.totalCount ?? 0);
+  const raw = await apiClient<Record<string, unknown>>(`/finance/commissions/summary${query}`, { signal });
+  const earned = Number((raw.totalEarnedAmount ?? raw.totalEarned ?? 0) as number);
+  const approved = Number((raw.totalApprovedAmount ?? 0) as number);
+  const advancesPaid = Number((raw.totalAdvancesPaidAmount ?? 0) as number);
+  const advancesApplied = Number((raw.totalAdvancesAppliedAmount ?? 0) as number);
+  const cashPaid = Number((raw.totalCashPaidAmount ?? 0) as number);
+  const paid = Number((raw.totalPaidAmount ?? raw.totalPaid ?? 0) as number);
+  const pending = Number((raw.totalPendingAmount ?? raw.pendingSettlement ?? 0) as number);
+  const count = Number((raw.earningsCount ?? raw.totalCount ?? 0) as number);
   return {
     totalEarned: earned,
     totalEarnedAmount: earned,
@@ -544,7 +544,7 @@ export async function getCommissionSummary(
     pendingSettlement: pending,
     totalPendingAmount: pending,
     totalOutstandingPayable: pending,
-    currency: raw.currency ?? 'PKR',
+    currency: (raw.currency as string) ?? 'PKR',
     totalCount: count,
     earningsCount: count,
     approvedCount: Number(raw.approvedCount ?? 0),

@@ -454,20 +454,20 @@ export interface FxSettlementEligibleObligation {
 }
 
 export async function fetchSettlementEligibleObligations(signal?: AbortSignal): Promise<FxSettlementEligibleObligation[]> {
-  const data = await apiClient<{ items?: any[] }>('/finance/obligations?status=OPEN&size=50', { signal });
+  const data = await apiClient<{ items?: Record<string, unknown>[] }>('/finance/obligations?status=OPEN&size=50', { signal });
   if (!data || !Array.isArray(data.items)) return [];
-  return data.items.map((o: any) => ({
+  return data.items.map((o: Record<string, unknown>) => ({
     id: String(o.id),
     businessId: String(o.businessId),
     counterpartyId: String(o.counterpartyId),
     counterpartyName: String(o.counterpartyName || 'Unknown'),
     counterpartyType: String(o.counterpartyType || ''),
-    direction: o.direction,
-    referenceNumber: o.referenceNumber ?? null,
+    direction: o.direction as FxSettlementEligibleObligation['direction'],
+    referenceNumber: (o.referenceNumber as string) ?? null,
     issueDate: String(o.issueDate),
-    dueDate: o.dueDate ?? null,
-    originalAmount: o.originalAmount,
-    outstandingAmount: o.outstandingAmount,
+    dueDate: (o.dueDate as string) ?? null,
+    originalAmount: o.originalAmount as number | string,
+    outstandingAmount: o.outstandingAmount as number | string,
     currency: String(o.currency || 'PKR'),
     status: String(o.status),
     settlementStatus: String(o.settlementStatus),

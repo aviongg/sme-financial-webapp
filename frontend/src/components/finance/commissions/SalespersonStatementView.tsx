@@ -13,16 +13,17 @@ import {
   type Salesperson,
 } from '@/lib/api/dev-a/commission';
 import {
-  FileText,
   Download,
   Printer,
-  Calendar,
-  Users,
   Building,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
 } from 'lucide-react';
+
+function getDefaultDates() {
+  const now = Date.now();
+  const todayStr = new Date(now).toISOString().slice(0, 10);
+  const thirtyDaysAgoStr = new Date(now - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  return { todayStr, thirtyDaysAgoStr };
+}
 
 interface SalespersonStatementViewProps {
   salespersons?: Salesperson[];
@@ -44,11 +45,8 @@ export function SalespersonStatementView({
   );
 
   // Default dates: current month or last 30 days
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-
-  const [startDate, setStartDate] = useState<string>(thirtyDaysAgoStr);
-  const [endDate, setEndDate] = useState<string>(todayStr);
+  const [startDate, setStartDate] = useState<string>(() => getDefaultDates().thirtyDaysAgoStr);
+  const [endDate, setEndDate] = useState<string>(() => getDefaultDates().todayStr);
 
   const [statement, setStatement] = useState<SalespersonStatement | null>(null);
   const [loading, setLoading] = useState<boolean>(false);

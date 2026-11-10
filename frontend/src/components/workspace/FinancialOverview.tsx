@@ -59,6 +59,20 @@ function LiveFinancialOverview({businessId}:{businessId:string}){
  <Card className="min-w-0 space-y-3"><h3 className="font-semibold">{copy.forecastTitle}</h3><p className="text-xs">{copy.forecast}</p>{panel(forecast,data=><dl className="grid gap-3">{item(copy.closing,amount(data.summary.endingProjectedCash))}{item(copy.funding,amount(data.summary.maximumExpectedShortfall))}{item(copy.first,data.summary.firstDeficitDate?<bdi dir="ltr">{data.summary.firstDeficitDate}</bdi>:copy.none)}</dl>)}<p className="text-xs">{copy.partial}</p><div className="flex flex-wrap gap-3">{link('/finance/forecast')}<Link className="text-sm underline" href="/finance/funding">{copy.fundingLink}</Link></div></Card>
  <Card className="space-y-3"><h3 className="font-semibold">{copy.risks}</h3>{panel(risk,data=><p><bdi dir="ltr">{(locale==='ur'?riskUr:riskEn)[('sev_'+data.overallSeverity) as 'sev_CRITICAL']} · {data.assessedCategoriesCount}/{data.totalCategories}</bdi></p>)}{link('/finance/risks')}</Card>
  {projectsAllowed&&<Card className="min-w-0 space-y-3"><h3 className="font-semibold">{copy.projects}</h3>{panel(projects,data=><Select label={copy.chooseProject} value={projectId} onChange={e=>setProjectId(e.target.value)} options={[{value:'',label:data.items.length?copy.chooseProject:copy.noProjects},...data.items.map(p=>({value:p.id,label:p.name}))]}/>)}{projectId&&panel(project,data=><><dl className="grid gap-3">{item(copy.actualIn,amount(data.attributedCashInflows,data.baseCurrency))}{item(copy.actualOut,amount(data.attributedCashOutflows,data.baseCurrency))}{item(copy.commitments,amount(data.totalOutstandingCommitments,data.baseCurrency))}{item(copy.unposted,amount(data.unpostedCommercialBills,data.baseCurrency))}</dl><p className="text-xs">{copy.projectHelp}</p>{panel(costing,cost=>projectProfitability(cost)!==null?<dl>{item(copy.profit,amount(projectProfitability(cost),cost.baseCurrency))}</dl>:<p className="text-sm">{copy.unknownCogs}</p>)}{link('/projects/'+projectId)}</>)}<p className="text-xs">{copy.plan}</p></Card>}
- </div><p className="text-xs" aria-disabled="true">{copy.recognition}: {copy.recognitionPending}</p><p className="text-xs text-[var(--color-text-muted)]">{copy.healthHelp} {copy.c02}</p>
+ </div>
+ <div className="flex flex-wrap gap-4 text-xs text-[var(--color-text-muted)] pt-2 border-t border-[var(--color-border-subtle)]">
+  <div className="flex items-center gap-1.5">
+   <span>{copy.recognition}:</span>
+   <Link href="/finance/recognition" className="underline text-[var(--color-brand-primary)] font-medium">
+    {locale === 'ur' ? 'اندراج ورک اسپیس' : 'Recognition Workspace'}
+   </Link>
+  </div>
+  <div className="flex items-center gap-1.5">
+   <span>{copy.healthHelp}</span>
+   <Link href="/records/bridge" className="underline text-[var(--color-brand-primary)] font-medium">
+    {locale === 'ur' ? 'لیجر برج' : 'Ledger Bridge'}
+   </Link>
+  </div>
+ </div>
  </section>;
 }

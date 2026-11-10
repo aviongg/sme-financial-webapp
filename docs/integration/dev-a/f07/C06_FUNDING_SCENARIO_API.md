@@ -90,17 +90,16 @@ export interface FundingScenarioCompareRequest {
 
 ```typescript
 export interface DailyFundingPosition {
-  date: string;               // ISO-8601 calendar date (YYYY-MM-DD)
-  dayIndex: number;           // Index relative to start (0 = asOfDate)
-  openingLiquidity: string;   // Start-of-day balance (formatted decimal string, e.g. "105000.00")
-  inflows: string;            // Sum of planned inflows for this date
-  outflows: string;           // Sum of planned outflows for this date
-  netMovement: string;        // inflows - outflows
-  closingLiquidity: string;   // End-of-day cumulative balance
-  projectedPosition: string;  // Alias for closingLiquidity
-  fundingDeficit: string;     // max(0, -closingLiquidity) -> 0.00 if healthy, positive amount if in deficit
-  isDeficit: boolean;         // true if closingLiquidity < 0
-  events: PlannedCashEventDetail[]; // Sorted list of events on this day (INFLOW before OUTFLOW)
+  date: string;                       // ISO-8601 calendar date (YYYY-MM-DD)
+  openingPosition: string;            // Start-of-day balance (formatted decimal string, e.g. "105000.00")
+  plannedInflows: string;             // Sum of planned inflows for this date
+  plannedOutflows: string;            // Sum of planned outflows for this date
+  netPlannedMovement: string;         // plannedInflows - plannedOutflows
+  closingPosition: string;            // End-of-day balance (openingPosition + netPlannedMovement)
+  cumulativeProjectedPosition: string;// Cumulative liquidity position (same as closingPosition)
+  deficit: string;                    // max(0, -closingPosition) -> "0.00" if healthy, positive amount if in deficit
+  isShortfall: boolean;               // true if closingPosition < 0
+  eventsOnDay: PlannedCashEventDetail[]; // Sorted list of events on this day (INFLOW before OUTFLOW)
 }
 
 export interface ScenarioResult {
@@ -116,15 +115,14 @@ export interface ScenarioResult {
   deficitDayCount: number;           // Total count of days in negative territory
   hasDeficit: boolean;               // true if deficitDayCount > 0
   isRecovered: boolean;              // true if recoveryDate != null
-  timeline: DailyFundingPosition[];  // Complete day-by-day continuous timeline
+  timeline: DailyFundingPosition[];  // Complete day-by-day continuous timeline ([asOfDate, asOfDate + horizonDays] inclusive)
 }
 
 export interface DailyScenarioDifference {
   date: string;
-  dayIndex: number;
-  baselineClosing: string;
-  alternativeClosing: string;
-  liquidityDifference: string;       // alternativeClosing - baselineClosing
+  baselineClosingPosition: string;
+  alternativeClosingPosition: string;
+  positionDifference: string;        // alternativeClosingPosition - baselineClosingPosition
   baselineDeficit: string;
   alternativeDeficit: string;
   deficitDifference: string;         // alternativeDeficit - baselineDeficit
