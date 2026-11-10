@@ -21,6 +21,7 @@ import { AiExplanationPanel } from '@/components/ai/AiExplanation';
 import { RecordedTrends } from './RecordedTrends';
 import { dashboardFinanceCopy } from '@/lib/i18n/translations/dashboard-finance';
 import { FinancialOverview } from './FinancialOverview';
+import { PRODUCT_WIDGETS, ProductWidget } from '@/components/product/DashboardWidgets';
 
 export function WidgetRenderer({ widgetKey, workspace, preview, onUpdated }: { widgetKey: string; workspace: DashboardWorkspaceResponse; preview: boolean; onUpdated: () => void }) {
   const { locale, t } = useLanguage(), copy = workspaceCopy(locale), { can } = useSession();
@@ -40,7 +41,7 @@ export function WidgetRenderer({ widgetKey, workspace, preview, onUpdated }: { w
     case 'financial-summary': return <div className="space-y-4 min-w-0"><FinancialOverview preview={preview}/><details className="rounded-lg border border-[var(--color-border-default)] p-3"><summary className="cursor-pointer text-sm font-semibold">{dashboardFinanceCopy(locale).snapshot}</summary><RecordedTrends records={records}/></details></div>;
     case 'ai-explanation': return workspace.aiStatus.available ? preview ? <Card padding="md"><h2 className="font-semibold mb-2">{copy.names['ai-explanation']}</h2><p className="text-sm">{copy.explanationPreview}</p></Card> : <AiExplanationPanel key={`${score?.computedAt}:${records.map(record => record.updatedAt).join(',')}`} type="dashboard" month={score?.month}/> : null;
     case 'document-workflow': return can('DOCUMENT_READ') ? <Card padding="md" className="h-full space-y-3"><FileText className="h-6 w-6 text-[var(--color-brand-primary)]" aria-hidden="true"/><h2 className="font-semibold">{copy.names['document-workflow']}</h2><p className="text-sm text-[var(--color-text-muted)]">{copy.documentHelp}</p><Link href="/upload" className="text-sm underline text-[var(--color-brand-primary)]">{copy.viewDocuments}</Link></Card> : null;
-    default: return null;
+    default: return (PRODUCT_WIDGETS as readonly string[]).includes(widgetKey) ? <ProductWidget widgetKey={widgetKey} preview={preview}/> : null;
   }
 }
 function Unavailable({ title }: { title: string }) { const { t } = useLanguage(); return <Card padding="md"><h2 className="font-semibold mb-2">{title}</h2><p className="text-sm">{t.live.noScore}</p></Card>; }

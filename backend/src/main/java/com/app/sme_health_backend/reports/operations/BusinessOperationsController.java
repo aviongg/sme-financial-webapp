@@ -78,6 +78,11 @@ public class BusinessOperationsController {
         return ok(intelligence.overview(ctx, r[0], r[1]));
     }
 
+    @GetMapping("/api/intelligence/position")
+    public ResponseEntity<?> position(HttpServletRequest request) {
+        return ok(intelligence.position(read(request)));
+    }
+
     @GetMapping("/api/intelligence/actions")
     public ResponseEntity<?> actions(HttpServletRequest request) {
         return ok(intelligence.actions(read(request)));

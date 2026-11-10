@@ -143,6 +143,40 @@ public class FinancialIntelligenceService {
         return body;
     }
 
+    /** Lightweight dashboard snapshot (F13 widgets): position plus small project/sample/estimate summaries. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> position(BusinessAccessContext ctx) {
+        UUID b = ctx.businessId();
+        LocalDate today = LocalDate.now(ZONE);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("asOf", today.toString());
+        body.put("cashBalance", cash.hasAccounts(b) ? Money.str(cash.cashBalancePkr(b, today)) : null);
+        body.put("receivablesOutstanding", Money.str(cash.outstanding(b, "RECEIVABLE")));
+        body.put("payablesOutstanding", Money.str(cash.outstanding(b, "PAYABLE")));
+        body.put("overdueReceivables", Money.str(cash.overdue(b, "RECEIVABLE", today)));
+        body.put("overduePayables", Money.str(cash.overdue(b, "PAYABLE", today)));
+        InventoryReadService.Register register = inventory.register(b);
+        body.put("inventoryValue", Money.str(register.totalValue()));
+        body.put("itemsBelowReorder", register.itemsBelowReorder());
+        List<Map<String, Object>> projectRows = new ArrayList<>();
+        for (Map<String, Object> p : jdbc.queryForList("SELECT id FROM projects WHERE business_id = ? AND status = 'ACTIVE' "
+                + "ORDER BY updated_at DESC LIMIT 5", b)) {
+            try {
+                Map<String, Object> prof = projects.profitability(b, (UUID) p.get("id"));
+                @SuppressWarnings("unchecked") Map<String, Object> r = (Map<String, Object>) prof.get("profitability");
+                projectRows.add(Map.of("projectId", p.get("id"), "code", String.valueOf(prof.get("code")),
+                        "profit", String.valueOf(r.get("profit")), "status", String.valueOf(r.get("status"))));
+            } catch (RuntimeException e) {
+                log.warn("Dashboard project summary skipped: {}", e.getClass().getSimpleName());
+            }
+        }
+        body.put("activeProjects", projectRows);
+        body.put("samples", sampleSummary(b));
+        Integer estimates = jdbc.queryForObject("SELECT count(*) FROM estimates WHERE business_id = ? AND status = 'ACTIVE'", Integer.class, b);
+        body.put("activeEstimates", estimates == null ? 0 : estimates);
+        return body;
+    }
+
     /** Unified action center: one ranked list, every action carries its reason and evidence. */
     @Transactional(readOnly = true)
     public Map<String, Object> actions(BusinessAccessContext ctx) {

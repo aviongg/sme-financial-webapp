@@ -18,11 +18,12 @@ public class ModuleRegistry {
             new Module("documents", true, false, List.of("core_finance"), BusinessPermission.DOCUMENT_READ),
             new Module("whatsapp", true, false, List.of("core_finance"), BusinessPermission.FINANCIAL_DATA_READ),
             new Module("ai", true, false, List.of("core_finance"), BusinessPermission.FINANCIAL_DATA_READ),
-            future("transactions", "core_finance"), future("receivables", "transactions"),
-            future("invoices", "receivables"), future("projects", "core_finance"), future("costing", "projects"),
-            future("inventory", "transactions"), future("production", "inventory"),
-            future("commissions", "transactions"), future("multi_currency", "transactions"),
-            future("operations", "transactions"), future("reports", "core_finance")
+            // Product completion: every transaction-based module now has an authoritative implementation.
+            live("transactions", "core_finance"), live("receivables", "transactions"),
+            live("invoices", "receivables"), live("projects", "core_finance"), live("costing", "projects"),
+            live("inventory", "transactions"), live("production", "inventory"),
+            live("commissions", "transactions"), live("multi_currency", "transactions"),
+            live("operations", "transactions"), live("reports", "core_finance")
         ));
     }
     public ModuleRegistry(List<Module> modules) {
@@ -30,6 +31,9 @@ public class ModuleRegistry {
         Set<String> keys = new HashSet<>();
         for (Module module : modules) if (!keys.add(module.key())) throw new IllegalArgumentException("Duplicate module key");
         for (Module module : modules) visit(module.key(), new HashSet<>(), new HashSet<>());
+    }
+    private static Module live(String key, String dependency) {
+        return new Module(key, true, false, List.of(dependency), BusinessPermission.FINANCIAL_DATA_READ);
     }
     private static Module future(String key, String dependency) {
         return new Module(key, false, false, List.of(dependency), BusinessPermission.FINANCIAL_DATA_READ);

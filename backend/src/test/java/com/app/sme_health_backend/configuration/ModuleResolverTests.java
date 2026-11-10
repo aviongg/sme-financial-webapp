@@ -15,17 +15,24 @@ class ModuleResolverTests {
     final ModuleRegistry registry = new ModuleRegistry();
     final ModuleResolver resolver = new ModuleResolver(registry);
     ConfigurationRequest request(List<String> modules) { return new ConfigurationRequest(OperatingProfile.SERVICES, Map.of(), modules, 0L); }
+    /** Recommended modules plus their dependency closure, in registry order (the resolver canonicalizes order). */
+    List<String> closure(List<String> keys) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        java.util.ArrayDeque<String> todo = new java.util.ArrayDeque<>(keys);
+        while (!todo.isEmpty()) {
+            String key = todo.pop();
+            if (out.add(key)) todo.addAll(registry.find(key).orElseThrow().dependencies());
+        }
+        return registry.all().stream().map(ModuleRegistry.Module::key).filter(out::contains).toList();
+    }
     @ParameterizedTest @EnumSource(OperatingProfile.class)
-    void everyProfileAppliesOnlyImplementedRecommendationsAndKeepsFutureHintsSeparate(OperatingProfile profile) {
+    void everyProfileRecommendationIsImplementedAndEnablesWithItsDependencies(OperatingProfile profile) {
         var recommended = registry.recommended(profile, Map.of());
-        var applicable = recommended.stream().filter(key -> registry.find(key).orElseThrow().implemented()).toList();
+        assertTrue(recommended.stream().allMatch(key -> registry.find(key).orElseThrow().implemented()),
+                "Product completion: every recommended module has an authoritative implementation");
+        var applicable = closure(recommended);
         assertEquals(applicable, resolver.validate(new ConfigurationRequest(profile, Map.of(), applicable, 0L)));
         assertTrue(applicable.contains("core_finance"));
-        for (String key : recommended) {
-            if (!registry.find(key).orElseThrow().implemented()) {
-                assertThrows(ConfigurationException.class, () -> resolver.validate(new ConfigurationRequest(profile, Map.of(), recommended, 0L)));
-            }
-        }
     }
     @Test void recommendationsAndTerminologyAdaptWithoutChangingScoringCategories() {
         assertTrue(registry.recommended(OperatingProfile.RETAIL_TRADE, Map.of()).contains("whatsapp"));
@@ -54,16 +61,21 @@ class ModuleResolverTests {
         assertEquals(ModuleRegistry.LEGACY_DEFAULTS, resolver.validate(new ConfigurationRequest(OperatingProfile.PROJECT_ORDER,
                 Map.of("tracksProjects", true, "holdsInventory", false), List.of("ai", "documents", "core_finance", "whatsapp"), 4L)));
     }
-    @Test void eachOperatingAnswerChangesPlanningRecommendationsWithoutEnablingFutureServices() {
+    @Test void eachOperatingAnswerChangesRecommendationsAndModulesEnableOnlyWithDependencies() {
         Map<String, String> hints = Map.of("holdsInventory", "inventory", "tracksProjects", "projects", "sellsOnCredit", "receivables");
         for (var hint : hints.entrySet()) {
             var accepted = new ConfigurationRequest(OperatingProfile.SERVICES, Map.of(hint.getKey(), true), List.of("core_finance"), 0L);
             assertTrue(registry.recommended(OperatingProfile.SERVICES, accepted.operatingAnswers()).contains(hint.getValue()));
             assertFalse(registry.recommended(OperatingProfile.SERVICES, Map.of(hint.getKey(), false)).contains(hint.getValue()));
-            assertEquals(List.of("core_finance"), resolver.validate(accepted));
-            assertFalse(registry.find(hint.getValue()).orElseThrow().implemented());
-            assertThrows(ConfigurationException.class, () -> resolver.validate(new ConfigurationRequest(OperatingProfile.SERVICES,
-                    accepted.operatingAnswers(), List.of("core_finance", hint.getValue()), 0L)));
+            assertEquals(List.of("core_finance"), resolver.validate(accepted), "Recommendations never enable anything by themselves");
+            assertTrue(registry.find(hint.getValue()).orElseThrow().implemented());
+            var withDependencies = closure(List.of(hint.getValue()));
+            assertEquals(withDependencies, resolver.validate(new ConfigurationRequest(OperatingProfile.SERVICES,
+                    accepted.operatingAnswers(), withDependencies, 0L)));
+            if (withDependencies.size() > 2) {
+                assertThrows(ConfigurationException.class, () -> resolver.validate(new ConfigurationRequest(OperatingProfile.SERVICES,
+                        accepted.operatingAnswers(), List.of("core_finance", hint.getValue()), 0L)), "Missing dependency is rejected");
+            }
         }
     }
     @Test void completeDefaultAnswersRemainSuggestionsAndExplicitFalseOverridesPresetHints() {

@@ -26,6 +26,7 @@ export const workspaceEn = {
     'inventory': 'Inventory and materials', 'receivables': 'Customer receivables', 'payables': 'Supplier payments', 'projects': 'Active projects',
     'costing': 'Estimates and costing', 'profitability': 'Profitability', 'budgets': 'Budgets', 'funding-gap': 'Funding gaps',
     'transactions': 'Transactions and accounts', 'invoices': 'Invoices and billing', 'production': 'Production and samples', 'commissions': 'Commissions', 'multi-currency': 'Foreign currency', 'reports': 'Business reports',
+    'goals': 'Financial goals', 'break-even': 'Break-even', 'action-center': 'Action center', 'calendar': 'Financial calendar',
   },
   profiles: { manufacturing: 'Manufacturing', 'retail-trade': 'Retail & trading', services: 'Services', 'project-order': 'Projects & orders' },
   context: {
@@ -64,6 +65,7 @@ export const workspaceUr: Copy = {
     'inventory': 'اسٹاک اور مواد', 'receivables': 'گاہکوں سے وصولیاں', 'payables': 'سپلائر ادائیگیاں', 'projects': 'جاری منصوبے',
     'costing': 'تخمینے اور لاگت', 'profitability': 'منافع', 'budgets': 'بجٹ', 'funding-gap': 'فنڈنگ کی کمی',
     'transactions': 'لین دین اور کھاتے', 'invoices': 'انوائسز اور بلنگ', 'production': 'پیداوار اور نمونے', 'commissions': 'کمیشن', 'multi-currency': 'غیر ملکی کرنسی', 'reports': 'کاروباری رپورٹس',
+    'goals': 'مالی اہداف', 'break-even': 'بریک ایون', 'action-center': 'اقدامات مرکز', 'calendar': 'مالی کیلنڈر',
   },
   profiles: { manufacturing: 'مینوفیکچرنگ', 'retail-trade': 'ریٹیل اور تجارت', services: 'خدمات', 'project-order': 'منصوبے اور آرڈرز' },
   context: {
