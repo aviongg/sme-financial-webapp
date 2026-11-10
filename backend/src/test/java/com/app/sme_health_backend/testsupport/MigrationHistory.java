@@ -14,7 +14,7 @@ import java.util.stream.Stream;
  * applied history equals this list AND that it is contiguous from V1, so a gap, duplicate or renumbering fails.
  */
 public final class MigrationHistory {
-    private static final Pattern VERSION = Pattern.compile("^V(\d+)__.+\.sql$");
+    private static final Pattern VERSION = Pattern.compile("^V([0-9]+)__.+[.]sql$");
 
     private MigrationHistory() { }
 
