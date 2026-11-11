@@ -78,6 +78,7 @@ class MonthlyLedgerProjectionPostgreSqlIT extends DisposablePostgres {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private com.app.sme_health_backend.records.derived.MonthlyProjectionService monthlyProjections;
     @Autowired private PasswordEncoder passwordEncoder;
 
     @Autowired private MonthlyLedgerProjectionService projectionService;
@@ -559,6 +560,9 @@ class MonthlyLedgerProjectionPostgreSqlIT extends DisposablePostgres {
                 "score_results"
         );
 
+        // V52: monthly_records is a materialised projection kept fresh on read. Bring it up to date first; the C02
+        // read endpoints must then change nothing (a rebuild with unchanged sources is a no-op).
+        monthlyProjections.refresh(businessIdA);
         Map<String, TableSnapshot> beforeSnapshots = captureTableSnapshots(auditedTables);
 
         // Execute all projection and comparison operations

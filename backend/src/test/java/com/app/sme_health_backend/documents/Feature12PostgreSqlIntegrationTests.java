@@ -178,7 +178,7 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
     }
 
     @Test
-    void verifyConfirmationAppliesContributionRescoresAndEnforcesIdempotency() {
+    void verifyConfirmationIsEvidenceOnlyAndEnforcesIdempotency() {
         String month = "2026-03";
 
         // Create base monthly record for scoring
@@ -231,14 +231,10 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
         assertNotNull(confirmedDoc.getConfirmedData());
         assertTrue(confirmedDoc.getConfirmedData().contains("15000.00"));
 
-        // Verify monthly record updated by contribution
+        // V52 transaction-driven model: a confirmed scan is evidence, not a monthly figure. The month is unchanged.
         MonthlyRecord updatedRecord = monthlyRecordRepository.findByUserIdAndMonth(testUserId, month).orElseThrow();
-        assertEquals(0, new BigDecimal("115000.00").compareTo(updatedRecord.getRevenue()), "Revenue should increase from 100000 to 115000");
-        assertEquals(0, new BigDecimal("115000.00").compareTo(updatedRecord.getCashInflow()), "Cash inflow should increase from 100000 to 115000");
-
-        // Verify affected ScoreResult was recalculated
-        Optional<ScoreResult> score = scoreResultRepository.findByUserIdAndMonth(testUserId, month);
-        assertTrue(score.isPresent(), "ScoreResult should be recalculated and saved for affected month");
+        assertEquals(0, new BigDecimal("100000.00").compareTo(updatedRecord.getRevenue()), "Confirmation must not add revenue");
+        assertEquals(0, new BigDecimal("100000.00").compareTo(updatedRecord.getCashInflow()), "Confirmation must not add cash");
 
         // 2. Duplicate confirmation attempt must be rejected idempotently
         assertThrows(DocumentAlreadyConfirmedException.class, () ->
@@ -247,7 +243,7 @@ class Feature12PostgreSqlIntegrationTests extends com.app.sme_health_backend.tes
 
         // Verify monthly record was NOT double-posted
         MonthlyRecord postCheckRecord = monthlyRecordRepository.findByUserIdAndMonth(testUserId, month).orElseThrow();
-        assertEquals(0, new BigDecimal("115000.00").compareTo(postCheckRecord.getRevenue()), "Revenue must NOT double post on duplicate confirm");
-        assertEquals(0, new BigDecimal("115000.00").compareTo(postCheckRecord.getCashInflow()), "Cash inflow must NOT double post on duplicate confirm");
+        assertEquals(0, new BigDecimal("100000.00").compareTo(postCheckRecord.getRevenue()), "Revenue must stay unchanged");
+        assertEquals(0, new BigDecimal("100000.00").compareTo(postCheckRecord.getCashInflow()), "Cash inflow must stay unchanged");
     }
 }

@@ -140,6 +140,9 @@ public class ProductRuntime {
   assert.equal((await call('POST', '/finance/transactions', { accountId: account.json.id, eventType: 'DIRECT_SALE_RECEIPT', amount: '1234.00',
     effectiveDate: today, description: 'Counter sale' }, key())).status, 201);
   mark('fixture seeded through authenticated API (account, item, stock, invoice recognized, cash sale)');
+  const currentMonth = today.slice(0, 7);
+  const [cy, cm] = currentMonth.split('-').map(Number);
+  const previousMonth = cm === 1 ? `${cy - 1}-12` : `${cy}-${String(cm - 1).padStart(2, '0')}`;
 
   // ---------------------------------------------------------------- browser
   browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -148,7 +151,14 @@ public class ProductRuntime {
   const pages = [
     ['/inventory/stock', 'stock-register'], ['/planning', 'pnl-panel'], ['/intelligence', 'action-center'],
     ['/operations/calendar', 'calendar-panel'], ['/ask-finsight', 'copilot'], [`/invoices/${invoiceId}`, 'commercial-lifecycle-panel'], ['/reports', 'financial-pack'],
+    ['/records/new', 'monthly-automation'], [`/records/${currentMonth}`, 'monthly-sources'],
   ];
+  // Settle the projection, then prove that ordinary navigation (every page below, both locales, four viewports)
+  // never triggers a monthly rebuild: with no source change the projection is served as-is.
+  assert.equal((await call('POST', '/records/monthly/recalculate', {})).status, 200);
+  const beforeNavigation = await call('GET', '/records/monthly/projection-status');
+  assert.equal(beforeNavigation.status, 200);
+  assert.equal(beforeNavigation.json.stale, false);
   for (const locale of ['en', 'ur']) {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport });
@@ -157,6 +167,9 @@ public class ProductRuntime {
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(String(e)));
+      // Hydration mismatches and CSP violations surface as console errors, not page errors.
+      // Only exemption: the browser's implicit /favicon.ico probe (the app ships no favicon yet; recorded in the handoff).
+      page.on('console', m => { if (m.type() === 'error' && !(m.location()?.url ?? '').endsWith('/favicon.ico')) errors.push(`console: ${m.text()} @ ${m.location()?.url ?? ''} on ${page.url()}`); });
       for (const [route, testId] of pages) {
         await page.goto(origin + route, { waitUntil: 'domcontentloaded' });
         await page.getByTestId(testId).first().waitFor({ state: 'visible', timeout: 45000 });
@@ -165,11 +178,16 @@ public class ProductRuntime {
         assert.ok(layout.overflow <= 1, `${route} has no horizontal page overflow at ${viewport.width}x${viewport.height} (${layout.overflow}px)`);
       }
       if (viewport.width === 390 && viewport.height === 844) await page.screenshot({ path: path.join(outDir, `mobile-${locale}.png`), fullPage: false });
-      assert.deepEqual(errors, [], 'no uncaught page errors');
-      mark(`${locale.toUpperCase()} ${viewport.width}x${viewport.height}: ${pages.length} product pages render, ${locale === 'ur' ? 'RTL, ' : ''}no page overflow`);
+      assert.deepEqual(errors, [], 'no uncaught page errors, console errors, hydration mismatches or CSP violations');
+      mark(`${locale.toUpperCase()} ${viewport.width}x${viewport.height}: ${pages.length} product pages render, ${locale === 'ur' ? 'RTL, ' : ''}no page overflow, no page/console/hydration/CSP errors`);
       await context.close();
     }
   }
+  const afterNavigation = await call('GET', '/records/monthly/projection-status');
+  assert.equal(afterNavigation.json.lastProjectedAt, beforeNavigation.json.lastProjectedAt, 'page navigation caused a projection rebuild');
+  assert.equal(afterNavigation.json.dirty, false);
+  assert.equal(afterNavigation.json.lastError, null);
+  mark(`No rebuild storm: ${2 * viewports.length * pages.length} page loads served the settled projection without a rebuild`);
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.addCookies(cookies);
@@ -212,6 +230,52 @@ public class ProductRuntime {
   assert.equal(await page.getByTestId('break-even-status').innerText(), 'AVAILABLE');
   assert.match(await page.getByTestId('break-even-revenue').innerText(), /^0\.00$/);
   mark('Planning: accrual revenue 4,734.00 (3,600 invoice − 100 note + 1,234 cash sale); break-even 0.00 with only policy-variable COGS');
+  // Transaction-driven monthly model: the month is derived from the same records, never typed in.
+  await page.goto(`${origin}/records/${currentMonth}`);
+  await page.getByTestId('monthly-value-revenue').waitFor({ timeout: 45000 });
+  assert.match(await page.getByTestId('monthly-value-revenue').innerText(), /4,734\.00/);
+  assert.match(await page.getByTestId('monthly-value-cogs').innerText(), /2,000\.00/);
+  assert.match(await page.getByTestId('monthly-value-inventoryValue').innerText(), /4,100\.00/);
+  assert.match(await page.getByTestId('monthly-value-cashInflow').innerText(), /1,234\.00/);
+  await page.getByTestId('monthly-matches').waitFor();
+  mark('Monthly record derived from daily activity equals P&L: revenue 4,734.00, COGS 2,000.00, stock 4,100.00, cash in 1,234.00');
+  // Late entry: an invoice entered today but dated last month updates last month, not this one.
+  const late = await call('POST', '/invoices', { counterpartyName: 'Ali Stores', documentDate: `${previousMonth}-15`, dueDate: `${previousMonth}-28`, notes: null,
+    lines: [{ description: 'Late delivery', quantity: '1', unit: 'job', unitPrice: '500.00' }] });
+  assert.equal(late.status, 201);
+  assert.equal((await call('POST', `/invoices/${late.json.id}/finalize`, { expectedVersion: late.json.version })).status, 200);
+  assert.equal((await call('POST', '/finance/obligations/recognize-commercial-document', { documentId: late.json.id, documentKind: 'INVOICE',
+    counterpartyId: customer.json.id, notes: 'late entry' }, key())).status, 201);
+  await page.goto(`${origin}/records/${previousMonth}`);
+  await page.getByTestId('monthly-value-revenue').waitFor({ timeout: 45000 });
+  assert.match(await page.getByTestId('monthly-value-revenue').innerText(), /^500\.00$/);
+  await page.goto(`${origin}/records/${currentMonth}`);
+  await page.getByTestId('monthly-value-revenue').waitFor({ timeout: 45000 });
+  assert.match(await page.getByTestId('monthly-value-revenue').innerText(), /4,734\.00/);
+  const priorScore = await call('POST', '/scores/query', { month: previousMonth });
+  assert.equal(priorScore.status, 200, 'prior month was rescored automatically');
+  const history = await call('GET', '/scores/history');
+  assert.ok(history.json.some(s => s.month === previousMonth), 'score history includes the backdated month');
+  const dashboard = await call('GET', '/dashboard');
+  assert.equal(dashboard.status, 200);
+  assert.equal(dashboard.json.score.month, currentMonth);
+  const dashboardPrior = dashboard.json.cashFlowHistory.find(p => p.month === previousMonth);
+  assert.ok(dashboardPrior, 'dashboard charts the derived prior month');
+  mark('Late entry dated last month updates last month (500.00) and its health score; this month stays 4,734.00');
+  // Supplemental financing is the only manual monthly input, submitted by keyboard; recalculation is idempotent.
+  await page.goto(`${origin}/records/new`);
+  await page.getByTestId('monthly-recalculate').click();
+  await waitText('monthly-recalculated', /No changes/);
+  await page.getByTestId('financing-month').fill(previousMonth);
+  await page.getByTestId('financing-loan').fill('2000.00');
+  await page.getByTestId('financing-loan').press('Enter');
+  await waitText('financing-message', /Saved/);
+  await page.goto(`${origin}/records/${previousMonth}`);
+  await page.getByTestId('monthly-value-loanOutstanding').waitFor({ timeout: 45000 });
+  assert.match(await page.getByTestId('monthly-value-loanOutstanding').innerText(), /2,000\.00/);
+  const manual = await call('POST', '/records/monthly', { month: previousMonth, cashInflow: 1, cashOutflow: 1, revenue: 1, operatingExpenses: 1, cashBalanceEom: 1, financingType: 'none' });
+  assert.equal(manual.status, 409, 'manual monthly totals are refused');
+  mark('Recalculation is idempotent; supplemental loan input (keyboard) flows into last month; manual monthly totals are refused (409)');
   // Copilot grounded answer, keyboard only.
   await page.goto(`${origin}/ask-finsight`);
   await page.getByTestId('copilot-question').waitFor();

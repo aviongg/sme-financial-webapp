@@ -31,6 +31,18 @@ public class MonthlyRecordResponse {
     private String financingType;
     private LocalDateTime updatedAt;
 
+    private String source;
+    private String projectionVersion;
+    private Boolean periodComplete;
+    private java.time.Instant projectedAt;
+    private java.util.List<String> coverageNotes = java.util.List.of();
+
+    public String getSource() { return source; }
+    public String getProjectionVersion() { return projectionVersion; }
+    public Boolean getPeriodComplete() { return periodComplete; }
+    public java.time.Instant getProjectedAt() { return projectedAt; }
+    public java.util.List<String> getCoverageNotes() { return coverageNotes; }
+
     public static MonthlyRecordResponse fromEntity(MonthlyRecord record) {
         MonthlyRecordResponse response = new MonthlyRecordResponse();
 
@@ -57,6 +69,13 @@ public class MonthlyRecordResponse {
 
         response.financingType = record.getFinancingType();
         response.updatedAt = record.getUpdatedAt();
+        response.source = record.getSource();
+        response.projectionVersion = record.getProjectionVersion();
+        response.periodComplete = record.getPeriodComplete();
+        response.projectedAt = record.getProjectedAt();
+        if (record.getCoverageNotes() != null && !record.getCoverageNotes().isBlank()) {
+            response.coverageNotes = java.util.List.of(record.getCoverageNotes().split(","));
+        }
 
         return response;
     }

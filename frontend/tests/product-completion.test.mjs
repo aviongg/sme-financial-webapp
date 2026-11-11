@@ -114,3 +114,25 @@ test('posting controls are presentation-gated to OWNER/ACCOUNTANT and Copilot sh
   assert.match(panel, /useCanPost\(\)/);
   assert.match(panel, /c\.blockers\[b\]/);
 });
+
+test('monthly figures are derived: adapters only read projections, recalculate, and write supplemental financing', async () => {
+  const calls = capture();
+  await api.monthlyApi.status();
+  await api.monthlyApi.recalculate();
+  await api.monthlyApi.sources('2026-10');
+  await api.monthlyApi.financing();
+  await api.monthlyApi.saveFinancing('2026-10', { loanOutstanding: '5000.00', interestExpense: null, financingType: 'islamic', expectedVersion: null });
+  const urls = calls.filter(c => !c.url.endsWith('/api/auth/csrf')).map(c => `${c.init.method ?? 'GET'} ${c.url}`);
+  assert.deepEqual(urls, ['GET /api/records/monthly/projection-status', 'POST /api/records/monthly/recalculate',
+    'GET /api/records/monthly/2026-10/sources', 'GET /api/records/monthly/financing', 'PUT /api/records/monthly/financing/2026-10']);
+  const body = JSON.parse(calls.find(c => c.url === '/api/records/monthly/financing/2026-10').init.body);
+  assert.deepEqual(Object.keys(body).sort(), ['expectedVersion', 'financingType', 'interestExpense', 'loanOutstanding']);
+  assert.throws(() => api.monthlyApi.sources('2026-13'));
+  assert.throws(() => api.monthlyApi.saveFinancing('../x', { loanOutstanding: null, interestExpense: null, financingType: 'none', expectedVersion: null }));
+  // The live monthly pages no longer render the manual monthly-totals form.
+  assert.doesNotMatch(source('../src/app/records/new/page.tsx'), /MonthlyRecordForm/);
+  assert.match(source('../src/app/records/[id]/page.tsx'), /DerivedMonthSources/);
+  assert.match(source('../src/app/records/bridge/page.tsx'), /MonthlyAutomationPanel/);
+  assert.doesNotMatch(source('../src/components/integration/LiveDocumentReview.tsx'), /document-initial-balance/);
+  assert.match(productCopy('en').monthly.principle, /derived automatically/);
+});

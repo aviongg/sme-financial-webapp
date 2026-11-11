@@ -71,6 +71,42 @@ public class MonthlyRecord {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** LEGACY_MANUAL (pre-V52 manual history) or DERIVED (monthly-projection-v1 materialisation). */
+    @Column(name = "source", nullable = false, length = 16)
+    private String source = SOURCE_LEGACY_MANUAL;
+
+    @Column(name = "projection_version", length = 40)
+    private String projectionVersion;
+
+    @Column(name = "source_fingerprint", length = 64)
+    private String sourceFingerprint;
+
+    @Column(name = "period_complete")
+    private Boolean periodComplete;
+
+    @Column(name = "projected_at")
+    private java.time.Instant projectedAt;
+
+    @Column(name = "coverage_notes")
+    private String coverageNotes;
+
+    public static final String SOURCE_LEGACY_MANUAL = "LEGACY_MANUAL";
+    public static final String SOURCE_DERIVED = "DERIVED";
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public String getProjectionVersion() { return projectionVersion; }
+    public void setProjectionVersion(String projectionVersion) { this.projectionVersion = projectionVersion; }
+    public String getSourceFingerprint() { return sourceFingerprint; }
+    public void setSourceFingerprint(String sourceFingerprint) { this.sourceFingerprint = sourceFingerprint; }
+    public Boolean getPeriodComplete() { return periodComplete; }
+    public void setPeriodComplete(Boolean periodComplete) { this.periodComplete = periodComplete; }
+    public java.time.Instant getProjectedAt() { return projectedAt; }
+    public void setProjectedAt(java.time.Instant projectedAt) { this.projectedAt = projectedAt; }
+    public String getCoverageNotes() { return coverageNotes; }
+    public void setCoverageNotes(String coverageNotes) { this.coverageNotes = coverageNotes; }
+    public boolean isDerived() { return SOURCE_DERIVED.equals(source); }
+
     public UUID getId() {
         return id;
     }

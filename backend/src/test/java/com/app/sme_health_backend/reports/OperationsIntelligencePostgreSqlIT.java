@@ -78,7 +78,8 @@ class OperationsIntelligencePostgreSqlIT extends ProductApiTestBase {
         assertEquals("900.00", overview.get("revenue").get("topCustomers").get(0).get("amount").asText());
         assertEquals("90.00", overview.get("revenue").get("topCustomers").get(0).get("sharePct").asText());
         assertEquals(6, overview.get("revenue").get("trend").size());
-        assertEquals("NO_SCORE", overview.get("health").get("status").asText());
+        // V52: the health score is derived automatically from the same recorded activity.
+        assertEquals("AVAILABLE", overview.get("health").get("status").asText());
 
         JsonNode actions = getJson(owner, "/api/intelligence/actions");
         List<String> actionTypes = values(actions.get("actions"), "type");

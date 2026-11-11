@@ -134,3 +134,25 @@ export const whatsappInboundApi = {
   link: (phoneNumber: string, consent: boolean, language: 'en' | 'ur') => post<Json>('/whatsapp/inbound/link', { phoneNumber, consent, language }),
   revoke: () => post<Json>('/whatsapp/inbound/link/revoke', {}),
 };
+
+// ------------------------------------------------------------------ transaction-driven monthly model (monthly-projection-v1)
+
+export interface MonthlyProjectionStatus { projectionVersion: string; dirty: boolean; stale: boolean; projectedThrough: string | null; currentMonth: string; lastProjectedAt: string | null; lastError: string | null; principle: string }
+export interface MonthlyRefreshResult { businessId: string; coverageFrom: string | null; coverageThrough: string | null; changedMonths: string[]; rescoredMonths: string[]; clean: boolean }
+export interface MonthlyFieldSource { field: string; value: string | null; basis: 'ACCRUAL' | 'CASH' | 'SNAPSHOT' | 'SUPPLEMENTAL_MANUAL'; source: string }
+export interface MonthlySources { month: string; projectionVersion: string; periodComplete: boolean; fields: MonthlyFieldSource[]; financingType: string; notes: string[]; storedSource: string | null; storedMatchesDerivation: boolean; profitAndLoss: Record<string, string> }
+export interface FinancingInput { month: string; loanOutstanding: string | null; interestExpense: string | null; financingType: 'none' | 'conventional' | 'islamic'; origin: string; version: number; updatedAt: string | null }
+
+const monthPath = (month: string) => {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('invalid_month');
+  return month;
+};
+
+export const monthlyApi = {
+  status: (signal?: AbortSignal) => get<MonthlyProjectionStatus>('/records/monthly/projection-status', signal),
+  recalculate: () => post<MonthlyRefreshResult>('/records/monthly/recalculate', {}),
+  sources: (month: string, signal?: AbortSignal) => get<MonthlySources>(`/records/monthly/${monthPath(month)}/sources`, signal),
+  financing: (signal?: AbortSignal) => get<FinancingInput[]>('/records/monthly/financing', signal),
+  saveFinancing: (month: string, body: { loanOutstanding: string | null; interestExpense: string | null; financingType: string; expectedVersion: number | null }) =>
+    put<FinancingInput>(`/records/monthly/financing/${monthPath(month)}`, body),
+};

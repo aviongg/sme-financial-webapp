@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Container } from "@/components/ui/Container";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { MonthlyRecordForm } from "@/components/records/MonthlyRecordForm";
+import { DerivedMonthSources } from "@/components/product/MonthlyFinancials";
 import { RecordFormSkeleton } from "@/components/records/RecordFormSkeleton";
 import { useLanguage } from "@/lib/i18n/context";
 import { mockApi } from "@/lib/api/adapter";
@@ -100,7 +101,7 @@ function RecordEditor({ recordId }: { recordId: string }) {
           )}
 
           {/* Successfully loaded record */}
-          {!isLoading && !notFound && !error && record && (
+          {!isLoading && !notFound && !error && record && isDemoMode && (
             <MonthlyRecordForm
               key={`${record.businessId ?? record.userId}:${record.month}`}
               initialData={record}
@@ -111,6 +112,14 @@ function RecordEditor({ recordId }: { recordId: string }) {
                 setRetry(value => value + 1);
               }}
             />
+          )}
+
+          {/* Live mode: the month is derived from authoritative records and is read-only. */}
+          {!isLoading && !notFound && !error && record && !isDemoMode && (
+            <div data-testid="derived-month" className="space-y-4">
+              <h2 className="text-xl font-semibold"><bdi dir="ltr">{record.month}</bdi></h2>
+              <DerivedMonthSources month={record.month} />
+            </div>
           )}
         </div>
       </Container>

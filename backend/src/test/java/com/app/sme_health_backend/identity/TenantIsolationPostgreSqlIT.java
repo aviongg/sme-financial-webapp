@@ -265,12 +265,14 @@ public class TenantIsolationPostgreSqlIT extends com.app.sme_health_backend.test
                     "financingType": "none"
                 }
                 """;
+        // V52: manual monthly totals are refused for every tenant; months are derived. Legacy rows (pre-V52
+        // history) still exist and must stay tenant-scoped, so seed them directly.
         mockMvc.perform(withAuth(post("/api/records/monthly"), sessionA)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(recordAPayload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.businessId").value(businessA.toString()))
-                .andExpect(jsonPath("$.revenue").value(500000));
+                .andExpect(status().isConflict());
+        jdbcTemplate.update("INSERT INTO monthly_records(user_id,month,cash_inflow,cash_outflow,revenue,cogs,operating_expenses,cash_balance_eom) "
+                + "VALUES (?, '2026-09', 500000, 200000, 500000, 150000, 50000, 300000)", businessA);
 
         // 2. User B posts record for Business B
         String recordBPayload = """
@@ -285,12 +287,12 @@ public class TenantIsolationPostgreSqlIT extends com.app.sme_health_backend.test
                     "financingType": "none"
                 }
                 """;
-        MvcResult recordBResult = mockMvc.perform(withAuth(post("/api/records/monthly"), sessionB)
+        mockMvc.perform(withAuth(post("/api/records/monthly"), sessionB)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(recordBPayload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.businessId").value(businessB.toString()))
-                .andReturn();
+                .andExpect(status().isConflict());
+        jdbcTemplate.update("INSERT INTO monthly_records(user_id,month,cash_inflow,cash_outflow,revenue,cogs,operating_expenses,cash_balance_eom) "
+                + "VALUES (?, '2026-09', 999999, 111111, 999999, 200000, 88888, 800000)", businessB);
 
         // 3. User A queries monthly records -> sees only Business A
         mockMvc.perform(withAuth(get("/api/records/monthly"), sessionA))
@@ -307,9 +309,8 @@ public class TenantIsolationPostgreSqlIT extends com.app.sme_health_backend.test
                 .andExpect(jsonPath("$[0].revenue").value(999999));
 
         // 5. Cross-tenant privacy guarantee: User A querying Business B's record ID returns generic 404
-        String recordBBody = recordBResult.getResponse().getContentAsString();
-        int idx = recordBBody.indexOf("\"id\":\"");
-        UUID recordBId = UUID.fromString(recordBBody.substring(idx + 6, idx + 42));
+        UUID recordBId = jdbcTemplate.queryForObject("SELECT id FROM monthly_records WHERE user_id = ? AND month = '2026-09'",
+                UUID.class, businessB);
 
         mockMvc.perform(withAuth(get("/api/records/monthly/id/" + recordBId), sessionA))
                 .andExpect(status().isNotFound())

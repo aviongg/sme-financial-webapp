@@ -45,7 +45,7 @@ class DocumentConfirmationServiceTests {
     }
 
     @Test
-    void successfullyConfirmsExtractedDocumentAndUpdatesMonthlyRecord() {
+    void successfullyConfirmsExtractedDocumentAsEvidenceWithoutMonthlyFigures() {
         UploadedDocument doc = new UploadedDocument();
         doc.setId(docId);
         doc.setUserId(userId);
@@ -73,7 +73,9 @@ class DocumentConfirmationServiceTests {
         assertTrue(confirmed.getConfirmedData().contains("Lahore Wholesale"));
         assertTrue(confirmed.getConfirmedData().contains("12500.00"));
 
-        verify(monthlyRecordService).applyDocumentContribution(userId, actorId, docId, request);
+        // V52: a reviewed scan is evidence only; it never writes monthly figures.
+        verify(monthlyRecordService).lockBusiness(userId);
+        verifyNoMoreInteractions(monthlyRecordService);
         verify(repository).save(doc);
     }
 
@@ -100,7 +102,9 @@ class DocumentConfirmationServiceTests {
         UploadedDocument confirmed = service.confirmDocument(userId, docId, actorId, request);
 
         assertEquals(DocumentStatus.confirmed, confirmed.getProcessingStatus());
-        verify(monthlyRecordService).applyDocumentContribution(userId, actorId, docId, request);
+        // V52: a reviewed scan is evidence only; it never writes monthly figures.
+        verify(monthlyRecordService).lockBusiness(userId);
+        verifyNoMoreInteractions(monthlyRecordService);
     }
 
     @Test
@@ -120,7 +124,7 @@ class DocumentConfirmationServiceTests {
                 service.confirmDocument(userId, docId, actorId, request)
         );
 
-        verify(monthlyRecordService, never()).applyDocumentContribution(any(), any(), any(), any());
+        verify(monthlyRecordService, never()).saveMonthlyRecord(any(), any(), any());
     }
 
     @Test

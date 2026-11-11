@@ -106,7 +106,7 @@ public class ProfitAndLossService {
                 """, businessId, Date.valueOf(from), Date.valueOf(to))) {
             BigDecimal amount = Money.nz((BigDecimal) row.get("original_amount"));
             invoiceRevenue = invoiceRevenue.add(amount);
-            revenueFacts.add(fact("COMMERCIAL_DOCUMENT", UUID.fromString((String) row.get("source_id")), date(row.get("issue_date")),
+            revenueFacts.add(fact("COMMERCIAL_DOCUMENT", sourceDocument(row.get("source_id")), date(row.get("issue_date")),
                     amount, classifications, categoryBehavior, (String) row.get("reference_number"), (UUID) row.get("counterparty_id")));
         }
         BigDecimal creditNotes = Money.ZERO;
@@ -158,9 +158,9 @@ public class ProfitAndLossService {
                 WHERE o.business_id = ? AND o.source_type = 'SUPPLIER_BILL' AND o.status = 'OPEN'
                   AND o.issue_date BETWEEN ? AND ?
                 """, businessId, Date.valueOf(from), Date.valueOf(to))) {
-            UUID docId = UUID.fromString((String) row.get("source_id"));
+            UUID docId = sourceDocument(row.get("source_id"));
             BigDecimal original = Money.nz((BigDecimal) row.get("original_amount"));
-            BigDecimal cap = inventory.capitalizedFromBill(businessId, docId).min(original);
+            BigDecimal cap = docId == null ? Money.ZERO : inventory.capitalizedFromBill(businessId, docId).min(original);
             capitalized = capitalized.add(cap);
             BigDecimal amount = original.subtract(cap);
             if (amount.signum() == 0) {
@@ -185,9 +185,12 @@ public class ProfitAndLossService {
                   AND (m.movement_type = 'SUPPLIER_RETURN' OR (m.movement_type = 'REVERSAL' AND o.movement_type = 'SUPPLIER_RETURN'))
                 """, BigDecimal.class, businessId, Date.valueOf(from), Date.valueOf(to)));
         BigDecimal commission = Money.nz(jdbc.queryForObject("""
-                SELECT COALESCE(sum(COALESCE(approved_amount, commission_amount)), 0) FROM commission_earnings
-                WHERE business_id = ? AND status IN ('EARNED', 'APPROVED', 'PARTIALLY_SETTLED', 'SETTLED', 'PAID')
-                  AND (created_at AT TIME ZONE 'Asia/Karachi')::date BETWEEN ? AND ?
+                SELECT COALESCE(sum(COALESCE(e.approved_amount, e.commission_amount)), 0) FROM commission_earnings e
+                LEFT JOIN obligation_payment_allocations al ON e.source_type = 'OBLIGATION_ALLOCATION'
+                     AND al.business_id = e.business_id AND al.id::text = e.source_id
+                WHERE e.business_id = ? AND e.status IN ('EARNED', 'APPROVED', 'PARTIALLY_SETTLED', 'SETTLED', 'PAID')
+                  -- Accounting date: the collection that earned the commission; entry date only when no source date exists.
+                  AND COALESCE(al.effective_date, (e.created_at AT TIME ZONE 'Asia/Karachi')::date) BETWEEN ? AND ?
                 """, BigDecimal.class, businessId, Date.valueOf(from), Date.valueOf(to)));
         BigDecimal adjustmentIn = Money.nz(jdbc.queryForObject("""
                 SELECT COALESCE(sum(m.value_delta), 0) FROM inventory_movements m
@@ -221,6 +224,19 @@ public class ProfitAndLossService {
                 grossProfit, cashExpenses, billExpenses, debitNotes, supplierReturns, commission, inventoryLosses,
                 operatingExpenses, operatingProfit, realizedFx, netProfit, capitalized,
                 List.copyOf(revenueFacts), List.copyOf(expenseFacts), unclassifiedRevenue, unclassifiedExpenses, hasData);
+    }
+
+    /**
+     * Obligations recognized from F04 carry the document UUID as source_id; Developer A's schema also allows free-text
+     * references (e.g. imported or declared invoices). Those still count as revenue/cost, just without a document link.
+     */
+    private static UUID sourceDocument(Object sourceId) {
+        if (sourceId == null) return null;
+        try {
+            return UUID.fromString(sourceId.toString().trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** Category totals for a fact list; null category is reported under "UNCLASSIFIED". */

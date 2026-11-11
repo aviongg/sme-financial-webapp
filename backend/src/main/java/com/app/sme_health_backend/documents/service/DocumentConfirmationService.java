@@ -77,12 +77,13 @@ public class DocumentConfirmationService {
             );
         }
 
-        // Apply incremental financial contribution to MonthlyRecord
-        try {
-            monthlyRecordService.applyDocumentContribution(userId, actorUserId, documentId, request);
-        } catch (IllegalArgumentException e) {
-            throw new DocumentValidationException(e.getMessage());
-        }
+        // Transaction-driven monthly model (V52): a reviewed scan is evidence, never a monthly figure. It does not
+        // change any MonthlyRecord; the user links it to an invoice/bill (F04 evidence) or records the transaction,
+        // and the monthly projection follows from that authoritative record.
+        if (request.targetMonth() == null || !request.targetMonth().matches("[0-9]{4}-(0[1-9]|1[0-2])"))
+            throw new DocumentValidationException("Target month must be in YYYY-MM format");
+        if (request.confirmedAmount() == null || request.confirmedAmount().signum() <= 0)
+            throw new DocumentValidationException("Confirmed amount must be greater than zero");
 
         doc.setConfirmedData(formatConfirmedJson(request, classification, flowImpact));
         doc.setLinkedMonth(request.targetMonth());
