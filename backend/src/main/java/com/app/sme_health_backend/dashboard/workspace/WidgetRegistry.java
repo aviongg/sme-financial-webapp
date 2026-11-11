@@ -13,6 +13,10 @@ public class WidgetRegistry {
     private static Definition core(String key) {
         return new Definition(key, "core_finance", true, false, List.of("compact", "wide"), FINANCIAL_DATA_READ);
     }
+    private static Definition live(String key, String module) {
+        return new Definition(key, module, true, false, List.of("compact", "wide"), FINANCIAL_DATA_READ);
+    }
+    @SuppressWarnings("unused")
     private static Definition future(String key, String module) {
         return new Definition(key, module, false, false, List.of("compact", "wide"), FINANCIAL_DATA_READ);
     }
@@ -22,11 +26,12 @@ public class WidgetRegistry {
             core("financial-evidence"), core("next-step"), core("recommendation"), core("financial-summary"),
             new Definition("ai-explanation", "ai", true, false, List.of("compact", "wide"), FINANCIAL_DATA_READ),
             new Definition("document-workflow", "documents", true, false, List.of("compact", "wide"), DOCUMENT_READ),
-            future("transactions", "transactions"), future("receivables", "receivables"), future("payables", "receivables"),
-            future("invoices", "invoices"), future("projects", "projects"), future("costing", "costing"),
-            future("inventory", "inventory"), future("production", "production"), future("commissions", "commissions"),
-            future("multi-currency", "multi_currency"), future("budgets", "core_finance"),
-            future("funding-gap", "projects"), future("reports", "reports"));
+            live("transactions", "transactions"), live("receivables", "receivables"), live("payables", "receivables"),
+            live("invoices", "invoices"), live("projects", "projects"), live("costing", "costing"),
+            live("inventory", "inventory"), live("production", "production"), live("commissions", "commissions"),
+            live("multi-currency", "multi_currency"), core("budgets"), core("goals"), core("profitability"),
+            core("break-even"), core("action-center"), live("calendar", "operations"),
+            live("funding-gap", "projects"), live("reports", "reports"));
     public List<Definition> all() { return definitions; }
     public Optional<Definition> find(String key) { return definitions.stream().filter(d -> d.key().equals(key)).findFirst(); }
 }

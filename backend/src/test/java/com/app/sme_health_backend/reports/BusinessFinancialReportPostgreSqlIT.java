@@ -170,7 +170,8 @@ class BusinessFinancialReportPostgreSqlIT extends com.app.sme_health_backend.tes
     @Test void everyExistingFinancialReadRoleCanReadAndSuspendedOrRemovedMembershipsCannot() throws Exception {
         var f = fixture("Roles Traders"); seed(f.businessId); var session = login(f);
         var membership = memberships.findByUserIdAndBusinessId(f.user.getId(), f.businessId).orElseThrow();
-        for (MembershipRole role : MembershipRole.values()) {
+        // SALESPERSON (F10) is row-scoped to commissions and has no FINANCIAL_DATA_READ.
+        for (MembershipRole role : java.util.EnumSet.complementOf(java.util.EnumSet.of(MembershipRole.SALESPERSON))) {
             membership.setRole(role); memberships.saveAndFlush(membership);
             report(session, Q1).andExpect(status().isOk());
             csv(session, Q1).andExpect(status().isOk());

@@ -17,6 +17,8 @@ import com.app.sme_health_backend.records.entity.MonthlyRecord;
 import com.app.sme_health_backend.records.repository.DocumentFinancialContributionRepository;
 import com.app.sme_health_backend.records.repository.MonthlyRecordRepository;
 import com.app.sme_health_backend.records.service.MonthlyRecordService;
+import com.app.sme_health_backend.records.derived.MonthlyFinancialProjector;
+import com.app.sme_health_backend.records.derived.MonthlyProjectionService;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -44,6 +46,7 @@ public class LedgerMonthlyBridgeService {
     private final ObligationPaymentAllocationRepository allocationRepository;
     private final DocumentFinancialContributionRepository contributions;
     private final SecurityAuditService auditService;
+    private final MonthlyProjectionService projections;
 
     public LedgerMonthlyBridgeService(
             JdbcTemplate jdbc,
@@ -52,7 +55,8 @@ public class LedgerMonthlyBridgeService {
             FinancialObligationRepository obligationRepository,
             ObligationPaymentAllocationRepository allocationRepository,
             DocumentFinancialContributionRepository contributions,
-            SecurityAuditService auditService
+            SecurityAuditService auditService,
+            MonthlyProjectionService projections
     ) {
         this.jdbc = jdbc;
         this.monthlyRecordRepository = monthlyRecordRepository;
@@ -61,6 +65,7 @@ public class LedgerMonthlyBridgeService {
         this.allocationRepository = allocationRepository;
         this.contributions = contributions;
         this.auditService = auditService;
+        this.projections = projections;
     }
 
     /**
@@ -224,8 +229,9 @@ public class LedgerMonthlyBridgeService {
     }
 
     /**
-     * Authoritative cutover: translates ledger derived figures into a persistent MonthlyRecord,
-     * triggering automatic health-score-v1 recalculation while preserving audit history.
+     * Superseded by the transaction-driven monthly projection (V52, monthly-projection-v1). "Applying" a month now
+     * triggers the deterministic projector, which derives every month in coverage from authoritative records and
+     * rescores it. Manual override figures are refused: they would create a second source of truth.
      */
     @Transactional
     public LedgerCutoverResponse applyLedgerProjection(
@@ -235,118 +241,30 @@ public class LedgerMonthlyBridgeService {
     ) {
         UUID businessId = context.businessId();
         String yearMonth = request.yearMonth();
-        monthlyRecordService.lockBusiness(businessId);
-
-        LedgerMonthlyProjectionResponse projection = getMonthlyProjection(context, yearMonth);
-
-        BigDecimal cashInflow = projection.ledgerCashInflow().setScale(2, RoundingMode.HALF_UP);
-        BigDecimal cashOutflow = projection.ledgerCashOutflow().setScale(2, RoundingMode.HALF_UP);
-        BigDecimal revenue = projection.ledgerOperatingRevenue().setScale(2, RoundingMode.HALF_UP);
-        BigDecimal operatingExpenses = projection.ledgerOperatingExpenses().setScale(2, RoundingMode.HALF_UP);
-        BigDecimal cashBalanceEom = projection.currentCashBalanceEom().setScale(2, RoundingMode.HALF_UP);
-
-        // Adjust against confirmed document contribution floors to prevent conflict
-        var floors = contributions.floors(businessId, yearMonth);
-        if (floors != null) {
-            BigDecimal revFloor = floors.get("revenue");
-            if (revFloor != null && revenue.compareTo(revFloor) < 0) revenue = revFloor;
-
-            BigDecimal opexFloor = floors.get("operatingExpenses");
-            if (opexFloor != null && operatingExpenses.compareTo(opexFloor) < 0) operatingExpenses = opexFloor;
-
-            BigDecimal inFloor = floors.get("cashInflow");
-            if (inFloor != null && cashInflow.compareTo(inFloor) < 0) cashInflow = inFloor;
-
-            BigDecimal outFloor = floors.get("cashOutflow");
-            if (outFloor != null && cashOutflow.compareTo(outFloor) < 0) cashOutflow = outFloor;
+        parseYearMonth(yearMonth);
+        if (request.manualCogs() != null || request.manualInventoryValue() != null
+                || request.manualLoanOutstanding() != null || request.manualInterestExpense() != null
+                || (request.financingType() != null && !request.financingType().isBlank())) {
+            throw MonthlyRecordService.manualEntryRetired();
         }
+        MonthlyProjectionService.RefreshResult refresh = projections.refresh(businessId);
+        MonthlyRecord saved = monthlyRecordRepository.findByUserIdAndMonth(businessId, yearMonth)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No ledger coverage for " + yearMonth + ": open a cash account dated on or before that month."));
 
-        MonthlyRecord record = new MonthlyRecord();
-        record.setUserId(businessId);
-        record.setMonth(yearMonth);
-        record.setCashInflow(cashInflow);
-        record.setCashOutflow(cashOutflow);
-        record.setRevenue(revenue);
-        record.setOperatingExpenses(operatingExpenses);
-        record.setCashBalanceEom(cashBalanceEom);
-
-        record.setReceivablesOutstanding(projection.asOfReceivablesOutstanding().setScale(2, RoundingMode.HALF_UP));
-        record.setPayablesOutstanding(projection.asOfPayablesOutstanding().setScale(2, RoundingMode.HALF_UP));
-
-        // Preserve existing manual figures if not explicitly provided in the cutover request
-        Optional<MonthlyRecord> existingOpt = monthlyRecordRepository.findByUserIdAndMonth(businessId, yearMonth);
-        MonthlyRecord existing = existingOpt.orElse(null);
-
-        if (request.manualCogs() != null) {
-            record.setCogs(request.manualCogs().setScale(2, RoundingMode.HALF_UP));
-        } else if (existing != null && existing.getCogs() != null) {
-            record.setCogs(existing.getCogs());
-        }
-
-        if (request.manualInventoryValue() != null) {
-            record.setInventoryValue(request.manualInventoryValue().setScale(2, RoundingMode.HALF_UP));
-        } else if (existing != null && existing.getInventoryValue() != null) {
-            record.setInventoryValue(existing.getInventoryValue());
-        }
-
-        if (request.manualLoanOutstanding() != null) {
-            record.setLoanOutstanding(request.manualLoanOutstanding().setScale(2, RoundingMode.HALF_UP));
-        } else if (existing != null && existing.getLoanOutstanding() != null) {
-            record.setLoanOutstanding(existing.getLoanOutstanding());
-        }
-
-        if (request.manualInterestExpense() != null) {
-            record.setInterestExpense(request.manualInterestExpense().setScale(2, RoundingMode.HALF_UP));
-        } else if (existing != null && existing.getInterestExpense() != null) {
-            record.setInterestExpense(existing.getInterestExpense());
-        }
-
-        String financingType;
-        if (request.financingType() != null && !request.financingType().isBlank()) {
-            financingType = request.financingType().trim().toLowerCase(Locale.ROOT);
-        } else if (existing != null && existing.getFinancingType() != null) {
-            financingType = existing.getFinancingType();
-        } else {
-            financingType = "none";
-        }
-        record.setFinancingType(financingType);
-
-        MonthlyRecord saved = monthlyRecordService.saveMonthlyRecord(record, context.userId(), request.expectedVersion());
-
-        // Durable Security Audit Log
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("yearMonth", yearMonth);
-        metadata.put("ledgerCashInflow", cashInflow.toPlainString());
-        metadata.put("ledgerCashOutflow", cashOutflow.toPlainString());
-        metadata.put("ledgerRevenue", revenue.toPlainString());
-        metadata.put("ledgerOperatingExpenses", operatingExpenses.toPlainString());
-        metadata.put("provenance", BRIDGE_PROVENANCE);
+        metadata.put("provenance", MonthlyFinancialProjector.VERSION);
+        metadata.put("changedMonths", String.join(",", refresh.changedMonths()));
         if (request.confirmationNote() != null) {
             metadata.put("confirmationNote", request.confirmationNote());
         }
+        auditService.logSuccess(AuditEventType.LEDGER_HEALTH_CUTOVER, context.userId(), null, businessId,
+                "monthly_record", saved.getId().toString(), metadata);
 
-        auditService.logSuccess(
-                AuditEventType.LEDGER_HEALTH_CUTOVER,
-                context.userId(),
-                null,
-                businessId,
-                "monthly_record",
-                saved.getId().toString(),
-                metadata
-        );
-
-        MonthlyRecordResponse res = MonthlyRecordResponse.fromEntity(saved);
-
-        return new LedgerCutoverResponse(
-                saved.getId(),
-                businessId,
-                yearMonth,
-                saved.getVersion(),
-                res,
-                BRIDGE_PROVENANCE,
-                Instant.now(),
-                "Successfully cut over ledger financial transactions into monthly health record for " + yearMonth + "."
-        );
+        return new LedgerCutoverResponse(saved.getId(), businessId, yearMonth, saved.getVersion(),
+                MonthlyRecordResponse.fromEntity(saved), MonthlyFinancialProjector.VERSION, Instant.now(),
+                "Monthly figures for " + yearMonth + " are derived automatically from authoritative records.");
     }
 
     private BigDecimal queryTotalCashBalanceAsOf(UUID businessId, LocalDate asOfDate) {

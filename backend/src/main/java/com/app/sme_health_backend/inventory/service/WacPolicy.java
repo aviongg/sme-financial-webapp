@@ -21,7 +21,14 @@ public record WacPolicy(
         int averageDisplayScale,
         boolean approved
 ) {
+    /** Historical Phase A draft, retained only so old preview evidence stays interpretable. */
     public static final WacPolicy DRAFT = new WacPolicy("f08-wac-draft-1", 4, RoundingMode.HALF_EVEN, 6, false);
+    /**
+     * Frozen authoritative policy shared by the persisted ledger (InventoryLedgerService) and the preview:
+     * scale 4 (ledger NUMERIC(19,4)), HALF_UP (the unified application's monetary convention), exact
+     * full-depletion residual.
+     */
+    public static final WacPolicy V1 = new WacPolicy("f08-wac-v1", 4, RoundingMode.HALF_UP, 6, true);
 
     public WacPolicy {
         Objects.requireNonNull(version, "version");

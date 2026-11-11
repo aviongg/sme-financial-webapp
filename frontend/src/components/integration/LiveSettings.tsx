@@ -1,4 +1,5 @@
 "use client";
+import { WhatsAppLinkCard } from '@/components/product/OperationsViews';
 import { localizedError } from '@/lib/i18n/errors';
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
@@ -39,6 +40,7 @@ export function LiveSettings() {
     {ai?.available && <Card padding="md"><Link className="underline" href="/ask-finsight">{copy.ask}</Link></Card>}
     {resource.data && <WhatsAppSettings key={resource.data.profile.businessId} profile={resource.data.profile} editable={session.can('WHATSAPP_CONFIG_MANAGE')}/>}
     <Card padding="lg" className="md:hidden space-y-3"><h2 className="font-semibold">{t.live.moreTools}</h2><Link className="underline block" href="/search">{t.nav.search}</Link>{session.can('DOCUMENT_READ') && <Link className="underline block" href="/upload">{t.live.document}</Link>}{session.can('ZAKAT_READ_CALCULATE') && <Link className="underline block" href="/sharia-zakat">{t.live.zakatTitle}</Link>}</Card>
+    <WhatsAppLinkCard/>
     <BusinessIdentity />
     {session.can('MEMBERSHIP_MANAGE') && <TeamAccess/>}<Invitations/>
     <PasswordSettings />

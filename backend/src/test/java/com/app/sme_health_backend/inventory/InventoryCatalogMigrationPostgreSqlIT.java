@@ -36,18 +36,17 @@ class InventoryCatalogMigrationPostgreSqlIT extends DisposablePostgres {
             try (var rs = sql.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND type='SQL' ORDER BY installed_rank")) {
                 while (rs.next()) versions.add(rs.getString(1));
             }
-            List<String> combined = new ArrayList<>(BASE_HISTORY);
-            combined.addAll(List.of("35", "36", "37"));
-            assertEquals(combined, versions, "Expected exactly V1-V17, V30-V37");
+            assertEquals(com.app.sme_health_backend.testsupport.MigrationHistory.expected(), versions,
+                    "Expected the complete contiguous history");
             try (var rs = sql.executeQuery("SELECT to_regclass('public.inventory_items') IS NOT NULL")) {
                 assertTrue(rs.next());
                 assertTrue(rs.getBoolean(1));
             }
-            // Phase A persists catalog identity only: no movement, position, journal or COGS table exists.
-            try (var rs = sql.executeQuery("SELECT string_agg(table_name, ',') FROM information_schema.tables "
+            // V37 created the catalog; V46 (product completion) adds the authoritative movement ledger and positions.
+            try (var rs = sql.executeQuery("SELECT string_agg(table_name, ',' ORDER BY table_name) FROM information_schema.tables "
                     + "WHERE table_schema='public' AND table_name LIKE 'inventory%'")) {
                 assertTrue(rs.next());
-                assertEquals("inventory_items", rs.getString(1));
+                assertEquals("inventory_items,inventory_movements,inventory_positions", rs.getString(1));
             }
             // No quantity-on-hand, stock value or average-cost column exists.
             List<String> columns = new ArrayList<>();

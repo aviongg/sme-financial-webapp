@@ -51,6 +51,13 @@ class CoreJourneyClosureIT extends DisposablePostgres {
                 .header(csrf.get("headerName").asText(), csrf.get("token").asText())
                 .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
     }
+    private HttpResponse<String> postKeyed(HttpClient browser, String path, Object body) throws Exception {
+        JsonNode csrf = json.readTree(get(browser, "/api/auth/csrf").body());
+        return browser.send(HttpRequest.newBuilder(uri(path)).header("Content-Type", "application/json")
+                .header(csrf.get("headerName").asText(), csrf.get("token").asText())
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
+    }
     private JsonNode result(HttpResponse<String> response, int expected) throws Exception {
         assertEquals(expected, response.statusCode(), "Unexpected HTTP status for closure journey");
         return response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body());
@@ -71,7 +78,16 @@ class CoreJourneyClosureIT extends DisposablePostgres {
         String email = register(owner);
         login(owner, email);
         String first = result(post(owner, "/api/businesses", Map.of("businessName", "Closure Retail", "businessType", "retail", "languagePreference", "en", "whatsappOptIn", false)), 201).get("businessId").asText();
-        String recordId = result(post(owner, "/api/records/monthly", RECORD), 201).get("id").asText();
+        // V52: manual monthly totals are refused; the month is derived from posted daily activity.
+        result(post(owner, "/api/records/monthly", RECORD), 409);
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Karachi"));
+        String account = result(postKeyed(owner, "/api/finance/accounts", Map.of("accountName", "Closure bank", "accountType", "BANK",
+                "currency", "PKR", "openingBalance", "300000.00", "openingDate", today.withDayOfMonth(1).toString())), 201).get("id").asText();
+        result(postKeyed(owner, "/api/finance/transactions", Map.of("accountId", account, "eventType", "DIRECT_SALE_RECEIPT",
+                "amount", "500000.00", "effectiveDate", today.toString(), "description", "Sales")), 201);
+        result(postKeyed(owner, "/api/finance/transactions", Map.of("accountId", account, "eventType", "OPERATING_EXPENSE_PAYMENT",
+                "amount", "50000.00", "effectiveDate", today.toString(), "description", "Expenses")), 201);
+        String recordId = result(get(owner, "/api/records/monthly"), 200).get(0).get("id").asText();
         JsonNode dashboard = result(get(owner, "/api/dashboard"), 200);
         assertEquals(first, dashboard.get("businessId").asText());
         assertNotNull(dashboard.get("score"));

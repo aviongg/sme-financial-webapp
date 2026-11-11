@@ -231,9 +231,9 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                 ),
                 new CapabilityItem(
                         "getMarginDrivers",
-                        CapabilityStatus.UNAVAILABLE,
-                        "Inventory valuation and COGS margin drivers (F08) are owned by Developer B and not yet integrated",
-                        "Inventory valuation and COGS margin drivers (F08) are not yet integrated into FinSight authoritative services."
+                        productReady() ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
+                        "Revenue, inventory cost of sales and gross margin drivers (F08 + accrual P&L)",
+                        productReady() ? null : "Inventory valuation and COGS margin drivers (F08) are not configured in this context."
                 ),
                 new CapabilityItem(
                         "getFxSettlementImpact",
@@ -246,7 +246,12 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                         ledgerMonthlyBridgeService != null ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE,
                         "Authoritative posted ledger reconciliation and health score bridge evidence",
                         ledgerMonthlyBridgeService != null ? null : "Ledger monthly bridge service (C02) is not configured in this context."
-                )
+                ),
+                productCapability("getProfitAndLoss", "Accrual profit and loss (pnl-accrual-v1)"),
+                productCapability("getInventoryPosition", "Perpetual inventory position and valuation (f08-wac-v1)"),
+                productCapability("getBudgetAndGoalStatus", "Active budget variance and goal progress"),
+                productCapability("getBreakEven", "Deterministic break-even analysis (break-even-v1)"),
+                productCapability("getProjectProfitability", "Actual project profitability (f05-profitability-v1)")
         );
 
         return new CapabilitiesResponse(CONTRACT_VERSION, context.businessId(), Instant.now(), capabilities);
@@ -715,6 +720,11 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
                     "Project finance domain (F05) requires a valid project ID."
             );
         }
+        if (!projectExists(context, projectId)) {
+            // Pre-check: a failing inner @Transactional call would mark this read transaction rollback-only.
+            return FinancialQueryEnvelope.unavailable("getProjectFinancials", CONTRACT_VERSION, context.businessId(),
+                    "Project finance domain (F05): the project does not exist in the active business.");
+        }
         if (projectCommitmentService == null) {
             return FinancialQueryEnvelope.unavailable(
                     "getProjectFinancials",
@@ -780,6 +790,10 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     @Override
     public FinancialQueryEnvelope<ProjectFundingGapResult> getProjectFundingGap(BusinessAccessContext context, UUID projectId) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (projectId != null && !projectExists(context, projectId)) {
+            return FinancialQueryEnvelope.unavailable("getProjectFundingGap", CONTRACT_VERSION, context.businessId(),
+                    "Project funding gap analysis (F07): the project does not exist in the active business.");
+        }
         if (projectId == null) {
             return FinancialQueryEnvelope.unavailable(
                     "getProjectFundingGap",
@@ -858,17 +872,201 @@ public class FinancialQueryFacadeService implements FinancialQueryFacade {
     }
 
     @Override
-    public FinancialQueryEnvelope<Void> getMarginDrivers(BusinessAccessContext context, String query) {
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getMarginDrivers(BusinessAccessContext context, String query) {
         requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
         validateOptionalQueryParam(query);
-
-        return FinancialQueryEnvelope.unavailable(
-                "getMarginDrivers",
-                CONTRACT_VERSION,
-                context.businessId(),
-                "Inventory valuation and COGS margin drivers (F08) are owned by Developer B and have not yet been integrated."
-        );
+        if (!productReady()) {
+            return FinancialQueryEnvelope.unavailable("getMarginDrivers", CONTRACT_VERSION, context.businessId(),
+                    "Inventory valuation and COGS margin drivers (F08) are not configured in this context.");
+        }
+        String month = query != null && query.trim().matches("[0-9]{4}-(0[1-9]|1[0-2])") ? query.trim() : null;
+        java.time.LocalDate[] range = monthRange(month);
+        var s = profitAndLossService.statement(context.businessId(), range[0], range[1]);
+        var register = inventoryReadService.register(context.businessId());
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("from", range[0].toString());
+        data.put("to", range[1].toString());
+        data.put("revenue", s.revenue());
+        data.put("costOfGoodsSold", s.costOfGoodsSold());
+        data.put("projectMaterial", s.projectMaterial());
+        data.put("sampleMaterial", s.sampleMaterial());
+        data.put("costOfSales", s.costOfSales());
+        data.put("grossProfit", s.grossProfit());
+        data.put("grossMarginPct", s.grossMarginPct());
+        data.put("capitalizedPurchases", s.capitalizedPurchases());
+        data.put("inventoryCarryingValue", register.totalValue());
+        data.put("policyVersion", register.policyVersion());
+        data.put("pnlVersion", com.app.sme_health_backend.intelligence.ProfitAndLossService.VERSION);
+        return FinancialQueryEnvelope.available("getMarginDrivers", CONTRACT_VERSION, context.businessId(), range[1].toString(),
+                s.hasAnyData() ? DataCompleteness.COMPLETE : DataCompleteness.EMPTY, List.of(),
+                List.of(new FinancialEvidenceReference("PNL", com.app.sme_health_backend.intelligence.ProfitAndLossService.VERSION,
+                                "Accrual P&L " + range[0] + ".." + range[1], Instant.now()),
+                        new FinancialEvidenceReference("INVENTORY", register.policyVersion(), "Perpetual inventory register", Instant.now())),
+                data);
     }
+
+    @Override
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getProfitAndLoss(BusinessAccessContext context, String yearMonth) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (!productReady()) {
+            return FinancialQueryEnvelope.unavailable("getProfitAndLoss", CONTRACT_VERSION, context.businessId(), "P&L is not configured.");
+        }
+        java.time.LocalDate[] range = monthRange(yearMonth);
+        var s = profitAndLossService.statement(context.businessId(), range[0], range[1]);
+        var body = com.app.sme_health_backend.intelligence.PlanningController.statementBody(s);
+        DataCompleteness completeness = !s.hasAnyData() ? DataCompleteness.EMPTY
+                : s.unclassifiedExpenses().signum() == 0 && s.unclassifiedRevenue().signum() == 0
+                ? DataCompleteness.COMPLETE : DataCompleteness.PARTIAL;
+        return FinancialQueryEnvelope.available("getProfitAndLoss", CONTRACT_VERSION, context.businessId(), range[1].toString(),
+                completeness,
+                completeness == DataCompleteness.PARTIAL ? List.of("Some revenue or expenses are not yet classified by category.") : List.of(),
+                List.of(new FinancialEvidenceReference("PNL", com.app.sme_health_backend.intelligence.ProfitAndLossService.VERSION,
+                        "Accrual P&L " + range[0] + ".." + range[1], Instant.now())), body);
+    }
+
+    @Override
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getInventoryPosition(BusinessAccessContext context) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (!productReady()) {
+            return FinancialQueryEnvelope.unavailable("getInventoryPosition", CONTRACT_VERSION, context.businessId(), "Inventory is not configured.");
+        }
+        var register = inventoryReadService.register(context.businessId());
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("totalValue", register.totalValue());
+        data.put("itemsWithStock", register.itemsWithStock());
+        data.put("itemsBelowReorder", register.itemsBelowReorder());
+        data.put("policyVersion", register.policyVersion());
+        data.put("items", register.items().stream().filter(p -> p.hasMovements()).limit(50).map(p -> {
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("sku", p.sku());
+            m.put("name", p.name());
+            m.put("quantity", p.quantity().stripTrailingZeros().toPlainString());
+            m.put("value", p.value());
+            m.put("belowReorder", p.belowReorder());
+            return m;
+        }).toList());
+        return FinancialQueryEnvelope.available("getInventoryPosition", CONTRACT_VERSION, context.businessId(),
+                java.time.LocalDate.now(BUSINESS_ZONE).toString(),
+                register.itemsWithStock() == 0 ? DataCompleteness.EMPTY : DataCompleteness.COMPLETE, List.of(),
+                List.of(new FinancialEvidenceReference("INVENTORY", register.policyVersion(), "Perpetual inventory register", Instant.now())),
+                data);
+    }
+
+    @Override
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getBudgetAndGoalStatus(BusinessAccessContext context) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (planningService == null) {
+            return FinancialQueryEnvelope.unavailable("getBudgetAndGoalStatus", CONTRACT_VERSION, context.businessId(), "Planning is not configured.");
+        }
+        var budgets = planningService.budgets(context).stream().filter(b -> "ACTIVE".equals(b.get("status"))).toList();
+        var goals = planningService.goals(context).stream().filter(g -> "ACTIVE".equals(g.get("status"))).toList();
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("budgets", budgets);
+        data.put("goals", goals);
+        return FinancialQueryEnvelope.available("getBudgetAndGoalStatus", CONTRACT_VERSION, context.businessId(),
+                java.time.LocalDate.now(BUSINESS_ZONE).toString(),
+                budgets.isEmpty() && goals.isEmpty() ? DataCompleteness.EMPTY : DataCompleteness.COMPLETE, List.of(),
+                List.of(new FinancialEvidenceReference("PLANNING", "budgets+goals", "Active budgets and goals", Instant.now())), data);
+    }
+
+    @Override
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getBreakEven(BusinessAccessContext context, String yearMonth) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (breakEvenService == null) {
+            return FinancialQueryEnvelope.unavailable("getBreakEven", CONTRACT_VERSION, context.businessId(), "Break-even is not configured.");
+        }
+        java.time.LocalDate[] range = monthRange(yearMonth);
+        var data = breakEvenService.analyse(context.businessId(), range[0], range[1]);
+        boolean available = "AVAILABLE".equals(data.get("status"));
+        return FinancialQueryEnvelope.available("getBreakEven", CONTRACT_VERSION, context.businessId(), range[1].toString(),
+                available ? DataCompleteness.COMPLETE : DataCompleteness.PARTIAL,
+                available ? List.of() : List.of("Break-even is " + data.get("status") + ": " + data.get("reason")),
+                List.of(new FinancialEvidenceReference("BREAK_EVEN", com.app.sme_health_backend.intelligence.BreakEvenService.VERSION,
+                        "Break-even " + range[0] + ".." + range[1], Instant.now())), data);
+    }
+
+    @Override
+    public FinancialQueryEnvelope<java.util.Map<String, Object>> getProjectProfitability(BusinessAccessContext context, UUID projectId) {
+        requirePermission(context, BusinessPermission.FINANCIAL_DATA_READ);
+        if (projectProfitabilityService == null || projectId == null) {
+            return FinancialQueryEnvelope.unavailable("getProjectProfitability", CONTRACT_VERSION, context.businessId(),
+                    projectId == null ? "A project is required." : "Project profitability is not configured.");
+        }
+        var data = projectProfitabilityService.profitability(context.businessId(), projectId);
+        @SuppressWarnings("unchecked")
+        var result = (java.util.Map<String, Object>) data.get("profitability");
+        boolean available = "AVAILABLE".equals(result.get("status"));
+        return FinancialQueryEnvelope.available("getProjectProfitability", CONTRACT_VERSION, context.businessId(),
+                java.time.LocalDate.now(BUSINESS_ZONE).toString(), available ? DataCompleteness.COMPLETE : DataCompleteness.PARTIAL,
+                List.of(), List.of(new FinancialEvidenceReference("PROJECT", projectId.toString(),
+                        com.app.sme_health_backend.projects.profitability.ProjectProfitabilityService.VERSION, Instant.now())), data);
+    }
+
+    // ---------------------------------------------------------------- product-completion integrations (optional)
+
+    private com.app.sme_health_backend.intelligence.ProfitAndLossService profitAndLossService;
+    private com.app.sme_health_backend.inventory.ledger.InventoryReadService inventoryReadService;
+    private com.app.sme_health_backend.intelligence.PlanningService planningService;
+    private com.app.sme_health_backend.intelligence.BreakEvenService breakEvenService;
+    private com.app.sme_health_backend.projects.profitability.ProjectProfitabilityService projectProfitabilityService;
+
+    @Autowired(required = false)
+    void setProductCompletionServices(
+            com.app.sme_health_backend.intelligence.ProfitAndLossService profitAndLossService,
+            com.app.sme_health_backend.inventory.ledger.InventoryReadService inventoryReadService,
+            com.app.sme_health_backend.intelligence.PlanningService planningService,
+            com.app.sme_health_backend.intelligence.BreakEvenService breakEvenService,
+            com.app.sme_health_backend.projects.profitability.ProjectProfitabilityService projectProfitabilityService) {
+        this.profitAndLossService = profitAndLossService;
+        this.inventoryReadService = inventoryReadService;
+        this.planningService = planningService;
+        this.breakEvenService = breakEvenService;
+        this.projectProfitabilityService = projectProfitabilityService;
+    }
+
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired(required = false)
+    void setJdbcTemplate(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /** Tenant-scoped existence check; true when no JDBC is wired (unit-test constructors keep prior behaviour). */
+    private boolean projectExists(BusinessAccessContext context, UUID projectId) {
+        if (jdbcTemplate == null) return true;
+        Integer n = jdbcTemplate.queryForObject("SELECT count(*) FROM projects WHERE business_id = ? AND id = ?",
+                Integer.class, context.businessId(), projectId);
+        return n != null && n > 0;
+    }
+
+    private boolean productReady() {
+        return profitAndLossService != null && inventoryReadService != null;
+    }
+
+    private CapabilityItem productCapability(String name, String description) {
+        boolean ready = productReady() && planningService != null && breakEvenService != null && projectProfitabilityService != null;
+        return new CapabilityItem(name, ready ? CapabilityStatus.AVAILABLE : CapabilityStatus.UNAVAILABLE, description,
+                ready ? null : "Product-completion services are not configured in this context.");
+    }
+
+    private static java.time.LocalDate[] monthRange(String yearMonth) {
+        java.time.LocalDate today = java.time.LocalDate.now(BUSINESS_ZONE);
+        java.time.YearMonth ym;
+        if (yearMonth == null || yearMonth.isBlank()) {
+            ym = java.time.YearMonth.from(today);
+        } else if (yearMonth.trim().matches("[0-9]{4}-(0[1-9]|1[0-2])")) {
+            ym = java.time.YearMonth.parse(yearMonth.trim());
+        } else {
+            throw new FinancialQueryValidationException("yearMonth", "Expected YYYY-MM");
+        }
+        java.time.LocalDate start = ym.atDay(1);
+        java.time.LocalDate end = ym.atEndOfMonth().isAfter(today) ? today : ym.atEndOfMonth();
+        if (start.isAfter(today)) {
+            end = start;
+        }
+        return new java.time.LocalDate[] {start, end};
+    }
+
 
     @Override
     public FinancialQueryEnvelope<FxSettlementImpactResult> getFxSettlementImpact(BusinessAccessContext context, String query) {

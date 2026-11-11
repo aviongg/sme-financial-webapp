@@ -57,7 +57,7 @@ public class WeightedAverageCostCalculator {
     private final WacPolicy policy;
 
     public WeightedAverageCostCalculator() {
-        this(WacPolicy.DRAFT);
+        this(WacPolicy.V1);
     }
 
     public WeightedAverageCostCalculator(WacPolicy policy) {

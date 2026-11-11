@@ -3,7 +3,7 @@
 import React, { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Container } from "@/components/ui/Container";
-import { LedgerBridgeWorkspace } from "@/components/finance/bridge/LedgerBridgeWorkspace";
+import { MonthlyAutomationPanel } from "@/components/product/MonthlyFinancials";
 import { useLanguage } from "@/lib/i18n/context";
 
 export default function LedgerBridgePage() {
@@ -18,11 +18,11 @@ function BridgeContent() {
   const { locale } = useLanguage();
   return (
     <AppShell
-      title={locale === 'ur' ? 'لیجر ٹو ہیلتھ کٹ اوور برج' : 'Ledger-to-Health Cutover Bridge'}
-      subtitle={locale === 'ur' ? 'پوسٹ شدہ ٹرانزیکشنز سے مستند ماہانہ مالیاتی سمری اور ہیلتھ اسکور اخذ کریں۔' : 'Derive authoritative monthly financial summaries and health scores from posted ledger transactions.'}
+      title={locale === 'ur' ? 'خودکار ماہانہ مالی اعداد' : 'Automatic monthly financials'}
+      subtitle={locale === 'ur' ? 'ہر مہینہ اور صحت اسکور روزانہ ریکارڈ سے خودبخود اخذ ہوتے ہیں۔' : 'Every month and its health score are derived automatically from your daily records.'}
     >
       <Container width="dashboard" className="py-6 space-y-6">
-        <LedgerBridgeWorkspace />
+        <MonthlyAutomationPanel />
       </Container>
     </AppShell>
   );

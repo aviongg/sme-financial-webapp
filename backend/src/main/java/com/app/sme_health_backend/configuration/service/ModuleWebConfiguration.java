@@ -23,7 +23,9 @@ public class ModuleWebConfiguration {
                         modules.requireEnabled(authorization.requireActiveContext(request).businessId(), module);
                         return true;
                     }
-                }).addPathPatterns("/api/documents", "/api/documents/**", "/api/profile/whatsapp", "/api/whatsapp/**");
+                }).addPathPatterns("/api/documents", "/api/documents/**", "/api/profile/whatsapp", "/api/whatsapp/**")
+                        // The signed Meta webhook has no session; WhatsAppInboundService checks the module per business.
+                        .excludePathPatterns("/api/whatsapp/webhook");
             }
         };
     }

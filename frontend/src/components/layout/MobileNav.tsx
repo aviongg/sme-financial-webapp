@@ -26,6 +26,7 @@ import { unifiedCopy } from '@/lib/i18n/translations/unified';
 import { routeIsActive } from '@/lib/navigation/workspaces';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Sheet } from "@/components/ui/Sheet";
+import { productCopy } from "@/lib/i18n/translations/product";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
 import { recordsEn, recordsUr } from '@/components/records/records-copy';
@@ -48,6 +49,7 @@ export function MobileNav() {
   const estimates = estimatesCopy(locale);
   const reports = reportsCopy(locale);
   const projects = projectsCopy(locale);
+  const product = productCopy(locale);
   const commercial = commercialCopy(locale);
   const samples = samplesCopy(locale);
   const inventory = inventoryCopy(locale);
@@ -166,6 +168,9 @@ export function MobileNav() {
       >
         <div className="space-y-3 pt-2">
           <FinancialWorkspaceLinks onNavigate={() => setIsActionSheetOpen(false)} />
+          {!isDemoMode && ([['/intelligence', product.nav.intelligence], ['/planning', product.nav.planning], ['/operations/calendar', product.nav.calendar], ['/inventory/stock', product.nav.stock]] as const)
+            .filter(([href]) => allowed(href)).map(([href, label]) => <button key={href} type="button" onClick={() => handleActionSelect(href)} data-testid={`mobile-action-${href.replaceAll('/', '-')}`}
+              className="w-full text-start rounded border p-3 focus-visible:outline-2">{label}</button>)}
           {!isDemoMode && allowed('/ask-finsight') && <button type="button" onClick={() => handleActionSelect('/ask-finsight')} className="w-full text-start rounded border p-3 focus-visible:outline-2">{phaseTwoCopy(locale).ask}</button>}
           {!isDemoMode && allowed('/projects') && <button type="button" onClick={() => handleActionSelect('/projects')}
             className="w-full flex items-center gap-3.5 p-3.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] hover:border-[var(--color-brand-border)] hover:bg-[var(--color-brand-surface)] transition-all text-start group select-none">

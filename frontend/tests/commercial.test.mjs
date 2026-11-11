@@ -226,5 +226,6 @@ test('English and Urdu copy share one structure and the finalize dialog states e
     assert.match(value, /[؀-ۿ]/);
   }
   assert.equal(commercialUr.finalize.notList.length, 4);
-  assert.match(commercialEn.settlementUnavailable, /not available/);
+  // Product completion: settlement visibility lives in the Financial lifecycle panel after recognition.
+  assert.match(commercialEn.settlementUnavailable, /Financial lifecycle panel/);
 });

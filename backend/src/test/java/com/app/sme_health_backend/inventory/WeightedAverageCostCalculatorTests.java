@@ -45,13 +45,14 @@ class WeightedAverageCostCalculatorTests {
     }
 
     @Test
-    void draftPolicyIsStampedAndNotApproved() {
+    void frozenPolicyIsStampedAndApproved() {
         WacPolicy policy = calculator.policy();
-        assertEquals("f08-wac-draft-1", policy.version());
+        assertEquals("f08-wac-v1", policy.version());
         assertEquals(4, policy.valueScale());
-        assertEquals(RoundingMode.HALF_EVEN, policy.valueRounding());
+        assertEquals(RoundingMode.HALF_UP, policy.valueRounding());
         assertEquals(6, policy.averageDisplayScale());
-        assertFalse(policy.approved(), "Scale-4 HALF_EVEN is a draft proposal, not frozen accounting policy");
+        assertTrue(policy.approved(), "f08-wac-v1 is the frozen authoritative policy shared with the persisted ledger");
+        assertFalse(WacPolicy.DRAFT.approved(), "The historical Phase A draft stays unapproved");
     }
 
     @Test
@@ -91,7 +92,7 @@ class WeightedAverageCostCalculatorTests {
                 List.of(receipt("3", "10.0000"), issue("1"), issue("1"), issue("1")));
         assertExact("3.3333", result.steps().get(1).issueValue());
         assertExact("6.6667", result.steps().get(1).after().value());
-        // 6.6667 * 1 / 2 = 3.33335 is a tie; HALF_EVEN rounds to the even neighbour 3.3334.
+        // 6.6667 * 1 / 2 = 3.33335 is a tie; HALF_UP rounds away from zero to 3.3334.
         assertExact("3.3334", result.steps().get(2).issueValue());
         assertExact("3.3333", result.steps().get(2).after().value());
         assertExact("3.3333", result.steps().get(3).issueValue());
@@ -218,7 +219,9 @@ class WeightedAverageCostCalculatorTests {
         // 0.0001 * 1 / 2 = 0.00005: HALF_EVEN keeps the even digit 0, HALF_UP rounds away from zero.
         List<Step> tie = List.of(receipt("2", "0.0001"), issue("1"));
         assertExact("0.0001", halfUp.calculate(d("0"), d("0"), tie).steps().get(1).issueValue(), "HALF_UP");
-        assertExact("0", calculator.calculate(d("0"), d("0"), tie).steps().get(1).issueValue(), "HALF_EVEN");
+        var halfEven = new WeightedAverageCostCalculator(WacPolicy.DRAFT);
+        assertExact("0", halfEven.calculate(d("0"), d("0"), tie).steps().get(1).issueValue(), "HALF_EVEN");
+        assertExact("0.0001", calculator.calculate(d("0"), d("0"), tie).steps().get(1).issueValue(), "frozen HALF_UP");
         assertThrows(IllegalArgumentException.class, () -> new WacPolicy("bad", 4, RoundingMode.UNNECESSARY, 6, false));
     }
 

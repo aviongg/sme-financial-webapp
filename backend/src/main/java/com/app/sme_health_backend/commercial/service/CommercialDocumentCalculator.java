@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,8 +48,14 @@ public class CommercialDocumentCalculator {
             BigDecimal quantity,
             String unit,
             BigDecimal unitPrice,
-            BigDecimal lineAmount
-    ) { }
+            BigDecimal lineAmount,
+            UUID inventoryItemId
+    ) {
+        public CalculatedLine(int lineNumber, String description, BigDecimal quantity, String unit,
+                              BigDecimal unitPrice, BigDecimal lineAmount) {
+            this(lineNumber, description, quantity, unit, unitPrice, lineAmount, null);
+        }
+    }
 
     /** subtotal/total are null when there are no lines; an explicit zero-priced line yields 0.00. */
     public record CalculatedLines(List<CalculatedLine> lines, BigDecimal subtotal, BigDecimal total) { }
@@ -86,7 +93,15 @@ public class CommercialDocumentCalculator {
             BigDecimal unitPrice = parseDecimal(line.unitPrice(), path + ".unitPrice",
                     PRICE_INTEGER_DIGITS, PRICE_FRACTION_DIGITS).setScale(2, RoundingMode.UNNECESSARY);
             BigDecimal lineAmount = exactAmount(quantity.multiply(unitPrice), path + ".lineAmount");
-            calculated.add(new CalculatedLine(index + 1, description, quantity, unit, unitPrice, lineAmount));
+            UUID inventoryItemId = null;
+            if (line.inventoryItemId() != null && !line.inventoryItemId().isBlank()) {
+                try {
+                    inventoryItemId = UUID.fromString(line.inventoryItemId().trim());
+                } catch (IllegalArgumentException ex) {
+                    throw new CommercialValidationException(path + ".inventoryItemId", "uuid_invalid");
+                }
+            }
+            calculated.add(new CalculatedLine(index + 1, description, quantity, unit, unitPrice, lineAmount, inventoryItemId));
             subtotal = subtotal == null ? lineAmount : subtotal.add(lineAmount);
         }
         if (subtotal != null && subtotal.compareTo(MAX_AMOUNT) > 0) {

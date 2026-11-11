@@ -33,15 +33,20 @@ public class CommercialDocumentService {
     private final CommercialDocumentRepository repository;
     private final CommercialDocumentCalculator calculator;
     private final SecurityAuditService audit;
+    private final org.springframework.beans.factory.ObjectProvider<
+            com.app.sme_health_backend.commercial.lifecycle.CommercialLifecycleService> lifecycle;
 
     public CommercialDocumentService(
             CommercialDocumentRepository repository,
             CommercialDocumentCalculator calculator,
-            SecurityAuditService audit
+            SecurityAuditService audit,
+            org.springframework.beans.factory.ObjectProvider<
+                    com.app.sme_health_backend.commercial.lifecycle.CommercialLifecycleService> lifecycle
     ) {
         this.repository = repository;
         this.calculator = calculator;
         this.audit = audit;
+        this.lifecycle = lifecycle;
     }
 
     public CommercialPreviewResponse preview(CommercialDocumentKind kind, CommercialPreviewRequest request) {
@@ -185,6 +190,15 @@ public class CommercialDocumentService {
             throw invalidTransition(current.status(), CommercialDocumentStatus.VOID);
         }
         requireCurrentVersion(current, expectedVersion);
+        var guard = lifecycle.getIfAvailable();
+        if (guard != null) {
+            java.util.List<String> blockers = guard.plainVoidBlockers(context.businessId(), id, kind.name());
+            if (!blockers.isEmpty()) {
+                throw new CommercialException("document_has_financial_effect", 409,
+                        "This document is recognized or has stock movements; use the financial void, which reverses "
+                                + "it through compensating records (" + String.join(", ", blockers) + ").");
+            }
+        }
         if (!repository.voidFinalized(context.businessId(), kind, id, expectedVersion, reason, context.userId(), OffsetDateTime.now())) {
             throw stale();
         }

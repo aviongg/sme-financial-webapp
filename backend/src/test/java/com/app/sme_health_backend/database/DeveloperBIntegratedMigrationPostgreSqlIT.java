@@ -20,8 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * step unchanged, and rows written through each new migration's tables must survive the later migrations.
  */
 class DeveloperBIntegratedMigrationPostgreSqlIT extends DisposablePostgres {
-    private static final List<String> EXPECTED_HISTORY = java.util.stream.IntStream.rangeClosed(1, 37)
-            .mapToObj(String::valueOf).toList();
+    private static final List<String> EXPECTED_HISTORY = com.app.sme_health_backend.testsupport.MigrationHistory.expected();
     private static final List<String> PRE_EXISTING = List.of("monthly_records", "score_results", "business_profiles",
             "business_configuration", "dashboard_preferences", "projects", "project_budget_versions",
             "project_budget_lines", "commercial_documents", "commercial_document_lines", "commercial_number_sequences");
@@ -99,7 +98,8 @@ class DeveloperBIntegratedMigrationPostgreSqlIT extends DisposablePostgres {
             sql.executeUpdate("INSERT INTO inventory_items(business_id,sku,name,unit,item_kind,created_by,updated_by) VALUES ('"
                     + business + "','RM-INT','Integration item','kg','RAW_MATERIAL','" + user + "','" + user + "')");
             assertEquals(afterV36, snapshot(sql, carried), "Catalog writes leave every other table unchanged");
-            assertEquals(EXPECTED_HISTORY, history(sql));
+            // This upgrade schema is migrated to the V37 target only; later versions are verified elsewhere.
+            assertEquals(EXPECTED_HISTORY.subList(0, 37), history(sql));
         }
     }
 

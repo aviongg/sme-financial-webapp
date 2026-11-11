@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/auth/SessionProvider';
+import { SampleActualsPanel } from '@/components/product/ActualsPanels';
 import { LivePage } from '@/components/integration/LivePage';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -158,5 +159,6 @@ function Workspace({ activityId }: { activityId: string }) {
         </section>
       </>}
     </div>
+    {activity && <SampleActualsPanel sampleId={activity.id}/>}
   </LivePage>;
 }

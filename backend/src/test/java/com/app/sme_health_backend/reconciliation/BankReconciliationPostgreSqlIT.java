@@ -166,32 +166,32 @@ class BankReconciliationPostgreSqlIT extends DisposablePostgres {
     @DisplayName("V28 migration integrity: tables, composite keys and partial unique indices exist")
     void testFullV28MigrationAndSchemaIntegrity() {
         Integer importCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM information_schema.tables WHERE table_name = 'bank_statement_imports'",
+                "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bank_statement_imports'",
                 Integer.class
         );
         assertEquals(1, importCount);
 
         Integer entryCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM information_schema.tables WHERE table_name = 'bank_statement_entries'",
+                "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bank_statement_entries'",
                 Integer.class
         );
         assertEquals(1, entryCount);
 
         Integer matchCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM information_schema.tables WHERE table_name = 'bank_reconciliation_matches'",
+                "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bank_reconciliation_matches'",
                 Integer.class
         );
         assertEquals(1, matchCount);
 
         // Verify partial unique index for 1-to-1 active match exists
         Integer indexCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM pg_indexes WHERE indexname = 'uq_reconciliation_active_statement_entry'",
+                "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'uq_reconciliation_active_statement_entry'",
                 Integer.class
         );
         assertEquals(1, indexCount);
 
         Integer movIndexCount = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM pg_indexes WHERE indexname = 'uq_reconciliation_active_account_movement'",
+                "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'uq_reconciliation_active_account_movement'",
                 Integer.class
         );
         assertEquals(1, movIndexCount);

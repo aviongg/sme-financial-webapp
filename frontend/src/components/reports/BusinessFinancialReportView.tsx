@@ -1,5 +1,6 @@
 "use client";
 
+import { FinancialPackView } from '@/components/product/OperationsViews';
 import { useEffect, useRef, useState } from 'react';
 import { Download, FileBarChart2, Printer } from 'lucide-react';
 import { useSession } from '@/components/auth/SessionProvider';
@@ -143,6 +144,7 @@ function ReportScreen() {
         <ReportBody report={report} copy={copy} locale={locale} t={t}/>
       </div>}
     </div>
+    <FinancialPackView/>
   </LivePage>;
 }
 

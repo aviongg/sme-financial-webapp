@@ -75,7 +75,7 @@ class MonthlyRecordIntegrationTests extends com.app.sme_health_backend.testsuppo
     }
 
     @Test
-    void shouldPersistRecordWithNullCogsInDatabaseAndRetrieveIt() throws Exception {
+    void manualMonthlyFiguresAreRefusedBecauseTheMonthIsDerived() throws Exception {
         UUID userId = createTestUserWithProfile();
 
         String payload = """
@@ -94,92 +94,11 @@ class MonthlyRecordIntegrationTests extends com.app.sme_health_backend.testsuppo
         mockMvc.perform(post("/api/records/monthly")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.businessId").value(userId.toString()))
-                .andExpect(jsonPath("$.month").value("2026-07"))
-                .andExpect(jsonPath("$.cogs").doesNotExist());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("monthly_figures_derived"));
 
-        // Direct DB verification
-        Optional<MonthlyRecord> inDb = monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-07");
-        assertTrue(inDb.isPresent());
-        assertNull(inDb.get().getCogs(), "Database should persist COGS as NULL, not 0");
-        UUID recordId = inDb.get().getId();
-
-        // Verify retrieval via GET by ID endpoint
-        mockMvc.perform(get("/api/records/monthly/id/{id}", recordId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(recordId.toString()))
-                .andExpect(jsonPath("$.businessId").value(userId.toString()))
-                .andExpect(jsonPath("$.cogs").doesNotExist());
-    }
-
-    @Test
-    void shouldUpsertAndReplaceSnapshotValuesInDatabaseWithoutDuplicate() throws Exception {
-        UUID userId = createTestUserWithProfile();
-
-        // 1. Initial submission
-        String initialPayload = """
-                {
-                  "month": "2026-05",
-                  "cashInflow": 100000,
-                  "cashOutflow": 40000,
-                  "revenue": 120000,
-                  "cogs": 50000,
-                  "operatingExpenses": 20000,
-                  "cashBalanceEom": 60000,
-                  "financingType": "none"
-                }
-                """;
-
-        String createdResponse = mockMvc.perform(post("/api/records/monthly")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(initialPayload))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        long initialVersion = new tools.jackson.databind.ObjectMapper().readTree(createdResponse).get("version").longValue();
-
-        // 2. Second submission for same (userId, month) - manual snapshot edit
-        String updatedPayload = """
-                {
-                  "month": "2026-05",
-                  "cashInflow": 130000,
-                  "cashOutflow": 50000,
-                  "revenue": 150000,
-                  "cogs": null,
-                  "operatingExpenses": 35000,
-                  "cashBalanceEom": 80000,
-                  "financingType": "conventional"
-                }
-                """;
-
-        var json = new tools.jackson.databind.ObjectMapper();
-        var updatedRequest = (tools.jackson.databind.node.ObjectNode) json.readTree(updatedPayload);
-        updatedRequest.put("expectedVersion", initialVersion);
-        mockMvc.perform(post("/api/records/monthly")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(updatedRequest)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.version").value(initialVersion + 1));
-
-        // Verify only ONE record exists in DB for this user & month
-        List<MonthlyRecord> records = monthlyRecordRepository.findByUserIdOrderByMonthDesc(userId);
-        assertEquals(1, records.size(), "Should have exactly 1 record, not duplicate");
-
-        MonthlyRecord persisted = records.getFirst();
-        // Verifies replacement, NOT summation
-        assertEquals(0, persisted.getCashInflow().compareTo(new BigDecimal("130000")));
-        assertNotEquals(0, persisted.getCashInflow().compareTo(new BigDecimal("230000")));
-
-        assertEquals(0, persisted.getCashOutflow().compareTo(new BigDecimal("50000")));
-        assertNotEquals(0, persisted.getCashOutflow().compareTo(new BigDecimal("90000")));
-
-        assertEquals(0, persisted.getRevenue().compareTo(new BigDecimal("150000")));
-        assertNotEquals(0, persisted.getRevenue().compareTo(new BigDecimal("270000")));
-
-        assertNull(persisted.getCogs(), "COGS should be null after replacement");
-        assertEquals(0, persisted.getOperatingExpenses().compareTo(new BigDecimal("35000")));
-        assertEquals(0, persisted.getCashBalanceEom().compareTo(new BigDecimal("80000")));
-        assertEquals("conventional", persisted.getFinancingType());
+        assertTrue(monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-07").isEmpty(),
+                "A refused manual month must not create a second source of truth");
     }
 
     @Test
@@ -198,39 +117,5 @@ class MonthlyRecordIntegrationTests extends com.app.sme_health_backend.testsuppo
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("Invalid record ID format: invalid-id-format"));
-    }
-
-    @Test
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
-    void shouldRollbackRecordWhenScoringCalculationFailsDueToInsufficientData() throws Exception {
-        UUID userId = createTestUserWithProfile();
-
-        try {
-            // Revenue = 0, so profitability score cannot be calculated; single month, so trend cannot be calculated;
-            // repayment cannot be calculated. Available weight = 0, scoring throws IllegalArgumentException: Insufficient financial data
-            String payload = """
-                    {
-                      "month": "2026-08",
-                      "cashInflow": 0,
-                      "cashOutflow": 0,
-                      "revenue": 0,
-                      "operatingExpenses": 0,
-                      "cashBalanceEom": 0,
-                      "financingType": "none"
-                    }
-                    """;
-
-            mockMvc.perform(post("/api/records/monthly")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(payload))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.message").value("Insufficient financial data to calculate financial health score"));
-
-            Optional<MonthlyRecord> saved = monthlyRecordRepository.findByUserIdAndMonth(userId, "2026-08");
-            assertTrue(saved.isEmpty());
-        } finally {
-            businessProfileRepository.deleteById(userId);
-        }
     }
 }

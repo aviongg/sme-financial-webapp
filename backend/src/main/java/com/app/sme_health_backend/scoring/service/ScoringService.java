@@ -71,13 +71,33 @@ public class ScoringService {
 
     @Transactional
     public ScoreResult calculateAndSaveScore(UUID userId, String month) {
+        return compute(userId, month, true);
+    }
+
+    /**
+     * Automatic rescoring used by the monthly projector: identical health-score-v1 computation, but a month that cannot
+     * be scored (no business profile, or no component has data) returns null instead of throwing, so the caller's
+     * transaction is never marked rollback-only.
+     */
+    @Transactional
+    public ScoreResult recalculateIfScorable(UUID userId, String month) {
+        return compute(userId, month, false);
+    }
+
+    private ScoreResult compute(UUID userId, String month, boolean strict) {
         validateInputs(userId, month);
 
-        BusinessProfile profile = businessProfileRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Business profile not found for this user"));
+        BusinessProfile profile = businessProfileRepository.findById(userId).orElse(null);
+        if (profile == null) {
+            if (strict) throw new ResourceNotFoundException("Business profile not found for this user");
+            return null;
+        }
 
-        MonthlyRecord targetRecord = monthlyRecordRepository.findByUserIdAndMonth(userId, month)
-                .orElseThrow(() -> new ResourceNotFoundException("Monthly record not found for user and month: " + month));
+        MonthlyRecord targetRecord = monthlyRecordRepository.findByUserIdAndMonth(userId, month).orElse(null);
+        if (targetRecord == null) {
+            if (strict) throw new ResourceNotFoundException("Monthly record not found for user and month: " + month);
+            return null;
+        }
 
         // Load all records up to target month in descending chronological order
         List<MonthlyRecord> allRecords = monthlyRecordRepository.findByUserIdOrderByMonthDesc(userId);
@@ -127,6 +147,7 @@ public class ScoringService {
         }
 
         if (availableWeight.compareTo(BigDecimal.ZERO) == 0) {
+            if (!strict) return null;
             throw new IllegalArgumentException("Insufficient financial data to calculate financial health score");
         }
 

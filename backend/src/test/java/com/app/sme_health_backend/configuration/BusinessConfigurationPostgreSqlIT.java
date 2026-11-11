@@ -233,14 +233,20 @@ class BusinessConfigurationPostgreSqlIT extends com.app.sme_health_backend.tests
         assertEquals(request.operatingAnswers(), configuration.get(f.actor()).operatingAnswers());
         for (String key : List.of("inventory", "projects", "receivables")) {
             assertTrue(saved.recommendedModules().contains(key));
-            var future = saved.modules().stream().filter(module -> module.key().equals(key)).findFirst().orElseThrow();
-            assertFalse(future.implemented()); assertFalse(future.enabled()); assertFalse(future.available());
-            assertEquals("NOT_IMPLEMENTED", future.reason()); assertFalse(modules.isEnabled(f.businessId, key));
-            assertThrows(ConfigurationException.class, () -> configuration.update(f.actor(),
-                    new ConfigurationRequest(OperatingProfile.SERVICES, request.operatingAnswers(), List.of("core_finance", key), 1L)));
+            var module = saved.modules().stream().filter(m -> m.key().equals(key)).findFirst().orElseThrow();
+            // Implemented now, but a recommendation alone never enables it.
+            assertTrue(module.implemented()); assertFalse(module.enabled()); assertFalse(module.available());
+            assertEquals("DISABLED", module.reason()); assertFalse(modules.isEnabled(f.businessId, key));
         }
+        assertThrows(ConfigurationException.class, () -> configuration.update(f.actor(),
+                new ConfigurationRequest(OperatingProfile.SERVICES, request.operatingAnswers(), List.of("core_finance", "inventory"), 1L)),
+                "An implemented module still requires its dependencies");
         assertEquals(1, configuration.get(f.actor()).version());
         assertEquals(List.of("core_finance"), configuration.get(f.actor()).requestedModules());
+        var enabled = configuration.update(f.actor(), new ConfigurationRequest(OperatingProfile.SERVICES, request.operatingAnswers(),
+                List.of("core_finance", "transactions", "inventory"), 1L));
+        assertTrue(enabled.requestedModules().contains("inventory"));
+        assertTrue(modules.isEnabled(f.businessId, "inventory"));
     }
     @Test void rejectsUnimplementedModulesAndMalformedConfigurationWithoutWriting() throws Exception {
         var f = fixture("services");

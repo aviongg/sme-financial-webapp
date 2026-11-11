@@ -60,6 +60,14 @@ class MvpCoreJourneyIT extends DisposablePostgres {
                 .method(method, HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
+    /** Financial writes (accounts, transactions) require an Idempotency-Key. */
+    private HttpResponse<String> sendKeyed(HttpClient client, String path, Object body) throws Exception {
+        JsonNode csrf = json.readTree(get(client, "/api/auth/csrf").body());
+        return client.send(HttpRequest.newBuilder(uri(path)).header("Content-Type", "application/json")
+                .header(csrf.get("headerName").asText(), csrf.get("token").asText())
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
+    }
     private JsonNode result(HttpResponse<String> response, int status) throws Exception {
         assertEquals(status, response.statusCode(), "Unexpected status at " + response.uri().getPath());
         return response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body());
@@ -77,9 +85,29 @@ class MvpCoreJourneyIT extends DisposablePostgres {
         assertEquals(name, created.get("businessName").asText());
         return created.get("businessId").asText();
     }
-    private Map<String, Object> record(String month) {
-        return Map.of("month", month, "cashInflow", 500000, "cashOutflow", 200000, "revenue", 500000,
-                "cogs", 150000, "operatingExpenses", 50000, "cashBalanceEom", 300000, "financingType", "none");
+    private static final java.time.ZoneId KARACHI = java.time.ZoneId.of("Asia/Karachi");
+    private static java.time.YearMonth monthsAgo(int n) { return java.time.YearMonth.now(KARACHI).minusMonths(n); }
+
+    /**
+     * V52 transaction-driven model: months are never typed in. A cash account opened at {@code opening} defines ledger
+     * coverage; each active month gets a posted cash sale and an operating expense, from which the month is derived.
+     */
+    private String seedActivity(HttpClient client, java.time.YearMonth opening, java.time.YearMonth... active) throws Exception {
+        String account = result(sendKeyed(client, "/api/finance/accounts", Map.of("accountName", "Main " + UUID.randomUUID().toString().substring(0, 6),
+                "accountType", "BANK", "currency", "PKR", "openingBalance", "300000.00", "openingDate", opening.atDay(1).toString())), 201)
+                .get("id").asText();
+        LocalDate today = LocalDate.now(KARACHI);
+        for (java.time.YearMonth month : active) {
+            LocalDate sale = month.atDay(Math.min(10, month.lengthOfMonth()));
+            LocalDate expense = month.atDay(Math.min(12, month.lengthOfMonth()));
+            if (sale.isAfter(today)) sale = today;
+            if (expense.isAfter(today)) expense = today;
+            result(sendKeyed(client, "/api/finance/transactions", Map.of("accountId", account, "eventType", "DIRECT_SALE_RECEIPT",
+                    "amount", "500000.00", "effectiveDate", sale.toString(), "description", "Monthly sales " + month)), 201);
+            result(sendKeyed(client, "/api/finance/transactions", Map.of("accountId", account, "eventType", "OPERATING_EXPENSE_PAYMENT",
+                    "amount", "50000.00", "effectiveDate", expense.toString(), "description", "Monthly expenses " + month)), 201);
+        }
+        return account;
     }
     private JsonNode search(HttpClient client, String query, String type) throws Exception {
         return result(send(client, "POST", "/api/search", Map.of("query", query, "type", type)), 200);
@@ -117,19 +145,24 @@ class MvpCoreJourneyIT extends DisposablePostgres {
         HttpClient owner = browser();
         register(owner);
         String first = business(owner, "Cedar Supplies");
-        result(send(owner, "POST", "/api/records/monthly", record("2026-09")), 201);
-        result(send(owner, "POST", "/api/records/monthly", record("2026-07")), 201);
+        java.time.YearMonth m4 = monthsAgo(4), m2 = monthsAgo(2), m1 = monthsAgo(1), m0 = monthsAgo(0);
+        // Manual monthly totals are refused: the month is derived from daily activity.
+        result(send(owner, "POST", "/api/records/monthly", Map.of("month", m2.toString(), "cashInflow", 1, "cashOutflow", 1,
+                "revenue", 1, "operatingExpenses", 1, "cashBalanceEom", 1, "financingType", "none")), 409);
+        String account = seedActivity(owner, m4, m4, m2);
         JsonNode gap = result(get(owner, "/api/scores/latest"), 200);
         assertEquals("health-score-v1", gap.get("methodologyVersion").asText());
-        assertTrue(gap.at("/explanation/previousScore").isNull(), "A missing August is not replaced by July");
-        assertEquals(2, result(get(owner, "/api/scores/history"), 200).size());
-        result(send(owner, "POST", "/api/records/monthly", record("2026-08")), 201);
+        assertEquals(m0.toString(), gap.get("month").asText());
+        // Every month in ledger coverage is derived (a month without activity is a known-zero month, not a gap).
+        assertEquals(5, result(get(owner, "/api/scores/history"), 200).size());
+        result(sendKeyed(owner, "/api/finance/transactions", Map.of("accountId", account, "eventType", "DIRECT_SALE_RECEIPT",
+                "amount", "500000.00", "effectiveDate", LocalDate.now(KARACHI).toString(), "description", "Today")), 201);
         JsonNode score = result(get(owner, "/api/scores/latest"), 200);
-        assertEquals("2026-08", score.at("/explanation/previousMonth").asText());
-        assertEquals(3, score.at("/explanation/historyMonthsAvailable").asInt());
+        assertEquals(m1.toString(), score.at("/explanation/previousMonth").asText());
+        assertEquals(5, score.at("/explanation/historyMonthsAvailable").asInt());
         assertEquals("SELF_DECLARED", score.at("/explanation/components/repayment/evidenceType").asText());
         assertEquals("AVAILABLE", score.at("/explanation/components/trend/status").asText());
-        assertEquals(3, result(get(owner, "/api/scores/history"), 200).size());
+        assertEquals(5, result(get(owner, "/api/scores/history"), 200).size());
         assertTrue(result(get(owner, "/api/insights"), 200).size() > 0);
         JsonNode actions = result(get(owner, "/api/recommendations"), 200);
         String actionId = actions.get(0).get("id").asText();
@@ -143,8 +176,8 @@ class MvpCoreJourneyIT extends DisposablePostgres {
         assertEquals("Cedar Trading", result(send(owner, "PATCH", "/api/businesses/active/name", Map.of("businessName", "Cedar Trading", "businessType", "services")), 200).get("businessName").asText());
         assertEquals("retail", result(get(owner, "/api/businesses/active"), 200).get("businessType").asText());
         assertEquals(score, result(get(owner, "/api/dashboard"), 200).get("score"), "Renaming/language must not rescore");
-        assertEquals("/records/2026-09", search(owner, "2026-09", "transaction").get(0).get("href").asText());
-        assertEquals("/health/components?month=2026-09", search(owner, "2026-09", "score").get(0).get("href").asText());
+        assertEquals("/records/" + m2, search(owner, m2.toString(), "transaction").get(0).get("href").asText());
+        assertEquals("/health/components?month=" + m2, search(owner, m2.toString(), "score").get(0).get("href").asText());
 
         String documentId = upload(owner);
         JsonNode original = result(get(owner, "/api/documents/" + documentId), 200);
@@ -156,48 +189,49 @@ class MvpCoreJourneyIT extends DisposablePostgres {
         assertEquals("2026-09-19", json.readTree(reviewed.get("reviewedData").asText()).get("date").asText());
         assertEquals("Fixture supplier", json.readTree(reviewed.get("reviewedData").asText()).get("vendor_or_party").asText());
         assertEquals(1, result(get(owner, "/api/documents/" + documentId + "/corrections"), 200).size());
-        assertEquals(new BigDecimal("500000.00"), jdbc.queryForObject("SELECT revenue FROM monthly_records WHERE user_id=? AND month='2026-09'", BigDecimal.class, UUID.fromString(first)));
+        assertEquals(new BigDecimal("500000.00"), jdbc.queryForObject("SELECT revenue FROM monthly_records WHERE user_id=? AND month=?", BigDecimal.class, UUID.fromString(first), m2.toString()));
         assertEquals(documentId, search(owner, "mvp-receipt", "document").get(0).get("id").asText());
-        Map<String, Object> confirmation = Map.of("targetMonth", "2026-09", "confirmedAmount", 1500,
+        Map<String, Object> confirmation = Map.of("targetMonth", m2.toString(), "confirmedAmount", 1500,
                 "targetClassification", "revenue", "cashFlowImpact", "cash_inflow");
         result(send(owner, "POST", "/api/documents/" + documentId + "/confirm", confirmation), 200);
         result(send(owner, "POST", "/api/documents/" + documentId + "/confirm", confirmation), 409);
-        assertEquals(new BigDecimal("501500.00"), jdbc.queryForObject("SELECT revenue FROM monthly_records WHERE user_id=? AND month='2026-09'", BigDecimal.class, UUID.fromString(first)));
+        // A confirmed scan is evidence only; the derived month is unchanged.
+        assertEquals(new BigDecimal("500000.00"), jdbc.queryForObject("SELECT revenue FROM monthly_records WHERE user_id=? AND month=?", BigDecimal.class, UUID.fromString(first), m2.toString()));
         assertEquals(original.get("extractedData"), result(get(owner, "/api/documents/" + documentId), 200).get("extractedData"));
 
         String second = business(owner, "Separate Tenant");
         assertNotEquals(first, second);
         assertEquals(0, result(get(owner, "/api/scores/history"), 200).size());
-        assertEquals(0, search(owner, "2026-09", "score").size());
+        assertEquals(0, search(owner, m2.toString(), "score").size());
         assertEquals(0, search(owner, "mvp-receipt", "document").size());
         result(get(owner, "/api/documents/" + documentId), 404);
         result(get(owner, "/api/documents/" + documentId + "/corrections"), 404);
         result(send(owner, "PATCH", "/api/recommendations/" + actionId + "/status", Map.of("status", "DISMISSED")), 404);
         result(send(owner, "POST", "/api/businesses/active", Map.of("businessId", first)), 200);
-        assertEquals(3, result(get(owner, "/api/scores/history"), 200).size());
+        assertEquals(5, result(get(owner, "/api/scores/history"), 200).size());
     }
 
     @Test
-    void historyReturnsOnlyTheNewestTwelveActuallyStoredMonths() throws Exception {
+    void historyReturnsOnlyTheNewestTwelveDerivedMonths() throws Exception {
         HttpClient owner = browser(); register(owner); business(owner, "History Fixture");
-        for (int i = 0; i < 13; i++) {
-            String month = java.time.YearMonth.of(2024, 1).plusMonths(i * 2L).toString();
-            result(send(owner, "POST", "/api/records/monthly", record(month)), 201);
-        }
+        java.time.YearMonth[] active = new java.time.YearMonth[7];
+        for (int i = 0; i < active.length; i++) active[i] = monthsAgo(14 - i * 2);
+        seedActivity(owner, monthsAgo(14), active);
         JsonNode history = result(get(owner, "/api/scores/history"), 200);
         assertEquals(12, history.size());
         for (int i = 0; i < 12; i++) {
-            assertEquals(java.time.YearMonth.of(2026, 1).minusMonths(i * 2L).toString(), history.get(i).get("month").asText());
-            assertTrue(history.get(i).at("/explanation/previousScore").isNull(), "No invented intervening calendar months");
+            assertEquals(monthsAgo(i).toString(), history.get(i).get("month").asText(), "derived months are contiguous");
+            if (i < 11) assertFalse(history.get(i).at("/explanation/previousScore").isNull(), "each month compares with the real prior month");
         }
-        assertEquals("2024-01", result(send(owner, "POST", "/api/scores/query", Map.of("month", "2024-01")), 200).get("month").asText());
+        String oldest = monthsAgo(14).toString();
+        assertEquals(oldest, result(send(owner, "POST", "/api/scores/query", Map.of("month", oldest)), 200).get("month").asText());
     }
 
     @Test
     void existingAccountInvitationsAndNewEndpointsRespectAllFourRoles() throws Exception {
         HttpClient owner = browser(); register(owner);
         String businessId = business(owner, "Team Fixture");
-        result(send(owner, "POST", "/api/records/monthly", record("2026-09")), 201);
+        seedActivity(owner, monthsAgo(0), monthsAgo(0));
         String recommendationId = result(get(owner, "/api/recommendations"), 200).get(0).get("id").asText();
         String documentId = upload(owner);
         for (String role : List.of("ACCOUNTANT", "MANAGER", "VIEWER")) {

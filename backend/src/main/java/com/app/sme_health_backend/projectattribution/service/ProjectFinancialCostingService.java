@@ -56,9 +56,10 @@ public class ProjectFinancialCostingService {
 
         boolean hasApprovedBudget = approvedBudgetOpt.isPresent();
         Integer approvedBudgetRevision = hasApprovedBudget ? approvedBudgetOpt.get().revision() : null;
-        BigDecimal plannedRevenue = hasApprovedBudget ? approvedBudgetOpt.get().plannedRevenue() : BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
-        BigDecimal plannedCost = hasApprovedBudget ? approvedBudgetOpt.get().plannedCost() : BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
-        BigDecimal plannedMargin = hasApprovedBudget ? approvedBudgetOpt.get().plannedMargin() : BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+        // A missing approved budget is unknown, never zero (product-completion fix).
+        BigDecimal plannedRevenue = hasApprovedBudget ? approvedBudgetOpt.get().plannedRevenue() : null;
+        BigDecimal plannedCost = hasApprovedBudget ? approvedBudgetOpt.get().plannedCost() : null;
+        BigDecimal plannedMargin = hasApprovedBudget ? approvedBudgetOpt.get().plannedMargin() : null;
         BigDecimal plannedMarginPct = hasApprovedBudget ? approvedBudgetOpt.get().plannedMarginPct() : null;
 
         // Map planned cost by category from approved budget lines
@@ -141,7 +142,8 @@ public class ProjectFinancialCostingService {
         };
 
         for (AttributionCostCategory cat : displayCategories) {
-            BigDecimal pCost = plannedByCategory.getOrDefault(cat, BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal pCost = hasApprovedBudget
+                    ? plannedByCategory.getOrDefault(cat, BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP) : null;
             BigDecimal aCash = actualCashByCategory.getOrDefault(cat, BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP);
             BigDecimal cHeadroom = hasApprovedBudget ? pCost.subtract(aCash).setScale(4, RoundingMode.HALF_UP) : null;
             BigDecimal recCost = recognizedCostByCategory.getOrDefault(cat, BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP);
@@ -164,7 +166,11 @@ public class ProjectFinancialCostingService {
             for (EligibleSourceItem e : eligible) {
                 unattributedEligibleAmount = unattributedEligibleAmount.add(e.remainingEligibleAmount());
             }
-        } catch (Exception ignored) {
+        } catch (RuntimeException discoveryFailure) {
+            // Never silently report zero: the amount becomes unknown and the failure is logged.
+            org.slf4j.LoggerFactory.getLogger(ProjectFinancialCostingService.class)
+                    .warn("Eligible source discovery failed for project {}: {}", projectId, discoveryFailure.getClass().getSimpleName());
+            unattributedEligibleAmount = null;
         }
 
         // 6. Data Completeness & Profitability Status

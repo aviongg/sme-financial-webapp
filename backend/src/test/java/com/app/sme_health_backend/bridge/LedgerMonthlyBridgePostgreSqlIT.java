@@ -177,8 +177,8 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
                 .andExpect(jsonPath("$.completeness.hasPayableSettlements").value(true))
                 .andExpect(jsonPath("$.completeness.readinessStatus").value("READY_FOR_PREVIEW"));
 
-        // 7. Authoritative Cutover: POST /api/finance/ledger-bridge/apply-projection
-        LedgerCutoverRequest cutoverReq = new LedgerCutoverRequest(
+        // 7. V52: manual override figures are refused (they would be a second source of truth) ...
+        LedgerCutoverRequest manualReq = new LedgerCutoverRequest(
                 "2026-11",
                 new BigDecimal("25000.00"), // manual COGS
                 new BigDecimal("12000.00"), // manual inventory
@@ -188,7 +188,17 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
                 null,
                 "Audit cutover verified by Antigravity"
         );
+        mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
+                        .cookie(ownerFixture.session())
+                        .with(realCsrf(ownerFixture.session()))
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(manualReq)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("monthly_figures_derived"));
 
+        // ... and "apply" runs the deterministic monthly projection (monthly-projection-v1).
+        LedgerCutoverRequest cutoverReq = new LedgerCutoverRequest("2026-11", null, null, null, null, null, null,
+                "Audit cutover verified by Antigravity");
         mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
                         .cookie(ownerFixture.session())
                         .with(realCsrf(ownerFixture.session()))
@@ -198,22 +208,26 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
                 .andExpect(jsonPath("$.yearMonth").value("2026-11"))
                 .andExpect(jsonPath("$.monthlyRecord.cashInflow").value(80000.0))
                 .andExpect(jsonPath("$.monthlyRecord.cashOutflow").value(35000.0))
-                .andExpect(jsonPath("$.monthlyRecord.revenue").value(50000.0))
-                .andExpect(jsonPath("$.monthlyRecord.cogs").value(25000.0))
-                .andExpect(jsonPath("$.monthlyRecord.operatingExpenses").value(20000.0))
+                // Accrual basis: 50,000 cash sale + 25,000 recognized invoice INV-701; 20,000 cash expense + 40,000
+                // recognized bill BILL-801. The GET preview above stays the cash-basis c02 view (50,000 / 20,000).
+                .andExpect(jsonPath("$.monthlyRecord.revenue").value(75000.0))
+                .andExpect(jsonPath("$.monthlyRecord.cogs").doesNotExist())
+                .andExpect(jsonPath("$.monthlyRecord.operatingExpenses").value(60000.0))
                 .andExpect(jsonPath("$.monthlyRecord.receivablesOutstanding").value(15000.0))
                 .andExpect(jsonPath("$.monthlyRecord.payablesOutstanding").value(40000.0))
-                .andExpect(jsonPath("$.bridgeProvenance").value("LEDGER_MONTHLY_BRIDGE_V1"));
+                .andExpect(jsonPath("$.monthlyRecord.source").value("DERIVED"))
+                .andExpect(jsonPath("$.bridgeProvenance").value("monthly-projection-v1"));
 
         // 8. Verify database state
         MonthlyRecord recordInDb = monthlyRecordRepository.findByUserIdAndMonth(businessId, "2026-11").orElseThrow();
         assertThat(recordInDb.getCashInflow()).isEqualByComparingTo("80000.00");
         assertThat(recordInDb.getCashOutflow()).isEqualByComparingTo("35000.00");
-        assertThat(recordInDb.getRevenue()).isEqualByComparingTo("50000.00");
-        assertThat(recordInDb.getCogs()).isEqualByComparingTo("25000.00");
-        assertThat(recordInDb.getOperatingExpenses()).isEqualByComparingTo("20000.00");
+        assertThat(recordInDb.getRevenue()).isEqualByComparingTo("75000.00");
+        assertThat(recordInDb.getCogs()).as("no inventory ledger -> COGS unknown, never a typed figure").isNull();
+        assertThat(recordInDb.getOperatingExpenses()).isEqualByComparingTo("60000.00");
         assertThat(recordInDb.getReceivablesOutstanding()).isEqualByComparingTo("15000.00");
         assertThat(recordInDb.getPayablesOutstanding()).isEqualByComparingTo("40000.00");
+        assertThat(recordInDb.getSource()).isEqualTo("DERIVED");
 
         // 9. Verify Security Audit Log
         Integer auditCount = jdbc.queryForObject(
@@ -257,23 +271,12 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
         FinancialAccount bank = createAccount(businessId, "Main Bank", AccountType.BANK, "PKR", 2, "200000.00");
         postTransaction(ctx, bank.getId(), TransactionEventType.DIRECT_SALE_RECEIPT, "60000.00", "2026-11-03", "Cash direct sales");
 
-        // Fixture A: Pre-existing manual record with historical COGS and inventory
-        MonthlyRecord manualRecord = new MonthlyRecord();
-        manualRecord.setUserId(businessId);
-        manualRecord.setMonth("2026-11");
-        manualRecord.setCashInflow(new BigDecimal("10000.00"));
-        manualRecord.setCashOutflow(new BigDecimal("5000.00"));
-        manualRecord.setRevenue(new BigDecimal("10000.00"));
-        manualRecord.setOperatingExpenses(new BigDecimal("5000.00"));
-        manualRecord.setCashBalanceEom(new BigDecimal("205000.00"));
-        manualRecord.setCogs(new BigDecimal("45000.00")); // Critical manual field
-        manualRecord.setInventoryValue(new BigDecimal("30000.00")); // Critical manual field
-        manualRecord.setLoanOutstanding(new BigDecimal("100000.00")); // Critical manual field
-        manualRecord.setFinancingType("islamic");
-        MonthlyRecord initialSaved = monthlyRecordService.saveMonthlyRecord(manualRecord, ownerFixture.user().getId(), null);
-        Long initialVersion = initialSaved.getVersion();
+        // Fixture A: a pre-V52 manual month (legacy history) for the same month as ledger activity.
+        jdbc.update("INSERT INTO monthly_records(user_id,month,cash_inflow,cash_outflow,revenue,cogs,operating_expenses,"
+                + "cash_balance_eom,inventory_value,loan_outstanding,financing_type) VALUES (?, '2026-11', 10000, 5000, 10000, 45000, 5000,"
+                + " 205000, 30000, 100000, 'islamic')", businessId);
 
-        // Fixture B: Preview makes zero database mutations
+        // Fixture B: the cash-basis preview makes zero database mutations
         long recordCountBefore = monthlyRecordRepository.count();
         mvc.perform(get("/api/finance/ledger-bridge/monthly-projection?yearMonth=2026-11")
                         .cookie(ownerFixture.session())
@@ -284,18 +287,8 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
                 .andExpect(jsonPath("$.ledgerCashInflow").value(60000.0));
         assertThat(monthlyRecordRepository.count()).isEqualTo(recordCountBefore);
 
-        // Fixture C: Authoritative cutover updates record while preserving manual COGS, inventory, and financing
-        LedgerCutoverRequest cutoverReq = new LedgerCutoverRequest(
-                "2026-11",
-                null, // null manualCogs -> must preserve existing 45000.00!
-                null, // null manualInventory -> must preserve existing 30000.00!
-                null,
-                null,
-                null, // null financing -> must preserve murabaha!
-                initialVersion,
-                "Explicit cutover"
-        );
-
+        // Fixture C: applying replaces the legacy manual month with the derived one (one truth per month).
+        LedgerCutoverRequest cutoverReq = new LedgerCutoverRequest("2026-11", null, null, null, null, null, null, "Explicit cutover");
         mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
                         .cookie(ownerFixture.session())
                         .with(realCsrf(ownerFixture.session()))
@@ -303,50 +296,35 @@ class LedgerMonthlyBridgePostgreSqlIT extends DisposablePostgres {
                         .content(objectMapper.writeValueAsString(cutoverReq)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.monthlyRecord.cashInflow").value(60000.0))
-                .andExpect(jsonPath("$.monthlyRecord.cogs").value(45000.0))
-                .andExpect(jsonPath("$.monthlyRecord.inventoryValue").value(30000.0))
-                .andExpect(jsonPath("$.monthlyRecord.loanOutstanding").value(100000.0))
-                .andExpect(jsonPath("$.monthlyRecord.financingType").value("islamic"));
-
+                .andExpect(jsonPath("$.monthlyRecord.revenue").value(60000.0))
+                .andExpect(jsonPath("$.monthlyRecord.cogs").doesNotExist())
+                .andExpect(jsonPath("$.monthlyRecord.inventoryValue").doesNotExist())
+                .andExpect(jsonPath("$.monthlyRecord.source").value("DERIVED"));
         MonthlyRecord updated = monthlyRecordRepository.findByUserIdAndMonth(businessId, "2026-11").orElseThrow();
         assertThat(updated.getCashInflow()).isEqualByComparingTo("60000.00");
-        assertThat(updated.getCogs()).isEqualByComparingTo("45000.00");
-        assertThat(updated.getInventoryValue()).isEqualByComparingTo("30000.00");
-        assertThat(updated.getLoanOutstanding()).isEqualByComparingTo("100000.00");
-        assertThat(updated.getFinancingType()).isEqualTo("islamic");
+        assertThat(updated.getCogs()).isNull();
+        assertThat(updated.isDerived()).isTrue();
         Long updatedVersion = updated.getVersion();
 
-        // Fixture E: Stale concurrency rejection (calling with outdated initialVersion must fail)
-        LedgerCutoverRequest staleReq = new LedgerCutoverRequest(
-                "2026-11",
-                null, null, null, null, null,
-                initialVersion, // Outdated version!
-                "Stale attempt"
-        );
+        // Fixture D: repeating is idempotent — no rewrite, no duplicate row.
         mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
                         .cookie(ownerFixture.session())
                         .with(realCsrf(ownerFixture.session()))
                         .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(staleReq)))
-                .andExpect(status().isConflict());
-
-        // Fixture D: Repeated cutover with latest version succeeds idempotently without creating duplicates
-        LedgerCutoverRequest repeatReq = new LedgerCutoverRequest(
-                "2026-11",
-                null, null, null, null, null,
-                updatedVersion,
-                "Repeat cutover"
-        );
-        mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
-                        .cookie(ownerFixture.session())
-                        .with(realCsrf(ownerFixture.session()))
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(repeatReq)))
+                        .content(objectMapper.writeValueAsString(cutoverReq)))
                 .andExpect(status().isCreated());
-
+        assertThat(monthlyRecordRepository.findByUserIdAndMonth(businessId, "2026-11").orElseThrow().getVersion()).isEqualTo(updatedVersion);
         assertThat(monthlyRecordRepository.findByUserIdAndMonth(businessId, "2026-11")).isPresent();
-        // Record count must remain exactly 1 for this user and month
-        assertThat(monthlyRecordRepository.count()).isEqualTo(recordCountBefore);
+
+        // Fixture E: supplemental financing goes through its own explicit input, never through the cutover.
+        LedgerCutoverRequest financingReq = new LedgerCutoverRequest("2026-11", null, null, new BigDecimal("100000.00"), null,
+                "islamic", null, "Financing attempt");
+        mvc.perform(post("/api/finance/ledger-bridge/apply-projection")
+                        .cookie(ownerFixture.session())
+                        .with(realCsrf(ownerFixture.session()))
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(financingReq)))
+                .andExpect(status().isConflict());
     }
 
     @Test

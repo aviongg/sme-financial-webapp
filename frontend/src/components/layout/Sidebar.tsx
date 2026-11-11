@@ -23,8 +23,13 @@ import {
   ReceiptText,
   FlaskConical,
   Boxes,
+  Package,
+  Target,
+  Lightbulb,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { productCopy } from "@/lib/i18n/translations/product";
 import { useLanguage } from "@/lib/i18n/context";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
@@ -78,6 +83,10 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.INVOICE.nav, href: '/invoices', icon: Receipt }] : []),
     ...(!isDemoMode ? [{ label: commercialCopy(locale).kinds.BILL.nav, href: '/bills', icon: ReceiptText }] : []),
     ...(!isDemoMode ? [{ label: inventoryCopy(locale).nav, href: '/inventory', icon: Boxes }] : []),
+    ...(!isDemoMode ? [{ label: productCopy(locale).nav.stock, href: '/inventory/stock', icon: Package }] : []),
+    ...(!isDemoMode ? [{ label: productCopy(locale).nav.planning, href: '/planning', icon: Target }] : []),
+    ...(!isDemoMode ? [{ label: productCopy(locale).nav.intelligence, href: '/intelligence', icon: Lightbulb }] : []),
+    ...(!isDemoMode ? [{ label: productCopy(locale).nav.calendar, href: '/operations/calendar', icon: CalendarDays }] : []),
     {
       label: (locale === 'ur' ? recordsUr : recordsEn).add,
       href: "/records?add=1",
@@ -172,7 +181,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
       {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {navItems.filter((item) => allowed(item.href) && (item.href !== '/records?add=1' || isDemoMode || (business?.membershipStatus === 'ACTIVE' && ['OWNER','ACCOUNTANT'].includes(business.role)))).map((item) => {
-          const isActive = !item.href.includes('?') && (pathname === item.href || (item.href === '/records' && pathname.startsWith('/records/')) || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`)));
+          const isActive = !item.href.includes('?') && (pathname === item.href || (item.href === '/records' && pathname.startsWith('/records/')) || (['/projects', '/samples', '/estimates', '/invoices', '/bills', '/inventory'].includes(item.href) && pathname.startsWith(`${item.href}/`) && !(item.href === '/inventory' && pathname.startsWith('/inventory/stock'))));
           const Icon = item.icon;
 
           return (

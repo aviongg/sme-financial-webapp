@@ -3,9 +3,10 @@
 import React from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Container } from "@/components/ui/Container";
-import { MonthlyRecordForm } from "@/components/records/MonthlyRecordForm";
+import { MonthlyAutomationPanel } from "@/components/product/MonthlyFinancials";
 import { useLanguage } from "@/lib/i18n/context";
 
+/** Monthly figures are derived (monthly-projection-v1); this route explains that and holds supplemental inputs only. */
 export default function NewMonthlyRecordPage() {
   const { t } = useLanguage();
 
@@ -16,7 +17,7 @@ export default function NewMonthlyRecordPage() {
     >
       <Container width="dashboard" className="py-6">
         <div className="max-w-[860px] mx-auto">
-          <MonthlyRecordForm />
+          <MonthlyAutomationPanel />
         </div>
       </Container>
     </AppShell>
