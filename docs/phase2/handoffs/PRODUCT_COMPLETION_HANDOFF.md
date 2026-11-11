@@ -16,9 +16,30 @@
 | V49 | F06 estimate → quotation (draft invoice) lineage |
 | V50 | WhatsApp inbound: possession-verified links, conversations, encrypted message log with provider-id dedupe |
 | V51 | F04 ↔ reviewed OCR evidence links (provenance only) |
+| V52 | Transaction-driven monthly model: `monthly_records` projection metadata (`source` LEGACY_MANUAL/DERIVED, version, fingerprint, period completeness), `monthly_financing_inputs` (supplemental manual financing, legacy values migrated), `monthly_projection_state` + dirty triggers on every authoritative source table |
 
-Fresh DB: `ProductCompletionMigrationPostgreSqlIT` asserts contiguous V1–V51, every new table, runtime/backup grants.
-Populated upgrade: same IT migrates a populated V44 schema to V51; every pre-existing row unchanged; triggers active.
+Fresh DB: `ProductCompletionMigrationPostgreSqlIT` asserts contiguous V1–V52, every new table, runtime/backup grants.
+Populated upgrade: same IT migrates a populated V44 schema to V52; every pre-existing row value unchanged (legacy months
+labelled LEGACY_MANUAL, financing facts copied), 12 dirty triggers present, a source write bumps the dirty sequence.
+
+## Transaction-driven monthly model (`monthly-projection-v1`)
+**Users operate FinSight through ordinary daily financial workflows. Monthly financial records and health-score inputs
+are automatically derived from authoritative recognized activity. Users do not separately enter duplicate monthly
+financial totals solely for health scoring.** Field source map, accrual/cash
+semantics, period attribution, late-entry/backdated handling, recomputation, score recomputation and null/zero rules:
+[policies section 10](../FINANCIAL_POLICIES_PRODUCT_COMPLETION.md#10-monthly-projection-v1--transaction-driven-monthly-model-v52).
+* One projector (`records/derived/MonthlyFinancialProjector`) + one materialiser (`MonthlyProjectionService`).
+* Reads are cheap and coalesced: a current projection is served after one indexed lookup (`FRESH`, no lock); concurrent
+  stale reads of one business queue on a per-business advisory lock so exactly one rebuilds and the rest return
+  `COALESCED`; other businesses never wait; a failed rebuild rolls back, stays dirty and is retried (policies §10).
+* Legacy upgrade: pre-V52 months before ledger coverage stay byte-identical as `LEGACY_MANUAL`; months inside coverage
+  are replaced by `DERIVED` months; migrated financing facts flow in (`MonthlyIntegrityPostgreSqlIT`).
+* API: `GET /api/records/monthly` (derived months), `GET /api/records/monthly/{month}/sources`,
+  `GET /api/records/monthly/projection-status`, `POST /api/records/monthly/recalculate`,
+  `GET|PUT /api/records/monthly/financing[/{month}]`. `POST /api/records/monthly` → `409 monthly_figures_derived`.
+* UI: `/records/new` explains the automatic model, shows projection status and recalculation, and holds the supplemental
+  financing form; `/records/{month}` is a read-only derived month with its source map; `/records/bridge` shows the
+  same automation view; OCR review copy states confirmation is evidence only.
 
 ## Feature matrix
 
@@ -42,7 +63,8 @@ Populated upgrade: same IT migrates a populated V44 schema to V51; every pre-exi
 | Financial intelligence | CODE_COMPLETE | Recognized-revenue intelligence + unified action center |
 | AI Copilot | EXTERNAL_ACCEPTANCE_ONLY | Code complete (deterministic + OpenAI adapter); real-provider acceptance needs credentials |
 | WhatsApp inbound | EXTERNAL_ACCEPTANCE_ONLY | Code complete with mock provider; Meta number/app approval pending |
-| OCR / document flow | CODE_COMPLETE | Only confirmed scans link as evidence; no automatic posting |
+| OCR / document flow | CODE_COMPLETE | Only confirmed scans link as evidence; confirmation never changes a month |
+| Monthly records / health score inputs | CODE_COMPLETE | Derived from daily activity (`monthly-projection-v1`); manual monthly totals retired |
 
 ## Proof against double counting (all covered by `FinancialChainPostgreSqlIT` and the browser suite)
 * Collections and bill settlements never enter revenue/cost (cash timing only).
@@ -52,17 +74,29 @@ Populated upgrade: same IT migrates a populated V44 schema to V51; every pre-exi
 * Project revenue excludes collection attributions; project cost excludes settlement and capitalized-payment attributions.
 * Credit/debit notes reduce outstanding via non-cash allocations; commissions consider CASH allocations only.
 
-## Verification (local, this branch HEAD)
-* Backend unit: 1802 run, 0 failures, 0 errors, 1 skipped.
-* PostgreSQL ITs (embedded PostgreSQL): 456 run, 0 failures, 0 errors. Excluded (production fixtures required):
-  `DatabaseRolePrivilegesPostgreSqlIT`, `PostgreSqlTlsConnectionIT`.
-* Baseline before this pass: unit 1802-equivalent with 1 failure; ITs 434 with 11 failures + 2 errors (all repaired:
-  stale V37 history assertions, SALESPERSON role loops, shared-DB isolation, facade rollback-only, draft leakage).
-* Frontend: 435/435 unit/contract tests, TypeScript 0 errors, ESLint 0 errors (51 pre-existing warnings), production build OK.
-* Real browser (`tests/product-completion-browser.integration.mjs`, system Edge via Playwright, real Spring Boot +
-  PostgreSQL + Next production build): 16/16 checks — 7 product pages × EN/UR × 1280/1024/390×844/390×600 (RTL,
-  no horizontal overflow, no page errors) plus credit note, invoice fulfilment/WAC/COGS, keyboard stock receipt,
-  accrual P&L, break-even, keyboard Copilot grounded answer, financial pack CSV, action center.
+## Verification (local, final source of the transaction-driven monthly model, 11 Nov 2026)
+Run memory-safe: one JVM at a time (surefire 2 GB heap; failsafe 1.5 GB heap, serial GC, bounded Spring context cache),
+PostgreSQL ITs in six sequential package batches, no browser/Next process during backend runs.
+* Backend unit (`./mvnw test`): **1784 run, 0 failures, 0 errors, 1 skipped** (platform-conditional skip in
+  `LocalFileSystemStorageServiceTests`). The earlier 1802 figure fell by exactly 18 retired manual-monthly tests
+  (`MonthlyRecordContributionTests` 4, `MonthlyRecordServiceTests` 12, `MonthlyRecordIntegrationTests` 2).
+* PostgreSQL ITs (`./mvnw -Ppostgres-it verify`, embedded PostgreSQL, all 80 accepted classes):
+  **447 run, 0 failures, 0 errors, 0 skipped** — core/accounting/monthly 117, obligations/F04/commission/FX 83,
+  inventory/projects/estimates/samples 70, reporting/intelligence/dashboard/config 59, AI/WhatsApp/OCR/identity 51,
+  migrations/security/audit 67. Excluded (production fixtures required): `DatabaseRolePrivilegesPostgreSqlIT`,
+  `PostgreSqlTlsConnectionIT`. The earlier 456 figure: `MonthlyIntegrityPostgreSqlIT` retired 21 manual-write/OCR-to-month
+  invocations and gained 11 projection tests; `TransactionDrivenMonthlyPostgreSqlIT` added 1 (18-scenario) test.
+* Frontend: **436/436** unit/contract tests, TypeScript 0 errors, ESLint 0 errors (50 pre-existing warnings, none in
+  changed files), production webpack build OK.
+* Real browser (`tests/product-completion-browser.integration.mjs`, system Edge via Playwright 1.62, real Spring Boot +
+  disposable PostgreSQL + Next production build): **20/20 checks** — 9 product pages (incl. `/records/new`,
+  `/records/{month}`) × EN/UR × 1280/1024/390×844/390×600 (RTL, no horizontal overflow, no page errors, no console /
+  hydration / CSP errors), no rebuild storm across 72 page loads, credit note, invoice fulfilment/WAC/COGS, keyboard
+  stock receipt, accrual P&L, break-even, derived month = P&L, late/backdated invoice updates last month and its score
+  (dashboard + score history agree), idempotent recalculation, keyboard supplemental financing, manual totals 409,
+  keyboard Copilot grounded answer, financial pack CSV, action center.
+* Known cosmetic gap (pre-existing, not monthly-related): the app ships no favicon, so browsers log a `/favicon.ico`
+  404; the browser suite exempts only that probe.
 * Security/tenant: Copilot security corpus (12), WhatsApp inbound IT (signature, replay, dedupe, consent, live
   membership re-check, encryption), cross-business 404 and role 403 checks in every new IT.
 
@@ -74,8 +108,10 @@ Populated upgrade: same IT migrates a populated V44 schema to V51; every pre-exi
 
 ## Developer A final reconciliation work
 1. Review/accept items A1–A4b in the contracts document (no ledger/posting redesign involved).
-2. Decide A5 (whether the monthly bridge/health score should consume accrual figures) — methodology decision.
-3. Rebase/merge any newer `dev/suleman` work onto this branch; migrations must remain contiguous after V51.
+2. Review A5 (transaction-driven monthly model, implemented): the V52 triggers on Dev A tables, the bridge-apply
+   delegation, reversal-as-restatement for month-end cash, PKR-only balances, supplemental financing inputs.
+3. Rebase/merge any newer `dev/suleman` work onto this branch; migrations must remain contiguous after V52. Any new
+   authoritative source table must get a `trg_<table>_monthly_projection_dirty` trigger and a projector source mapping.
 4. Run the combined regression (commands above) and the browser suite after `npm run build`.
 
 ## Landing page

@@ -2,7 +2,11 @@
 
 Branch `claude/finsight-product-complete`, base `8c6e2478fce100fb9bd17c469e288248f5fffdb1`. Every policy below is
 implemented in code, stamped with a version string in API responses, and covered by PostgreSQL integration tests.
-`health-score-v1` (30/25/20/15/10) and Developer A's cash-basis monthly bridge `c02-bridge-v1` are unchanged.
+`health-score-v1` (30/25/20/15/10) is unchanged as a formula. Its inputs now come from the transaction-driven
+monthly projection `monthly-projection-v1` (section 10); the manual monthly entry path is retired.
+
+**Monthly financial health is automatically derived from authoritative daily financial activity. Users do not
+separately submit duplicate monthly financial statements solely for health scoring.**
 
 ## 1. One authority per financial fact
 
@@ -38,6 +42,8 @@ implemented in code, stamped with a version string in API responses, and covered
 * Operating costs = operating payments − capitalized amounts − commission payouts/advances
   + recognized bills − capitalized bill receipts − debit notes + supplier-return stock value
   + recognized commission (C08) + internal use / wastage / count adjustments (net).
+* Commission accounting date = the effective date of the collection allocation that earned it (the entry timestamp
+  only when the earning has no source allocation).
 * Realized FX below operating profit. Collections (`RECEIVABLE_COLLECTION`), bill settlements (`PAYABLE_SETTLEMENT`)
   and internal transfers are cash timing only and never appear. Voided obligations are excluded.
 
@@ -80,3 +86,95 @@ implemented in code, stamped with a version string in API responses, and covered
   F08 stock.
 * Foreign-currency quoting on F06 estimates and F04 documents — FX applies at settlement through C09.
 * Persisted report schedules / automated report delivery — on-demand pack, CSV and print cover the product need.
+
+## 10. `monthly-projection-v1` — transaction-driven monthly model (V52)
+
+**Users operate FinSight through ordinary daily financial workflows. Monthly financial records and health-score inputs
+are automatically derived from authoritative recognized activity. Users do not separately enter duplicate monthly
+financial totals solely for health scoring.**
+
+`monthly_records` is no longer an independent, user-maintained source of truth. Every month inside a business's ledger
+coverage is a `DERIVED` materialisation produced by one deterministic projector (`MonthlyFinancialProjector`) and kept
+in step by `MonthlyProjectionService`. Pre-V52 rows remain as labelled `LEGACY_MANUAL` history; any of them inside
+coverage is replaced by the derived month (one truth per month).
+
+### Source map (every `MonthlyRecord` field)
+
+| Field | Basis | Authoritative source | Period attribution |
+|---|---|---|---|
+| `revenue` | Accrual | `pnl-accrual-v1`: cash sales + recognized customer invoices − effective credit notes | transaction effective date; invoice issue (accounting) date; note date |
+| `cogs` | Accrual | F08 consumption: sale + project + sample material, net of returns/reversals | movement date. **Null** when no inventory movement exists on/before month end |
+| `operatingExpenses` | Accrual | operating payments − capitalized stock − commission payouts + recognized bills − capitalized bill receipts − debit notes + supplier-return value + recognized commission + stock losses (net) | payment date; bill issue date; note date; movement date; earning collection date |
+| `cashInflow` / `cashOutflow` | Cash | posted `account_movements` on PKR accounts in the month; internal transfers and reversed/reversal pairs excluded | movement effective date |
+| `cashBalanceEom` | Snapshot | PKR account opening balances + movements up to month end (reversal pairs excluded) | as of month end |
+| `receivablesOutstanding` / `payablesOutstanding` | Snapshot | non-voided PKR obligations issued by month end − EFFECTIVE allocations (cash, advance, credit/debit note) dated by month end | as of month end |
+| `inventoryValue` | Snapshot | F08 carrying value (`f08-wac-v1`) at month end; **null** when no stock was ever recorded | as of month end |
+| `loanOutstanding`, `interestExpense` | Supplemental (manual) | `monthly_financing_inputs` for that month (no ledger authority for loans yet); null when not entered | the entered month only (balances never carried forward) |
+| `financingType` | Supplemental (manual) | latest `monthly_financing_inputs` row on/before the month, else `none` | carried forward (a classification, not a figure) |
+
+Realized FX stays in the P&L below operating profit and is **not** part of these operating fields (noted on the month).
+Foreign-currency accounts/obligations are excluded from PKR cash/AR/AP and flagged in `coverage_notes`.
+
+### Accrual vs cash, and no double counting
+* Performance fields (revenue, COGS, operating expenses) are accrual; cash fields are posted cash movements; balances
+  are month-end snapshots that are never summed across months.
+* A customer collection or supplier settlement changes cash and AR/AP only — never revenue or cost again.
+* A stock purchase is capitalized (inventory value) and reaches COGS only when issued; project/sample material appears
+  once through F08 consumption.
+* Drafts (unfinalized/unrecognized documents, record drafts, scheduled recurring occurrences) never feed the projection.
+
+### Coverage, late entries and recomputation
+* Coverage starts at the earliest PKR cash account opening month (a month, once derived, stays derived) and runs to the
+  current month. A month with no activity is a known-zero month, not a gap.
+* V52 row triggers on every authoritative source table (accounts, transactions, movements, obligations, allocations,
+  F04 adjustments, F08 movements, commission earnings/payouts/advances, FX settlements, financing inputs) increment the
+  business's `dirty_seq`. Tenants are isolated: one business's activity never invalidates another.
+* A refresh (on reads of monthly/score/report/dashboard/workspace/intelligence/planning/Copilot/AI/Zakat/search/cash-flow
+  paths, `POST /api/records/monthly/recalculate`, or the background sweeper every 5 minutes) takes a per-business
+  advisory lock, recomputes **every** month in coverage, writes only months whose SHA-256 fingerprint changed, and
+  clears the dirty flag only if no writer committed meanwhile (compare-and-set on `dirty_seq`).
+* Late entry: an invoice entered on 5 December with accounting date 28 November changes November's revenue and
+  month-end receivables (and every later month-end snapshot), not December's revenue.
+* Reversal: a reversed transaction and its reversal are excluded from every month, so the original month is restated
+  rather than left stale. A voided obligation is excluded from every month.
+* Rebuilding twice without source change writes nothing and rescores nothing (idempotent, byte-identical).
+
+### Read-path concurrency and performance
+* A read first does one indexed lookup of `monthly_projection_state`; when the projection is current it returns
+  `FRESH` without taking any lock or writing anything, so normal navigation never rebuilds.
+* When stale, the request takes the business's transaction-scoped advisory lock (`monthly-projection:<businessId>`)
+  and re-checks the state under the lock. Simultaneous page loads for the same business therefore queue behind the first
+  one: exactly one performs the rebuild (`REBUILT`), the others find it already current (`COALESCED`) and write nothing.
+  Different businesses use different lock keys and never wait on each other.
+* A failed rebuild rolls back completely, records `last_error`, leaves the business dirty (`FAILED`) and is retried on
+  the next read or sweep; a later success clears the error. Read paths never fail because of a refresh error.
+* `FreshnessOutcome` is an internal service result for verification and diagnostics, not an HTTP API.
+* Proven by `MonthlyIntegrityPostgreSqlIT` (5 queued readers → 1 `REBUILT` + 4 `COALESCED`, each changed month written
+  once, unchanged months untouched; cross-business independence under a held lock; injected-failure recovery; `FRESH`
+  while the lock is held elsewhere) and by the browser suite (72 page loads with no rebuild: `lastProjectedAt` unchanged).
+
+### Score recomputation
+* `health-score-v1` formula, weights and calculators are unchanged. After a refresh, every month from the earliest
+  changed month to the current month is rescored (trend/variance windows look back six months), plus any month in
+  coverage that has no score yet.
+* Months that cannot be scored (no business profile, or no component with data) are skipped without failing the
+  refresh (`ScoringService.recalculateIfScorable`).
+* The current month is scored provisionally on month-to-date figures (`period_complete = false` on the month).
+
+### Null vs zero
+* Zero is known zero (no invoices this month, nothing outstanding). Null is unknown: COGS and inventory without an
+  inventory ledger, loan and interest without a supplemental input. The projector never converts unknown to zero.
+
+### Manual monthly entry
+* `POST /api/records/monthly` and manual overrides on `POST /api/finance/ledger-bridge/apply-projection` return
+  `409 monthly_figures_derived`. OCR document confirmation stores reviewed evidence only and never changes a month.
+* The only manual monthly inputs are supplemental financing facts (`PUT /api/records/monthly/financing/{month}`,
+  optimistic `expectedVersion`, audited), labelled `SUPPLEMENTAL_MANUAL` in the source map
+  (`GET /api/records/monthly/{month}/sources`).
+
+### Consistency
+Monthly records, the F12B report, the dashboard, Financial Intelligence, the Copilot P&L tool, budgets/goals and the
+health score read the same chain (`pnl-accrual-v1` + ledger + obligations + F08). `TransactionDrivenMonthlyPostgreSqlIT`
+asserts one month shows the same revenue in the P&L, the monthly record, the report and the source map, and that the
+dashboard and score read the derived months. The legacy C02 cash-basis preview (`GET /api/finance/ledger-bridge/
+monthly-projection`, `c02-bridge-v1`) remains available as an explicitly cash-basis view.

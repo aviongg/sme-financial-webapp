@@ -34,8 +34,37 @@ posting calculation, monthly bridge or account calculation.
 * `MonthlyLedgerProjectionService` draft summary: only drafts dated inside the projected month are counted (all open
   drafts previously leaked into every month, which made `MonthlyLedgerProjectionPostgreSqlIT` fixture C date-dependent).
 
-## A5. Optional future bridge contract (NOT implemented — Developer A decision)
-`c02-bridge-v1` remains cash-basis. If accrual figures should feed `MonthlyRecord`/health score, the bridge would
-read `ProfitAndLossService.statement(...)` (revenue, cost of sales, operating expenses) and
-`InventoryReadService.valueAsOf(...)` (inventory value) and exclude capitalized purchase payments from operating
-disbursements. This changes the scored figures and therefore requires Developer A's explicit methodology decision.
+## A5. Transaction-driven monthly model (`monthly-projection-v1`, V52) — IMPLEMENTED, REVIEW REQUIRED
+The earlier instruction to keep the monthly bridge semantics was withdrawn: the monthly record is now derived from
+authoritative daily records (see policies section 10). `health-score-v1` formula/weights/calculators are unchanged.
+Developer-A-owned touches:
+* **V52 triggers** `trg_<table>_monthly_projection_dirty` (AFTER INSERT/UPDATE/DELETE, row level) on
+  `financial_accounts`, `financial_transactions`, `account_movements`, `financial_obligations`,
+  `obligation_payment_allocations`, `commission_earnings`, `commission_payouts`, `commission_advances`,
+  `fx_obligation_settlements` (plus F04/F08 tables). They only upsert `monthly_projection_state` (never touch the
+  source row); deletes only flag an existing state row, so cascading business deletes still work.
+* **`LedgerMonthlyBridgeService.applyLedgerProjection`**: now runs the projector; manual COGS/inventory/loan/interest/
+  financing overrides return `409 monthly_figures_derived`. `getMonthlyProjection` (cash-basis preview) is unchanged.
+* **`MonthlyRecordService`**: manual save and OCR document contribution removed; `saveMonthlyRecord` refuses with 409.
+  `POST /api/records/monthly` therefore returns 409. `document_financial_contributions` is retained as history only.
+* **`DocumentConfirmationService`**: confirmation stores reviewed evidence (status, confirmed JSON, linked month) and
+  never writes a monthly record.
+* **`ScoringService`**: new `recalculateIfScorable` (same computation; returns null instead of throwing for an
+  unscorable month so the projector transaction is never marked rollback-only). `calculateAndSaveScore` unchanged.
+* **`MonthlyRecord` entity/DTO**: new read-only metadata (`source`, `projectionVersion`, `periodComplete`,
+  `projectedAt`, `coverageNotes`).
+* **Reversal semantics in the projection**: a reversed transaction and its reversal are excluded from every month's
+  flows and month-end cash (restatement, consistent with `c02-bridge-v1` flow treatment and `pnl-accrual-v1`). Dev A's
+  account balance screens are unaffected (they still show raw movements).
+* **Read-path freshness locking**: `MonthlyProjectionService.refreshIfStale` takes a per-business transaction-scoped
+  advisory lock (`hashtext('monthly-projection:' || business_id)`) only when stale and re-checks under the lock, so
+  concurrent reads coalesce into one rebuild. Dev A writers must not call `refresh`/`refreshIfStale` inside a
+  transaction that has already written an authoritative source row (the V52 trigger row-locks the state row; the
+  `REQUIRES_NEW` refresh would wait on it). The bridge apply path satisfies this (it writes nothing before refreshing).
+* **Tests rewritten to the new contract** (manual seeding replaced by posted activity or legacy rows):
+  `LedgerMonthlyBridgePostgreSqlIT`, `MonthlyIntegrityPostgreSqlIT`, `MonthlyLedgerProjectionPostgreSqlIT`
+  (refresh before the read-only snapshot), `TenantIsolationPostgreSqlIT`, `MvpCoreJourneyIT`, `CoreJourneyClosureIT`.
+
+Developer A should confirm: (1) the reversal-as-restatement rule for month-end cash; (2) PKR-only cash/AR/AP with
+foreign-currency exclusion flagged (FX translation of balances is a future policy); (3) whether a loan/financing ledger
+should later replace the supplemental `monthly_financing_inputs`.
