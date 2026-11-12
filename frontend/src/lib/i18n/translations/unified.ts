@@ -4,7 +4,7 @@ export const unifiedEn = {
  contacts: 'Customers & suppliers', receivables: 'Receivables', payables: 'Payables', advances: 'Advances', calendar: 'Payment calendar', reconciliation: 'Bank reconciliation', recurring: 'Recurring operations', forecast: 'Cash forecast', funding: 'Funding & scenarios', commissions: 'Sales & commissions', fx: 'Currency & exchange', risks: 'Financial risks', recognition: 'Commercial recognition', bridge: 'Ledger-to-health bridge',
  snapshotTitle: 'Historical monthly financial picture', snapshotHelp: 'Health scores and these dashboard trends use saved monthly summaries. Daily transactions do not automatically update this score. Posted balances, obligations and future forecasts are separate views.',
  posted: 'Posted account balances', planned: 'Planning and commercial work',
- closeSheet: 'Close sheet', closeDialog: 'Close dialog', navigation: 'Primary navigation', mobileNavigation: 'Mobile navigation', expand: 'Expand sidebar', collapse: 'Collapse sidebar',
+ closeSheet: 'Close sheet', closeDialog: 'Close dialog', navigation: 'Primary Navigation', mobileNavigation: 'Mobile navigation', expand: 'Expand sidebar', collapse: 'Collapse sidebar',
 };
 type Copy = { [K in keyof typeof unifiedEn]: string };
 export const unifiedUr: Copy = {

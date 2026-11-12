@@ -555,7 +555,7 @@ export function landingCopy(locale: Locale): LandingCopy {
 
 /** Destinations used by every landing CTA. Both lead into the existing application/auth experience. */
 export const LANDING_LINKS = {
-  signIn: '/',
+  signIn: '/?auth=login',
   getStarted: '/?auth=register',
   app: '/',
 } as const;

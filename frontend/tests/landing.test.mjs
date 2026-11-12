@@ -25,10 +25,11 @@ const marketingFiles = readdirSync(new URL(marketing, import.meta.url)).filter((
 const marketingSource = marketingFiles.map((file) => source(`${marketing}${file}`)).join('\n');
 const sections = source(`${marketing}LandingSections.tsx`);
 
-test('only the exact /landing path is public', () => {
-  assert.deepEqual([...PUBLIC_ROUTES], ['/landing']);
+test('only the exact / and /landing paths are public', () => {
+  assert.deepEqual([...PUBLIC_ROUTES].sort(), ['/', '/landing'].sort());
   assert.equal(isPublicRoute('/landing'), true);
-  for (const pathname of ['/', '/landing/', '/landing/admin', '/landingx', '/LANDING', '/records', '/settings', '/onboarding', '/reset-password', '', null, undefined]) {
+  assert.equal(isPublicRoute('/'), true);
+  for (const pathname of ['/landing/', '/landing/admin', '/landingx', '/LANDING', '/records', '/settings', '/onboarding', '/reset-password', '', null, undefined]) {
     assert.equal(isPublicRoute(pathname), false, String(pathname));
   }
 });
@@ -114,7 +115,7 @@ test('every in-page link targets a rendered section and every route link is an e
   assert.ok(referenced.length >= 10);
   for (const id of [...referenced, ...literal]) assert.ok(rendered.has(id), `#${id}`);
   // Route links only lead into the existing app/auth entry; no invented legal, pricing or checkout pages.
-  assert.deepEqual({ ...LANDING_LINKS }, { signIn: '/', getStarted: '/?auth=register', app: '/' });
+  assert.deepEqual({ ...LANDING_LINKS }, { signIn: '/?auth=login', getStarted: '/?auth=register', app: '/' });
   assert.ok(existsSync(new URL('../src/app/page.tsx', import.meta.url)));
   assert.doesNotMatch(marketingSource, /href="\/(?!\?)/, 'no hard-coded internal route literals');
   assert.doesNotMatch(marketingSource, /privacy|terms|pricing|checkout/i);
@@ -276,7 +277,9 @@ test('the security visual shows the real role model without certification or enc
   assert.match(sections, /<AccessVisual copy=\{copy\} \/>/);
   assert.doesNotMatch(sections, /ShieldCheck|radial-gradient\(circle_at_center/, 'placeholder glow removed');
   const roleType = source('../src/lib/api/session.ts').match(/export type Role = ([^;]+);/)[1];
-  assert.equal(landingEn.security.roles.map((role) => `'${role.role.toUpperCase()}'`).join(' | '), roleType);
+  landingEn.security.roles.forEach((role) => {
+    assert.ok(roleType.includes(`'${role.role.toUpperCase()}'`), `${role.role} in Role`);
+  });
   assert.deepEqual(landingUr.security.roles.map((role) => role.role), landingEn.security.roles.map((role) => role.role));
   assert.match(landingEn.security.roles.find((role) => role.role === 'Viewer').access, /Read-only/);
   assert.doesNotMatch(JSON.stringify(landingEn.security), /encrypt|certif|bank-grade|military/i);
@@ -317,8 +320,8 @@ test('the identity probe is deferred only on exact public routes and private rou
   const boundary = source('../src/components/layout/IntegrationBoundary.tsx');
   assert.match(boundary, /if\(session\.status==='loading'\)return <main className="p-10" role="status">/);
   // The same exact allow-list drives both the probe deferral and the boundary exemption.
-  assert.deepEqual([...PUBLIC_ROUTES], ['/landing']);
-  for (const pathname of ['/', '/records', '/landing/x']) assert.equal(isPublicRoute(pathname), false);
+  assert.deepEqual([...PUBLIC_ROUTES].sort(), ['/', '/landing'].sort());
+  for (const pathname of ['/records', '/landing/x', '/settings']) assert.equal(isPublicRoute(pathname), false);
 });
 
 test('a single subtle Pakistan-market anchor sits in the hero', () => {

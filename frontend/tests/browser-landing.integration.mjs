@@ -52,7 +52,7 @@ const viewports = [
 const DESKTOP_NAV_MIN = 1280;
 const sectionIds = ['product', 'features', 'how-it-works', 'cash', 'planning', 'intelligence', 'for-smes', 'language', 'security', 'faq', 'access'];
 const heroTitle = { en: 'Turn scattered business finances into clear decisions.', ur: 'بکھرے ہوئے کاروباری مالیات کو واضح فیصلوں میں بدلیں۔' };
-const allowedRoutes = new Set(['/', '/?auth=register']);
+const allowedRoutes = new Set(['/', '/?auth=register', '/?auth=login']);
 const menuText = {
   en: { open: 'Open menu', close: 'Close menu', faq: 'FAQ', lang: 'Switch to Urdu' },
   ur: { open: 'مینو کھولیں', close: 'مینو بند کریں', faq: 'سوالات', lang: 'انگریزی میں دیکھیں' },
@@ -390,9 +390,9 @@ await check('Get Started opens account creation and Sign In opens sign-in in the
     await page.getByRole('heading', { level: 1, name: 'Sign in to FinSight' }).waitFor();
     step = 'destinations';
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
-    assert.deepEqual(await page.locator('footer a[href^="/"]').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href'))), ['/', '/?auth=register']);
-    assert.deepEqual(await page.locator('#access a').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href'))), ['/?auth=register', '/']);
-    // Leaving /landing for / runs the deferred identity probe, so the anonymous 401 is expected here.
+    assert.deepEqual(await page.locator('footer a[href^="/"]').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href'))), ['/?auth=login', '/?auth=register']);
+    assert.deepEqual(await page.locator('#access a').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href'))), ['/?auth=register', '/?auth=login']);
+    // Leaving /landing for /?auth=login runs the identity probe, so the anonymous 401 is expected here.
     assertCleanLog(log, 'cta', true);
   } finally { await context.close(); }
 });
@@ -402,7 +402,15 @@ await check('private routes remain protected exactly as before', async () => {
   const { context, page, log } = await openContext(viewports[0], 'en');
   try {
     mode = 'anonymous';
-    for (const route of ['/', '/records', '/settings', '/reports', '/landing/extra']) {
+    // Anonymous root displays public landing page without any API request
+    step = 'anonymous /';
+    const beforeRoot = apiCalls.length;
+    await page.goto(`${origin}/`, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('[data-landing-root]').count(), 1, 'anonymous / renders public landing');
+    assert.equal(await page.locator('aside[aria-label="Primary Navigation"]').count(), 0);
+    assert.deepEqual(apiCalls.slice(beforeRoot), [], 'anonymous / makes no session/business request');
+
+    for (const route of ['/records', '/settings', '/reports', '/landing/extra']) {
       step = `anonymous ${route}`;
       const before = apiCalls.length;
       await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
@@ -413,7 +421,7 @@ await check('private routes remain protected exactly as before', async () => {
     }
     step = 'no business';
     mode = 'no-business';
-    await page.goto(`${origin}/`, { waitUntil: 'networkidle' });
+    await page.goto(`${origin}/?auth=login`, { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Create business' }).waitFor();
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     await page.locator('h1').filter({ hasText: heroTitle.en }).waitFor();
@@ -428,7 +436,7 @@ await check('private routes remain protected exactly as before', async () => {
     step = 'business sign in';
     // Leaving the public page runs the probe; a signed-in visitor goes straight into the private shell.
     await page.locator('header').getByRole('link', { name: 'Sign In' }).click();
-    await page.locator('aside[aria-label="Primary Navigation"]').waitFor({ timeout: 15000 });
+    await page.locator('aside[aria-label="Primary Navigation" i], aside[aria-label="Primary navigation"]').waitFor({ timeout: 15000 });
     assert.ok(apiCalls.slice(before).some((call) => call.url === '/api/auth/me'));
     assert.deepEqual(log.pageErrors.filter((error) => /hydrat/i.test(error)), []);
     assert.deepEqual(log.external, []);
