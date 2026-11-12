@@ -1,0 +1,39 @@
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'finsight_migrator') THEN
+        CREATE ROLE finsight_migrator WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD 'DemoDbPassword2026!';
+    ELSE
+        ALTER ROLE finsight_migrator WITH PASSWORD 'DemoDbPassword2026!';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'finsight_app') THEN
+        CREATE ROLE finsight_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD 'DemoDbPassword2026!';
+    ELSE
+        ALTER ROLE finsight_app WITH PASSWORD 'DemoDbPassword2026!';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'finsight_backup') THEN
+        CREATE ROLE finsight_backup WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD 'DemoDbPassword2026!';
+    ELSE
+        ALTER ROLE finsight_backup WITH PASSWORD 'DemoDbPassword2026!';
+    END IF;
+END $$;
+
+REVOKE ALL ON DATABASE finsight_demo FROM PUBLIC;
+GRANT CONNECT ON DATABASE finsight_demo TO finsight_migrator, finsight_app, finsight_backup;
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+ALTER SCHEMA public OWNER TO finsight_migrator;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+
+GRANT USAGE ON SCHEMA public TO finsight_app, finsight_backup;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE finsight_migrator IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO finsight_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE finsight_migrator IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO finsight_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE finsight_migrator IN SCHEMA public
+    GRANT SELECT ON TABLES TO finsight_backup;
+ALTER DEFAULT PRIVILEGES FOR ROLE finsight_migrator IN SCHEMA public
+    GRANT SELECT ON SEQUENCES TO finsight_backup;
+

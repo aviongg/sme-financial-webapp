@@ -235,3 +235,6 @@ docker-data/
 /scripts/tools/
 *.exe
 
+
+demo-credentials.txt
+*.dump

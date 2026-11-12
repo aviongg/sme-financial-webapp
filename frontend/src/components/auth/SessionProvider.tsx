@@ -67,6 +67,9 @@ export function SessionProvider({ children }: {
         if (ticket !== revision.current)
             return;
         allowPrivateRequests();
+        try {
+            document.cookie = 'finsight_session_hint=1; path=/; SameSite=Lax';
+        } catch { }
         setState(s => ({ ...s, user, business, businesses, status: 'authenticated', error: '' }));
     }, []);
     const refresh = useCallback(async () => {
@@ -75,6 +78,11 @@ export function SessionProvider({ children }: {
             await load(await apiClient<AuthUser>('/auth/me'), ticket);
         }
         catch (e) {
+            if (e instanceof ApiError && e.status === 401) {
+                try {
+                    document.cookie = 'finsight_session_hint=; path=/; max-age=0; SameSite=Lax';
+                } catch { }
+            }
             if (ticket === revision.current)
                 setState(s => ({ ...s, status: e instanceof ApiError && e.status === 401 ? 'anonymous' : 'error', error: e instanceof ApiError && e.status === 401 ? '' : e instanceof Error ? e.message : 'Unable to load your session.' }));
         }
@@ -156,6 +164,9 @@ export function SessionProvider({ children }: {
             await apiClient('/auth/logout', { method: 'POST' });
             if (ticket !== revision.current) return;
             resetCsrf();
+            try {
+                document.cookie = 'finsight_session_hint=; path=/; max-age=0; SameSite=Lax';
+            } catch { }
             setState(s => ({ ...initial, status: 'anonymous', epoch: s.epoch }));
         }
         catch (e) {
@@ -219,7 +230,8 @@ export function SessionProvider({ children }: {
         return () => { revision.current++; probed.current = false; invalidatePrivateRequests(); window.removeEventListener('finsight-business-changed', initialize); window.removeEventListener('finsight-session-expired', expired); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', pageShow); channel.current?.close(); channel.current = null; };
     }, [refresh, block, revalidate]);
     useEffect(() => {
-        if (isDemoMode || publicRoute || probed.current)
+        const hasSessionHint = typeof document !== 'undefined' && document.cookie.includes('finsight_session_hint=1');
+        if (isDemoMode || (publicRoute && !hasSessionHint) || probed.current)
             return;
         probed.current = true;
         queueMicrotask(() => void refresh());

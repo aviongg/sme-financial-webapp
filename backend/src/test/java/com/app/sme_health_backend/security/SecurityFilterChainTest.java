@@ -79,6 +79,17 @@ class SecurityFilterChainTest extends com.app.sme_health_backend.testsupport.Dis
     }
 
     @Test
+    @DisplayName("Allowed CORS origin matching pattern is granted CORS headers")
+    void testPatternCorsOrigin() throws Exception {
+        mockMvc.perform(options("/api/auth/csrf")
+                        .header("Origin", "https://offering-forums-marathon-calibration.trycloudflare.com")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://offering-forums-marathon-calibration.trycloudflare.com"))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
     @DisplayName("Disallowed CORS origin is not granted Access-Control-Allow-Origin header")
     void testDisallowedCorsOrigin() throws Exception {
         mockMvc.perform(options("/api/auth/csrf")

@@ -44,11 +44,6 @@ export function AuthScreen({ reset = false }: {
     } }, [reset]);
     useEffect(() => { if (registerRequested)
         history.replaceState(null, '', window.location.pathname); }, [registerRequested]);
-    useEffect(() => {
-        if (session.status === 'loading') {
-            void session.refresh();
-        }
-    }, [session.status, session.refresh]);
     const perform = async (action: () => Promise<void>) => { if (busy)
         return; setBusy(true); setError(''); setMessage(''); try {
         await action();

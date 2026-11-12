@@ -1,0 +1,22 @@
+services:
+  postgres-demo:
+    image: postgres:17
+    container_name: finsight-postgres-demo
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finsight_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: DemoDbPassword2026!
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - finsight_demo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d finsight_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  finsight_demo_pgdata:
+

@@ -137,7 +137,7 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.security.cors.allowed-origins:http://localhost:3000}") String allowedOrigins
+            @Value("${app.security.cors.allowed-origins:http://localhost:3000,https://*.trycloudflare.com}") String allowedOrigins
     ) {
         CorsConfiguration configuration = new CorsConfiguration();
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
@@ -145,9 +145,9 @@ public class SecurityConfig {
                 .filter(s -> !s.isEmpty() && !"*".equals(s) && !"null".equalsIgnoreCase(s))
                 .toList();
         if (origins.isEmpty()) {
-            configuration.setAllowedOrigins(List.of());
+            configuration.setAllowedOriginPatterns(List.of());
         } else {
-            configuration.setAllowedOrigins(origins);
+            configuration.setAllowedOriginPatterns(origins);
         }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Authorization", "Accept", "Origin", "X-Requested-With", "X-Request-ID"));
