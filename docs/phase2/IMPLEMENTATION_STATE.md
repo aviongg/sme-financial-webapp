@@ -1,5 +1,57 @@
 # Current Phase 2 implementation state
 
+## Production closure infrastructure — 13–14 November 2026 (Asia/Karachi)
+
+Release-engineering work is isolated on `codex/production-closure-infra-tests`,
+created exactly from published baseline `153e94b214ba24ac1d81a094eff3805334edaad9`.
+The demo checkout, canonical handoff branch and other development branches are read-only.
+Scope: reproducible validation, CI, operational probes and release/recovery documentation.
+No financial implementation, accounting policy, OCR recognition semantics or V1–V52 migration edits.
+
+Shared-file reservation for this worktree: `backend/pom.xml`, frontend dependency
+manifest/lockfiles and browser harness, Docker build/Compose health configuration,
+`scripts/test_production_configuration.py`, release verification scripts,
+`docs/PRODUCTION_RUNBOOK.md`, `docs/phase2/DEVELOPMENT_SETUP.md` and this entry.
+Additional reservations after the audit: `scripts/audit_dependencies.py`,
+backup validation/tests, the stale landing session-hint assertion and one explicit
+upload link event type needed by TypeScript. No authentication behavior changes.
+Operational probe ownership also covers the additive health controller/tests,
+frontend health route and the production Hikari connection-acquisition bound.
+Independent PostgreSQL verification additionally reserves the synthetic score JSON
+and fixture-read assertion in `financialquery/FinancialQueryPostgreSqlIT.java`.
+Its stored component keys do not match `ComponentScoresDto`, causing fallback warnings
+while the read-only test passes. Only the fixture contract is repaired; values,
+production scoring, financial services and migrations remain unchanged.
+New CI/release files are owned by this closure task. No migration reserved.
+Measured results, remaining external gates and resumption instructions are recorded in
+[the release closure record](../release/PRODUCTION_CLOSURE.md); historical entries below
+are not current V52 release acceptance.
+
+Delivered scoped commits: `b3ebd83` (frozen pnpm/declared Playwright, baseline frontend
+test/type repairs), `ec7323c` (private health/readiness probes and release tags),
+`7f13a0a` (pinned CI gates, portable browser, report integrity and security inventory),
+`3adcbbe` (valid synthetic score fixture plus the newly exposed invariant).
+First three were pushed and remote verified before clean-clone CI; the containing
+documentation/publication commit is discoverable with `git log -1 -- docs/phase2/IMPLEMENTATION_STATE.md`.
+No PR, merge, production deployment, financial-service or migration modification.
+
+Fresh evidence on `7f13a0a`: Linux unit 1,789 cases / 1 failure (storage-path contract),
+PostgreSQL 80 classes / 447 cases / 1 error (recurring race), frontend 460 plus TypeScript/
+lint/webpack and browser smoke 6 checks / 36 page loads passed. OCR/operations and source
+secret scan passed. Dependency scan is red (10 packages, 95 advisory records, no lookup
+errors). The fixture repair reran 6 PostgreSQL cases: 5 passed / 1 failure, exposing
+monthly snapshot materialization under the existing facade read-only assertion.
+See [Claude's core follow-up](../release/CORE_BACKEND_FINDINGS.md) and
+[dependency findings](../release/DEPENDENCY_FINDINGS.md). No failing assertion was disabled.
+
+Windows-only recovery limits, command/environment evidence, staging/rollback and P1/P2
+findings are in the closure record. D: scratch storage is task-local, not a repository
+prerequisite. The original checkout remains `dev/fatima` at `228e593` with its existing
+untracked DOCX/tmp preserved. Canonical handoff remains exactly `153e94b`.
+Next authorized step: Claude resolves the documented backend contracts/race; review
+dependency patches and complete real PostgreSQL 17/TLS/images/provider/V52 recovery
+acceptance. Require CI statuses through repository rules before release promotion.
+
 ## FinSight PK public landing page (`/landing`) — 9 November 2026 (Asia/Karachi), LOCAL ONLY
 
 Frontend-only marketing slice in isolated worktree `C:/Users/Hp/FYP/wt-finsight-landing`, local branch `claude/finsight-pk-landing`, based exactly on `dev/fatima` `228e593cda645a5203073ff7e4241a72ff09473c`; `dev/suleman` `cca8de3ce6f1f6f7dbfefdb506f211495707fd14` was inspected read-only for copy accuracy (re-checked at `b585dda3bfe9f116cad0bd9609199ca16f748f0b` on 10 November 2026: no claim inaccurate). The polish commit `a67eefa` passed the final production-runtime acceptance (standalone `server.js`, landing browser 20/20 plus the supplementary probes); see the implementation record. **Not pushed, not integrated.** No backend, API, migration, financial calculation or score change. `/` remains the authenticated application entry; the root-route swap waits for A+B integration.

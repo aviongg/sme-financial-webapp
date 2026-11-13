@@ -13,6 +13,10 @@ tmp
 secrets
 certs
 backups
+demo-credentials.txt
+**/*.dump
+**/*.sqlite
+**/*.sqlite3
 **/.env
 **/.env.*
 **/*.key

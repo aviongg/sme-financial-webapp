@@ -1,5 +1,12 @@
 # Production startup and acceptance
 
+For the integrated **V1–V52** release, use the current
+[release audit and gate record](release/PRODUCTION_CLOSURE.md) and
+[staging/VPS deployment procedure](release/STAGING_DEPLOYMENT.md) alongside this
+security bootstrap guide. Historical test totals below are dated evidence only.
+Manual monthly totals are retired: daily transactions, recognized obligations and
+inventory activity drive derived months; supplemental financing is separate.
+
 This runbook describes the security-production-closure configuration. Configuration
 tests are not evidence of working images, TLS, delivery, or a browser journey.
 Run the container acceptance commands below on a disposable Linux Docker host
@@ -18,6 +25,7 @@ Set these non-secret deployment values in an ignored `.env.production` file:
 
 ```dotenv
 APP_DOMAIN=finsight.example.com
+FINSIGHT_RELEASE_TAG=replace-with-full-reviewed-release-commit
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USERNAME=replace-with-provider-username
@@ -121,7 +129,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml --profile m
 docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration build --no-cache
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --wait postgres
 docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration run --rm backend-migration
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --wait --wait-timeout 240
 docker compose --env-file .env.production -f docker-compose.prod.yml ps -a
 ```
 
@@ -206,8 +214,10 @@ Record command output and exact revisions without logging credentials.
 
 5. **SMTP and live product journey:** request reset for a controlled account;
    confirm real delivery, fragment-token URL, one-time use, and session revocation.
-   In frontend live mode, register, login, create business, save monthly record,
-   inspect persisted score/advice/dashboard, logout/login, and verify persistence.
+   In frontend live mode, register, login, create business, record controlled daily
+   financial activity, inspect the derived month/source map and persisted score,
+   verify backdated activity refreshes the affected month, then logout/login.
+   Verify manual monthly totals are refused with `monthly_figures_derived` (409).
    Test business switching, cross-business IDs, and Owner versus Viewer/Manager
    mutation restrictions. Local mocked transport tests are not real SMTP or Google
    provider acceptance.

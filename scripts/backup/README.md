@@ -1,5 +1,13 @@
 # Encrypted backup and staging recovery
 
+**V52 acceptance limitation:** the verifier checks the current Flyway history but
+its required table/trigger and ciphertext lists cover the earlier security schema.
+It does not yet establish complete V18–V52 ledger/stock/monthly-projection or new
+WhatsApp ciphertext recovery. See the P1 finding in
+[the current closure record](../../docs/release/PRODUCTION_CLOSURE.md) and the
+[paired-document/rollback procedure](../../docs/release/STAGING_DEPLOYMENT.md).
+Do not interpret the fixture tests or status string below as full-system production acceptance.
+
 Install the recovery dependencies in an operator-managed Python 3.10+ environment:
 
 ```sh
@@ -83,7 +91,7 @@ IO, SQL, purge, query or validation failure removes only that staging database;
 cleanup failure is reported explicitly and never produces success. A failed
 database creation does not authorize dropping a concurrent creator's database.
 
-Success is exactly `VERIFIED_STAGING_RESTORE`: all expected domain tables and
+Success is exactly `VERIFIED_STAGING_RESTORE`: the explicitly listed legacy domain/security tables and
 Flyway history match, platform-role/audit triggers are enabled on the correct
 tables, and sessions/session attributes/reset tokens/pending MFA are zero. A
 requested keyring must decrypt and validate; all referenced historical key IDs
