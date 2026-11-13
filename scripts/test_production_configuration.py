@@ -41,6 +41,26 @@ class ProductionConfigurationTests(unittest.TestCase):
         self.assertTrue(self.compose["networks"]["finsight-db-net"]["internal"])
         self.assertEqual({"finsight-db-net"}, set(self.services["postgres"]["networks"]))
 
+    def test_service_readiness_is_not_inferred_from_postgres(self):
+        backend = self.services["backend-runtime"]
+        self.assertIn("/internal/health/ready", " ".join(backend["healthcheck"]["test"]))
+        self.assertEqual("service_healthy", backend["depends_on"]["ai-service"]["condition"])
+        for service in ("backend-runtime", "frontend-runtime"):
+            self.assertEqual("service_healthy", self.services["nginx"]["depends_on"][service]["condition"])
+        ai_probe = " ".join(self.services["ai-service"]["healthcheck"]["test"])
+        self.assertIn("ssl.create_default_context", ai_probe)
+        self.assertNotIn("CERT_NONE", ai_probe)
+        self.assertNotIn("extract", ai_probe, "health checks must not spend provider quota")
+
+    def test_release_images_require_explicit_tags_and_one_frontend_lock(self):
+        for service in self.services.values():
+            if service.get("image", "").startswith("finsight-"):
+                self.assertIn("${FINSIGHT_RELEASE_TAG:?", service["image"])
+        frontend = read("docker/Dockerfile.frontend")
+        self.assertIn("pnpm install --frozen-lockfile", frontend)
+        self.assertIn("pnpm-lock.yaml", frontend)
+        self.assertFalse((ROOT / "frontend/package-lock.json").exists())
+
     def test_secret_files_are_service_scoped(self):
         runtime_secrets = set(self.services["backend-runtime"]["secrets"])
         self.assertEqual({"app_db_password", "crypto_key_k1", "ocr_service_key", "smtp_password"}, runtime_secrets)
