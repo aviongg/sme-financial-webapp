@@ -5,24 +5,23 @@ import json
 import os
 import pathlib
 import urllib.request
-import xml.etree.ElementTree as ET
+import yaml
 
 root = pathlib.Path(__file__).resolve().parents[1]
 output = root / 'backend/target/closure-evidence'
 output.mkdir(parents=True, exist_ok=True)
 packages = set()
-lock = json.loads((root / 'frontend/package-lock.json').read_text())
-for path, item in lock.get('packages', {}).items():
-    if 'node_modules/' in path and item.get('version'):
-        name = path.rsplit('node_modules/', 1)[1]
-        packages.add(('npm', name, item['version']))
-for line in (root / 'ai-service/requirements-tested.txt').read_text().splitlines():
-    if '==' in line and not line.startswith('#'):
-        name, version = line.strip().split('==', 1)
-        packages.add(('PyPI', name, version))
-report = max((root / 'backend/target/surefire-reports').glob('TEST-*.xml'), key=lambda p: p.stat().st_mtime)
-tree = ET.parse(report)
-classpath = next(p.get('value') for p in tree.findall('.//property') if p.get('name') == 'java.class.path')
+lock = yaml.safe_load((root / 'frontend/pnpm-lock.yaml').read_text())
+for key in lock['packages']:
+    name, version = key.rsplit('@', 1)
+    packages.add(('npm', name, version))
+for requirement in ('ai-service/requirements-tested.txt', 'scripts/release/requirements.txt'):
+    for line in (root / requirement).read_text().splitlines():
+        if '==' in line and not line.startswith('#'):
+            name, version = line.strip().split('==', 1)
+            packages.add(('PyPI', name, version))
+# Export with Maven dependency:build-classpath; does not require running any tests.
+classpath = (root / 'backend/target/test-classpath.txt').read_text().strip()
 for path in classpath.split(os.pathsep):
     normalized = path.replace('\\', '/')
     if '/.m2/repository/' not in normalized or not normalized.endswith('.jar'):
@@ -32,6 +31,10 @@ for path in classpath.split(os.pathsep):
     packages.add(('Maven', group + ':' + artifact, version))
 
 ordered = sorted(packages)
+counts = collections.Counter(p[0] for p in ordered)
+if any(not counts[ecosystem] for ecosystem in ('npm', 'PyPI', 'Maven')):
+    raise SystemExit('Incomplete dependency inventory; expected npm, PyPI and Maven packages. '
+                     'Export test-classpath.txt using the default Maven repository layout before scanning.')
 results = []
 errors = []
 for start in range(0, len(ordered), 100):
@@ -58,7 +61,7 @@ for vuln_id in sorted({v for r in results for v in r['ids']}):
     except Exception as exc:
         errors.append({'id': vuln_id, 'error': str(exc)})
 
-summary = {'source': 'OSV API', 'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'scope': 'npm lock including dev/optional; pinned Python; Maven resolved test classpath including runtime and test dependencies. Not reachability or container scanning.', 'queried_counts': dict(collections.Counter(p[0] for p in ordered)), 'package_matches': results, 'errors': errors}
+summary = {'source': 'OSV API', 'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'scope': 'pnpm lock including dev/optional; pinned Python; Maven resolved test classpath including runtime and test dependencies. Not reachability or container scanning.', 'queried_counts': dict(collections.Counter(p[0] for p in ordered)), 'package_matches': results, 'errors': errors}
 (output / 'dependency-audit.json').write_text(json.dumps(summary, indent=2))
 (output / 'dependency-advisories.json').write_text(json.dumps(details, indent=2))
 print(json.dumps(summary, indent=2))

@@ -1,0 +1,25 @@
+name: Offline release image builds
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  images:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend, ai, nginx, postgres, ocr-egress]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build candidate image (no registry push or deployment)
+        run: docker build -f docker/Dockerfile.${{ matrix.image }} -t finsight-${{ matrix.image }}:${{ github.sha }} .
+      - name: Scan candidate OS and application packages
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: finsight-${{ matrix.image }}:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          hide-progress: true

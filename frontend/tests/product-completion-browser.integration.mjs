@@ -1,22 +1,26 @@
 // Product-completion real-browser acceptance: real Spring Boot + disposable PostgreSQL + Next.js production build +
-// system Microsoft Edge (Playwright channel "msedge"). Covers EN/UR/RTL, desktop/1024/390x844/390x600, keyboard and
-// the main F04/F08/planning/intelligence/calendar/reports/Copilot journeys. Run after `npm run build` and after the
-// backend failsafe suite (it reuses the failsafe test classpath). PLAYWRIGHT_MODULE may point at playwright-core.
+// repository-pinned Chromium. Covers EN/UR/RTL, responsive layouts and product journeys.
+// First run backend test-compile dependency:build-classpath -Dmdep.outputFile=target/test-classpath.txt
+// -Dmdep.includeScope=test, then pnpm build:release and pnpm browser:install.
+// --smoke keeps the real session/CSRF/API setup and responsive navigation; full mode retains financial assertions.
 import http from 'node:http';
+import net from 'node:net';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync, copyFileSync, cpSync, symlinkSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, copyFileSync, cpSync, symlinkSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const smoke = process.argv.includes('--smoke');
 const frontendDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const rootDir = path.dirname(frontendDir);
-const temporary = path.join(rootDir, 'tmp', 'product-completion-browser');
-const outDir = path.join(frontendDir, 'test-artifacts', 'product-completion-browser');
+const scratchRoot = path.resolve(process.env.FINSIGHT_BROWSER_TMP_DIR || path.join(rootDir, 'tmp'));
+const temporary = path.join(scratchRoot, 'product-completion-browser');
+const outDir = path.join(frontendDir, 'test-artifacts', smoke ? 'release-smoke' : 'product-completion-browser');
 mkdirSync(temporary, { recursive: true });
 mkdirSync(outDir, { recursive: true });
 const backendPort = 8093, nextPort = 3593, gatewayPort = 3592;
@@ -25,26 +29,34 @@ const checks = [];
 const mark = (name) => { checks.push(name); console.log('PASS ' + name); };
 const waitFor = async (predicate, label, timeout = 90000) => {
   const end = Date.now() + timeout;
-  while (Date.now() < end) { if (await predicate()) return; await new Promise(r => setTimeout(r, 250)); }
+  while (Date.now() < end) {
+    for (const child of [javaRuntime, nextProc]) {
+      if (child && child.exitCode !== null) throw new Error(`${label}: child exited (${child.exitCode})`);
+    }
+    if (await predicate()) return;
+    await new Promise(r => setTimeout(r, 250));
+  }
   throw new Error(label + ' not ready in ' + timeout + 'ms');
 };
 
 let javaRuntime, nextProc, gateway, browser, javaOutput = '', nextOutput = '';
 try {
+  for (const port of [backendPort, nextPort, gatewayPort]) {
+    await new Promise((resolve, reject) => {
+      const probe = net.createServer();
+      probe.once('error', () => reject(new Error(`Port ${port} is occupied; refusing to overlap another service`)));
+      probe.listen(port, '127.0.0.1', () => probe.close(resolve));
+    });
+  }
   // ---------------------------------------------------------------- backend runtime on disposable PostgreSQL
-  const reports = path.join(rootDir, 'backend', 'target', 'failsafe-reports');
-  const xml = readFileSync(path.join(reports, 'TEST-com.app.sme_health_backend.inventory.InventoryLedgerPostgreSqlIT.xml'), 'utf8');
-  const property = (name) => {
-    const m = xml.match(new RegExp('<property name="' + name.replaceAll('.', '\\.') + '" value="([^"]*)"'));
-    if (!m) throw new Error('missing ' + name);
-    return m[1].replaceAll('&amp;', '&').replaceAll('&quot;', '"');
-  };
-  const javaHome = property('java.home');
-  const classpath = property('surefire.test.class.path');
-  const manifest = classpath.split(';').filter(Boolean).map(e => pathToFileURL(e).href + (statSync(e).isDirectory() ? '/' : '')).join(' ');
-  writeFileSync(path.join(temporary, 'MANIFEST.MF'), 'Manifest-Version: 1.0\r\n' + ('Class-Path: ' + manifest).match(/.{1,70}/g).map((l, i) => (i ? ' ' : '') + l).join('\r\n') + '\r\n\r\n');
-  await new Promise((resolve, reject) => spawn(path.join(javaHome, 'bin', 'jar.exe'), ['cfm', path.join(temporary, 'cp.jar'), path.join(temporary, 'MANIFEST.MF')], { windowsHide: true })
-    .on('exit', c => c === 0 ? resolve() : reject(new Error('jar failed'))));
+  const target = path.join(rootDir, 'backend', 'target');
+  const classpath = [path.join(target, 'test-classes'), path.join(target, 'classes'),
+    readFileSync(path.join(target, 'test-classpath.txt'), 'utf8').trim()].join(path.delimiter);
+  const java = process.env.JAVA_HOME
+    ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
+  // A Java argument file avoids Windows command length limits and handles spaces on both OSes.
+  const classpathArgs = path.join(temporary, 'classpath.args');
+  writeFileSync(classpathArgs, '--class-path\n"' + classpath.replaceAll('\\', '/').replaceAll('"', '\\"') + '"\n');
   writeFileSync(path.join(temporary, 'ProductRuntime.java'), `
 import com.app.sme_health_backend.testsupport.DisposablePostgres;
 import com.app.sme_health_backend.SmeHealthBackendApplication;
@@ -64,14 +76,20 @@ public class ProductRuntime {
     app.close(); pg.close();
   }
 }`);
-  javaRuntime = spawn(path.join(javaHome, 'bin', 'java.exe'), ['--class-path', path.join(temporary, 'cp.jar'), path.join(temporary, 'ProductRuntime.java')],
+  javaRuntime = spawn(java, [`-Xmx${process.env.FINSIGHT_BROWSER_JAVA_HEAP || '1536m'}`, '-XX:+UseSerialGC', '@' + classpathArgs, path.join(temporary, 'ProductRuntime.java')],
     { cwd: path.join(rootDir, 'backend'), windowsHide: true });
+  javaRuntime.on('error', error => { javaOutput += String(error); });
   javaRuntime.stdout.on('data', d => { javaOutput += d; });
   javaRuntime.stderr.on('data', d => { javaOutput += d; });
   await waitFor(() => javaOutput.includes('PRODUCT_RUNTIME_READY'), 'backend', 180000);
+  for (const probe of ['live', 'ready']) {
+    const response = await fetch(`http://127.0.0.1:${backendPort}/internal/health/${probe}`);
+    assert.equal(response.status, 200, `backend ${probe}`);
+  }
 
   // ---------------------------------------------------------------- isolated Next production server + gateway
-  const isolated = path.join(rootDir, 'tmp', 'isolated-frontend-product');
+  const isolated = path.join(scratchRoot, 'isolated-frontend-product');
+  assert.equal(path.dirname(isolated), scratchRoot, 'cleanup must stay inside the selected task scratch directory');
   rmSync(path.join(isolated, '.next'), { recursive: true, force: true });
   mkdirSync(path.join(isolated, '.next'), { recursive: true });
   for (const item of ['build', 'server', 'static', 'types', 'app-path-routes-manifest.json', 'build-manifest.json', 'BUILD_ID', 'export-marker.json',
@@ -82,13 +100,14 @@ public class ProductRuntime {
   copyFileSync(path.join(frontendDir, 'package.json'), path.join(isolated, 'package.json'));
   copyFileSync(path.join(frontendDir, 'next.config.ts'), path.join(isolated, 'next.config.ts'));
   for (const link of ['node_modules', 'public']) {
-    if (!existsSync(path.join(isolated, link))) { try { symlinkSync(path.join(frontendDir, link), path.join(isolated, link), 'junction'); } catch { /* exists */ } }
+    if (!existsSync(path.join(isolated, link))) symlinkSync(path.join(frontendDir, link), path.join(isolated, link), process.platform === 'win32' ? 'junction' : 'dir');
   }
   nextProc = spawn(process.execPath, [path.join(frontendDir, 'node_modules', 'next', 'dist', 'bin', 'next'), 'start', '--hostname', '127.0.0.1', '--port', String(nextPort)],
     { cwd: isolated, windowsHide: true, env: { ...process.env, BACKEND_API_URL: `http://127.0.0.1:${backendPort}` } });
   nextProc.stdout.on('data', d => { nextOutput += d; });
   nextProc.stderr.on('data', d => { nextOutput += d; });
   await waitFor(() => /Ready in/.test(nextOutput), 'next', 60000);
+  assert.equal((await fetch(`http://127.0.0.1:${nextPort}/internal/health`)).status, 200, 'Next HTTP liveness');
   gateway = http.createServer((req, res) => {
     const up = http.request({ hostname: '127.0.0.1', port: req.url.startsWith('/api') ? backendPort : nextPort, path: req.url, method: req.method, headers: req.headers },
       reply => { res.writeHead(reply.statusCode, reply.headers); reply.pipe(res); });
@@ -145,9 +164,11 @@ public class ProductRuntime {
   const previousMonth = cm === 1 ? `${cy - 1}-12` : `${cy}-${String(cm - 1).padStart(2, '0')}`;
 
   // ---------------------------------------------------------------- browser
-  browser = await chromium.launch({ channel: 'msedge', headless: true });
+  browser = await chromium.launch({ headless: true,
+    ...(process.env.FINSIGHT_BROWSER_CHANNEL ? { channel: process.env.FINSIGHT_BROWSER_CHANNEL } : {}) });
   const cookies = [...jar].map(([name, value]) => ({ name, value, domain: '127.0.0.1', path: '/' }));
-  const viewports = [{ width: 1280, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }, { width: 390, height: 600 }];
+  const viewports = smoke ? [{ width: 1280, height: 900 }, { width: 390, height: 844 }] :
+    [{ width: 1280, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }, { width: 390, height: 600 }];
   const pages = [
     ['/inventory/stock', 'stock-register'], ['/planning', 'pnl-panel'], ['/intelligence', 'action-center'],
     ['/operations/calendar', 'calendar-panel'], ['/ask-finsight', 'copilot'], [`/invoices/${invoiceId}`, 'commercial-lifecycle-panel'], ['/reports', 'financial-pack'],
@@ -189,6 +210,7 @@ public class ProductRuntime {
   assert.equal(afterNavigation.json.lastError, null);
   mark(`No rebuild storm: ${2 * viewports.length * pages.length} page loads served the settled projection without a rebuild`);
 
+  if (!smoke) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.addCookies(cookies);
   const page = await context.newPage();
@@ -301,14 +323,23 @@ public class ProductRuntime {
   mark('Action center items show their reason and evidence');
   await context.close();
 
+  }
+
   writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ passed: checks.length, checks }, null, 2));
-  console.log(`\nALL ${checks.length} PRODUCT-COMPLETION BROWSER CHECKS PASSED`);
+  console.log(`\nALL ${checks.length} ${smoke ? 'RELEASE-SMOKE' : 'PRODUCT-COMPLETION'} BROWSER CHECKS PASSED`);
 } catch (error) {
   console.error('BROWSER ACCEPTANCE FAILED:', error);
   process.exitCode = 1;
 } finally {
+  writeFileSync(path.join(outDir, 'runtime.log'), javaOutput);
+  writeFileSync(path.join(outDir, 'next.log'), nextOutput);
   await browser?.close().catch(() => {});
   gateway?.close();
   nextProc?.kill();
-  if (javaRuntime) { javaRuntime.stdin.write('STOP\n'); setTimeout(() => javaRuntime.kill(), 5000); }
+  if (javaRuntime && javaRuntime.exitCode === null) {
+    javaRuntime.stdin.on('error', () => {});
+    javaRuntime.stdin.end('STOP\n');
+    const timer = setTimeout(() => javaRuntime.kill(), 10000);
+    javaRuntime.once('exit', () => clearTimeout(timer));
+  }
 }
