@@ -3,6 +3,10 @@
 **/target
 **/.next
 **/.venv
+**/.venv-*
+tmp
+.temp
+**/test-artifacts
 **/__pycache__
 **/.pytest_cache
 **/storage

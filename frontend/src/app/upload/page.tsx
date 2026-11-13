@@ -291,7 +291,7 @@ function DemoPage() {
                         >
                           {t.upload.retryItem}
                         </Button>
-                        <Link href="/records/new" onClick={(e) => e.stopPropagation()}>
+                        <Link href="/records/new" onClick={(e: React.MouseEvent<HTMLAnchorElement>) => e.stopPropagation()}>
                           <Button variant="ghost" size="sm" className="text-[12px] text-[var(--color-brand-primary)]">
                             {t.upload.manualEntry}
                           </Button>

@@ -2,12 +2,19 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": { "node": ">=22 <27" },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit --incremental false",
+    "build:release": "next build --webpack",
+    "browser:install": "playwright install chromium",
+    "test:browser:smoke": "node tests/product-completion-browser.integration.mjs --smoke",
+    "test:browser:product": "node tests/product-completion-browser.integration.mjs"
   },
   "overrides": {
     "brace-expansion@<2": "1.1.21",
@@ -22,6 +29,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "playwright": "1.62.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
