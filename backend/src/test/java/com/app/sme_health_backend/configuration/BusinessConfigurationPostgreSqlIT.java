@@ -257,4 +257,46 @@ class BusinessConfigurationPostgreSqlIT extends com.app.sme_health_backend.tests
                 .content(body(0).replace("PROJECT_ORDER", "UNKNOWN"))).andExpect(status().isBadRequest());
         assertEquals(0, configuration.get(f.actor()).version());
     }
+
+    /**
+     * Regression (production-closure audit P1-03): only documents/WhatsApp/AI were enforced server-side, so a disabled
+     * live module still accepted direct API writes. Unconfigured businesses must keep every implemented module.
+     */
+    @Test void liveModulesAreEnforcedOnWritesOnceConfiguredAndUnconfiguredBusinessesKeepThem() throws Exception {
+        var f = fixture("retail");
+        String item = "{\"name\":\"Cotton yarn\",\"unit\":\"kg\"}";
+        // Never configured: every implemented module stays available (backward compatible).
+        assertTrue(modules.isEnabled(f.businessId, "inventory")); assertTrue(modules.isEnabled(f.businessId, "transactions"));
+        String unconfigured = mvc.perform(authenticated(post("/api/inventory/items"), f).with(realCsrf(f.session))
+                .contentType("application/json").content(item)).andReturn().getResponse().getContentAsString();
+        assertFalse(unconfigured.contains("module_disabled"), unconfigured);
+
+        configuration.update(f.actor(), coreOnly(0));
+        assertFalse(modules.isEnabled(f.businessId, "inventory")); assertTrue(modules.isEnabled(f.businessId, "core_finance"));
+        for (var write : List.of(post("/api/inventory/items"), post("/api/finance/transactions"), post("/api/finance/obligations"),
+                post("/api/invoices"), post("/api/projects"), post("/api/estimates"), post("/api/finance/fx/transfers"))) {
+            mvc.perform(authenticated(write, f).with(realCsrf(f.session)).contentType("application/json").content(item))
+                    .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("module_disabled"));
+        }
+        // Reads of retained data stay available while the module is disabled.
+        mvc.perform(authenticated(get("/api/inventory/items"), f)).andExpect(status().isOk());
+
+        configuration.update(f.actor(), new ConfigurationRequest(OperatingProfile.RETAIL_TRADE, Map.of("holdsInventory", true),
+                List.of("core_finance", "transactions", "inventory"), 1L));
+        assertTrue(modules.isEnabled(f.businessId, "inventory"));
+        String enabled = mvc.perform(authenticated(post("/api/inventory/items"), f).with(realCsrf(f.session))
+                .contentType("application/json").content(item)).andReturn().getResponse().getContentAsString();
+        assertFalse(enabled.contains("module_disabled"), enabled);
+    }
+
+    @Test void writePathsMapToTheirModules() {
+        assertEquals(java.util.Optional.of("multi_currency"), ModuleWebConfiguration.moduleFor("POST", "/api/finance/fx/settlements/x"));
+        assertEquals(java.util.Optional.of("projects"), ModuleWebConfiguration.moduleFor("PUT", "/api/finance/projects/1/actuals"));
+        assertEquals(java.util.Optional.of("receivables"), ModuleWebConfiguration.moduleFor("POST", "/api/finance/obligations/recognize-commercial-document"));
+        assertEquals(java.util.Optional.empty(), ModuleWebConfiguration.moduleFor("GET", "/api/inventory/items"));
+        assertEquals(java.util.Optional.empty(), ModuleWebConfiguration.moduleFor("POST", "/api/documents/query"));
+        assertEquals(java.util.Optional.empty(), ModuleWebConfiguration.moduleFor("POST", "/api/whatsapp/webhook"));
+        assertEquals(java.util.Optional.empty(), ModuleWebConfiguration.moduleFor("POST", "/api/finance/forecast/scenario-preview"));
+        assertEquals(java.util.Optional.empty(), ModuleWebConfiguration.moduleFor("POST", "/api/inventoryx"));
+    }
 }
