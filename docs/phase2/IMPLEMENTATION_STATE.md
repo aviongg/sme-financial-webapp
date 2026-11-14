@@ -1,5 +1,24 @@
 # Current Phase 2 implementation state
 
+## Production security/recovery continuation — 14 November 2026 (Asia/Karachi)
+
+User independently accepted infrastructure HEAD `28bc6ba6fd49e35ebc0626e698a1a803e337c8b5`
+and explicitly authorized dependency triage/minimal upgrades, V52 paired recovery,
+integrated production privilege tests and release evidence hardening on the same
+`codex/production-closure-infra-tests` branch. Remote and clean status verified after fetch.
+Core recurring concurrency, monthly read/materialization, document path validation and
+financial lifecycle behavior remain Claude-owned; their failing assertions/evidence stay intact.
+The `ec7323c` health/readiness implementation is frozen for review; no second probes.
+
+Editing reservation: frontend package/lock/workspace dependency declarations; OCR
+`pyproject.toml`/tested constraints; dependency audit/triage and release evidence scripts;
+backup/recovery scripts, fixtures and versioned recovery/grant inventories; integrated
+production/disposable grant acceptance tests and additive test-support catalog/drill tools;
+CI workflows, artifact/image metadata and release/staging/backup documentation.
+No migration reserved or V1–V52 edit authorized. Disposable synthetic targets only;
+no demo/customer data, deployment or paid/live provider activation.
+Results/commits will be recorded in the persistent release continuation handoff.
+
 ## Production closure infrastructure — 13–14 November 2026 (Asia/Karachi)
 
 Release-engineering work is isolated on `codex/production-closure-infra-tests`,

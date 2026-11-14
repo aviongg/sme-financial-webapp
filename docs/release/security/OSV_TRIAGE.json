@@ -1,0 +1,3162 @@
+{
+  "review_date": "2026-11-14",
+  "authority": "OSV package/range records + source call-path review",
+  "suppressions": [],
+  "input_sha256": {
+    "dependency-audit.json": "4a1c2c56e6395f0da33016bf76d1bd9d599c9b64a335d3124408101a8a50e255",
+    "dependency-advisories.json": "a0296a19bb99678d2a6778ab030768c6cc2e458d1a03c4d309eb396b879cec08"
+  },
+  "record_count": 95,
+  "records": [
+    {
+      "package": "PyPI:certifi",
+      "advisory": "GHSA-6q48-6c7w-9gw2",
+      "aliases": [
+        "PYSEC-2026-4320"
+      ],
+      "published": "2026-10-20T19:35:05Z",
+      "modified": "2026-10-26T16:15:35.371128995Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2019.03.09"
+            },
+            {
+              "fixed": "2026.10.18"
+            }
+          ]
+        }
+      ],
+      "current_version": "2026.7.22",
+      "genuinely_affected": true,
+      "selected_fixed_version": "2026.10.18",
+      "selected_version_affected": false,
+      "reachability": "runtime certificate trust for HTTPX/requests/Google authentication",
+      "evidence": "httpx and google-auth/requests dependencies use CA trust; compromised emSign intermediate-chain issue genuinely affects bundled roots in the original version. Live providers remain disabled during tests.",
+      "compatibility_risk": "CA trust-store removal can reject legacy external endpoints. No verification bypass; real Google/SMTP/provider TLS acceptance remains external.",
+      "advisory_feature": "certifi bundles emSign root CAs with compromised intermediate CA keys",
+      "url": "https://osv.dev/vulnerability/GHSA-6q48-6c7w-9gw2"
+    },
+    {
+      "package": "PyPI:certifi",
+      "advisory": "PYSEC-2026-4320",
+      "aliases": [
+        "GHSA-6q48-6c7w-9gw2"
+      ],
+      "published": "2026-10-20T21:41:50.722083Z",
+      "modified": "2026-10-30T14:00:02.590922333Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2019.03.09"
+            },
+            {
+              "fixed": "2026.10.18"
+            }
+          ]
+        }
+      ],
+      "current_version": "2026.7.22",
+      "genuinely_affected": true,
+      "selected_fixed_version": "2026.10.18",
+      "selected_version_affected": false,
+      "reachability": "runtime certificate trust for HTTPX/requests/Google authentication",
+      "evidence": "httpx and google-auth/requests dependencies use CA trust; compromised emSign intermediate-chain issue genuinely affects bundled roots in the original version. Live providers remain disabled during tests.",
+      "compatibility_risk": "CA trust-store removal can reject legacy external endpoints. No verification bypass; real Google/SMTP/provider TLS acceptance remains external.",
+      "advisory_feature": "certifi bundles emSign root CAs with compromised intermediate CA keys",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4320"
+    },
+    {
+      "package": "PyPI:opentelemetry-api",
+      "advisory": "GHSA-mf5v-w3w3-f6cg",
+      "aliases": [
+        "CVE-2026-126360"
+      ],
+      "published": "2026-11-13T16:43:18Z",
+      "modified": "2026-11-13T17:00:03.925479166Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "1.45.2"
+            }
+          ]
+        }
+      ],
+      "current_version": "1.44.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "1.45.2",
+      "selected_version_affected": false,
+      "reachability": "runtime-installed optional Google client tracing API; no application OTEL SDK/exporter configured",
+      "evidence": "google-api-core dependency; no application trace exporter/configuration in ai-service/app. Both original range endpoints (1.45.1 and 1.45.2) reviewed; no assumption that disabled live provider makes package unaffected.",
+      "compatibility_risk": "Same-major minimum minor patch closing both records, within Google API declared dependency range; verify installed metadata and Google provider fixture tests.",
+      "advisory_feature": "OpenTelemetry Python API: Denial of service through quadratic-time traceparent parsing",
+      "url": "https://osv.dev/vulnerability/GHSA-mf5v-w3w3-f6cg"
+    },
+    {
+      "package": "PyPI:opentelemetry-api",
+      "advisory": "GHSA-xcq7-p3pf-p88h",
+      "aliases": [
+        "CVE-2026-114603"
+      ],
+      "published": "2026-10-22T16:22:07Z",
+      "modified": "2026-10-22T16:30:40.999595074Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "1.45.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "1.44.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "1.45.2",
+      "selected_version_affected": false,
+      "reachability": "runtime-installed optional Google client tracing API; no application OTEL SDK/exporter configured",
+      "evidence": "google-api-core dependency; no application trace exporter/configuration in ai-service/app. Both original range endpoints (1.45.1 and 1.45.2) reviewed; no assumption that disabled live provider makes package unaffected.",
+      "compatibility_risk": "Same-major minimum minor patch closing both records, within Google API declared dependency range; verify installed metadata and Google provider fixture tests.",
+      "advisory_feature": "OpenTelemetry Python: Unbounded tracestate parsing in opentelemetry-api",
+      "url": "https://osv.dev/vulnerability/GHSA-xcq7-p3pf-p88h"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-22hg-r758-rrw9",
+      "aliases": [
+        "BIT-pillow-2026-112390",
+        "CVE-2026-112390"
+      ],
+      "published": "2026-10-21T20:39:49Z",
+      "modified": "2026-10-26T08:56:03.565713059Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "7.2.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Infinite loop in MIC n_frames when the embedded TIFF",
+      "url": "https://osv.dev/vulnerability/GHSA-22hg-r758-rrw9"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-24rc-8hj2-v98c",
+      "aliases": [
+        "BIT-pillow-2026-96638",
+        "CVE-2026-96638"
+      ],
+      "published": "2026-10-22T15:59:35Z",
+      "modified": "2026-10-29T10:55:36.262902070Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "9.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: BMP RLE decoder memory-amplification DoS via unbounded delta escape / absolute mode",
+      "url": "https://osv.dev/vulnerability/GHSA-24rc-8hj2-v98c"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-254f-3936-288h",
+      "aliases": [
+        "BIT-pillow-2026-112391",
+        "CVE-2026-112391"
+      ],
+      "published": "2026-10-21T21:11:07Z",
+      "modified": "2026-10-26T08:56:17.690706279Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: PdfParser can recurse without limit in get_value() and linearize_page_tree()",
+      "url": "https://osv.dev/vulnerability/GHSA-254f-3936-288h"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-27h8-gf7j-v5hc",
+      "aliases": [
+        "BIT-pillow-2026-112392",
+        "CVE-2026-112392",
+        "PYSEC-2026-4326"
+      ],
+      "published": "2026-10-21T20:32:37Z",
+      "modified": "2026-10-27T11:10:35.409737764Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: NULL dereference in ImagingExpand via rank filters on zero-size images",
+      "url": "https://osv.dev/vulnerability/GHSA-27h8-gf7j-v5hc"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-332p-7hrc-92wf",
+      "aliases": [
+        "BIT-pillow-2026-112393",
+        "CVE-2026-112393"
+      ],
+      "published": "2026-10-21T21:28:09Z",
+      "modified": "2026-10-26T08:56:07.886625845Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap buffer overflow in _tiffWriteProc when saving TIFF to BytesIO",
+      "url": "https://osv.dev/vulnerability/GHSA-332p-7hrc-92wf"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-3j72-p6qg-6xp7",
+      "aliases": [
+        "BIT-pillow-2026-96642",
+        "CVE-2026-96642",
+        "PYSEC-2026-4341"
+      ],
+      "published": "2026-10-22T16:01:46Z",
+      "modified": "2026-10-29T10:55:45.826300321Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: TarIO negative size field causes infinite CPU-spin loop",
+      "url": "https://osv.dev/vulnerability/GHSA-3j72-p6qg-6xp7"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-4558-3h8r-v8xp",
+      "aliases": [
+        "BIT-pillow-2026-112394",
+        "CVE-2026-112394",
+        "PYSEC-2026-4327"
+      ],
+      "published": "2026-10-21T20:00:32Z",
+      "modified": "2026-10-27T11:10:34.006455299Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: P;2L and P;4L decoders may read 1 to 3 bytes past the passed buffer size",
+      "url": "https://osv.dev/vulnerability/GHSA-4558-3h8r-v8xp"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-462x-pgg6-55fp",
+      "aliases": [
+        "BIT-pillow-2026-112395",
+        "CVE-2026-112395"
+      ],
+      "published": "2026-10-20T20:49:26Z",
+      "modified": "2026-10-26T08:56:01.770928143Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "8.2.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow tiled-TIFF decoder reads past tile buffer in copy4 (Unpack.c:1290)",
+      "url": "https://osv.dev/vulnerability/GHSA-462x-pgg6-55fp"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-4rm8-3hmm-39fg",
+      "aliases": [
+        "BIT-pillow-2026-96641",
+        "CVE-2026-96641",
+        "PYSEC-2026-4340"
+      ],
+      "published": "2026-10-22T16:01:14Z",
+      "modified": "2026-10-29T10:56:07.449486409Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Reachable undefined behavior in native integer operations, potentially leading to denial of service or logic integrity compromise",
+      "url": "https://osv.dev/vulnerability/GHSA-4rm8-3hmm-39fg"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-4rr5-89j8-mwwm",
+      "aliases": [
+        "BIT-pillow-2026-112396",
+        "CVE-2026-112396",
+        "PYSEC-2026-4328"
+      ],
+      "published": "2026-10-21T21:24:19Z",
+      "modified": "2026-10-27T11:10:49.694224501Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.3.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap use-after-free when encoding TIFF to an in-memory buffer",
+      "url": "https://osv.dev/vulnerability/GHSA-4rr5-89j8-mwwm"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-58r4-6rv3-gfh8",
+      "aliases": [
+        "BIT-pillow-2026-112397",
+        "CVE-2026-112397",
+        "PYSEC-2026-4329"
+      ],
+      "published": "2026-10-20T20:56:22Z",
+      "modified": "2026-10-28T11:10:53.627071818Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Out-of-bounds access in _imagingmorph on a zero-width image",
+      "url": "https://osv.dev/vulnerability/GHSA-58r4-6rv3-gfh8"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-5x8w-8jj5-q52h",
+      "aliases": [
+        "BIT-pillow-2026-112398",
+        "CVE-2026-112398",
+        "PYSEC-2026-4330"
+      ],
+      "published": "2026-10-23T21:55:21Z",
+      "modified": "2026-10-28T11:10:48.833199086Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap buffer overflow in FlashPix (FPX) JPEG decoding leads to code execution",
+      "url": "https://osv.dev/vulnerability/GHSA-5x8w-8jj5-q52h"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-5xm2-6676-qcp9",
+      "aliases": [
+        "BIT-pillow-2026-112399",
+        "CVE-2026-112399"
+      ],
+      "published": "2026-10-21T21:17:56Z",
+      "modified": "2026-10-26T08:56:16.789537980Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "8.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: APNG background disposal allocates full canvas before decompression bomb check",
+      "url": "https://osv.dev/vulnerability/GHSA-5xm2-6676-qcp9"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-654x-cwwv-5j9c",
+      "aliases": [
+        "BIT-pillow-2026-114501",
+        "CVE-2026-114501",
+        "PYSEC-2026-4336"
+      ],
+      "published": "2026-10-23T21:53:21Z",
+      "modified": "2026-10-29T10:56:00.934076155Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.2.1"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Arrow export leaks stale heap memory when PILLOW_ALIGNMENT > 1",
+      "url": "https://osv.dev/vulnerability/GHSA-654x-cwwv-5j9c"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-65qm-jvmh-6pqg",
+      "aliases": [
+        "BIT-pillow-2026-112400",
+        "CVE-2026-112400"
+      ],
+      "published": "2026-10-20T20:53:36Z",
+      "modified": "2026-10-26T08:55:49.781288748Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "9.2.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: GIF seek keeps rejected size after DecompressionBombError, allowing DoS",
+      "url": "https://osv.dev/vulnerability/GHSA-65qm-jvmh-6pqg"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-74r2-7ff9-mjj2",
+      "aliases": [
+        "BIT-pillow-2026-112401",
+        "CVE-2026-112401"
+      ],
+      "published": "2026-10-21T20:42:11Z",
+      "modified": "2026-10-26T08:56:13.792431880Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.4.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Quadratic GIF comment concatenation allows DoS in Image.open()",
+      "url": "https://osv.dev/vulnerability/GHSA-74r2-7ff9-mjj2"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-78g4-xqwv-q3g8",
+      "aliases": [],
+      "published": "2026-10-22T17:01:08Z",
+      "modified": "2026-10-22T17:15:04.326552524Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Bundled libopenjp2 2.5.4 in all wheels since 11.1.0 carries OSV-2025-219 heap-buffer-overflow write reachable from Image.open().load()",
+      "url": "https://osv.dev/vulnerability/GHSA-78g4-xqwv-q3g8"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-7mwm-ghpf-9vrm",
+      "aliases": [
+        "BIT-pillow-2026-112402",
+        "CVE-2026-112402",
+        "PYSEC-2026-4331"
+      ],
+      "published": "2026-10-21T20:03:56Z",
+      "modified": "2026-10-28T11:10:35.587185673Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Double free in ImagingScaleAffine on calloc failure via Image.transform",
+      "url": "https://osv.dev/vulnerability/GHSA-7mwm-ghpf-9vrm"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-8g5g-8vmr-9782",
+      "aliases": [
+        "BIT-pillow-2026-112403",
+        "CVE-2026-112403",
+        "PYSEC-2026-4332"
+      ],
+      "published": "2026-10-20T20:40:07Z",
+      "modified": "2026-10-28T11:10:51.788355157Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap buffer overflow in ImagingJpegDecode",
+      "url": "https://osv.dev/vulnerability/GHSA-8g5g-8vmr-9782"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-9v9v-9qvf-h2hj",
+      "aliases": [
+        "BIT-pillow-2026-96644",
+        "CVE-2026-96644",
+        "PYSEC-2026-4343"
+      ],
+      "published": "2026-10-22T16:03:14Z",
+      "modified": "2026-10-29T10:55:35.129178084Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap over-read in WMF/EMF rendering via 16-bit dimension truncation (Windows builds)",
+      "url": "https://osv.dev/vulnerability/GHSA-9v9v-9qvf-h2hj"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-c6hw-5grf-ff96",
+      "aliases": [
+        "BIT-pillow-2026-112404",
+        "CVE-2026-112404"
+      ],
+      "published": "2026-10-20T20:42:00Z",
+      "modified": "2026-10-26T08:55:55.669563065Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "8.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: OOB read in TiffDecode.c tile and RGBA paths leaks heap memory into pixels",
+      "url": "https://osv.dev/vulnerability/GHSA-c6hw-5grf-ff96"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-cp9v-662q-vvx9",
+      "aliases": [
+        "BIT-pillow-2026-112405",
+        "CVE-2026-112405",
+        "PYSEC-2026-4333"
+      ],
+      "published": "2026-10-21T20:30:25Z",
+      "modified": "2026-10-28T11:10:36.014536437Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "12.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: NULL pointer dereference in Image.merge via an unvalidated band 0",
+      "url": "https://osv.dev/vulnerability/GHSA-cp9v-662q-vvx9"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-f2g6-542v-9j58",
+      "aliases": [
+        "BIT-pillow-2026-112406",
+        "CVE-2026-112406"
+      ],
+      "published": "2026-10-21T21:21:07Z",
+      "modified": "2026-10-26T08:56:13.538142549Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Infinite loop in PdfParser.rewrite_pages on page tree Parent cycle",
+      "url": "https://osv.dev/vulnerability/GHSA-f2g6-542v-9j58"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-fc9g-5qg7-mf45",
+      "aliases": [
+        "BIT-pillow-2026-112891",
+        "CVE-2026-112891"
+      ],
+      "published": "2026-10-21T20:38:43Z",
+      "modified": "2026-10-26T08:56:06.483214483Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "9.2.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Quadratic GIF comment copying during save",
+      "url": "https://osv.dev/vulnerability/GHSA-fc9g-5qg7-mf45"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-g4qv-2jxx-769h",
+      "aliases": [
+        "BIT-pillow-2026-96643",
+        "CVE-2026-96643",
+        "PYSEC-2026-4342"
+      ],
+      "published": "2026-10-22T16:02:39Z",
+      "modified": "2026-10-29T10:55:44.091799759Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: PNG eXIf chunk makes EXIF parsing run in quadratic time",
+      "url": "https://osv.dev/vulnerability/GHSA-g4qv-2jxx-769h"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-g7cr-3p24-7wf7",
+      "aliases": [
+        "BIT-pillow-2026-96778",
+        "CVE-2026-96778"
+      ],
+      "published": "2026-10-22T16:05:39Z",
+      "modified": "2026-10-29T10:56:05.933422167Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "9.4.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap buffer overflow writing JPEG comment after ICC profile fills buffer",
+      "url": "https://osv.dev/vulnerability/GHSA-g7cr-3p24-7wf7"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-g842-9rc4-69pw",
+      "aliases": [
+        "BIT-pillow-2026-96637",
+        "CVE-2026-96637",
+        "PYSEC-2026-4338"
+      ],
+      "published": "2026-10-22T15:57:17Z",
+      "modified": "2026-10-29T10:55:56.102454725Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Decompression bomb check bypass in SpiderImagePlugin.seek() leads to unbounded allocation DoS",
+      "url": "https://osv.dev/vulnerability/GHSA-g842-9rc4-69pw"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-gg2r-wvfm-q9rx",
+      "aliases": [
+        "BIT-pillow-2026-112892",
+        "CVE-2026-112892"
+      ],
+      "published": "2026-10-21T21:12:56Z",
+      "modified": "2026-10-26T08:55:54.537605973Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "4.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: MSP RLE decoder expands a tiny file into unbounded memory",
+      "url": "https://osv.dev/vulnerability/GHSA-gg2r-wvfm-q9rx"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-j4m9-6w36-pw47",
+      "aliases": [
+        "BIT-pillow-2026-112893",
+        "CVE-2026-112893"
+      ],
+      "published": "2026-10-21T20:06:34Z",
+      "modified": "2026-10-26T08:55:43.891551666Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "10.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Invalid free in FreeType glyph rendering when a stroker is active",
+      "url": "https://osv.dev/vulnerability/GHSA-j4m9-6w36-pw47"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-jg86-v3jv-hrpm",
+      "aliases": [
+        "BIT-pillow-2026-112894",
+        "CVE-2026-112894"
+      ],
+      "published": "2026-10-21T21:11:44Z",
+      "modified": "2026-10-26T08:56:08.669907131Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Quadratic-time DoS in PDF save_all (PdfParser.next_object_id)",
+      "url": "https://osv.dev/vulnerability/GHSA-jg86-v3jv-hrpm"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-mrfp-p49p-3hf2",
+      "aliases": [
+        "BIT-pillow-2026-96640",
+        "CVE-2026-96640"
+      ],
+      "published": "2026-10-22T16:00:47Z",
+      "modified": "2026-10-29T10:55:39.916451864Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow PDF append accepts malformed shared page-tree DAG causing resource exhaustion",
+      "url": "https://osv.dev/vulnerability/GHSA-mrfp-p49p-3hf2"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-p4wg-p73j-c528",
+      "aliases": [
+        "BIT-pillow-2026-112895",
+        "CVE-2026-112895"
+      ],
+      "published": "2026-10-20T20:50:49Z",
+      "modified": "2026-10-26T08:55:38.434240536Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Unbounded recursion parsing a PDF page tree or trailer chain (incomplete fix for CVE-2026-42310)",
+      "url": "https://osv.dev/vulnerability/GHSA-p4wg-p73j-c528"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-p8hx-v2p6-rp84",
+      "aliases": [
+        "BIT-pillow-2026-96636",
+        "CVE-2026-96636",
+        "PYSEC-2026-4337"
+      ],
+      "published": "2026-10-22T15:56:37Z",
+      "modified": "2026-10-29T10:55:49.521326948Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Decompression-bomb protection bypass via multi-frame seek() in MPO and DCX (MpoImageFile.seek / DcxImageFile.seek)",
+      "url": "https://osv.dev/vulnerability/GHSA-p8hx-v2p6-rp84"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-pchr-8j38-3x4p",
+      "aliases": [
+        "BIT-pillow-2026-112896",
+        "CVE-2026-112896",
+        "PYSEC-2026-4334"
+      ],
+      "published": "2026-10-20T20:51:40Z",
+      "modified": "2026-10-28T11:10:41.233140457Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: TIFF encoder ColorMap plane-size mismatch causes a heap out-of-bounds read",
+      "url": "https://osv.dev/vulnerability/GHSA-pchr-8j38-3x4p"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-q45j-58j2-45rg",
+      "aliases": [
+        "BIT-pillow-2026-112897",
+        "CVE-2026-112897"
+      ],
+      "published": "2026-10-20T20:52:43Z",
+      "modified": "2026-10-26T08:56:08.265781051Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.3.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: TiffDecode returns uninitialized memory as pixels for short JPEG strips",
+      "url": "https://osv.dev/vulnerability/GHSA-q45j-58j2-45rg"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-rfgq-q3w2-pmv2",
+      "aliases": [
+        "BIT-pillow-2026-112898",
+        "CVE-2026-112898"
+      ],
+      "published": "2026-10-21T20:44:07Z",
+      "modified": "2026-10-26T08:55:50.383984569Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "9.1.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Image.quantize() with empty palette leaks uninitialized stack memory",
+      "url": "https://osv.dev/vulnerability/GHSA-rfgq-q3w2-pmv2"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-v9pv-5gc8-w2m6",
+      "aliases": [
+        "BIT-pillow-2026-96639",
+        "CVE-2026-96639",
+        "PYSEC-2026-4339"
+      ],
+      "published": "2026-10-22T16:00:15Z",
+      "modified": "2026-10-29T10:55:37.663049285Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow multi-frame loaders can reuse stale native image storage after mode transitions",
+      "url": "https://osv.dev/vulnerability/GHSA-v9pv-5gc8-w2m6"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-vx6w-vv9f-6gvg",
+      "aliases": [
+        "CVE-2026-112899"
+      ],
+      "published": "2026-10-20T20:53:21Z",
+      "modified": "2026-10-20T21:00:04.428653055Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2.3.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: EPS load(scale) lets Ghostscript render past the decompression bomb limit",
+      "url": "https://osv.dev/vulnerability/GHSA-vx6w-vv9f-6gvg"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-w889-685w-c8fh",
+      "aliases": [
+        "BIT-pillow-2026-112900",
+        "CVE-2026-112900"
+      ],
+      "published": "2026-10-21T19:58:44Z",
+      "modified": "2026-10-26T08:55:37.091976147Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2.6.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Argument Injection in Ghostscript call, potentially leading into RCE",
+      "url": "https://osv.dev/vulnerability/GHSA-w889-685w-c8fh"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-wqgw-9xfh-qf2g",
+      "aliases": [
+        "CVE-2026-128066"
+      ],
+      "published": "2026-11-12T23:35:39Z",
+      "modified": "2026-11-12T23:45:03.298534910Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Memory DoS in TIFF and EXIF IFD parsing via overlapping tag data",
+      "url": "https://osv.dev/vulnerability/GHSA-wqgw-9xfh-qf2g"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-xcvg-w56q-r89m",
+      "aliases": [
+        "CVE-2026-128067"
+      ],
+      "published": "2026-11-12T23:34:43Z",
+      "modified": "2026-11-12T23:45:03.322245161Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: Heap buffer overflow saving TIFF with libtiff when tags override image size",
+      "url": "https://osv.dev/vulnerability/GHSA-xcvg-w56q-r89m"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-xgh8-jp6q-p5x8",
+      "aliases": [
+        "BIT-pillow-2026-112901",
+        "CVE-2026-112901",
+        "PYSEC-2026-4335"
+      ],
+      "published": "2026-10-21T20:45:06Z",
+      "modified": "2026-10-28T11:10:55.647541842Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "Pillow: ReDoS in XbmImagePlugin: 512-byte file stalls Image.open() for minutes",
+      "url": "https://osv.dev/vulnerability/GHSA-xgh8-jp6q-p5x8"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "GHSA-xvh5-g6gv-559v",
+      "aliases": [
+        "CVE-2026-112902",
+        "PYSEC-2026-4363"
+      ],
+      "published": "2026-10-21T21:29:16Z",
+      "modified": "2026-11-11T10:20:03.066593346Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "5.4.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": " Pillow: Memory disclosure and segfault in libtiff encoder via crafted TIFF tags",
+      "url": "https://osv.dev/vulnerability/GHSA-xvh5-g6gv-559v"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4326",
+      "aliases": [
+        "BIT-pillow-2026-112392",
+        "CVE-2026-112392",
+        "GHSA-27h8-gf7j-v5hc"
+      ],
+      "published": "2026-10-19T22:17:06.587Z",
+      "modified": "2026-10-27T11:10:35.409737764Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4326"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4327",
+      "aliases": [
+        "BIT-pillow-2026-112394",
+        "CVE-2026-112394",
+        "GHSA-4558-3h8r-v8xp"
+      ],
+      "published": "2026-10-19T21:17:07.747Z",
+      "modified": "2026-10-27T11:10:34.006455299Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4327"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4328",
+      "aliases": [
+        "BIT-pillow-2026-112396",
+        "CVE-2026-112396",
+        "GHSA-4rr5-89j8-mwwm"
+      ],
+      "published": "2026-10-19T22:17:06.837Z",
+      "modified": "2026-10-27T11:10:49.694224501Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.3.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4328"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4329",
+      "aliases": [
+        "BIT-pillow-2026-112397",
+        "CVE-2026-112397",
+        "GHSA-58r4-6rv3-gfh8"
+      ],
+      "published": "2026-10-19T22:17:06.970Z",
+      "modified": "2026-10-28T11:10:53.627071818Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4329"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4330",
+      "aliases": [
+        "BIT-pillow-2026-112398",
+        "CVE-2026-112398",
+        "GHSA-5x8w-8jj5-q52h"
+      ],
+      "published": "2026-10-19T22:17:07.107Z",
+      "modified": "2026-10-28T11:10:48.833199086Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4330"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4331",
+      "aliases": [
+        "BIT-pillow-2026-112402",
+        "CVE-2026-112402",
+        "GHSA-7mwm-ghpf-9vrm"
+      ],
+      "published": "2026-10-19T22:17:07.633Z",
+      "modified": "2026-10-28T11:10:35.587185673Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4331"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4332",
+      "aliases": [
+        "BIT-pillow-2026-112403",
+        "CVE-2026-112403",
+        "GHSA-8g5g-8vmr-9782"
+      ],
+      "published": "2026-10-19T22:17:07.770Z",
+      "modified": "2026-10-28T11:10:51.788355157Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4332"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4333",
+      "aliases": [
+        "BIT-pillow-2026-112405",
+        "CVE-2026-112405",
+        "GHSA-cp9v-662q-vvx9"
+      ],
+      "published": "2026-10-19T22:17:08.027Z",
+      "modified": "2026-10-28T11:10:36.014536437Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "12.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4333"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4334",
+      "aliases": [
+        "BIT-pillow-2026-112896",
+        "CVE-2026-112896",
+        "GHSA-pchr-8j38-3x4p"
+      ],
+      "published": "2026-10-19T22:17:09.760Z",
+      "modified": "2026-10-28T11:10:41.233140457Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4334"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4335",
+      "aliases": [
+        "BIT-pillow-2026-112901",
+        "CVE-2026-112901",
+        "GHSA-xgh8-jp6q-p5x8"
+      ],
+      "published": "2026-10-19T22:17:10.293Z",
+      "modified": "2026-10-28T11:10:55.647541842Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4335"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4336",
+      "aliases": [
+        "BIT-pillow-2026-114501",
+        "CVE-2026-114501",
+        "GHSA-654x-cwwv-5j9c"
+      ],
+      "published": "2026-10-21T22:16:49.410Z",
+      "modified": "2026-10-29T10:56:00.934076155Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.2.1"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4336"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4337",
+      "aliases": [
+        "BIT-pillow-2026-96636",
+        "CVE-2026-96636",
+        "GHSA-p8hx-v2p6-rp84"
+      ],
+      "published": "2026-10-21T21:20:31.760Z",
+      "modified": "2026-10-29T10:55:49.521326948Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4337"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4338",
+      "aliases": [
+        "BIT-pillow-2026-96637",
+        "CVE-2026-96637",
+        "GHSA-g842-9rc4-69pw"
+      ],
+      "published": "2026-10-21T21:20:31.927Z",
+      "modified": "2026-10-29T10:55:56.102454725Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4338"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4339",
+      "aliases": [
+        "BIT-pillow-2026-96639",
+        "CVE-2026-96639",
+        "GHSA-v9pv-5gc8-w2m6"
+      ],
+      "published": "2026-10-21T21:20:32.217Z",
+      "modified": "2026-10-29T10:55:37.663049285Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4339"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4340",
+      "aliases": [
+        "BIT-pillow-2026-96641",
+        "CVE-2026-96641",
+        "GHSA-4rm8-3hmm-39fg"
+      ],
+      "published": "2026-10-21T21:20:32.500Z",
+      "modified": "2026-10-29T10:56:07.449486409Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4340"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4341",
+      "aliases": [
+        "BIT-pillow-2026-96642",
+        "CVE-2026-96642",
+        "GHSA-3j72-p6qg-6xp7"
+      ],
+      "published": "2026-10-21T21:20:32.650Z",
+      "modified": "2026-10-29T10:55:45.826300321Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4341"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4342",
+      "aliases": [
+        "BIT-pillow-2026-96643",
+        "CVE-2026-96643",
+        "GHSA-g4qv-2jxx-769h"
+      ],
+      "published": "2026-10-21T21:20:32.797Z",
+      "modified": "2026-10-29T10:55:44.091799759Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "11.0.0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4342"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4343",
+      "aliases": [
+        "BIT-pillow-2026-96644",
+        "CVE-2026-96644",
+        "GHSA-9v9v-9qvf-h2hj"
+      ],
+      "published": "2026-10-21T21:20:32.943Z",
+      "modified": "2026-10-29T10:55:35.129178084Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4343"
+    },
+    {
+      "package": "PyPI:pillow",
+      "advisory": "PYSEC-2026-4363",
+      "aliases": [
+        "CVE-2026-112902",
+        "GHSA-xvh5-g6gv-559v"
+      ],
+      "published": "2026-11-05T21:18:36.713Z",
+      "modified": "2026-11-11T10:00:02.351084890Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "13.0.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "12.3.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "13.0.0",
+      "selected_version_affected": false,
+      "reachability": "runtime upload parser; individual plugin/API conditions vary",
+      "evidence": "ai-service/app/documents.py calls Image.open before format allow-list rejection, verify, then bounded load for JPEG/PNG/WebP. Header/plugin parsing can precede rejection; ImageMath, display, font/CMS, TIFF writing and other named APIs are not called. Tests use Image.new/save. Do not classify every plugin exploit as proven reachable or suppress any affected package.",
+      "compatibility_risk": "First fixed version for all matched records is major 13; vendor drops Python 3.10 only (service already >=3.11). Removed I-mode PNG saving/fromarray type coercion/get_child_images/_show/CMS metadata APIs are unused. Keep document allow-list/limits/OCR accounting semantics unchanged; run all 248 OCR cases and Java HTTPS fixture.",
+      "advisory_feature": "",
+      "url": "https://osv.dev/vulnerability/PYSEC-2026-4363"
+    },
+    {
+      "package": "PyPI:pyasn1",
+      "advisory": "GHSA-2qm8-x737-gmw5",
+      "aliases": [
+        "CVE-2026-119196"
+      ],
+      "published": "2026-10-30T23:07:04Z",
+      "modified": "2026-10-30T23:15:04.525223875Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "0.6.5"
+            }
+          ]
+        }
+      ],
+      "current_version": "0.6.4",
+      "genuinely_affected": true,
+      "selected_fixed_version": "0.6.5",
+      "selected_version_affected": false,
+      "reachability": "runtime authentication/certificate decoding dependency; indirect/conditional Google auth path",
+      "evidence": "Declared Google auth dependency chain includes pyasn1-modules; no direct application ASN.1 decoder endpoint. DoS decoder cases still affect installed dependency, so upgrade rather than suppress.",
+      "compatibility_risk": "Patch decoder bounds; verify Google provider fixtures/imports and complete OCR test suite without live credentials.",
+      "advisory_feature": "pyasn1 has quadratic CPU consumption in constructed BIT STRING decoding",
+      "url": "https://osv.dev/vulnerability/GHSA-2qm8-x737-gmw5"
+    },
+    {
+      "package": "PyPI:pyasn1",
+      "advisory": "GHSA-9m75-vc3g-4x39",
+      "aliases": [
+        "CVE-2026-119195"
+      ],
+      "published": "2026-10-30T23:03:51Z",
+      "modified": "2026-10-30T23:15:07.377922369Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "0.6.5"
+            }
+          ]
+        }
+      ],
+      "current_version": "0.6.4",
+      "genuinely_affected": true,
+      "selected_fixed_version": "0.6.5",
+      "selected_version_affected": false,
+      "reachability": "runtime authentication/certificate decoding dependency; indirect/conditional Google auth path",
+      "evidence": "Declared Google auth dependency chain includes pyasn1-modules; no direct application ASN.1 decoder endpoint. DoS decoder cases still affect installed dependency, so upgrade rather than suppress.",
+      "compatibility_risk": "Patch decoder bounds; verify Google provider fixtures/imports and complete OCR test suite without live credentials.",
+      "advisory_feature": "pyasn1 has quadratic-time denial of service in constructed string and indefinite-length ANY decoding",
+      "url": "https://osv.dev/vulnerability/GHSA-9m75-vc3g-4x39"
+    },
+    {
+      "package": "PyPI:pyasn1",
+      "advisory": "GHSA-fm9c-5rcf-2q5p",
+      "aliases": [
+        "CVE-2026-119194"
+      ],
+      "published": "2026-10-30T23:03:37Z",
+      "modified": "2026-10-30T23:15:06.423863231Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0.3.3"
+            },
+            {
+              "fixed": "0.6.5"
+            }
+          ]
+        }
+      ],
+      "current_version": "0.6.4",
+      "genuinely_affected": true,
+      "selected_fixed_version": "0.6.5",
+      "selected_version_affected": false,
+      "reachability": "runtime authentication/certificate decoding dependency; indirect/conditional Google auth path",
+      "evidence": "Declared Google auth dependency chain includes pyasn1-modules; no direct application ASN.1 decoder endpoint. DoS decoder cases still affect installed dependency, so upgrade rather than suppress.",
+      "compatibility_risk": "Patch decoder bounds; verify Google provider fixtures/imports and complete OCR test suite without live credentials.",
+      "advisory_feature": "pyasn1 has quadratic CPU use in schemaless BER/CER/DER container decoding",
+      "url": "https://osv.dev/vulnerability/GHSA-fm9c-5rcf-2q5p"
+    },
+    {
+      "package": "PyPI:pyasn1",
+      "advisory": "GHSA-mm57-4v3p-rchx",
+      "aliases": [
+        "CVE-2026-119197"
+      ],
+      "published": "2026-10-30T23:06:46Z",
+      "modified": "2026-10-30T23:15:06.620587810Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "0.6.5"
+            }
+          ]
+        }
+      ],
+      "current_version": "0.6.4",
+      "genuinely_affected": true,
+      "selected_fixed_version": "0.6.5",
+      "selected_version_affected": false,
+      "reachability": "runtime authentication/certificate decoding dependency; indirect/conditional Google auth path",
+      "evidence": "Declared Google auth dependency chain includes pyasn1-modules; no direct application ASN.1 decoder endpoint. DoS decoder cases still affect installed dependency, so upgrade rather than suppress.",
+      "compatibility_risk": "Patch decoder bounds; verify Google provider fixtures/imports and complete OCR test suite without live credentials.",
+      "advisory_feature": "pyasn1 has quadratic-complexity denial of service in binary REAL decoding",
+      "url": "https://osv.dev/vulnerability/GHSA-mm57-4v3p-rchx"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-39mj-jf6j-2qj3",
+      "aliases": [
+        "CVE-2026-113794"
+      ],
+      "published": "2026-10-21T16:54:44Z",
+      "modified": "2026-10-21T17:00:26.618873039Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.20.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible infinite loop when hitting EOF in standard xref table",
+      "url": "https://osv.dev/vulnerability/GHSA-39mj-jf6j-2qj3"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-42gh-23hr-vphw",
+      "aliases": [
+        "CVE-2026-119206"
+      ],
+      "published": "2026-10-30T23:08:55Z",
+      "modified": "2026-10-30T23:15:05.410552661Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.3"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible long runtimes when retrieving page labels",
+      "url": "https://osv.dev/vulnerability/GHSA-42gh-23hr-vphw"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-4vqv-7265-gm2w",
+      "aliases": [
+        "CVE-2026-119207"
+      ],
+      "published": "2026-10-30T23:08:39Z",
+      "modified": "2026-10-30T23:15:07.229853114Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.3"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible large memory usage for exceptions in strict mode",
+      "url": "https://osv.dev/vulnerability/GHSA-4vqv-7265-gm2w"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-5849-834g-hvw5",
+      "aliases": [
+        "CVE-2026-119203"
+      ],
+      "published": "2026-10-30T23:13:16Z",
+      "modified": "2026-10-30T23:30:04.101910128Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.4"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible infinite loop when hitting EOF in standard xref table during trailer search",
+      "url": "https://osv.dev/vulnerability/GHSA-5849-834g-hvw5"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-5hx5-vpf9-5wcv",
+      "aliases": [
+        "CVE-2026-113786"
+      ],
+      "published": "2026-10-21T19:58:10Z",
+      "modified": "2026-10-21T20:15:04.178781594Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Unvalidated JPEG image data loading",
+      "url": "https://osv.dev/vulnerability/GHSA-5hx5-vpf9-5wcv"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-62m5-6wh8-28x7",
+      "aliases": [
+        "CVE-2026-119208"
+      ],
+      "published": "2026-10-30T23:08:24Z",
+      "modified": "2026-10-30T23:15:05.408554649Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.3"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible long runtimes/large memory usage for encrypted PDF files",
+      "url": "https://osv.dev/vulnerability/GHSA-62m5-6wh8-28x7"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-6c7f-9265-g8fw",
+      "aliases": [
+        "CVE-2026-115572"
+      ],
+      "published": "2026-10-23T20:55:15Z",
+      "modified": "2026-10-23T21:00:06.235957799Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.2"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible long runtimes for repeated references to the same missing object",
+      "url": "https://osv.dev/vulnerability/GHSA-6c7f-9265-g8fw"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-6vvc-x485-93v7",
+      "aliases": [
+        "CVE-2026-113789"
+      ],
+      "published": "2026-10-22T16:49:56Z",
+      "modified": "2026-10-22T17:00:04.207149781Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible long runtimes/large memory usage when retrieving form fields",
+      "url": "https://osv.dev/vulnerability/GHSA-6vvc-x485-93v7"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-7mh2-4gg2-979f",
+      "aliases": [
+        "CVE-2026-113795"
+      ],
+      "published": "2026-10-21T16:48:30Z",
+      "modified": "2026-10-21T17:00:06.161656397Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.20.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible large memory usage for streams with multiple filters",
+      "url": "https://osv.dev/vulnerability/GHSA-7mh2-4gg2-979f"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-9mx8-4j7g-633p",
+      "aliases": [
+        "CVE-2026-113793"
+      ],
+      "published": "2026-10-21T16:55:10Z",
+      "modified": "2026-10-21T17:00:06.245541968Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.20.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible infinite loop when removing tree items",
+      "url": "https://osv.dev/vulnerability/GHSA-9mx8-4j7g-633p"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-cgf9-327m-v77c",
+      "aliases": [
+        "CVE-2026-113791"
+      ],
+      "published": "2026-10-22T16:49:22Z",
+      "modified": "2026-10-22T17:00:04.215115256Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible large memory usage when parsing content streams",
+      "url": "https://osv.dev/vulnerability/GHSA-cgf9-327m-v77c"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-cggf-277g-3q54",
+      "aliases": [
+        "CVE-2026-119204"
+      ],
+      "published": "2026-10-30T23:13:01Z",
+      "modified": "2026-10-30T23:30:04.096691081Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.4"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible large memory usage when parsing page tree",
+      "url": "https://osv.dev/vulnerability/GHSA-cggf-277g-3q54"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-f54x-cmq8-qg57",
+      "aliases": [
+        "CVE-2026-113790"
+      ],
+      "published": "2026-10-22T16:49:40Z",
+      "modified": "2026-10-22T17:00:04.224392742Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.0"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible large memory usage when parsing arrays and dictionaries",
+      "url": "https://osv.dev/vulnerability/GHSA-f54x-cmq8-qg57"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-gmh7-3g9r-mjh5",
+      "aliases": [
+        "CVE-2026-115580"
+      ],
+      "published": "2026-10-23T20:54:12Z",
+      "modified": "2026-10-23T21:00:05.293776771Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.2"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible long runtimes for large xref table header limits",
+      "url": "https://osv.dev/vulnerability/GHSA-gmh7-3g9r-mjh5"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-jr96-gvgh-j3r4",
+      "aliases": [
+        "CVE-2026-115585"
+      ],
+      "published": "2026-10-23T20:54:27Z",
+      "modified": "2026-10-23T21:00:06.090706376Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.2"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible long runtimes for repeated malformed cross-reference entries (Follow-up)",
+      "url": "https://osv.dev/vulnerability/GHSA-jr96-gvgh-j3r4"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-mfr5-77xh-9j7h",
+      "aliases": [
+        "CVE-2026-119205"
+      ],
+      "published": "2026-10-30T23:12:20Z",
+      "modified": "2026-10-30T23:30:04.094971776Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.4"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible infinite loop when cloning dictionaries",
+      "url": "https://osv.dev/vulnerability/GHSA-mfr5-77xh-9j7h"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-qfv9-64jg-mh7p",
+      "aliases": [
+        "CVE-2026-113792"
+      ],
+      "published": "2026-10-21T16:55:35Z",
+      "modified": "2026-10-21T17:00:06.238658983Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.20.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf: Possible infinite loop in PdfWriter.find_outline_item",
+      "url": "https://osv.dev/vulnerability/GHSA-qfv9-64jg-mh7p"
+    },
+    {
+      "package": "PyPI:pypdf",
+      "advisory": "GHSA-x3rh-gjgm-fmqc",
+      "aliases": [
+        "CVE-2026-119209"
+      ],
+      "published": "2026-10-30T23:07:28Z",
+      "modified": "2026-10-30T23:15:04.529631202Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "6.21.3"
+            }
+          ]
+        }
+      ],
+      "current_version": "6.19.0",
+      "genuinely_affected": true,
+      "selected_fixed_version": "6.21.4",
+      "selected_version_affected": false,
+      "reachability": "runtime PDF parser; reader construction/page traversal reachable; writer-only features test-only",
+      "evidence": "documents.py uses PdfReader(strict=True), is_encrypted and len(reader.pages) on uploaded bytes. It does not request page labels, merge or write PDF objects; tests use PdfWriter. Parser/xref/object recursion remains relevant before page/byte validation completes.",
+      "compatibility_risk": "Same-major minimum version closing every original range; do not adopt 7.x. Run encrypted/corrupt/oversized/multipage PDF and API/provider-blocking tests.",
+      "advisory_feature": "pypdf has possible large memory usage when parsing cross-reference streams",
+      "url": "https://osv.dev/vulnerability/GHSA-x3rh-gjgm-fmqc"
+    },
+    {
+      "package": "npm:minimatch",
+      "advisory": "GHSA-g3hv-75wg-m249",
+      "aliases": [
+        "CVE-2026-118764"
+      ],
+      "published": "2026-10-30T23:09:55Z",
+      "modified": "2026-11-04T17:01:25.850114200Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "7.0.0"
+            },
+            {
+              "fixed": "11.0.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "10.2.6",
+      "genuinely_affected": true,
+      "selected_fixed_version": "11.0.1",
+      "selected_version_affected": false,
+      "reachability": "build/test tooling glob matching; not an application financial/request import",
+      "evidence": "pnpm graph: ESLint/TypeScript ESLint build tooling. No application import; source globs are repository-controlled, including PR source. Package still affected by declared range 7.0.0\u00e2\u20ac\u201c<11.0.1.",
+      "compatibility_risk": "First fixed version crosses major; Node 22 is supported, existing minimatch/Minimatch API retained. Use narrowly scoped 10.2.6 override only and verify complete lint/type/unit/build discovery. No global latest upgrade.",
+      "advisory_feature": "minimatch has potential denial of service via globparts amplification",
+      "url": "https://osv.dev/vulnerability/GHSA-g3hv-75wg-m249"
+    },
+    {
+      "package": "npm:next",
+      "advisory": "GHSA-2464-fhr4-w9xw",
+      "aliases": [],
+      "published": "2026-10-22T15:52:53Z",
+      "modified": "2026-10-22T16:00:09.125335909Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "10.0.0"
+            },
+            {
+              "fixed": "15.5.28"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "16.0.0"
+            },
+            {
+              "fixed": "16.4.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "16.3.8",
+      "genuinely_affected": true,
+      "selected_fixed_version": "16.4.1",
+      "selected_version_affected": false,
+      "reachability": "runtime; SVG/use-cache preconditions absent; App Router transport remains exposed",
+      "evidence": "frontend/next.config.ts has no dangerouslyAllowSVG/cacheComponents; no next/image, use cache or use server imports in frontend/src. Next App Router serves public HTTP. All three 16.x ranges end at 16.4.1; retain strict findings despite disabled features.",
+      "compatibility_risk": "Minor 16.3\u00e2\u2020\u201916.4 required by vendor fix; align eslint-config-next exactly; keep React, application routing and financial components unchanged. Verify unit/types/lint/webpack and both real browser modes.",
+      "advisory_feature": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when SVG files are used",
+      "url": "https://osv.dev/vulnerability/GHSA-2464-fhr4-w9xw"
+    },
+    {
+      "package": "npm:next",
+      "advisory": "GHSA-673q-mjm6-r5xr",
+      "aliases": [],
+      "published": "2026-10-22T16:42:31Z",
+      "modified": "2026-10-22T17:00:04.201859111Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "16.0.0"
+            },
+            {
+              "fixed": "16.4.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "16.3.8",
+      "genuinely_affected": true,
+      "selected_fixed_version": "16.4.1",
+      "selected_version_affected": false,
+      "reachability": "runtime; SVG/use-cache preconditions absent; App Router transport remains exposed",
+      "evidence": "frontend/next.config.ts has no dangerouslyAllowSVG/cacheComponents; no next/image, use cache or use server imports in frontend/src. Next App Router serves public HTTP. All three 16.x ranges end at 16.4.1; retain strict findings despite disabled features.",
+      "compatibility_risk": "Minor 16.3\u00e2\u2020\u201916.4 required by vendor fix; align eslint-config-next exactly; keep React, application routing and financial components unchanged. Verify unit/types/lint/webpack and both real browser modes.",
+      "advisory_feature": "Next.js: Unauthenticated Remote Code Execution in `use cache` functions returning typed arrays",
+      "url": "https://osv.dev/vulnerability/GHSA-673q-mjm6-r5xr"
+    },
+    {
+      "package": "npm:next",
+      "advisory": "GHSA-p3m5-59mp-jv5r",
+      "aliases": [
+        "CVE-2026-94482"
+      ],
+      "published": "2026-10-22T15:50:34Z",
+      "modified": "2026-10-22T16:00:09.130954454Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "13.0.0"
+            },
+            {
+              "fixed": "15.5.28"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "16.0.0"
+            },
+            {
+              "fixed": "16.4.1"
+            }
+          ]
+        }
+      ],
+      "current_version": "16.3.8",
+      "genuinely_affected": true,
+      "selected_fixed_version": "16.4.1",
+      "selected_version_affected": false,
+      "reachability": "runtime; SVG/use-cache preconditions absent; App Router transport remains exposed",
+      "evidence": "frontend/next.config.ts has no dangerouslyAllowSVG/cacheComponents; no next/image, use cache or use server imports in frontend/src. Next App Router serves public HTTP. All three 16.x ranges end at 16.4.1; retain strict findings despite disabled features.",
+      "compatibility_risk": "Minor 16.3\u00e2\u2020\u201916.4 required by vendor fix; align eslint-config-next exactly; keep React, application routing and financial components unchanged. Verify unit/types/lint/webpack and both real browser modes.",
+      "advisory_feature": "Next.js: Denial of Service in App Router using Server Actions",
+      "url": "https://osv.dev/vulnerability/GHSA-p3m5-59mp-jv5r"
+    },
+    {
+      "package": "npm:sharp",
+      "advisory": "GHSA-wq5f-xc86-pv6w",
+      "aliases": [
+        "CVE-2026-114111"
+      ],
+      "published": "2026-10-06T13:43:57Z",
+      "modified": "2026-10-21T10:57:27.441638733Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "0.35.5"
+            }
+          ]
+        }
+      ],
+      "current_version": "0.35.4",
+      "genuinely_affected": true,
+      "selected_fixed_version": "0.35.5",
+      "selected_version_affected": false,
+      "reachability": "runtime-installed; Next image optimizer only; no direct application sharp usage",
+      "evidence": "Optional Next runtime dependency; SVG optimizer precondition not enabled. Native librsvg remains in installed image package; fixed patch required, no suppression.",
+      "compatibility_risk": "Patch native decoder/library update; exercise production image build and browser/image paths. Do not change accepted document formats.",
+      "advisory_feature": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+      "url": "https://osv.dev/vulnerability/GHSA-wq5f-xc86-pv6w"
+    },
+    {
+      "package": "npm:source-map-js",
+      "advisory": "GHSA-68fv-2mgg-jv7q",
+      "aliases": [
+        "CVE-2026-93749"
+      ],
+      "published": "2026-09-18T18:31:44Z",
+      "modified": "2026-10-05T23:45:07.974936711Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "1.0.0"
+            },
+            {
+              "fixed": "1.2.2"
+            }
+          ]
+        }
+      ],
+      "current_version": "1.2.1",
+      "genuinely_affected": true,
+      "selected_fixed_version": "1.2.2",
+      "selected_version_affected": false,
+      "reachability": "build tooling via PostCSS source-map handling",
+      "evidence": "PostCSS build dependency; no frontend/src import. Potential indexed source maps come from build inputs, not financial API DTOs. Still upgrade affected patch.",
+      "compatibility_risk": "Patch-only targeted override; production CSS/webpack build and source-map generation must pass.",
+      "advisory_feature": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "url": "https://osv.dev/vulnerability/GHSA-68fv-2mgg-jv7q"
+    },
+    {
+      "package": "npm:zod",
+      "advisory": "GHSA-mrhx-c7xc-m3w5",
+      "aliases": [
+        "CVE-2023-54404"
+      ],
+      "published": "2026-10-01T18:32:46Z",
+      "modified": "2026-10-23T18:30:09.376405885Z",
+      "withdrawn": null,
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "4.6.6"
+            }
+          ]
+        }
+      ],
+      "current_version": "4.6.2",
+      "genuinely_affected": true,
+      "selected_fixed_version": "4.6.6",
+      "selected_version_affected": false,
+      "reachability": "build/test tooling config validation; no direct application request validation import",
+      "evidence": "Resolved under frontend tooling; no zod import in frontend/src. Large constrained collection validation is not an application endpoint in this tree; affected package remains scanned.",
+      "compatibility_risk": "Same-major patch override of vulnerable version only; run frontend unit/type/lint/build checks.",
+      "advisory_feature": "Zod can exhaust memory while validating oversized constrained collections",
+      "url": "https://osv.dev/vulnerability/GHSA-mrhx-c7xc-m3w5"
+    }
+  ]
+}
