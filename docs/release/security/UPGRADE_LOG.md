@@ -34,7 +34,7 @@ Source review: [Next SVG advisory](https://github.com/advisories/GHSA-2464-fhr4-
 [sharp patch](https://github.com/lovell/sharp/releases/tag/v0.35.5),
 [minimatch fix](https://github.com/isaacs/minimatch/releases/tag/v11.0.1).
 
-## Group 2 — OCR parsing, trust and authentication (reviewed selection; execution pending)
+## Group 2 — OCR parsing, trust and authentication
 
 Pillow **13.0.0**, pypdf **6.21.4**, certifi **2026.10.18**, pyasn1 **0.6.5**,
 opentelemetry-api **1.45.2**. No pypdf 7.x or unrelated Python upgrade.
@@ -51,3 +51,10 @@ tracing APIs are runtime-installed even when providers are disabled for offline 
 See [Pillow 13 changes](https://pillow.readthedocs.io/en/stable/releasenotes/13.0.0.html),
 [pypdf patch](https://github.com/py-pdf/pypdf/releases/tag/6.21.4) and
 [certifi advisory](https://github.com/advisories/GHSA-6q48-6c7w-9gw2).
+
+Validation after the exact constrained install: `pip check` passed; **248 Python tests**
+passed; **15 backend OCR HTTPS/configuration contract tests** passed; real offline
+browser smoke **6/6** passed. Final strict OSV scan: **620 package versions**
+(440 npm / 44 PyPI / 136 Maven), **zero matches and zero lookup errors**.
+The scanner has no new exceptions. Security closure does not change the overall
+RED release decision: the three preserved backend findings remain unresolved.

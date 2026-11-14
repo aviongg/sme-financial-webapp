@@ -13,8 +13,8 @@ dependencies = [
   "pydantic>=2.10,<3",
   "httpx>=0.28,<1",
   "google-cloud-vision>=3.10,<4",
-  "Pillow>=11,<13",
-  "pypdf>=6,<7",
+  "Pillow>=13,<14",
+  "pypdf>=6.21.4,<7",
   "python-multipart>=0.0.18",
 ]
 
