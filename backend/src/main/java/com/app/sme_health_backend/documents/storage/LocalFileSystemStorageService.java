@@ -176,8 +176,22 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
                 || storagePath.contains("..")) {
             throw new DocumentStorageException("Security exception: Invalid storage path characters or traversal sequence");
         }
-        Path rawPath = Paths.get(storagePath);
-        Path resolved = rawPath.isAbsolute() ? rawPath : rootLocation.resolve(rawPath);
+        Path rawPath;
+        try {
+            rawPath = Paths.get(storagePath);
+        } catch (java.nio.file.InvalidPathException e) {
+            throw new DocumentStorageException("Security exception: Invalid storage path");
+        }
+        Path resolved;
+        if (rawPath.isAbsolute()) {
+            // Legacy rows (34471b1, before e438f21) persisted absolute host paths; they must still lie inside the root.
+            resolved = rawPath;
+        } else {
+            // Everything else must be a canonical key written by store(). Validated as a string so the decision is the
+            // same on every OS: on Linux "C:\..." is not an absolute path and must not become a literal filename.
+            requireCanonicalRelativeKey(storagePath);
+            resolved = rootLocation.resolve(storagePath);
+        }
         Path normalized = resolved.toAbsolutePath().normalize();
         if (!normalized.startsWith(rootLocation) && !normalized.startsWith(realRoot)) {
             throw new DocumentStorageException("Security exception: Access outside storage directory denied");
@@ -186,6 +200,24 @@ public class LocalFileSystemStorageService implements DocumentStorageService {
         verifySymlinkSafety(normalized);
 
         return normalized;
+    }
+
+    private static final java.util.regex.Pattern KEY_SEGMENT = java.util.regex.Pattern.compile("[A-Za-z0-9._-]+");
+
+    /**
+     * Storage keys are '/'-separated relative paths of plain segments ({@code <userId>/<yyyy-MM>/<uuid>.<ext>}).
+     * Backslashes, drive letters or any ':', leading separators, empty, "." and ".." segments are rejected regardless
+     * of the host platform's path syntax.
+     */
+    static void requireCanonicalRelativeKey(String key) {
+        if (key.isEmpty() || key.startsWith("/") || key.indexOf('\\') >= 0 || key.indexOf(':') >= 0) {
+            throw new DocumentStorageException("Security exception: Storage key must be a relative, '/'-separated key");
+        }
+        for (String segment : key.split("/", -1)) {
+            if (segment.equals(".") || segment.equals("..") || !KEY_SEGMENT.matcher(segment).matches()) {
+                throw new DocumentStorageException("Security exception: Invalid storage key segment");
+            }
+        }
     }
 
     private void verifySymlinkSafety(Path normalized) {
