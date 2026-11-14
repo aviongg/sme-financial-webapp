@@ -1,4 +1,5 @@
-FROM alpine:3.22
+ARG ALPINE_IMAGE=alpine:3.22
+FROM ${ALPINE_IMAGE}
 RUN apk add --no-cache squid \
     && mkdir -p /var/cache/squid /var/log/squid \
     && chown -R squid:squid /var/cache/squid /var/log/squid

@@ -11,9 +11,12 @@ on:
         default: false
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash # Includes -e -o pipefail: tee must never hide a failing gate.
 concurrency:
   group: validation-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false # Preserve every published failure/evidence run
 env:
   MAVEN_OPTS: -Xmx512m -XX:+UseSerialGC
   NEXT_TELEMETRY_DISABLED: '1'
@@ -37,7 +40,7 @@ jobs:
         with:
           name: backend-unit
           path: backend/target/surefire-reports/
-          retention-days: 14
+          retention-days: 90
   postgres:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -62,7 +65,7 @@ jobs:
         with:
           name: postgres-${{ matrix.shard }}
           path: backend/target/failsafe-reports/
-          retention-days: 14
+          retention-days: 90
   frontend:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
@@ -78,14 +81,20 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: frontend
-      - run: pnpm test
+      - run: mkdir -p test-artifacts/validation && pnpm test 2>&1 | tee test-artifacts/validation/unit.log
         working-directory: frontend
-      - run: pnpm typecheck
+      - run: pnpm typecheck 2>&1 | tee test-artifacts/validation/typecheck.log
         working-directory: frontend
-      - run: pnpm lint
+      - run: pnpm lint 2>&1 | tee test-artifacts/validation/lint.log
         working-directory: frontend
-      - run: pnpm build:release
+      - run: pnpm build:release 2>&1 | tee test-artifacts/validation/build-release.log
         working-directory: frontend
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: frontend-validation
+          path: frontend/test-artifacts/validation/
+          retention-days: 90
   browser-smoke:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -123,7 +132,7 @@ jobs:
         with:
           name: browser-evidence
           path: frontend/test-artifacts/
-          retention-days: 14
+          retention-days: 90
   ocr-and-operations:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -137,11 +146,22 @@ jobs:
             ai-service/requirements-tested.txt
             scripts/release/requirements.txt
       - run: python -m pip install -c ai-service/requirements-tested.txt -e './ai-service[test]' -r scripts/release/requirements.txt
-      - run: python -m pytest -q
+      - run: python -m pytest -q --junitxml=../backend/target/closure-evidence/ocr.xml
         working-directory: ai-service
-      - run: python -m unittest discover -s scripts/backup -p 'test_*.py' -v
-      - run: python -m unittest discover -s scripts -p test_production_configuration.py -v
-      - run: python -m unittest discover -s scripts/release -p 'test_*.py' -v
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts/backup -p 'test_*.py' -v 2>&1 | tee backend/target/closure-evidence/backup.log
+        if: success() || failure()
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts -p test_production_configuration.py -v 2>&1 | tee backend/target/closure-evidence/configuration.log
+        if: success() || failure()
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts/release -p 'test_*.py' -v 2>&1 | tee backend/target/closure-evidence/release-tools.log
+        if: success() || failure()
+      - run: python scripts/release/review_v52_inventory.py
+        if: success() || failure()
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: ocr-operations-evidence
+          path: backend/target/closure-evidence/
+          retention-days: 90
   release-gate:
     if: always()
     needs: [backend-unit, postgres, frontend, browser-smoke, ocr-and-operations]
@@ -154,5 +174,18 @@ jobs:
           python3 - <<'PY'
           import json, os
           jobs = json.loads(os.environ['RESULTS'])
+          record = {'head_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
+                    'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'validation_jobs': jobs,
+                    'production_release_accepted': False,
+                    'separate_required_checks': ['resolved-dependencies', 'current-source-secrets'],
+                    'external_acceptance': ['images', 'PostgreSQL 17/TLS/grants', 'paired restore/rollback', 'providers']}
+          with open('validation-result.json', 'w') as output:
+              json.dump(record, output, indent=2)
           assert all(j['result'] == 'success' for j in jobs.values()), jobs
           PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: validation-result
+          path: validation-result.json
+          retention-days: 90

@@ -1,4 +1,5 @@
-FROM nginx:1.30.5-alpine
+ARG NGINX_IMAGE=nginx:1.30.5-alpine
+FROM ${NGINX_IMAGE}
 
 # Hardened non-root runtime permissions
 RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \

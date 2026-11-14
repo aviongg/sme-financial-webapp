@@ -1,5 +1,7 @@
+ARG JAVA_BUILD_IMAGE=eclipse-temurin:21-jdk-alpine
+ARG JAVA_RUNTIME_IMAGE=eclipse-temurin:21-jre-alpine
 # Stage 1: Build
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM ${JAVA_BUILD_IMAGE} AS builder
 WORKDIR /workspace/app
 
 COPY backend/.mvn backend/.mvn
@@ -8,10 +10,11 @@ WORKDIR /workspace/app/backend
 RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
 
 COPY backend/src ./src
-RUN ./mvnw clean package -DskipTests -B
+ARG SOURCE_DATE_EPOCH
+RUN ./mvnw clean package -DskipTests -B ${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=$SOURCE_DATE_EPOCH}
 
 # Stage 2: Hardened Runtime
-FROM eclipse-temurin:21-jre-alpine
+FROM ${JAVA_RUNTIME_IMAGE}
 RUN addgroup -g 10001 -S finsight && adduser -u 10001 -S finsight -G finsight
 
 WORKDIR /app

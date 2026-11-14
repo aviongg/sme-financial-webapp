@@ -34,7 +34,7 @@ jobs:
         with:
           name: dependency-audit
           path: backend/target/closure-evidence/
-          retention-days: 14
+          retention-days: 90
   current-source-secrets:
     runs-on: ubuntu-22.04
     timeout-minutes: 10

@@ -1,4 +1,5 @@
-FROM postgres:17-bookworm
+ARG POSTGRES_IMAGE=postgres:17-bookworm
+FROM ${POSTGRES_IMAGE}
 
 COPY docker/postgres/pg_hba.prod.conf /etc/postgresql/pg_hba.conf
 COPY docker/postgres/entrypoint.sh /usr/local/bin/finsight-postgres-entrypoint.sh
