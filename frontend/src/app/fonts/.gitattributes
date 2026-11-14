@@ -1,0 +1,3 @@
+# Preserve exact upstream font/license bytes for manifest verification on every OS.
+*.ttf -text
+*-OFL.txt -text
