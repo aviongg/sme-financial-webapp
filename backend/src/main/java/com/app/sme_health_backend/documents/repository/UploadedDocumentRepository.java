@@ -19,6 +19,13 @@ public interface UploadedDocumentRepository extends JpaRepository<UploadedDocume
 
     Optional<UploadedDocument> findByIdAndUserId(UUID id, UUID userId);
 
+    /** Oldest documents left in a status since before the cutoff (recovery sweep input; ids only). */
+    @Query("SELECT d.id FROM UploadedDocument d WHERE d.processingStatus = :status AND d.uploadTimestamp < :cutoff "
+            + "ORDER BY d.uploadTimestamp ASC")
+    List<UUID> findIdsByStatusUploadedBefore(@Param("status") DocumentStatus status,
+                                             @Param("cutoff") java.time.LocalDateTime cutoff,
+                                             org.springframework.data.domain.Pageable page);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM UploadedDocument d WHERE d.id = :id AND d.userId = :userId")
     Optional<UploadedDocument> findByIdAndUserIdForUpdate(@Param("id") UUID id, @Param("userId") UUID userId);
