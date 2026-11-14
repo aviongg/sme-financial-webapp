@@ -21,7 +21,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+// The tunnel pattern is opted in explicitly, as scripts/start-demo.ps1 does; it is no longer a code default.
+@SpringBootTest(properties = "app.security.cors.allowed-origins=http://localhost:3000,https://*.trycloudflare.com")
 @AutoConfigureMockMvc // Runs WITH full security filter chain
 class SecurityFilterChainTest extends com.app.sme_health_backend.testsupport.DisposablePostgres {
 

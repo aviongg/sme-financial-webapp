@@ -137,13 +137,13 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.security.cors.allowed-origins:http://localhost:3000,https://*.trycloudflare.com}") String allowedOrigins
+            @Value("${app.security.cors.allowed-origins:http://localhost:3000}") String allowedOrigins,
+            org.springframework.core.env.Environment environment
     ) {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty() && !"*".equals(s) && !"null".equalsIgnoreCase(s))
-                .toList();
+        // Tunnel/demo origins must be configured explicitly (CORS_ALLOWED_ORIGINS); nothing broad is trusted by default.
+        List<String> origins = CorsOriginPolicy.parse(allowedOrigins,
+                environment.acceptsProfiles(org.springframework.core.env.Profiles.of("prod | production")));
         if (origins.isEmpty()) {
             configuration.setAllowedOriginPatterns(List.of());
         } else {
