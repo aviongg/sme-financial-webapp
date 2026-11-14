@@ -2,32 +2,43 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": { "node": ">=22 <27" },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit --incremental false",
+    "build:release": "next build --webpack",
+    "browser:install": "playwright install chromium",
+    "test:browser:smoke": "node tests/product-completion-browser.integration.mjs --smoke",
+    "test:browser:product": "node tests/product-completion-browser.integration.mjs"
   },
   "overrides": {
+    "minimatch@10.2.6": "11.0.1",
+    "source-map-js@1.2.1": "1.2.2",
+    "zod@4.6.2": "4.6.6",
     "brace-expansion@<2": "1.1.21",
     "brace-expansion@>=4 <6": "5.0.12"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^1.45.0",
-    "next": "16.3.8",
+    "next": "16.4.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "playwright": "1.62.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

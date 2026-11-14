@@ -1,0 +1,43 @@
+name: Offline release image builds
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  images:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend, ai, nginx, postgres, ocr-egress]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build candidate image (no registry push or deployment)
+        id: candidate
+        run: python3 scripts/release/build_release_image.py ${{ matrix.image }}
+      - name: Scan candidate OS and application packages
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: finsight-${{ matrix.image }}:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          hide-progress: true
+          format: json
+          output: backend/target/release-images/trivy.json
+      - name: Retain candidate SBOM even when vulnerability gate is red
+        if: always() && steps.candidate.outcome == 'success'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: finsight-${{ matrix.image }}:${{ github.sha }}
+          format: cyclonedx
+          output: backend/target/release-images/sbom.cdx.json
+          exit-code: '0' # Inventory only; strict HIGH/CRITICAL gate above remains mandatory.
+          hide-progress: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: image-${{ matrix.image }}-${{ github.sha }}
+          path: backend/target/release-images/
+          retention-days: 90

@@ -1,11 +1,20 @@
 # Development setup and verification commands
 
+**Integrated V52 release verification supersedes historical branch-specific commands below.**
+Use [the clean-clone commands](../release/PRODUCTION_CLOSURE.md) for current CI and
+browser prerequisites. pnpm 10.28.2 and `pnpm-lock.yaml` are now the single frontend
+dependency authority, including Docker; `package-lock.json` is retired. Supported
+CI uses Node 22 / Java 21 / Python 3.11. Playwright is a declared pinned dev dependency;
+`pnpm exec playwright install --with-deps chromium` supplies its browser on Linux.
+The product harness needs an exported Maven test classpath, not another tool's installation
+or a prior test XML. Production-target role/TLS acceptance is explicitly separate.
+
 Use one verified `dev/fatima` checkout. Never use production data/credentials for local acceptance. This onboarding changes documentation and restores ignored local dependencies; it does not deploy services, provision a permanent database or store machine-specific secrets/configuration in Git.
 
 ## Prerequisites and dependency authority
 
 * Java 21 target; repository `backend/pom.xml` is authoritative. This Windows environment used installed JDK 26 and cached Maven 3.9.16 to compile release 21. That is not proof of the Java 21 container runtime.
-* Next/React/TypeScript versions come from `frontend/package.json` and the chosen lockfile. Phase 2 uses **pnpm with pnpm-lock.yaml**, matching prior local integrated validation. Current docker/Dockerfile.frontend instead uses npm ci/package-lock.json; both lockfiles must remain consistent, and the Docker build is a separate acceptance gate. Do not alternate npm/pnpm lockfile updates in one feature. Existing npm lockfile is preserved; any consolidation is a separate reviewed task.
+* Next/React/TypeScript versions come from `frontend/package.json` and **pnpm-lock.yaml**. CI and Docker both use pnpm 10.28.2 frozen installs. The production-closure infrastructure task retired the competing npm lockfile; do not regenerate it.
 * Node 20.9+ as existing frontend README requires; actual tested version belongs in verification evidence. Use pnpm frozen install and current `pnpm-workspace.yaml` build policy; do not run blanket dependency upgrades.
 * Python 3.11+ for OCR, repository tested constraints in `ai-service/requirements-tested.txt`. Recovery fixture dependencies are separately declared in `scripts/backup/requirements.txt`; production-configuration tests also require PyYAML.
 * PostgreSQL behavior is essential: embedded test harness uses real disposable PostgreSQL with scoped roles, migrations and JSONB/triggers. Docker/PostgreSQL 17/TLS and live external providers have separate acceptance requirements. Do not replace PostgreSQL with H2 and call migration/security checks equivalent.

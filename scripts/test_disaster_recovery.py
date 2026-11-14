@@ -143,7 +143,7 @@ def run_drill(args):
             results["existing_database_refused"] = "PASS"
 
             verified = attempt()
-            if verified["status"] != "VERIFIED_STAGING_RESTORE" or verified["keyring_recovery"]["status"] != "VERIFIED":
+            if verified["status"] != "VERIFIED_DATABASE_ONLY" or verified["keyring_recovery"]["status"] != "VERIFIED":
                 raise RuntimeError("Valid backup was not fully verified")
             if verified["keyring_recovery"]["ciphertext_samples_verified"] < 1:
                 raise RuntimeError("Seed representative encrypted source data before running the acceptance drill")
@@ -193,7 +193,7 @@ def run_drill(args):
                     cleanup_errors.append(name)
             if cleanup_errors:
                 raise RuntimeError("Drill staging cleanup failed; manual operator cleanup is required")
-    return {"status": "REAL_POSTGRES_DRILL_PASSED", "source_unchanged": True,
+    return {"status": "REAL_DATABASE_ONLY_DRILL_PASSED", "source_unchanged": True,
             "staging_cleaned": True, "checks": results}
 
 

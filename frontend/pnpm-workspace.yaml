@@ -1,5 +1,8 @@
 allowBuilds:
   unrs-resolver: false
 overrides:
+  'minimatch@10.2.6': 11.0.1
+  'source-map-js@1.2.1': 1.2.2
+  'zod@4.6.2': 4.6.6
   'brace-expansion@<2': 1.1.21
   'brace-expansion@>=4 <6': 5.0.12

@@ -21,24 +21,14 @@ from typing import Dict, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from backup.crypto_age import decrypt_stream, decrypt_bytes, parse_identity
 from backup.keyring_validation import validate_keyring
+from backup.catalog import CATALOG_SQL, load_manifest, compare_catalog, migration_digest
 
 IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]{0,62}\Z")
 MIGRATIONS = Path(__file__).resolve().parents[2] / "backend/src/main/resources/db/migration"
-REQUIRED_TABLES = frozenset({
-    "flyway_schema_history", "app_users", "businesses", "business_memberships",
-    "business_profiles", "monthly_records", "uploaded_documents", "score_results",
-    "insights", "recommendations", "whatsapp_deliveries", "security_audit_events",
-    "password_reset_tokens", "spring_session", "spring_session_attributes",
-    "user_mfa", "user_mfa_recovery_codes", "document_corrections",
-})
-REQUIRED_TRIGGERS = frozenset({
-    ("app_users", "trg_protect_platform_role"),
-    ("security_audit_events", "trg_audit_no_truncate"),
-    ("security_audit_events", "trg_audit_no_update_delete"),
-    ("document_corrections", "trg_document_corrections_no_update_delete"),
-    ("document_corrections", "trg_document_corrections_no_truncate"),
-    ("uploaded_documents", "trg_document_extraction_immutable"),
-})
+V52 = load_manifest()
+REQUIRED_TABLES = frozenset(V52['catalog']['tables'])
+REQUIRED_TRIGGERS = frozenset((table, trigger) for table, obj in V52['catalog']['tables'].items()
+                              for trigger in obj['triggers'])
 ENVELOPE = re.compile(r"enc:v1:([A-Za-z0-9_-]{1,32}):([A-Za-z0-9+/=]+)\Z")
 ENCRYPTED_FIELDS = """
     SELECT 'app_users.full_name' AS field, full_name AS ciphertext,
@@ -51,6 +41,14 @@ ENCRYPTED_FIELDS = """
            'FinSight|WhatsAppDelivery|destinationNumber' FROM public.whatsapp_deliveries
     UNION ALL SELECT 'user_mfa.totp_secret', totp_secret,
            'FinSight|UserMfa|totpSecret|' || user_id::text FROM public.user_mfa
+    UNION ALL SELECT 'whatsapp_conversations.turns_ciphertext', turns_ciphertext,
+           'whatsapp_inbound' FROM public.whatsapp_conversations
+    UNION ALL SELECT 'whatsapp_inbound_messages.body_ciphertext', body_ciphertext,
+           'whatsapp_inbound' FROM public.whatsapp_inbound_messages
+    UNION ALL SELECT 'whatsapp_inbound_messages.reply_ciphertext', reply_ciphertext,
+           'whatsapp_inbound' FROM public.whatsapp_inbound_messages
+    UNION ALL SELECT 'commercial_documents.counterparty_name_ciphertext', counterparty_name_ciphertext,
+           'FinSight|CommercialDocument|counterpartyName' FROM public.commercial_documents
 """
 
 
@@ -115,7 +113,7 @@ def execute_sql(container: Optional[str], host: str, port: int, dbname: str,
 def execute_sql_query(container: Optional[str], host: str, port: int, dbname: str,
                       user: str, password: str, sql: str) -> str:
     command, env = psql_command(container, host, port, dbname, user, password)
-    result = subprocess.run(command + ["-t", "-A", "-c", sql], capture_output=True, text=True, env=env)
+    result = subprocess.run(command + ["-q", "-t", "-A", "-c", sql], capture_output=True, text=True, env=env)
     if result.returncode:
         # Driver diagnostics may contain data values: never print them or credentials.
         raise RestoreError("A mandatory PostgreSQL validation query failed")
@@ -123,6 +121,8 @@ def execute_sql_query(container: Optional[str], host: str, port: int, dbname: st
 
 
 def expected_migrations():
+    if migration_digest(MIGRATIONS) != V52['migration_sha256']:
+        raise RestoreError('V1–V52 sources differ from the frozen reviewed recovery inventory')
     expected = []
     for migration in MIGRATIONS.glob("V*__*.sql"):
         version = migration.name.split("__", 1)[0][1:].replace("_", ".")
@@ -168,7 +168,11 @@ def validate_staging(query):
         'app_users', (SELECT count(*) FROM public.app_users),
         'businesses', (SELECT count(*) FROM public.businesses),
         'enabled_mfa', (SELECT count(*) FROM public.user_mfa WHERE status = 'ENABLED'));"""))
-    return {"flyway_migrations_applied": len(expected), "latest_flyway_version": expected[-1]["version"],
+    problems = compare_catalog(json.loads(query(CATALOG_SQL)), ignore_owners=True)
+    if problems:
+        raise RestoreError("Restored V52 catalog/grants differ: " + ', '.join(problems))
+    return {"verified_table_count": len(REQUIRED_TABLES), "verified_trigger_count": len(REQUIRED_TRIGGERS),
+            "flyway_migrations_applied": len(expected), "latest_flyway_version": expected[-1]["version"],
             "domain_records": domain, "purged_records": counts,
             "verified_triggers": sorted(name for table, name in REQUIRED_TRIGGERS)}
 
@@ -181,30 +185,40 @@ def verify_keyring(keyring_file, identity, query):
         raise RestoreError("Requested keyring could not be decrypted, parsed or validated") from error
     # Every retained ID and envelope shape is checked, not merely the active key.
     malformed = int(query(f"""WITH encrypted AS ({ENCRYPTED_FIELDS}) SELECT count(*) FROM encrypted
-        WHERE ciphertext LIKE 'enc:%' AND ciphertext !~ '^enc:v1:[A-Za-z0-9_-]{{1,32}}:[A-Za-z0-9+/=]+$';"""))
+        WHERE (ciphertext LIKE 'enc:%' AND ciphertext !~ '^enc:v1:[A-Za-z0-9_-]{{1,32}}:[A-Za-z0-9+/=]+$')
+           OR (field LIKE '%ciphertext' AND ciphertext IS NOT NULL AND ciphertext NOT LIKE 'enc:%');"""))
     if malformed:
         raise RestoreError("Restored data contains malformed/unsupported encryption envelopes")
-    samples = json.loads(query(f"""WITH encrypted AS ({ENCRYPTED_FIELDS}), samples AS (
-        SELECT DISTINCT ON (field, split_part(ciphertext, ':', 3)) field, ciphertext, aad
-        FROM encrypted WHERE ciphertext LIKE 'enc:%'
-        ORDER BY field, split_part(ciphertext, ':', 3))
-        SELECT COALESCE(json_agg(samples), '[]'::json) FROM samples;"""))
+    verified = 0
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        for sample in samples:
-            match = ENVELOPE.fullmatch(sample["ciphertext"])
-            if not match or match.group(1) not in keys:
-                raise ValueError("Missing historical encryption key")
-            payload = base64.b64decode(match.group(2), validate=True)
-            if len(payload) < 28:
-                raise ValueError("Invalid encryption payload length")
-            # Same 12-byte IV, 16-byte tag and field/row AAD as the Java cipher.
-            AESGCM(keys[match.group(1)]).decrypt(payload[:12], payload[12:], sample["aad"].encode("utf-8"))
+        while True:
+            # Restored target is isolated/quiescent. Authenticate every value, bounded
+            # in batches; DISTINCT field/key samples used to miss later corruption.
+            samples = json.loads(query(f"""WITH encrypted AS ({ENCRYPTED_FIELDS}), samples AS (
+                SELECT field, ciphertext, aad FROM encrypted WHERE ciphertext LIKE 'enc:%'
+                ORDER BY field, ciphertext, aad LIMIT 500 OFFSET {verified})
+                SELECT COALESCE(json_agg(samples), '[]'::json) FROM samples;"""))
+            for sample in samples:
+                match = ENVELOPE.fullmatch(sample["ciphertext"])
+                if not match or match.group(1) not in keys:
+                    raise ValueError("Missing historical encryption key")
+                payload = base64.b64decode(match.group(2), validate=True)
+                if len(payload) < 28:
+                    raise ValueError("Invalid encryption payload length")
+                AESGCM(keys[match.group(1)]).decrypt(payload[:12], payload[12:], sample["aad"].encode("utf-8"))
+            verified += len(samples)
+            if len(samples) < 500:
+                break
     except Exception as error:
-        raise RestoreError("Recovered keys could not authenticate representative restored ciphertext") from error
-    return {"status": "VERIFIED", "active_key_id": active_id,
+        raise RestoreError("Recovered keys could not authenticate every restored ciphertext") from error
+    links = int(query("SELECT count(*) FROM public.whatsapp_inbound_links WHERE status IN ('PENDING','ACTIVE');"))
+    if links and len(bundle.get('whatsapp_phone_hash_key', '')) < 32:
+        raise RestoreError('WhatsApp links require their retained phone hash key')
+    return {"status": "VERIFIED", "phone_hash_key_present": bool(bundle.get('whatsapp_phone_hash_key')),
+            "active_key_id": active_id,
             "key_ids": sorted(keys), "retained_key_count": len(keys),
-            "ciphertext_samples_verified": len(samples)}
+            "ciphertext_samples_verified": verified, "ciphertext_validation": "ALL_ENCRYPTED_ROWS"}
 
 
 class CountingWriter:
@@ -285,10 +299,23 @@ def run_restore(backup_file: Path, identity: str, target_dbname: Optional[str] =
             DELETE FROM public.user_mfa WHERE status = 'PENDING';
             COMMIT;""")
         verification = validate_staging(query)
+        # --no-owner dumps must regain migration ownership only inside OUR new DB.
+        # Never use REASSIGN OWNED: it also affects shared objects and unrelated DBs.
+        ownership = ['ALTER SCHEMA public OWNER TO finsight_migrator;']
+        for name in REQUIRED_TABLES:
+            validate_identifier(name)
+            ownership.append(f'ALTER TABLE public."{name}" OWNER TO finsight_migrator;')
+        for signature in V52['catalog']['functions']:
+            if not re.fullmatch(r'[a-z_]+\(\)', signature):
+                raise RestoreError('Unsupported function signature in trusted inventory')
+            ownership.append(f'ALTER FUNCTION public.{signature} OWNER TO finsight_migrator;')
+        execute(staging, 'BEGIN; ' + ' '.join(ownership) + ' COMMIT;')
+        if compare_catalog(json.loads(query(CATALOG_SQL))):
+            raise RestoreError('Restored V52 ownership/grants differ from inventory')
         keyring = verify_keyring(keyring_file, identity, query) if keyring_file is not None else None
-        return {"status": "VERIFIED_STAGING_RESTORE", "staging_database": staging,
+        return {"status": "VERIFIED_DATABASE_ONLY", "staging_database": staging,
                 "target_database": staging, "live_cutover_performed": False,
-                "bytes_decrypted": writer.count, **verification, "keyring_recovery": keyring}
+                "bytes_decrypted": writer.count, **verification, "keyring_recovery": keyring, "production_recovery_accepted": False}
     except BaseException as error:
         if process is not None and process.poll() is None:
             process.kill()

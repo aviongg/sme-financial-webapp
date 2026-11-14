@@ -1,0 +1,48 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "29b4ec6df2522a8aee279414b78a07910b065874",
+  "files": [
+    {
+      "file": "Inter.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+      "bytes": 876576,
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+      "license": "OFL-1.1"
+    },
+    {
+      "file": "inter-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/inter/OFL.txt",
+      "bytes": 4377,
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
+      "license": "OFL-1.1"
+    },
+    {
+      "file": "PlusJakartaSans.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+      "bytes": 176288,
+      "sha256": "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8",
+      "license": "OFL-1.1"
+    },
+    {
+      "file": "plusjakartasans-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/plusjakartasans/OFL.txt",
+      "bytes": 4402,
+      "sha256": "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99",
+      "license": "OFL-1.1"
+    },
+    {
+      "file": "NotoNastaliqUrdu.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/notonastaliqurdu/NotoNastaliqUrdu%5Bwght%5D.ttf",
+      "bytes": 690304,
+      "sha256": "98a4787f34eb6fde57fb9a1121a8f216301196ab0da98ea110cad581be8abbcd",
+      "license": "OFL-1.1"
+    },
+    {
+      "file": "notonastaliqurdu-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/29b4ec6df2522a8aee279414b78a07910b065874/ofl/notonastaliqurdu/OFL.txt",
+      "bytes": 4384,
+      "sha256": "e90279e3fb2003c4d54f8685e25274bd7838b1b21c891520d71dbdb1d4a98907",
+      "license": "OFL-1.1"
+    }
+  ]
+}

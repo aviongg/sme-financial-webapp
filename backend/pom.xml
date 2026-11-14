@@ -21,6 +21,7 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<finsight.test.jvm.args>-Xmx1536m -XX:+UseSerialGC</finsight.test.jvm.args>
 		<!-- Boot 4.1.1 is the newest 4.1 patch on Maven Central (2026-09-30).
 		     Remove this coordinated override when its BOM supplies 11.0.26 or later. -->
 		<tomcat.version>11.0.26</tomcat.version>
@@ -148,7 +149,11 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
+					<argLine>${finsight.test.jvm.args} "-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</argLine>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
 					<systemPropertyVariables>
+						<spring.test.context.cache.maxSize>4</spring.test.context.cache.maxSize>
 						<FINSIGHT_CRYPTO_KEY_K1>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=</FINSIGHT_CRYPTO_KEY_K1>
 						<FINSIGHT_CRYPTO_KEY_K2>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwOTk=</FINSIGHT_CRYPTO_KEY_K2>
 						<FINSIGHT_CRYPTO_ACTIVE_KEY_ID>k1</FINSIGHT_CRYPTO_ACTIVE_KEY_ID>
@@ -166,6 +171,38 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<configuration>
+					<argLine>${finsight.test.jvm.args} "-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</argLine>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
+					<excludes>
+						<exclude>**/DatabaseRolePrivilegesPostgreSqlIT.java</exclude>
+						<exclude>**/PostgreSqlTlsConnectionIT.java</exclude>
+					</excludes>
+					<systemPropertyVariables>
+						<spring.test.context.cache.maxSize>4</spring.test.context.cache.maxSize>
+						<FINSIGHT_CRYPTO_KEY_K1>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=</FINSIGHT_CRYPTO_KEY_K1>
+						<FINSIGHT_CRYPTO_KEY_K2>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwOTk=</FINSIGHT_CRYPTO_KEY_K2>
+						<FINSIGHT_CRYPTO_ACTIVE_KEY_ID>k1</FINSIGHT_CRYPTO_ACTIVE_KEY_ID>
+						<app.monthly-projection.sweeper.enabled>false</app.monthly-projection.sweeper.enabled>
+					</systemPropertyVariables>
+				</configuration>
+				<executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
+			</plugin></plugins></build>
+		</profile>
+		<!-- Explicitly opt in only against the dedicated production acceptance fixtures.
+		     Do not combine this profile with postgres-it. -->
+		<profile>
+			<id>production-db-acceptance</id>
+			<build><plugins><plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<configuration>
+					<includes>
+						<include>**/DatabaseRolePrivilegesPostgreSqlIT.java</include>
+						<include>**/PostgreSqlTlsConnectionIT.java</include>
+						<include>**/V52ProductionPrivilegesAcceptance.java</include>
+					</includes>
+					<!-- Same test-only crypto fixtures as the previous postgres-it invocation. -->
 					<systemPropertyVariables>
 						<FINSIGHT_CRYPTO_KEY_K1>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=</FINSIGHT_CRYPTO_KEY_K1>
 						<FINSIGHT_CRYPTO_KEY_K2>MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwOTk=</FINSIGHT_CRYPTO_KEY_K2>

@@ -1,0 +1,191 @@
+name: Release validation
+on:
+  pull_request:
+  push:
+    branches: [main, dev/fatima, dev/suleman, 'codex/production-closure-infra-tests']
+  workflow_dispatch:
+    inputs:
+      full_browser:
+        description: Run the full offline product browser acceptance in addition to smoke
+        type: boolean
+        default: false
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash # Includes -e -o pipefail: tee must never hide a failing gate.
+concurrency:
+  group: validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # Preserve every published failure/evidence run
+env:
+  MAVEN_OPTS: -Xmx512m -XX:+UseSerialGC
+  NEXT_TELEMETRY_DISABLED: '1'
+  NEXT_PUBLIC_DATA_MODE: live
+jobs:
+  backend-unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: chmod +x backend/mvnw
+      - run: ./mvnw -B test
+        working-directory: backend
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: backend-unit
+          path: backend/target/surefire-reports/
+          retention-days: 90
+  postgres:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+      - run: chmod +x backend/mvnw
+      - run: python scripts/release/postgres_gate.py --shard ${{ matrix.shard }}/4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: postgres-${{ matrix.shard }}
+          path: backend/target/failsafe-reports/
+          retention-days: 90
+  frontend:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: mkdir -p test-artifacts/validation && pnpm test 2>&1 | tee test-artifacts/validation/unit.log
+        working-directory: frontend
+      - run: pnpm typecheck 2>&1 | tee test-artifacts/validation/typecheck.log
+        working-directory: frontend
+      - run: pnpm lint 2>&1 | tee test-artifacts/validation/lint.log
+        working-directory: frontend
+      - run: pnpm build:release 2>&1 | tee test-artifacts/validation/build-release.log
+        working-directory: frontend
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: frontend-validation
+          path: frontend/test-artifacts/validation/
+          retention-days: 90
+  browser-smoke:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: chmod +x backend/mvnw
+      - run: ./mvnw -B test-compile dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile=target/test-classpath.txt
+        working-directory: backend
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      - run: pnpm build:release
+        working-directory: frontend
+      - run: pnpm test:browser:smoke
+        working-directory: frontend
+      - run: pnpm test:browser:product
+        if: github.event_name == 'workflow_dispatch' && inputs.full_browser
+        working-directory: frontend
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: browser-evidence
+          path: frontend/test-artifacts/
+          retention-days: 90
+  ocr-and-operations:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            ai-service/requirements-tested.txt
+            scripts/release/requirements.txt
+      - run: python -m pip install -c ai-service/requirements-tested.txt -e './ai-service[test]' -r scripts/release/requirements.txt
+      - run: python -m pytest -q --junitxml=../backend/target/closure-evidence/ocr.xml
+        working-directory: ai-service
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts/backup -p 'test_*.py' -v 2>&1 | tee backend/target/closure-evidence/backup.log
+        if: success() || failure()
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts -p test_production_configuration.py -v 2>&1 | tee backend/target/closure-evidence/configuration.log
+        if: success() || failure()
+      - run: mkdir -p backend/target/closure-evidence && python -m unittest discover -s scripts/release -p 'test_*.py' -v 2>&1 | tee backend/target/closure-evidence/release-tools.log
+        if: success() || failure()
+      - run: python scripts/release/review_v52_inventory.py
+        if: success() || failure()
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: ocr-operations-evidence
+          path: backend/target/closure-evidence/
+          retention-days: 90
+  release-gate:
+    if: always()
+    needs: [backend-unit, postgres, frontend, browser-smoke, ocr-and-operations]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Require every validation job
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          jobs = json.loads(os.environ['RESULTS'])
+          record = {'head_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
+                    'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'validation_jobs': jobs,
+                    'production_release_accepted': False,
+                    'separate_required_checks': ['resolved-dependencies', 'current-source-secrets'],
+                    'external_acceptance': ['images', 'PostgreSQL 17/TLS/grants', 'paired restore/rollback', 'providers']}
+          with open('validation-result.json', 'w') as output:
+              json.dump(record, output, indent=2)
+          assert all(j['result'] == 'success' for j in jobs.values()), jobs
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: validation-result
+          path: validation-result.json
+          retention-days: 90

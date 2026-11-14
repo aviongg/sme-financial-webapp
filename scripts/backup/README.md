@@ -1,5 +1,12 @@
 # Encrypted backup and staging recovery
 
+**Current V52 coverage:** use the [paired V52 capture/restore procedure](../../docs/release/V52_RECOVERY.md).
+All 84 tables, 64 triggers and 18 application functions are inventoried, and all
+nine encrypted fields are authenticated. A database-only restore is deliberately
+`VERIFIED_DATABASE_ONLY`; full production recovery requires its matching encrypted
+document snapshot and every historical/WhatsApp lookup key from the same point,
+plus real server/application/rollback acceptance. No production drill is claimed.
+
 Install the recovery dependencies in an operator-managed Python 3.10+ environment:
 
 ```sh
@@ -83,15 +90,13 @@ IO, SQL, purge, query or validation failure removes only that staging database;
 cleanup failure is reported explicitly and never produces success. A failed
 database creation does not authorize dropping a concurrent creator's database.
 
-Success is exactly `VERIFIED_STAGING_RESTORE`: all expected domain tables and
-Flyway history match, platform-role/audit triggers are enabled on the correct
-tables, and sessions/session attributes/reset tokens/pending MFA are zero. A
-requested keyring must decrypt and validate; all referenced historical key IDs
-must exist. Representative ciphertext for every field/key combination is
-authenticated with the Java `enc:v1` AES-GCM format and field/row AAD. The report
-includes the sample count; an empty database cannot prove key/data compatibility.
-Omitting `--keyring-file` leaves `keyring_recovery` null; it does not assert that
-encrypted application data is usable.
+Database-only success is `VERIFIED_DATABASE_ONLY` and never asserts full-system
+production recovery. The full frozen V52 catalog, history and ephemeral-state
+purge are mandatory; every retained encrypted row (nine fields, bounded batches)
+requires its historical key and exact AAD when a keyring is supplied. Omitting
+`--keyring-file` leaves keyring recovery null. Use paired recovery for the stronger
+staging result; it refuses mismatched DB/key/document artifacts and compares all
+retained table data and restored file hashes.
 
 No live cutover is implemented. The verified staging database remains for
 operator inspection. Before any separately planned cutover, stop writers,
@@ -125,4 +130,4 @@ authentication, and backup-role SELECT/DML/DDL permission checks. Each failure
 must occur at its expected gate, remove its fresh staging DB and leave source
 data/catalog fingerprints unchanged. Successful staging DBs are also cleaned up
 by the drill. Any failure exits nonzero; only the entire real drill may report
-`REAL_POSTGRES_DRILL_PASSED`. No external provider is needed for this drill.
+`REAL_DATABASE_ONLY_DRILL_PASSED`. No external provider is needed for this drill.

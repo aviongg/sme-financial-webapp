@@ -308,10 +308,11 @@ test('the mobile menu closes on outside click and when focus leaves it, without 
   assert.doesNotMatch(nav, /role="dialog"|aria-modal|focus-trap/);
 });
 
-test('the identity probe is deferred only on exact public routes and private routes still probe', () => {
+test('the identity probe defers anonymous public routes and probes private routes or a session hint', () => {
   const provider = source('../src/components/auth/SessionProvider.tsx');
   assert.match(provider, /const publicRoute = isPublicRoute\(usePathname\(\)\);/);
-  assert.match(provider, /if \(isDemoMode \|\| publicRoute \|\| probed\.current\)\s+return;\s+probed\.current = true;\s+queueMicrotask\(\(\) => void refresh\(\)\);\s+\}, \[publicRoute, refresh\]\);/);
+  assert.match(provider, /const hasSessionHint = typeof document !== 'undefined' && document\.cookie\.includes\('finsight_session_hint=1'\);/);
+  assert.match(provider, /if \(isDemoMode \|\| \(publicRoute && !hasSessionHint\) \|\| probed\.current\)\s+return;\s+probed\.current = true;\s+queueMicrotask\(\(\) => void refresh\(\)\);\s+\}, \[publicRoute, refresh\]\);/);
   // The probe used to run unconditionally from the listener effect; it is now only in the route-aware effect.
   assert.equal(provider.match(/queueMicrotask\(/g).length, 1);
   assert.match(provider, /revision\.current\+\+; probed\.current = false;/, 'remount (StrictMode) probes again');

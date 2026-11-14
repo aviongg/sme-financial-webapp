@@ -47,6 +47,7 @@ import com.app.sme_health_backend.recurring.dto.RecurringRuleResponse;
 import com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository;
 import com.app.sme_health_backend.recurring.service.RecurringRuleService;
 import com.app.sme_health_backend.testsupport.DisposablePostgres;
+import com.app.sme_health_backend.scoring.repository.ScoreResultRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,6 +90,9 @@ class FinancialQueryPostgreSqlIT extends DisposablePostgres {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ScoreResultRepository scoreResultRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -770,8 +774,13 @@ class FinancialQueryPostgreSqlIT extends DisposablePostgres {
 
         jdbcTemplate.update("""
                 INSERT INTO score_results (id, user_id, month, composite_score, band, component_scores, weakest_component, data_completeness, computed_at, methodology_version)
-                VALUES (?, ?, '2026-09', 78.50, 'good', '{"cashFlowStability":80,"profitability":75,"repaymentCapacity":80,"financialTrend":78,"recordCompliance":80}'::jsonb, 'profitability', 1.00, TIMESTAMP '2026-09-30 12:05:00', 'health-score-v1')
+                VALUES (?, ?, '2026-09', 78.50, 'good', '{"cashflow":80,"profitability":75,"repayment":80,"trend":78,"compliance":80}'::jsonb, 'profitability', 1.00, TIMESTAMP '2026-09-30 12:05:00', 'health-score-v1')
                 """, UUID.randomUUID(), businessIdA);
+
+        // Exercise a valid persisted source, rather than silently testing a deserialization fallback.
+        assertEquals(new BigDecimal("78"), scoreResultRepository
+                .findByUserIdAndMonth(businessIdA, "2026-09").orElseThrow()
+                .getComponentScores().getTrend());
 
         // Authenticate HTTP session BEFORE taking snapshot so login session creation does not happen between snapshots
         LoginSession session = loginAndSelectBusiness(ownerUserA, businessIdA);

@@ -1,0 +1,5 @@
+# Operational fixture tools; OCR dependencies retain ai-service/requirements-tested.txt.
+PyYAML==6.0.3
+packaging==26.3
+pyrage==1.4.0
+cryptography==50.0.1

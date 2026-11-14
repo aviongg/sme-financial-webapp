@@ -64,6 +64,13 @@ def collect_keyring(secrets_dir: Optional[Path] = None) -> Dict[str, any]:
         "active_key_id": active_key_id,
         "keys": keys
     }
+    phone_key = ((source_dir / 'whatsapp_phone_hash_key').read_text(encoding='utf-8').strip()
+                 if source_dir is not None and (source_dir / 'whatsapp_phone_hash_key').is_file()
+                 else os.environ.get('WHATSAPP_PHONE_HASH_KEY', '') if source_dir is None else '')
+    if phone_key:
+        if len(phone_key) < 32:
+            raise ValueError('WhatsApp phone hash key must have at least 32 characters')
+        bundle['whatsapp_phone_hash_key'] = phone_key
     validate_keyring(bundle)
     return bundle
 
