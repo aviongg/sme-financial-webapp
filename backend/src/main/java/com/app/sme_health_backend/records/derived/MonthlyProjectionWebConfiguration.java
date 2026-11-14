@@ -22,6 +22,12 @@ import java.util.UUID;
  * {@code score_results}, so a report, dashboard, score, Copilot answer or Zakat preview never shows a month that
  * predates an authoritative change. The refresh runs in its own transaction before the handler and is a single
  * indexed lookup when nothing changed.
+ *
+ * <p>The C11 Financial Query Facade ({@code /api/finance/query/**}) is deliberately NOT a refresh path. Its published
+ * contract is strictly read-only (zero database mutations, REPEATABLE_READ) and its answers are computed from the
+ * ledger, obligations and stored scores at read time; materialising months there wrote derived rows (and could convert
+ * LEGACY_MANUAL months and rescore them) from a GET. Product surfaces that present materialised months — dashboard,
+ * reports, scores, Copilot — still refresh before their handlers, and the sweeper covers everything else.
  */
 @Configuration
 @EnableScheduling
@@ -30,7 +36,7 @@ public class MonthlyProjectionWebConfiguration {
     static final String[] READ_PATHS = {
             "/api/records/monthly", "/api/records/monthly/**", "/api/scores/**", "/api/reports/**",
             "/api/dashboard/**", "/api/workspace/**", "/api/cashflow/**", "/api/zakat/**", "/api/insights/**",
-            "/api/recommendations/**", "/api/finance/query/**", "/api/copilot/**", "/api/ai/**", "/api/search/**",
+            "/api/recommendations/**", "/api/copilot/**", "/api/ai/**", "/api/search/**",
             "/api/planning/**", "/api/intelligence/**"
     };
 
