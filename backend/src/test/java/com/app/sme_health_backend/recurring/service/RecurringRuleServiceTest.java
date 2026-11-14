@@ -340,8 +340,8 @@ class RecurringRuleServiceTest {
                 userId
         );
         rule.setId(ruleId);
-        when(ruleRepository.findByBusinessIdAndStatusAndNextDueDateLessThanEqual(eq(businessId), eq(RecurringRuleStatus.ACTIVE), any(LocalDate.class)))
-                .thenReturn(List.of(rule));
+        when(ruleRepository.findDueRuleRefsForBusiness(eq(businessId), eq(RecurringRuleStatus.ACTIVE), any(LocalDate.class)))
+                .thenReturn(List.of(new com.app.sme_health_backend.recurring.repository.DueRuleRef(rule.getId(), businessId)));
         when(ruleRepository.findForUpdateByIdAndBusinessId(rule.getId(), businessId)).thenReturn(Optional.of(rule));
         when(occurrenceRepository.findByBusinessIdAndRecurringRuleIdAndScheduledDate(any(), any(), any()))
                 .thenReturn(Optional.empty());
@@ -388,8 +388,8 @@ class RecurringRuleServiceTest {
                 userId
         );
         rule.setId(ruleId);
-        when(ruleRepository.findByBusinessIdAndStatusAndNextDueDateLessThanEqual(eq(businessId), eq(RecurringRuleStatus.ACTIVE), any(LocalDate.class)))
-                .thenReturn(List.of(rule));
+        when(ruleRepository.findDueRuleRefsForBusiness(eq(businessId), eq(RecurringRuleStatus.ACTIVE), any(LocalDate.class)))
+                .thenReturn(List.of(new com.app.sme_health_backend.recurring.repository.DueRuleRef(rule.getId(), businessId)));
         when(ruleRepository.findForUpdateByIdAndBusinessId(rule.getId(), businessId)).thenReturn(Optional.of(rule));
         when(ruleRepository.saveAndFlush(any(RecurringRule.class))).thenAnswer(i -> i.getArgument(0));
 

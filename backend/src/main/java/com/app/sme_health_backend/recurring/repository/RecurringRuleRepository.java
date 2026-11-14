@@ -47,5 +47,21 @@ public interface RecurringRuleRepository extends JpaRepository<RecurringRule, UU
             LocalDate maxDate
     );
 
+    /**
+     * Due rule ids for one business, in a stable order so concurrent generators lock rules in the same sequence.
+     * Returning ids (not managed entities) means the subsequent {@code FOR UPDATE} load is the first copy in the
+     * persistence context and always carries the committed version.
+     */
+    @Query("SELECT new com.app.sme_health_backend.recurring.repository.DueRuleRef(r.id, r.businessId) "
+            + "FROM RecurringRule r WHERE r.businessId = :businessId AND r.status = :status AND r.nextDueDate <= :maxDate "
+            + "ORDER BY r.id")
+    List<DueRuleRef> findDueRuleRefsForBusiness(@Param("businessId") UUID businessId,
+                                                @Param("status") RecurringRuleStatus status,
+                                                @Param("maxDate") LocalDate maxDate);
+
+    @Query("SELECT new com.app.sme_health_backend.recurring.repository.DueRuleRef(r.id, r.businessId) "
+            + "FROM RecurringRule r WHERE r.status = :status AND r.nextDueDate <= :maxDate ORDER BY r.businessId, r.id")
+    List<DueRuleRef> findDueRuleRefs(@Param("status") RecurringRuleStatus status, @Param("maxDate") LocalDate maxDate);
+
     long countByBusinessIdAndStatus(UUID businessId, RecurringRuleStatus status);
 }

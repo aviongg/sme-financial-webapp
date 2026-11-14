@@ -31,6 +31,7 @@ import com.app.sme_health_backend.recurring.exception.RecurringValidationExcepti
 import com.app.sme_health_backend.recurring.model.RecurringFrequency;
 import com.app.sme_health_backend.recurring.model.RecurringOccurrenceStatus;
 import com.app.sme_health_backend.recurring.model.RecurringRuleStatus;
+import com.app.sme_health_backend.recurring.repository.DueRuleRef;
 import com.app.sme_health_backend.recurring.repository.RecurringRuleOccurrenceRepository;
 import com.app.sme_health_backend.recurring.repository.RecurringRuleRepository;
 import com.app.sme_health_backend.shared.exception.ResourceNotFoundException;
@@ -697,7 +698,10 @@ public class RecurringRuleService {
         assertWritePermission(context);
 
         LocalDate today = LocalDate.now(KARACHI_ZONE);
-        List<RecurringRule> dueRules = ruleRepository.findByBusinessIdAndStatusAndNextDueDateLessThanEqual(
+        // Scan ids only, then lock-and-load each rule. Loading the rules unlocked first cached version N; a concurrent
+        // generator committing version N+1 then made the FOR UPDATE reload fail with "conflicting version of entity
+        // already held in persistence context" instead of simply finding the work already done.
+        List<DueRuleRef> dueRules = ruleRepository.findDueRuleRefsForBusiness(
                 context.businessId(),
                 RecurringRuleStatus.ACTIVE,
                 today
@@ -706,12 +710,12 @@ public class RecurringRuleService {
         int generatedCount = 0;
         int processedRulesCount = 0;
 
-        for (RecurringRule ruleSummary : dueRules) {
+        for (DueRuleRef ruleSummary : dueRules) {
             if (generatedCount >= MAX_OCCURRENCES_PER_RUN) {
                 break;
             }
 
-            RecurringRule lockedRule = ruleRepository.findForUpdateByIdAndBusinessId(ruleSummary.getId(), context.businessId())
+            RecurringRule lockedRule = ruleRepository.findForUpdateByIdAndBusinessId(ruleSummary.id(), context.businessId())
                     .orElse(null);
             if (lockedRule == null || lockedRule.getStatus() != RecurringRuleStatus.ACTIVE) {
                 continue;
@@ -738,18 +742,15 @@ public class RecurringRuleService {
     @Transactional
     public int generateDueOccurrencesAllBusinesses() {
         LocalDate today = LocalDate.now(KARACHI_ZONE);
-        List<RecurringRule> dueRules = ruleRepository.findByStatusAndNextDueDateLessThanEqual(
-                RecurringRuleStatus.ACTIVE,
-                today
-        );
+        List<DueRuleRef> dueRules = ruleRepository.findDueRuleRefs(RecurringRuleStatus.ACTIVE, today);
 
         int totalGenerated = 0;
-        for (RecurringRule ruleSummary : dueRules) {
+        for (DueRuleRef ruleSummary : dueRules) {
             if (totalGenerated >= MAX_OCCURRENCES_PER_RUN) {
                 break;
             }
 
-            RecurringRule lockedRule = ruleRepository.findForUpdateByIdAndBusinessId(ruleSummary.getId(), ruleSummary.getBusinessId())
+            RecurringRule lockedRule = ruleRepository.findForUpdateByIdAndBusinessId(ruleSummary.id(), ruleSummary.businessId())
                     .orElse(null);
             if (lockedRule == null || lockedRule.getStatus() != RecurringRuleStatus.ACTIVE) {
                 continue;
