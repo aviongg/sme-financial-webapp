@@ -93,6 +93,9 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME}
       SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM}
+      # disabled (default) sends nothing; meta requires WHATSAPP_META_PHONE_NUMBER_ID and WHATSAPP_META_ACCESS_TOKEN.
+      # The in-memory mock is refused at startup under the prod profile.
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-disabled}
     secrets:
       - app_db_password
       - crypto_key_k1

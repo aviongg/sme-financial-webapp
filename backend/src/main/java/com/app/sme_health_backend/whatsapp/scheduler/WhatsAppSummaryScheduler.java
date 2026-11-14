@@ -2,6 +2,7 @@ package com.app.sme_health_backend.whatsapp.scheduler;
 
 import com.app.sme_health_backend.profile.entity.BusinessProfile;
 import com.app.sme_health_backend.profile.repository.BusinessProfileRepository;
+import com.app.sme_health_backend.whatsapp.client.DisabledWhatsAppClient;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDelivery;
 import com.app.sme_health_backend.whatsapp.entity.WhatsAppDeliveryStatus;
 import com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecovery;
@@ -26,26 +27,40 @@ public class WhatsAppSummaryScheduler {
     private final BusinessProfileRepository profileRepository;
     private final WhatsAppDeliveryRecovery deliveryRecovery;
     private final boolean enabled;
+    private final boolean providerConfigured;
 
     @Autowired
     public WhatsAppSummaryScheduler(
             WhatsAppDeliveryService deliveryService,
             BusinessProfileRepository profileRepository,
             WhatsAppDeliveryRecovery deliveryRecovery,
-            @Value("${app.whatsapp.scheduler.enabled:true}") boolean enabled
+            @Value("${app.whatsapp.scheduler.enabled:true}") boolean enabled,
+            @Value("${app.whatsapp.provider:mock}") String provider
     ) {
         this.deliveryService = deliveryService;
         this.profileRepository = profileRepository;
         this.deliveryRecovery = deliveryRecovery;
         this.enabled = enabled;
+        // With no provider nothing can be sent. Skipping (instead of recording FAILED rows) keeps each weekly cycle
+        // free for a real send once a provider is configured: deliveries are unique per business per cycle.
+        this.providerConfigured = provider == null || !DisabledWhatsAppClient.PROVIDER_NAME.equalsIgnoreCase(provider.trim());
     }
 
     public WhatsAppSummaryScheduler(
             WhatsAppDeliveryService deliveryService,
             BusinessProfileRepository profileRepository,
-            @Value("${app.whatsapp.scheduler.enabled:true}") boolean enabled
+            WhatsAppDeliveryRecovery deliveryRecovery,
+            boolean enabled
     ) {
-        this(deliveryService, profileRepository, null, enabled);
+        this(deliveryService, profileRepository, deliveryRecovery, enabled, "mock");
+    }
+
+    public WhatsAppSummaryScheduler(
+            WhatsAppDeliveryService deliveryService,
+            BusinessProfileRepository profileRepository,
+            boolean enabled
+    ) {
+        this(deliveryService, profileRepository, null, enabled, "mock");
     }
 
     @Scheduled(
@@ -55,6 +70,10 @@ public class WhatsAppSummaryScheduler {
     public void runScheduledWeeklyDelivery() {
         if (!enabled) {
             log.info("WhatsApp weekly summary scheduler is disabled by configuration");
+            return;
+        }
+        if (!providerConfigured) {
+            log.warn("WhatsApp weekly summaries skipped: no WhatsApp provider is configured (app.whatsapp.provider=disabled)");
             return;
         }
         log.info("Starting scheduled WhatsApp weekly summary delivery");
@@ -121,5 +140,9 @@ public class WhatsAppSummaryScheduler {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isProviderConfigured() {
+        return providerConfigured;
     }
 }

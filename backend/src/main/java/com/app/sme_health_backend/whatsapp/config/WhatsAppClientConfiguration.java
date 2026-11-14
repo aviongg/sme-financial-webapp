@@ -1,5 +1,6 @@
 package com.app.sme_health_backend.whatsapp.config;
 
+import com.app.sme_health_backend.whatsapp.client.DisabledWhatsAppClient;
 import com.app.sme_health_backend.whatsapp.client.MetaWhatsAppCloudApiClient;
 import com.app.sme_health_backend.whatsapp.client.MockWhatsAppClient;
 import com.app.sme_health_backend.whatsapp.client.WhatsAppClient;
@@ -34,9 +35,17 @@ public class WhatsAppClientConfiguration {
         );
     }
 
+    /** Development/test simulator only; {@link WhatsAppProductionGuard} refuses it under the production profile. */
     @Bean
     @ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "mock", matchIfMissing = true)
     public WhatsAppClient mockWhatsAppClient() {
         return new MockWhatsAppClient();
+    }
+
+    /** Production default: no provider configured, so nothing is sent and nothing is reported as sent. */
+    @Bean
+    @ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = DisabledWhatsAppClient.PROVIDER_NAME)
+    public WhatsAppClient disabledWhatsAppClient() {
+        return new DisabledWhatsAppClient();
     }
 }

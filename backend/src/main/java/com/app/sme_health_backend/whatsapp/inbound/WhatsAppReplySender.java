@@ -21,7 +21,8 @@ import java.util.UUID;
 
 /**
  * Free-form session replies (inside the customer-service window opened by the user's own message). The provider is
- * selected by app.whatsapp.provider: "meta" uses the Cloud API, anything else uses the in-memory mock (dev/tests).
+ * selected by app.whatsapp.provider: "meta" uses the Cloud API, "mock" captures replies in memory (dev/tests only;
+ * refused in production by WhatsAppProductionGuard), and anything else ("disabled") sends nothing and reports FAILED.
  */
 @Component
 public class WhatsAppReplySender {
@@ -60,9 +61,13 @@ public class WhatsAppReplySender {
 
     public Sent send(String e164, String body) {
         String text = body.length() > 1500 ? body.substring(0, 1497) + "..." : body;
-        if (!"meta".equals(provider)) {
+        if ("mock".equals(provider)) {
             mockOutbox.add(new Outbound(e164, text));
             return new Sent("SENT", "mock-reply-" + UUID.randomUUID());
+        }
+        if (!"meta".equals(provider)) {
+            log.warn("WhatsApp reply not sent: no WhatsApp provider is configured");
+            return new Sent("FAILED", null);
         }
         if (phoneNumberId == null || phoneNumberId.isBlank() || accessToken == null || accessToken.isBlank()) {
             return new Sent("FAILED", null);
