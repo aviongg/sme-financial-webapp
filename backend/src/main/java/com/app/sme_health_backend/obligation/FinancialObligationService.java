@@ -191,6 +191,20 @@ public class FinancialObligationService {
         }
 
         String sourceId = (request.sourceId() != null && !request.sourceId().isBlank()) ? request.sourceId().trim() : null;
+        // Externally issued invoices/bills may be declared here with their own (free-text) reference. A UUID source id
+        // is the provenance of a FinSight commercial document and is written only by CommercialRecognitionService:
+        // accepting it here would let a declared amount/direction impersonate the document, block its real
+        // recognition ("already recognized") and count as that document's revenue or cost.
+        if (isCommercialDocumentProvenance(sourceType, sourceId)) {
+            errors.put("sourceId", "FinSight invoices and bills are recognized from the document itself; "
+                    + "use a free-text external reference for an invoice or bill issued outside FinSight");
+        }
+        if (direction != null && sourceType == ObligationSourceType.CUSTOMER_INVOICE && direction != ObligationDirection.RECEIVABLE) {
+            errors.put("sourceType", "A customer invoice obligation must be RECEIVABLE");
+        }
+        if (direction != null && sourceType == ObligationSourceType.SUPPLIER_BILL && direction != ObligationDirection.PAYABLE) {
+            errors.put("sourceType", "A supplier bill obligation must be PAYABLE");
+        }
         if (sourceId != null && obligationRepository.existsByBusinessIdAndSourceTypeAndSourceId(context.businessId(), sourceType, sourceId)) {
             errors.put("sourceId", "An obligation already exists for this source document");
         }
@@ -300,8 +314,37 @@ public class FinancialObligationService {
         return toDetailResponse(saved, counterparty, allocations, effectivePaid);
     }
 
+    /**
+     * Generic void. An obligation recognized from a FinSight invoice/bill is refused: voiding it alone would leave the
+     * document FINALIZED with its stock issue (COGS) and credit/debit notes still effective while its revenue or cost
+     * disappears. Those are voided through the commercial document lifecycle, which checks those prerequisites.
+     */
     @Transactional
     public ObligationDetailResponse voidObligation(BusinessAccessContext context, UUID id, ObligationVoidRequest request) {
+        return voidInternal(context, id, request, false);
+    }
+
+    /** Void path used only by the commercial document lifecycle after it has verified the document's prerequisites. */
+    @Transactional
+    public ObligationDetailResponse voidForCommercialDocument(BusinessAccessContext context, UUID id, ObligationVoidRequest request) {
+        return voidInternal(context, id, request, true);
+    }
+
+    /** True when the source id is a FinSight commercial document id (the only provenance recognition writes). */
+    static boolean isCommercialDocumentProvenance(ObligationSourceType sourceType, String sourceId) {
+        if (sourceId == null || (sourceType != ObligationSourceType.CUSTOMER_INVOICE && sourceType != ObligationSourceType.SUPPLIER_BILL)) {
+            return false;
+        }
+        try {
+            UUID.fromString(sourceId.trim());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private ObligationDetailResponse voidInternal(BusinessAccessContext context, UUID id, ObligationVoidRequest request,
+                                                  boolean viaCommercialLifecycle) {
         if (request == null || request.reason() == null || request.reason().isBlank()) {
             throw new ObligationValidationException("reason", "Void reason is required");
         }
@@ -312,6 +355,12 @@ public class FinancialObligationService {
 
         FinancialObligation obligation = obligationRepository.findByIdAndBusinessId(id, context.businessId())
                 .orElseThrow(() -> new ResourceNotFoundException("Obligation not found"));
+
+        if (!viaCommercialLifecycle && isCommercialDocumentProvenance(obligation.getSourceType(), obligation.getSourceId())) {
+            throw new ObligationConflictException("This obligation was recognized from a FinSight "
+                    + (obligation.getSourceType() == ObligationSourceType.CUSTOMER_INVOICE ? "invoice" : "bill")
+                    + "; void the document itself so its stock movements and adjustments are handled.");
+        }
 
         if (obligation.getStatus() == ObligationStatus.VOIDED) {
             throw new ObligationConflictException("Obligation is already voided");

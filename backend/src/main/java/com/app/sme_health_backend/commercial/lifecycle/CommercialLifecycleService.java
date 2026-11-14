@@ -282,7 +282,7 @@ public class CommercialLifecycleService {
                     cancel(ctx, lockAdjustment(ctx.businessId(), a.id()), "Superseded by void of " + number + ": " + cleanReason);
                 }
             }
-            obligations.voidObligation(ctx, (UUID) obligation.get("id"),
+            obligations.voidForCommercialDocument(ctx, (UUID) obligation.get("id"),
                     new ObligationVoidRequest("Commercial document " + number + " voided: " + cleanReason));
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
