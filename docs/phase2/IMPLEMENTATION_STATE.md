@@ -15,9 +15,19 @@ Editing reservation: frontend package/lock/workspace dependency declarations; OC
 backup/recovery scripts, fixtures and versioned recovery/grant inventories; integrated
 production/disposable grant acceptance tests and additive test-support catalog/drill tools;
 CI workflows, artifact/image metadata and release/staging/backup documentation.
+Follow-up reservation after hosted run 43601102295: frontend root layout font-source
+imports plus pinned same-family font assets/licenses/provenance and integrity check.
+The separate browser build exposed a next/font/google remote-URL parsing failure;
+remove this build-time network dependency without changing UI/accounting/session flows.
 No migration reserved or V1–V52 edit authorized. Disposable synthetic targets only;
 no demo/customer data, deployment or paid/live provider activation.
-Results/commits will be recorded in the persistent release continuation handoff.
+Six scoped commits through `bfeca63fb51fe81705622b8dfc37ee1ef4bc15f0` were
+successfully published and recovered clean after shutdown; baseline unchanged.
+Current handoff: `docs/release/CONTINUATION_HANDOFF.md`; full commit list, individual
+advisory triage, validation evidence and external PG17/operator gates are recorded
+there. Strict OSV now zero matches/errors; full V52 catalog/grant inventory and
+paired DB/document/key verifier added. Overall release remains RED on unchanged
+core tests and external acceptance. No merge or provider/deployment activation.
 
 ## Production closure infrastructure — 13–14 November 2026 (Asia/Karachi)
 

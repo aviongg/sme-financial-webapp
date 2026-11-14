@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Inter, Noto_Nastaliq_Urdu } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { SessionProvider } from "@/components/auth/SessionProvider";
 import { IntegrationBoundary } from "@/components/layout/IntegrationBoundary";
@@ -7,24 +7,24 @@ import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { ToastProvider } from "@/components/ui/Toast";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const plusJakartaSans = localFont({
+  src: "./fonts/PlusJakartaSans.ttf",
   variable: "--font-heading",
-  weight: ["500", "600", "700", "800"],
+  weight: "500 800",
   display: "swap",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "./fonts/Inter.ttf",
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
   display: "swap",
 });
 
-const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
-  subsets: ["arabic"],
+const notoNastaliqUrdu = localFont({
+  src: "./fonts/NotoNastaliqUrdu.ttf",
   variable: "--font-urdu",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
   display: "swap",
 });
 
