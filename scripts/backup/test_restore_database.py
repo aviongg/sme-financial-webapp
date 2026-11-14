@@ -64,6 +64,8 @@ class PostgresFixture:
         self.counts = dict.fromkeys(("spring_sessions", "spring_session_attributes", "password_reset_tokens", "pending_mfa"), 0)
         self.samples = []
         self.malformed = 0
+        self.catalog = copy.deepcopy(restore.V52["catalog"])
+        self.whatsapp_links = 0
         self.purge_fails = False
         self.creation_fails = False
         self.cleanup_fails = False
@@ -93,6 +95,10 @@ class PostgresFixture:
         if self.query_fails:
             raise restore.RestoreError("Fixture validation connection failure")
         assert database != "live", "Only staging is validated"
+        if sql == restore.CATALOG_SQL:
+            return json.dumps(self.catalog)
+        if "FROM public.whatsapp_inbound_links" in sql:
+            return str(self.whatsapp_links)
         if "FROM pg_tables" in sql:
             return json.dumps(self.tables)
         if "FROM public.flyway_schema_history" in sql:
@@ -276,7 +282,7 @@ class RestoreTests(unittest.TestCase):
 
     def test_valid_restore_and_real_ciphertext_authentication_succeed(self):
         result = self.run_restore()
-        self.assertEqual("VERIFIED_STAGING_RESTORE", result["status"])
+        self.assertEqual("VERIFIED_DATABASE_ONLY", result["status"])
         self.assertEqual("VERIFIED", result["keyring_recovery"]["status"])
         self.assertEqual(1, result["keyring_recovery"]["ciphertext_samples_verified"])
         self.assertFalse(result["live_cutover_performed"])
@@ -338,7 +344,73 @@ class RestoreTests(unittest.TestCase):
         output = io.StringIO()
         with patch.object(sys, "argv", argv), redirect_stdout(output):
             self.assertEqual(0, restore.main())
-        self.assertEqual("VERIFIED_STAGING_RESTORE", json.loads(output.getvalue())["status"])
+        self.assertEqual("VERIFIED_DATABASE_ONLY", json.loads(output.getvalue())["status"])
+
+    def test_every_v52_table_and_trigger_is_mandatory(self):
+        query = lambda sql: self.server.query(None, None, None, 'staging', None, None, sql)
+        for table in restore.REQUIRED_TABLES:
+            with self.subTest(table=table):
+                self.server.tables.remove(table)
+                with self.assertRaises(restore.RestoreError): restore.validate_staging(query)
+                self.server.tables.append(table)
+        for trigger in restore.REQUIRED_TRIGGERS:
+            with self.subTest(trigger=trigger):
+                self.server.triggers.remove(trigger)
+                with self.assertRaises(restore.RestoreError): restore.validate_staging(query)
+                self.server.triggers.append(trigger)
+
+    def test_v52_wrong_constraints_indexes_grants_and_function_body_fail(self):
+        original = copy.deepcopy(self.server.catalog)
+        mutations = [
+            lambda c: c['tables']['inventory_items']['indexes'].clear(),
+            lambda c: c['tables']['financial_obligations']['constraints'].clear(),
+            lambda c: c['tables']['monthly_projection_state']['grants']['finsight_backup'].append('DELETE'),
+            lambda c: c['functions']['mark_monthly_projection_dirty()'].update(body_sha256='0'*64),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                self.server.catalog = copy.deepcopy(original)
+                mutate(self.server.catalog)
+                self.process = FakeProcess()
+                self.popen.return_value = self.process
+                self.fails_closed(restore.RestoreError)
+
+    def test_later_corrupt_row_using_same_key_cannot_hide_behind_valid_sample(self):
+        sample = copy.deepcopy(self.server.samples[0])
+        sample['ciphertext'] = sample['ciphertext'][:-4] + 'AAAA'
+        self.server.samples.append(sample)
+        self.fails_closed(restore.RestoreError)
+
+    def test_every_new_whatsapp_ciphertext_field_authenticates_with_retained_key(self):
+        for field in ('whatsapp_conversations.turns_ciphertext',
+                      'whatsapp_inbound_messages.body_ciphertext', 'whatsapp_inbound_messages.reply_ciphertext'):
+            nonce = os.urandom(12)
+            value = nonce + AESGCM(self.key).encrypt(nonce, b'Synthetic WhatsApp data', b'whatsapp_inbound')
+            self.server.samples.append({'field': field, 'aad': 'whatsapp_inbound',
+                                       'ciphertext': 'enc:v1:k2:' + base64.b64encode(value).decode()})
+        self.assertEqual(4, self.run_restore()['keyring_recovery']['ciphertext_samples_verified'])
+
+    def test_commercial_counterparty_requires_its_historical_key_and_exact_aad(self):
+        key = os.urandom(32)
+        self.bundle['keys']['historical'] = base64.b64encode(key).decode()
+        self.write_keyring()
+        nonce = os.urandom(12)
+        aad = 'FinSight|CommercialDocument|counterpartyName'
+        payload = nonce + AESGCM(key).encrypt(nonce, b'Synthetic counterparty', aad.encode())
+        self.server.samples.append({'field': 'commercial_documents.counterparty_name_ciphertext',
+                                    'aad': aad, 'ciphertext': 'enc:v1:historical:' + base64.b64encode(payload).decode()})
+        result = self.run_restore()
+        self.assertEqual(2, result['keyring_recovery']['ciphertext_samples_verified'])
+        self.assertIn('historical', result['keyring_recovery']['key_ids'])
+
+    def test_active_whatsapp_links_require_phone_lookup_key(self):
+        self.server.whatsapp_links = 1
+        self.fails_closed(restore.RestoreError)
+        self.bundle['whatsapp_phone_hash_key'] = 'SYNTHETIC-TEST-PHONE-HASH-KEY-ONLY-32CHARS'
+        self.write_keyring()
+        self.process = FakeProcess()
+        self.popen.return_value = self.process
+        self.assertTrue(self.run_restore()['keyring_recovery']['phone_hash_key_present'])
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -380,6 +452,21 @@ class ConfigurationTests(unittest.TestCase):
             with patch.dict(os.environ, {"FINSIGHT_CRYPTO_KEY_K1": stale_key, "FINSIGHT_CRYPTO_ACTIVE_KEY_ID": "k1"}, clear=True):
                 bundle = collect_keyring(Path(directory))
             self.assertEqual(secret_key, bundle["keys"]["k1"])
+
+    def test_configtree_whatsapp_lookup_key_is_preserved_only_in_encrypted_bundle(self):
+        recipient, identity = generate_keypair()
+        phone_key = 'SYNTHETIC-WHATSAPP-HMAC-LOOKUP-KEY-ONLY'
+        with tempfile.TemporaryDirectory() as directory:
+            secrets = Path(directory, 'secrets')
+            secrets.mkdir()
+            Path(secrets, 'crypto_key_k1').write_text(base64.b64encode(os.urandom(32)).decode())
+            Path(secrets, 'whatsapp_phone_hash_key').write_text(phone_key)
+            with patch.dict(os.environ, {'FINSIGHT_CRYPTO_ACTIVE_KEY_ID': 'k1'}, clear=True):
+                result = run_keyring_backup(recipient, Path(directory, 'out'), secrets_dir=secrets)
+            from backup.crypto_age import decrypt_bytes
+            recovered = json.loads(decrypt_bytes(Path(result['artifact_path']).read_bytes(), identity))
+            self.assertEqual(phone_key, recovered['whatsapp_phone_hash_key'])
+            self.assertNotIn(phone_key, Path(result['manifest_path']).read_text())
 
     def test_explicit_missing_secret_directory_never_falls_back(self):
         with tempfile.TemporaryDirectory() as directory:
