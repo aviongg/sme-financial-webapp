@@ -200,6 +200,7 @@
 					<includes>
 						<include>**/DatabaseRolePrivilegesPostgreSqlIT.java</include>
 						<include>**/PostgreSqlTlsConnectionIT.java</include>
+						<include>**/V52ProductionPrivilegesAcceptance.java</include>
 					</includes>
 					<!-- Same test-only crypto fixtures as the previous postgres-it invocation. -->
 					<systemPropertyVariables>
