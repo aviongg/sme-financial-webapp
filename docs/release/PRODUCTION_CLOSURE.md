@@ -1,5 +1,9 @@
 # Integrated release engineering record
 
+**Current continuation:** [14 November security/recovery handoff](CONTINUATION_HANDOFF.md).
+It supersedes the historical dependency/recovery/grant limitations and counts
+below while preserving original failed-CI evidence. Overall release remains RED.
+
 Baseline verified after fetching origin: **153e94b214ba24ac1d81a094eff3805334edaad9**,
 `handoff/finsight-integrated-production-baseline-20261113`.
 Implementation branch: `codex/production-closure-infra-tests`.
@@ -11,8 +15,8 @@ Claude retains core/backend production fixes; no accounting logic, policy or V1â
 
 Supported CI host: Ubuntu 22.04 x86-64, JDK 21, Node 22, Python 3.11,
 pnpm **10.28.2**. Use a non-root account: embedded PostgreSQL cannot initialize as root.
-Allow Maven/npm/PyPI/browser downloads and Google Fonts at build time. Fonts remain an
-external build dependency; no generated font fallback conceals a network failure.
+Allow Maven/npm/PyPI/browser downloads. The continuation pins the existing font
+families as licensed local assets; builds no longer depend on Google Fonts.
 Budget disk for dependencies, several disposable PostgreSQL instances and build artifacts;
 run backend, frontend build and browser gates sequentially on constrained hosts.
 
@@ -82,7 +86,7 @@ with simulated PostgreSQL/process boundaries. Neither is a deployed acceptance g
 | Readiness | Only PostgreSQL health; OCR merely started; edge returned static 200 | Backend startup/DB probe, Next liveness, CA-verified OCR process probe, service health dependencies; no claim of provider or schema acceptance |
 | Images/context | Local `latest` tags, Node 20, nested worktrees/test output included in build context | Explicit release tag required, Node 22, ignore tmp/test artifacts/virtualenvs; base image digests still must be recorded |
 | Dependency/security | Dated snapshots, audit read npm lock and old Surefire report | Current pnpm/Python/resolved-Maven OSV gate fails on lookup errors/advisories; independent source-secret scan; image/history scans external |
-| Recovery | Conservative fresh-staging restore and keyring checks, but table/trigger/ciphertext lists predate V52 | Preserved tooling; narrowed claims and P1 tracked below; real V52 recovery acceptance pending |
+| Recovery | Legacy manifest predated V52 | Continuation covers all 84 tables/64 triggers/18 functions, nine encrypted fields and paired DB/doc/key sets; physical PG17/operator drill still pending |
 | Runbooks | Security bootstrap guide and historical V17/V37 setup/manual-monthly steps mixed with current architecture | V52 entry point, current commands, staging/VPS procedure and explicit supersession notices |
 
 Configure repository branch protection/rulesets to **require** `release-gate`,
@@ -134,36 +138,30 @@ it is a public fixture, never a production credential/template. Do not reuse its
 No new P0 accounting finding is claimed by this infrastructure audit. These **P1 release
 blockers** remain until evidence is recorded:
 
-1. **V52 disaster recovery is not fully established.** `restore_database.py` checks current
-   Flyway versions/checksums, but `REQUIRED_TABLES`, `REQUIRED_TRIGGERS` and encrypted-field
-   sampling cover the earlier security schema, not every V18â€“V52 ledger/stock/projection
-   trigger or new WhatsApp ciphertext. A matching history alone cannot prove those objects
-   or data survived. Extend/review the recovery manifest against a real migrated catalog,
-   test deliberately missing/disabled V52 objects and new ciphertext, then execute the
-   encrypted PostgreSQL 17 restore drill. Do not interpret current success as full V52 recovery.
-2. **No validated consistent document-volume restore/cutover.** Database/key backups do
-   not include original uploaded bytes. Freeze writers and pair DB, document snapshot and
-   retained historical keys with the same release. Rehearse application readability/checksums,
-   rollback and measured RPO/RTO on another server before accepting customer data.
+1. **V52 disaster recovery needs a real production-like drill.** The continuation
+   extends the frozen catalog/grants, all-row ciphertext verification and paired
+   encrypted DB/document/historical-key tooling; see [the recovery contract](V52_RECOVERY.md).
+   Real disposable PostgreSQL catalog and crypto/SQL-boundary fixtures pass, but
+   populated PostgreSQL 17 physical restoration/corruption tests remain external.
+2. **No validated application/volume/key mount and rollback on an actual server.**
+   Paired staging verification is not production acceptance. Rehearse restored file
+   access, cross-tenant denial, image/connection/volume switch-back and measured RPO/RTO.
 3. **Real-provider activation remains unwired/unaccepted.** Keep unavailable capabilities
    explicitly disabled; real credentials/approval and a reviewed deployment configuration
    are required. No invented credentials or automatic paid calls are introduced here.
 4. **Actual Linux images, PostgreSQL 17 TLS/HBA/grants, ingress and secret permissions remain
    deployment acceptance gates.** Fixture/embedded results do not cover them. Test fresh
-   installation and populated V52 upgrade; execute both production-target Java IT classes.
-   Their domain-table privilege assertions are historical and do not cover the integrated
-   ledger/stock/projection tables: extend the production-catalog acceptance as well.
+   installation and populated V52 upgrade; execute the production-target Java profile, now including the V52 catalog/role
+   acceptance class and backup-role login. No real PostgreSQL 17 acceptance is claimed.
 5. **Merge protection/host operations are not configured by source changes.** Require the
    CI statuses, retain immutable image digests, configure monitoring/certificate renewal,
    backup retention/off-site replication, disk alerts and an owner for incident recovery.
-6. **The current dependency gate is red.** The fresh OSV audit queried 619 package/version
-   records (439 npm, 44 PyPI, 136 Maven), matched ten resolved packages and returned 95
-   unique advisory records with zero lookup errors. Records include high/critical severity
-   labels for runtime Next.js and OCR/trust dependencies. This is not a confirmed exploit
-   assessment; aliases may refer to the same vulnerability. See
-   [the exact version/finding inventory](DEPENDENCY_FINDINGS.md). Review affected ranges,
-   reachability and patches with the owners, then re-lock and rerun the gates. Nothing is
-   suppressed and no broad dependency upgrade is hidden in this infrastructure change.
+6. **Dependency matches closed; image/provider security remains external.**
+   All 95 original advisory records were individually reviewed. Minimal locked
+   upgrades now scan 620 versions with zero matches/errors, independently passing
+   hosted security run 43601102261. [Triage and upgrade evidence](security/UPGRADE_LOG.md)
+   retains the original findings. Nothing is suppressed; this does not accept final
+   image OS packages, history secrets or real provider trust compatibility.
 7. **Clean-clone CI exposed a core recurring-generation race.** Shard 4 failed in
    `RecurringTransactionsPostgreSqlIT.testConcurrentGenerationRacingAndIdempotency`
    with an unexpected optimistic-lock exception during two simultaneous calls.

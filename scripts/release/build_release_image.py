@@ -53,13 +53,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', choices=IMAGES)
     parser.add_argument('--base-lock', type=Path)
-    parser.add_argument('--output', type=Path, default=ROOT / 'backend/target/release-images')
+    parser.add_argument('--output', type=Path, help='Default: backend/target/release-images/SHA/IMAGE')
     args = parser.parse_args()
     sha = command(['git', 'rev-parse', 'HEAD'])
     if not re.fullmatch('[0-9a-f]{40}', sha) or command(['git', 'status', '--porcelain']):
         raise ValueError('Release image builds require a clean exact commit')
     if os.environ.get('GITHUB_SHA', sha) != sha:
         raise ValueError('Workflow SHA does not equal checked-out source')
+    args.output = args.output or ROOT / 'backend/target/release-images' / sha / args.image
     dockerfile = 'docker/Dockerfile.' + args.image
     bases = declared_bases((ROOT / dockerfile).read_text())
     locked = json.loads(args.base_lock.read_text()) if args.base_lock else None

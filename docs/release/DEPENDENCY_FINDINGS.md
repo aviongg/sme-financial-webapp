@@ -1,5 +1,9 @@
 # Dependency audit findings — 14 November 2026
 
+**Historical original findings, retained as evidence.** Reviewed upgrades and current
+zero-match scan are in [the security closure](security/UPGRADE_LOG.md); every original
+record remains individually documented in [OSV triage](security/OSV_TRIAGE.md).
+
 Read-only OSV query of exact resolved package versions. Inventory: 439 npm, 44 PyPI and 136 Maven packages. Ten package/version matches, 95 unique advisory records, zero lookup errors. Alias records may describe the same vulnerability; these are database matches, not a reachability/exploitability assessment. The dependency gate correctly exits nonzero; no suppressions or dependency upgrades were introduced.
 
 | Ecosystem | Resolved package | Version | OSV severity labels | Advisory records |

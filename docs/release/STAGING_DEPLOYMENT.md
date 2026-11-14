@@ -13,9 +13,10 @@ non-secret configuration, V1–V52 Flyway history/checksum acceptance, certifica
 storage identifiers, backup set IDs, operator and time. Keep secret values out of evidence.
 Tag each application image with the reviewed source SHA through `FINSIGHT_RELEASE_TAG`;
 retain the exact prior images/digests and matching source. Tags alone are not immutable.
-Base OS/runtime images still use mutable tags: record and promote the tested digests
-without rebuilding between staging and production. Review new vulnerabilities before promotion.
-CI artifacts currently retain 14 days; copy accepted release evidence, checksums and
+Use the [digest-recording build procedure](RELEASE_ACCEPTANCE.md) and promote tested
+image bytes/digests without rebuilding between staging and production. Pin the
+storage-init helper in the operator override too. Review new vulnerabilities before promotion.
+New CI artifacts request 90 days; copy accepted release evidence, checksums and
 manifests into controlled long-term release storage before they expire.
 
 Require the normal checks described in [the closure record](PRODUCTION_CLOSURE.md),
@@ -42,11 +43,12 @@ deployment workflow; provider and customer-data gates require their actual owner
 # From the exact reviewed checkout; these commands target staging only.
 export COMPOSE_PROJECT_NAME=finsight-staging
 docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration config --quiet
-docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration build
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --wait --wait-timeout 120 postgres
-docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration run --rm backend-migration
+# Build/scan all six images once with scripts/release/build_release_image.py;
+# load accepted bytes and retain their digests before these staging-only starts.
+docker compose --env-file .env.production -f docker-compose.prod.yml up --no-build --pull never -d --wait --wait-timeout 120 postgres
+docker compose --env-file .env.production -f docker-compose.prod.yml --profile migration run --no-build --pull never --rm backend-migration
 # Stop here on any migration error. Do not start the new runtime or repair checksums.
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --wait --wait-timeout 240
+docker compose --env-file .env.production -f docker-compose.prod.yml up --no-build --pull never -d --wait --wait-timeout 240
 docker compose --env-file .env.production -f docker-compose.prod.yml ps -a
 ```
 
@@ -73,11 +75,12 @@ Supply these existing test settings from controlled fixture configuration:
 | `FINSIGHT_TEST_DB_WRONG_HOST_URL` | Same reachable DB via an alias not in its certificate SAN; an unreachable host is not a hostname-mismatch test |
 | `FINSIGHT_TEST_DB_CA` | Absolute trusted CA file path inside the acceptance worker |
 | `FINSIGHT_TEST_DB_CONTAINER`, `FINSIGHT_TEST_DB_NAME` | Exact disposable container/database used by Docker-exec DBA probes |
-| `FINSIGHT_TEST_APP_PASSWORD`, `FINSIGHT_TEST_MIGRATOR_PASSWORD`, `FINSIGHT_TEST_DBA_PASSWORD` | Fixture role credentials via secret-manager environment injection, never shell arguments or evidence |
+| `FINSIGHT_TEST_APP_PASSWORD`, `FINSIGHT_TEST_MIGRATOR_PASSWORD`, `FINSIGHT_TEST_BACKUP_PASSWORD`, `FINSIGHT_TEST_DBA_PASSWORD` | Fixture role credentials via secret-manager environment injection, never shell arguments or evidence |
 
-The existing production-target privilege assertions predate the V18–V52 domain tables.
-Run them for their defined security boundary, then extend/review production-catalog checks
-for the integrated ledger, stock and projection objects before claiming full V52 grant coverage.
+The profile retains the existing security/TLS probes and now adds read-only
+`V52ProductionPrivilegesAcceptance` for every integrated object/ACL and the real
+app/migrator/backup logins. Retain actual PostgreSQL 17 results before claiming
+deployment acceptance; embedded catalog coverage is not that evidence.
 
 - Fresh database bootstrap **and** populated previous-release upgrade on disposable copies.
 - PostgreSQL 17 `verify-full`, wrong CA/hostname/plaintext denials, runtime/backup grants and
@@ -106,8 +109,9 @@ for the integrated ledger, stock and projection objects before claiming full V52
 
 The [encrypted database/keyring tools](../../scripts/backup/README.md) create a fresh staging
 database, verify matching Flyway history, purge sessions/reset/pending-MFA state and test
-representative ciphertext. Current manifest coverage is incomplete for V52 (P1 in closure
-record); do not claim whole-system recoverability until extended and drilled.
+every encrypted value across nine fields. The [V52 paired recovery tool](V52_RECOVERY.md)
+now binds database, document bytes and all historical keys with full catalog/data
+verification; it still needs the actual PG17/server/app/rollback drill.
 
 Before an approved production maintenance window:
 
@@ -136,5 +140,6 @@ Rollback must be selected **before** migration:
   ciphertext/files, then perform a rehearsed connection/volume cutover. Preserve the failed
   database/volume for reconciliation. Do not downgrade by deleting Flyway rows or reversing SQL.
 
-No live database cutover, document snapshot mechanism, off-site backup schedule or automated
-rollback is implemented by the repository tools. Those are explicit server/operator deliverables.
+No live database cutover, off-site backup schedule or automated rollback is implemented
+by the repository tools. Paired encrypted document capture/restore now exists but is
+not production acceptance. Those are explicit server/operator deliverables.

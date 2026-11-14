@@ -1,0 +1,18 @@
+{
+  "source_sha": "bfeca63fb51fe81705622b8dfc37ee1ef4bc15f0",
+  "date": "2026-11-14",
+  "gate": "strict OSV resolved package query",
+  "queried_counts": {
+    "Maven": 136,
+    "PyPI": 44,
+    "npm": 440
+  },
+  "package_matches": [],
+  "errors": [],
+  "audit_sha256": "3f2e45a61787d2d5bd27a90fea0f3ea11047371a5526d083485d40ed20e7439d",
+  "hosted_security_run": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43601102261",
+  "suppressions_added": false,
+  "production_release_accepted": false,
+  "hosted_job_id": 132465817376,
+  "hosted_queried_counts_verified_from_log": true
+}
