@@ -11,7 +11,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { documentsApi, documentFilePath, DocumentRecord, currentDocumentDraft, type Confirmation } from '@/lib/api/documents';
 import { isPotentialDuplicate } from '@/lib/api/record-integrity';
 import { pilotHardeningCopy } from '@/lib/i18n/translations/pilot-hardening';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, apiClient } from '@/lib/api/client';
 import { useSession } from '@/components/auth/SessionProvider';
 import { useLiveResource } from './useLiveResource';
 import { LivePage } from './LivePage';
@@ -20,6 +20,11 @@ import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/lib/i18n/context';
 import { interpolate, liveLabel } from '@/lib/i18n/labels';
 import { Input } from '@/components/ui/Input';
+// DEF-01 manual-review fallback. Kept local to this screen until the shared documents API/dictionary batch adopts it.
+const manualReviewCopy = {
+    en: { action: 'Enter details manually', help: 'Automatic reading was unavailable for this file. Open the original and enter its details yourself; nothing is posted until you review and confirm.', note: 'Automatic reading failed for this file, so these details are entered manually from the original.' },
+    ur: { action: 'تفصیلات خود درج کریں', help: 'اس فائل کی خودکار پڑھائی دستیاب نہیں تھی۔ اصل فائل کھول کر تفصیلات خود درج کریں؛ جائزہ اور تصدیق سے پہلے کچھ بھی درج نہیں ہوگا۔', note: 'اس فائل کی خودکار پڑھائی ناکام رہی، اس لیے یہ تفصیلات اصل فائل سے دستی طور پر درج کی جا رہی ہیں۔' },
+} as const;
 function documentReturnQuery() { if (typeof window === 'undefined') return ''; const value = new URLSearchParams(window.location.search).get('returnTo'); return value ? '?returnTo=' + encodeURIComponent(safeRecordsReturn(value)) : ''; }
 export function LiveDocumentReview() { const params = useParams(); const id = typeof params.id === 'string' ? params.id : ''; return <Suspense><DocumentReview key={id} id={id}/></Suspense>; }
 function DocumentReview({ id }: {
@@ -51,6 +56,9 @@ function ReviewForm({ document: doc, reload }: {
     const { can } = useSession();
     const { t, locale } = useLanguage(); const configuration = useConfiguration(); const copy = phaseTwoCopy(locale); const enabled = configuration?.available('documents') === true;
     const integrity = pilotHardeningCopy(locale);
+    const manualCopy = manualReviewCopy[locale === 'ur' ? 'ur' : 'en'];
+    const manualEligible = (doc as DocumentRecord & { manualReviewEligible?: boolean }).manualReviewEligible === true;
+    const manualEntry = currentDocumentDraft(doc).entry_mode === 'manual';
     const router = useRouter();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -108,7 +116,7 @@ function ReviewForm({ document: doc, reload }: {
             else { setError(localizedError(failure, t)); if (failure instanceof ApiError && failure.status === 409) reload(); }
         } finally { confirmationLock.current = false; setBusy(false); setConfirming(false); }
     };
-    return <div className="space-y-5"><Card padding="lg" className="space-y-3"><h2 className="font-semibold break-words">{doc.originalFilename}</h2><p>{t.live.status}: {t.uploadStates[doc.processingStatus]}</p><a className="underline" href={documentFilePath(doc.id)} target="_blank" rel="noopener noreferrer">{t.live.openOriginal}</a>{doc.failureReason && <p role="alert">{t.live.processingFailure}</p>}{['pending', 'processing'].includes(doc.processingStatus) && <p role="status">{t.live.processingHelp}</p>}{doc.processingStatus === 'confirmed' && <p>{interpolate(t.live.confirmedHelp, { month: doc.linkedMonth || '—' })}</p>}</Card>
+    return <div className="space-y-5"><Card padding="lg" className="space-y-3"><h2 className="font-semibold break-words">{doc.originalFilename}</h2><p>{t.live.status}: {t.uploadStates[doc.processingStatus]}</p><a className="underline" href={documentFilePath(doc.id)} target="_blank" rel="noopener noreferrer">{t.live.openOriginal}</a>{doc.failureReason && (manualEntry ? <p role="status" data-testid="document-manual-entry">{manualCopy.note}</p> : <p role="alert">{t.live.processingFailure}</p>)}{['pending', 'processing'].includes(doc.processingStatus) && <p role="status">{t.live.processingHelp}</p>}{doc.processingStatus === 'confirmed' && <p>{interpolate(t.live.confirmedHelp, { month: doc.linkedMonth || '—' })}</p>}</Card>
  {Object.keys(extracted).length > 0 && <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{doc.extractionProvenance === 'LEGACY_UNKNOWN' ? t.live.legacyExtraction : t.live.originalExtraction}</h2><p className="text-sm">{t.live.extractionHelp}</p><DraftValues json={doc.extractedData}/></Card>}
  {doc.reviewedData && <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.reviewedDraft}</h2><DraftValues json={doc.reviewedData}/></Card>}
  <CorrectionHistory id={doc.id}/>
@@ -122,7 +130,8 @@ function ReviewForm({ document: doc, reload }: {
  </div> : confirming ? <div role="group" aria-label={t.live.financialContribution} className="border border-amber-300 bg-amber-50 p-4 space-y-3"><p>{interpolate(t.live.confirmSummary, { amount, month, classification: liveLabel(t, classification), impact: liveLabel(t, impact) })}</p><div className="flex gap-3"><Button type="button" data-testid="confirm-document" disabled={busy} isLoading={busy} onClick={() => void confirm()}>{t.live.confirmOnce}</Button><Button type="button" variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>{t.live.reviewAgain}</Button></div></div> : <Button type="submit" data-testid="review-document" disabled={busy}>{t.live.reviewContribution}</Button>}
  {can('DOCUMENT_EDIT') && <Button type="button" variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.correct(doc.id, { date: date || null, amount: amount === '' ? null : Number(amount), vendorOrParty: party || null, category: draftCategory, documentType: draftType }))}>{t.live.saveCorrections}</Button>}
  </form></Card>}
- <div className="flex gap-3">{enabled && doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <Button variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.retry(doc.id))}>{t.live.retryExtraction}</Button>}{enabled && doc.processingStatus !== 'confirmed' && can('DOCUMENT_DELETE') && <Button variant="destructive" disabled={busy} onClick={() => {
+ {enabled && manualEligible && doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <p className="text-sm">{manualCopy.help}</p>}
+ <div className="flex gap-3">{enabled && manualEligible && doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <Button data-testid="document-manual-review" disabled={busy} onClick={() => void action(() => apiClient<DocumentRecord>(`/documents/${encodeURIComponent(doc.id)}/manual-review`, { method: 'POST' }))}>{manualCopy.action}</Button>}{enabled && doc.processingStatus === 'failed' && can('DOCUMENT_EDIT') && <Button variant="secondary" disabled={busy} onClick={() => void action(() => documentsApi.retry(doc.id))}>{t.live.retryExtraction}</Button>}{enabled && doc.processingStatus !== 'confirmed' && can('DOCUMENT_DELETE') && <Button variant="destructive" disabled={busy} onClick={() => {
                 if (window.confirm(t.live.deleteDocument))
                     void action(async () => { await documentsApi.remove(doc.id); router.replace('/upload' + documentReturnQuery()); });
             }}>{t.live.deleteDraft}</Button>}</div>
