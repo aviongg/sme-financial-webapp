@@ -1,0 +1,45 @@
+name: Historical browser reconciliation
+on:
+  push:
+    branches: ['test/finsight-v2-historical-browser-reconciliation']
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+    working-directory: frontend
+env:
+  NEXT_PUBLIC_DATA_MODE: live
+  NEXT_TELEMETRY_DISABLED: '1'
+  BACKEND_API_URL: http://127.0.0.1:18080
+  FRONTEND_TEST_ORIGIN: http://127.0.0.1:13100
+  FINSIGHT_BROWSER_BACKEND_PORT: '18080'
+jobs:
+  historical-browser:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: mkdir -p test-artifacts/historical && pnpm test 2>&1 | tee test-artifacts/historical/unit.log
+      - run: pnpm typecheck && pnpm lint
+      - run: pnpm build:release 2>&1 | tee test-artifacts/historical/build.log
+      # All drivers run sequentially, even if an earlier driver fails. Real product
+      # failures (including DEF-08) fail the aggregate. No retries/continue-on-error.
+      - run: node tests/run-historical-browser-reconciliation.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: historical-browser-${{ github.sha }}
+          path: frontend/test-artifacts/historical/
+          retention-days: 90

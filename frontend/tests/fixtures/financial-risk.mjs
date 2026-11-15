@@ -184,4 +184,3 @@ export const buildRiskAssessmentResponse = (horizonDays = 30, categoryFilter = '
     evaluatedAt: '2026-10-15T12:00:00Z',
   };
 };
-
