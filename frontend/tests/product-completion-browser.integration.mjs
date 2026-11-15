@@ -69,7 +69,7 @@ public class ProductRuntime {
       "--spring.datasource.url=" + DisposablePostgres.URL, "--spring.datasource.username=finsight_app", "--spring.datasource.password=" + DisposablePostgres.PASSWORD,
       "--spring.flyway.enabled=false", "--app.documents.storage-dir=" + DisposablePostgres.DOCUMENTS, "--app.whatsapp.scheduler.enabled=false",
       "--finsight.crypto.keys.k1=" + key, "--app.security.cors.allowed-origins=${origin}", "--logging.level.root=WARN",
-      "--spring.profiles.active=dev", "--app.ai.enabled=true", "--app.ai.provider=mock", "--app.ai.demo-enabled=true");
+      "--spring.profiles.active=dev", "--OCR_INTEGRATION_ENABLED=false", "--app.ai.enabled=true", "--app.ai.provider=mock", "--app.ai.demo-enabled=true");
     System.out.println("PRODUCT_RUNTIME_READY"); System.out.flush();
     var in = new java.util.Scanner(System.in);
     while (in.hasNextLine()) { if (in.nextLine().trim().equals("STOP")) break; }
@@ -325,6 +325,11 @@ public class ProductRuntime {
 
   }
 
+  if (process.argv.includes('--candidate-v2')) {
+    assert.equal(smoke, false, 'Candidate-v2 contracts require the full financial/browser journey');
+    const { candidateV2Journeys } = await import('./candidate-v2-journeys.mjs');
+    await candidateV2Journeys({ origin, browser, call, csrf, cookies, mark, itemId: item.json.id, businessId: biz.json.businessId, today });
+  }
   writeFileSync(path.join(outDir, 'results.json'), JSON.stringify({ passed: checks.length, checks }, null, 2));
   console.log(`\nALL ${checks.length} ${smoke ? 'RELEASE-SMOKE' : 'PRODUCT-COMPLETION'} BROWSER CHECKS PASSED`);
 } catch (error) {
