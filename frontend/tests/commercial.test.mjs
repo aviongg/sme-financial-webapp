@@ -121,6 +121,24 @@ test('line editing helpers keep ids, cap at 100 lines and rebuild drafts from se
   });
   assert.deepEqual(rebuilt, { counterpartyName: '', documentDate: '2026-10-28', dueDate: '', notes: '',
     lines: [{ id: 's1', description: 'Work', quantity: '3.5', unit: '', unitPrice: '120.40' }] });
+
+  // DEF-05 regression: loading a document with an inventoryItemId and editing unrelated fields preserves inventoryItemId.
+  const linkedDoc = {
+    counterpartyName: 'Alpha Textiles', documentDate: '2026-10-28', dueDate: '2026-11-15', notes: 'Initial note',
+    lines: [
+      { id: 'l-stock', description: 'Cotton yarn', quantity: '10', unit: 'bag', unitPrice: '500.00', lineAmount: '5000.00', inventoryItemId: 'item-uuid-001' },
+      { id: 'l-service', description: 'Delivery', quantity: '1', unit: null, unitPrice: '200.00', lineAmount: '200.00', inventoryItemId: null },
+    ],
+  };
+  let linkedDraft = form.draftFromDocument(linkedDoc);
+  assert.equal(linkedDraft.lines[0].inventoryItemId, 'item-uuid-001');
+  assert.equal(linkedDraft.lines[1].inventoryItemId, undefined);
+  linkedDraft = { ...linkedDraft, counterpartyName: 'Alpha Textiles Pvt Ltd', notes: 'Updated note' };
+  linkedDraft = form.changeCommercialLine(linkedDraft, 'l-stock', 'quantity', '12');
+  linkedDraft = form.changeCommercialLine(linkedDraft, 'l-stock', 'description', 'Cotton yarn (grade A)');
+  const updatePayload = form.commercialUpdatePayload(linkedDraft, 2);
+  assert.equal(updatePayload.lines[0].inventoryItemId, 'item-uuid-001', 'editing unrelated fields must not erase inventoryItemId');
+  assert.equal('inventoryItemId' in updatePayload.lines[1], false);
 });
 
 test('server codes map to localized issues, conflicts and finalize blockers; actions follow status and role', () => {
@@ -128,7 +146,7 @@ test('server codes map to localized issues, conflicts and finalize blockers; act
     'lines[1].lineAmount': 'line_amount_not_exact', 'lines[0].quantity': 'quantity_must_be_positive',
     dueDate: 'due_date_before_document_date', total: 'total_out_of_range', mystery: 'something_new',
   }), { 'lines[1].lineAmount': 'notExact', 'lines[0].quantity': 'positive', dueDate: 'dateOrder', total: 'range', mystery: 'invalid' });
-  for (const code of ['stale_document_version', 'document_not_draft', 'document_already_finalized', 'document_already_void', 'invalid_document_transition', 'document_delete_forbidden']) {
+  for (const code of ['stale_document_version', 'document_not_draft', 'document_already_finalized', 'document_already_void', 'invalid_document_transition', 'document_delete_forbidden', 'document_has_financial_effect']) {
     assert.equal(form.isCommercialConflictCode(code), true, code);
   }
   assert.equal(form.isCommercialConflictCode('commercial_document_invalid'), false);
@@ -136,6 +154,7 @@ test('server codes map to localized issues, conflicts and finalize blockers; act
   assert.equal(form.isCommercialFinalizeBlocker('total_must_be_positive'), true);
   assert.deepEqual(form.commercialActions('DRAFT', true), { edit: true, remove: true, finalize: true, void: false });
   assert.deepEqual(form.commercialActions('FINALIZED', true), { edit: false, remove: false, finalize: false, void: true });
+  assert.deepEqual(form.commercialActions('FINALIZED', true, true), { edit: false, remove: false, finalize: false, void: false });
   assert.deepEqual(form.commercialActions('VOID', true), { edit: false, remove: false, finalize: false, void: false });
   assert.deepEqual(form.commercialActions('DRAFT', false), { edit: false, remove: false, finalize: false, void: false });
   assert.deepEqual(form.commercialActions('FINALIZED', false), { edit: false, remove: false, finalize: false, void: false });

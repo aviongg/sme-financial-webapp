@@ -41,7 +41,7 @@ function WidgetBody({ widgetKey }: { widgetKey: string }) {
   const { locale } = useLanguage();
   const copy = productCopy(locale);
   const i = copy.intelligence;
-  const needsPosition = ['transactions', 'receivables', 'payables', 'projects', 'costing', 'production', 'inventory'].includes(widgetKey);
+  const needsPosition = ['transactions', 'receivables', 'payables', 'projects', 'costing', 'production'].includes(widgetKey);
   const needsPnl = ['invoices', 'commissions', 'multi-currency', 'profitability'].includes(widgetKey);
   const load = useLoad<Record<string, unknown> | null>(signal => {
     if (needsPosition) return apiClient<Record<string, unknown>>('/intelligence/position', { signal });
@@ -60,7 +60,7 @@ function WidgetBody({ widgetKey }: { widgetKey: string }) {
       case 'transactions': return <dl className="space-y-1"><Row label={i.cash} value={d.cashBalance}/></dl>;
       case 'receivables': return <dl className="space-y-1"><Row label={i.ar} value={d.receivablesOutstanding}/><Row label={i.overdueAr} value={d.overdueReceivables}/></dl>;
       case 'payables': return <dl className="space-y-1"><Row label={i.ap} value={d.payablesOutstanding}/><Row label={i.overdueAp} value={d.overduePayables}/></dl>;
-      case 'inventory': return <dl className="space-y-1"><Row label={i.inventory} value={d.inventoryValue}/><p className="text-sm">{copy.stock.belowReorder}: <bdi dir="ltr">{String(d.itemsBelowReorder ?? 0)}</bdi></p></dl>;
+      case 'inventory': return <dl className="space-y-1"><Row label={i.inventory} value={d.totalValue ?? d.inventoryValue}/><p className="text-sm">{copy.stock.belowReorder}: <bdi dir="ltr">{String(d.itemsBelowReorder ?? 0)}</bdi></p></dl>;
       case 'projects': return asList(d.activeProjects).length === 0 ? <p className="text-sm">{copy.common.empty}</p>
         : <ul className="space-y-1 text-sm">{asList(d.activeProjects).map(p => <li key={String(p.projectId)} className="flex flex-wrap justify-between gap-2"><bdi dir="ltr">{String(p.code)}</bdi><Amount value={p.profit}/></li>)}</ul>;
       case 'costing': return <p className="text-sm"><bdi dir="ltr">{String(d.activeEstimates ?? 0)}</bdi></p>;

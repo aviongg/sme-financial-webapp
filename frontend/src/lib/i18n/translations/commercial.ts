@@ -32,6 +32,10 @@ const commercialEnCopy = {
     'Finalizing an invoice or bill does not post money by itself. Recognize it into receivables/payables from its Financial lifecycle panel; settlements, credit/debit notes and stock actions are recorded there.',
   settlementUnavailable: 'Payments and outstanding amounts appear in the Financial lifecycle panel once the document is recognized.',
   financialEffectNone: 'Financial effect: none',
+  financialEffectRecognized: {
+    INVOICE: 'Financial effect: recognized in receivables',
+    BILL: 'Financial effect: recognized in payables',
+  },
   currencyNote: 'Currency: PKR · No tax or discounts in this phase · Total equals subtotal',
   demoUnavailable: 'Invoices and bills require an authenticated live business session.',
   noAccess: 'Your business role does not permit viewing invoices and bills.',
@@ -63,6 +67,8 @@ const commercialEnCopy = {
     unit: 'Unit (optional)',
     unitPrice: 'Unit price (PKR)',
     lineAmount: 'Amount',
+    inventoryItem: 'Inventory item (optional)',
+    noInventoryItem: 'None (service / non-stock line)',
   },
   editor: {
     detailsTitle: 'Document details',
@@ -134,6 +140,7 @@ const commercialEnCopy = {
     confirm: 'Void document',
     working: 'Voiding…',
     cancel: 'Cancel',
+    recognizedHint: 'This document is recognized in your financial records. Use "Void by compensation" in the Financial lifecycle panel below to reverse it.',
   },
   remove: {
     button: 'Delete draft',
@@ -158,6 +165,7 @@ const commercialEnCopy = {
     document_already_void: 'This document was already voided.',
     invalid_document_transition: 'That action is not allowed for the document’s current status.',
     document_delete_forbidden: 'Finalized and void documents cannot be deleted.',
+    document_has_financial_effect: 'This document is recognized or has stock movements. Use "Void by compensation" in the Financial lifecycle panel below instead of plain void.',
     reload: 'Reload latest',
   },
 };
@@ -199,6 +207,10 @@ export const commercialUr: CommercialCopy = {
     'انوائس یا بل کو حتمی کرنے سے خود بخود رقم درج نہیں ہوتی۔ "مالی مراحل" پینل سے اسے وصولیوں/واجبات میں درج کریں؛ ادائیگیاں، کریڈٹ/ڈیبٹ نوٹ اور اسٹاک کارروائیاں وہیں درج ہوتی ہیں۔',
   settlementUnavailable: 'دستاویز درج ہونے کے بعد ادائیگیاں اور باقی رقم "مالی مراحل" پینل میں نظر آتی ہیں۔',
   financialEffectNone: 'مالی اثر: کوئی نہیں',
+  financialEffectRecognized: {
+    INVOICE: 'مالی اثر: وصولیوں میں درج شدہ',
+    BILL: 'مالی اثر: واجبات میں درج شدہ',
+  },
   currencyNote: 'کرنسی: PKR · اس مرحلے میں ٹیکس یا رعایت نہیں · کل رقم ذیلی کل کے برابر ہے',
   demoUnavailable: 'انوائسز اور بلز کے لیے تصدیق شدہ لائیو کاروباری سیشن ضروری ہے۔',
   noAccess: 'آپ کے کاروباری کردار کو انوائسز اور بلز دیکھنے کی اجازت نہیں۔',
@@ -230,6 +242,8 @@ export const commercialUr: CommercialCopy = {
     unit: 'اکائی (اختیاری)',
     unitPrice: 'فی اکائی قیمت (PKR)',
     lineAmount: 'رقم',
+    inventoryItem: 'اسٹاک شے (اختیاری)',
+    noInventoryItem: 'کوئی نہیں (سروس / غیر اسٹاک شے)',
   },
   editor: {
     detailsTitle: 'دستاویز کی تفصیلات',
@@ -301,6 +315,7 @@ export const commercialUr: CommercialCopy = {
     confirm: 'دستاویز کالعدم کریں',
     working: 'کالعدم ہو رہی ہے…',
     cancel: 'واپس',
+    recognizedHint: 'یہ دستاویز آپ کے مالی ریکارڈ میں درج ہو چکی ہے۔ اسے واپس کرنے کے لیے نیچے "مالی مراحل" پینل میں "جوابی اندراج سے منسوخ کریں" استعمال کریں۔',
   },
   remove: {
     button: 'مسودہ حذف کریں',
@@ -325,6 +340,7 @@ export const commercialUr: CommercialCopy = {
     document_already_void: 'یہ دستاویز پہلے ہی منسوخ ہو چکی ہے۔',
     invalid_document_transition: 'دستاویز کی موجودہ حیثیت میں یہ عمل ممکن نہیں۔',
     document_delete_forbidden: 'حتمی یا منسوخ دستاویزات حذف نہیں ہو سکتیں۔',
+    document_has_financial_effect: 'یہ دستاویز مالی ریکارڈ میں درج ہے یا اس کی اسٹاک نقل و حرکت موجود ہے۔ سادہ منسوخی کے بجائے نیچے "مالی مراحل" پینل میں "جوابی اندراج سے منسوخ کریں" استعمال کریں۔',
     reload: 'تازہ ترین لوڈ کریں',
   },
 };

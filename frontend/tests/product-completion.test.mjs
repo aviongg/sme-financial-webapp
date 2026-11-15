@@ -136,3 +136,19 @@ test('monthly figures are derived: adapters only read projections, recalculate, 
   assert.doesNotMatch(source('../src/components/integration/LiveDocumentReview.tsx'), /document-initial-balance/);
   assert.match(productCopy('en').monthly.principle, /derived automatically/);
 });
+
+test('DEF-06 and DEF-09: stock returns select prior issue movements by context and financial pack translates all metric labels', () => {
+  const stockSource = source('../src/components/product/StockWorkspace.tsx');
+  assert.match(stockSource, /data-testid="stock-issue-movement"/);
+  assert.match(stockSource, /m\.movementType === 'ISSUE' && !m\.reversed/);
+  assert.doesNotMatch(stockSource, /<Input label=\{s\.issueMovementId\}/);
+
+  const opsSource = source('../src/components/product/OperationsViews.tsx');
+  assert.match(opsSource, /function packLabel/);
+  assert.doesNotMatch(opsSource, /walk\(prefix \? `\$\{prefix\}\.\$\{k\}` : k/);
+  for (const key of ['cashSales', 'invoiceRevenue', 'grossMarginPct', 'openingBalance', 'flowsByEventType', 'totalOutstanding', 'OVERDUE_1_30', 'carryingValue', 'compositeScore']) {
+    assert.ok(productCopies.en.reports.labels[key], `en label: ${key}`);
+    assert.ok(productCopies.ur.reports.labels[key], `ur label: ${key}`);
+    assert.match(productCopies.ur.reports.labels[key], /[\u0600-\u06ff]|SKU/, `ur script: ${key}`);
+  }
+});

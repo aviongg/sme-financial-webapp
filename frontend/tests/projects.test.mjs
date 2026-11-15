@@ -401,12 +401,12 @@ test('projectsApi submits authenticated CSRF requests, preserves conflict codes 
   await assert.rejects(() => pending, error => error.name === 'AbortError');
 });
 
-test('navigation permissions and module gating keep F05 routes properly scoped without activating F02/F13 actuals', () => {
+test('navigation permissions and module gating keep F05 routes properly scoped to the projects module', () => {
   assert.equal(routePermission('/projects'), 'FINANCIAL_DATA_READ');
   assert.equal(routePermission('/projects/new'), 'RECORD_CREATE_UPDATE');
   assert.equal(routePermission('/projects/123'), 'FINANCIAL_DATA_READ');
-  assert.equal(routeModule('/projects'), null);
-  assert.equal(routeModule('/projects/new'), null);
+  assert.equal(routeModule('/projects'), 'projects');
+  assert.equal(routeModule('/projects/new'), 'projects');
 });
 
 test('money and percentage formatters preserve all server precision and handle null/negative values in EN and UR', () => {

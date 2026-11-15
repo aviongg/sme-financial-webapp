@@ -175,8 +175,8 @@ test('English and Urdu cover all fields, modes, errors, denominator reasons and 
   assert.deepEqual(Object.keys(estimatesUr.groups), ['MATERIAL', 'LABOUR', 'OVERHEAD', 'FREIGHT', 'OTHER']);
 });
 
-test('planning route uses existing financial-read permission and does not enable the future costing module', () => {
-  assert.equal(routePermission('/estimates'), 'FINANCIAL_DATA_READ'); assert.equal(routeModule('/estimates'), null);
+test('planning route uses existing financial-read permission and maps to the costing module', () => {
+  assert.equal(routePermission('/estimates'), 'FINANCIAL_DATA_READ'); assert.equal(routeModule('/estimates'), 'costing');
 });
 
 test('estimate browser code never invokes number conversion or decimal arithmetic for financial values', () => {

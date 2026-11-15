@@ -13,6 +13,8 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { ApiError } from '@/lib/api/client';
 import { isDemoMode } from '@/lib/api/config';
+import { inventoryApi } from '@/lib/api/inventory';
+import type { Lifecycle } from '@/lib/api/product';
 import {
   commercialApi,
   isTrustedCommercialDocument,
@@ -49,7 +51,11 @@ import {
 } from '@/lib/commercial/form';
 import { useLanguage } from '@/lib/i18n/context';
 import { commercialCopy, type CommercialCopy } from '@/lib/i18n/translations/commercial';
-import { CommercialLineEditor, CommercialLineTable } from './CommercialLineEditor';
+import {
+  CommercialLineEditor,
+  CommercialLineTable,
+  type CommercialInventoryItemOption,
+} from './CommercialLineEditor';
 import { RecordOnlyBanner, statusBadgeClass } from './CommercialDocumentList';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'forbidden' | 'error';
@@ -76,12 +82,14 @@ function TotalsPanel({
   subtotal,
   total,
   status,
+  effectLabel,
 }: {
   copy: CommercialCopy;
   locale: 'en' | 'ur';
   subtotal: string | null;
   total: string | null;
   status: React.ReactNode;
+  effectLabel: string;
 }) {
   return (
     <Card className="space-y-3" data-testid="commercial-totals">
@@ -102,7 +110,7 @@ function TotalsPanel({
       <div className="text-xs text-[var(--color-text-muted)] empty:hidden" data-testid="commercial-preview-status" aria-live="polite">{status}</div>
       <p className="text-xs text-[var(--color-text-muted)]">{copy.currencyNote}</p>
       <p className="inline-flex rounded border border-[var(--color-border-default)] px-2 py-0.5 text-[11px] font-semibold" data-testid="commercial-financial-effect">
-        {copy.financialEffectNone}
+        {effectLabel}
       </p>
     </Card>
   );
@@ -135,6 +143,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
   const [conflict, setConflict] = useState<CommercialConflictCode | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<CommercialInventoryItemOption[]>([]);
+  const [lifecycle, setLifecycle] = useState<Lifecycle | null>(null);
   const lineSeq = useRef(1);
   const requestId = useRef(0);
   const dialogFocus = useRef<HTMLButtonElement | null>(null);
@@ -162,6 +172,7 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       setActionError(null);
       setDialog(null);
       setSavedNotice(false);
+      setLifecycle(null);
       if (isDemoMode || !canRead || !activeBusinessId) {
         setLoadState('ready');
         return;
@@ -195,6 +206,37 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
     });
     return () => controller.abort();
   }, [accept, activeBusinessId, attempt, canRead, documentId, isNew, kind]);
+
+  useEffect(() => {
+    if (isDemoMode || !canRead || !activeBusinessId) return;
+    const controller = new AbortController();
+    inventoryApi
+      .list({ includeArchived: true }, controller.signal)
+      .then(response => {
+        if (!controller.signal.aborted && Array.isArray(response?.items)) {
+          setInventoryItems(response.items);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setInventoryItems([]);
+      });
+    return () => controller.abort();
+  }, [activeBusinessId, canRead]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !documentId) return;
+    const onLifecycle = (event: Event) => {
+      const detail = (event as CustomEvent<Lifecycle>).detail;
+      if (detail && detail.documentId === documentId) {
+        setLifecycle(detail);
+        if (detail.status === 'VOID' && document?.status === 'FINALIZED') {
+          setAttempt(value => value + 1);
+        }
+      }
+    };
+    window.addEventListener('finsight:lifecycle', onLifecycle);
+    return () => window.removeEventListener('finsight:lifecycle', onLifecycle);
+  }, [document?.status, documentId]);
 
   const editable = canWrite && loadState === 'ready' && (isNew || document?.status === 'DRAFT');
 
@@ -393,7 +435,10 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
   }
 
   const status = document?.status ?? 'DRAFT';
-  const actions = commercialActions(status, canWrite);
+  const hasFinancialEffect = Boolean(lifecycle?.recognized || (lifecycle?.effectiveStockMovements ?? 0) > 0);
+  const actions = commercialActions(status, canWrite, hasFinancialEffect);
+  const showRecognizedVoidHint = canWrite && status === 'FINALIZED' && hasFinancialEffect;
+  const effectLabel = lifecycle?.recognized ? copy.financialEffectRecognized[kind] : copy.financialEffectNone;
   const blockers = document?.finalizeBlockers ?? [];
   const previewErrors = preview.state === 'invalid' ? preview.errors : {};
   const lineErrors: CommercialValidationErrors = { ...previewErrors, ...formErrors };
@@ -544,6 +589,7 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
                   locale={locale}
                   lines={draft.lines}
                   lineAmounts={lineAmounts}
+                  inventoryItems={inventoryItems}
                   errors={lineErrors}
                   showRequired={showRequired}
                   disabled={busy !== null}
@@ -552,7 +598,7 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
                   onRemove={id => update(removeCommercialLine(draft, id))}
                 />
               ) : (
-                <CommercialLineTable copy={copy} locale={locale} lines={document?.lines ?? []} />
+                <CommercialLineTable copy={copy} locale={locale} lines={document?.lines ?? []} inventoryItems={inventoryItems} />
               )}
             </Card>
           </div>
@@ -564,9 +610,10 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
               subtotal={editable ? previewData?.subtotal ?? null : document?.subtotal ?? null}
               total={editable ? previewData?.total ?? null : document?.total ?? null}
               status={editable ? previewStatus : null}
+              effectLabel={effectLabel}
             />
 
-            {(editable || actions.void) && (
+            {(editable || actions.void || showRecognizedVoidHint) && (
               <Card className="space-y-3" data-testid="commercial-actions">
                 {editable && (
                   <Button type="button" className="w-full" onClick={save} isLoading={busy === 'save'} disabled={busy !== null} data-testid="commercial-save-draft">
@@ -600,6 +647,11 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
                     onClick={() => { setVoidReason(''); setVoidIssue(null); setDialog('void'); }} data-testid="commercial-void-button">
                     {copy.voiding.button}
                   </Button>
+                )}
+                {showRecognizedVoidHint && (
+                  <p className="text-xs text-[var(--color-text-secondary)]" data-testid="commercial-void-lifecycle-hint">
+                    {copy.voiding.recognizedHint}
+                  </p>
                 )}
               </Card>
             )}

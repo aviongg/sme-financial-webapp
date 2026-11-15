@@ -27,7 +27,13 @@ export function changeWidget(layout: WidgetPreference[], metadata: WidgetMetadat
   return layout.map(widget => widget.key === metadata.key ? { ...widget, ...change } : widget);
 }
 /** A local renderer is an explicit allowlist, never a server-supplied component path. */
-export const implementedWidgetKeys = new Set(['health-score', 'health-components', 'score-completeness', 'cash-flow', 'cash-projection', 'financial-evidence', 'next-step', 'recommendation', 'financial-summary', 'ai-explanation', 'document-workflow']);
+export const implementedWidgetKeys = new Set([
+  'health-score', 'health-components', 'score-completeness', 'cash-flow', 'cash-projection',
+  'financial-evidence', 'next-step', 'recommendation', 'financial-summary', 'ai-explanation',
+  'document-workflow', 'transactions', 'receivables', 'payables', 'invoices', 'projects',
+  'costing', 'inventory', 'production', 'commissions', 'multi-currency', 'budgets', 'goals',
+  'profitability', 'break-even', 'action-center', 'calendar', 'funding-gap', 'reports',
+]);
 
 /** Rebase an unsaved customization draft onto the latest server workspace without overwriting untouched server changes or retaining unavailable widgets. */
 export function rebaseDraft(previous: DashboardWorkspaceResponse, draft: WidgetPreference[], latest: DashboardWorkspaceResponse): WidgetPreference[] {

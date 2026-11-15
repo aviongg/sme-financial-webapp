@@ -129,10 +129,13 @@ test('cash-flow null semantics consume authoritative net and classify unknown ne
   assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: null, cashOutflow: 100 }), null);
   assert.equal(resolveRecordNet({ month: '2026-09', cashInflow: 500, cashOutflow: null }), null);
 });
-test('English and Urdu cover the complete current and unavailable future registry with matching copy', () => {
+test('English and Urdu cover the complete implemented widget registry with matching copy and inventory widget uses stock register', () => {
   function verify(en, ur) { assert.deepEqual(Object.keys(en).sort(), Object.keys(ur).sort()); for (const key of Object.keys(en)) { if (typeof en[key] === 'object') verify(en[key], ur[key]); else assert.ok(typeof ur[key] === 'string' && ur[key].trim(), key); } }
   verify(workspaceEn, workspaceUr);
-  const future = ['transactions', 'receivables', 'payables', 'invoices', 'projects', 'costing', 'inventory', 'production', 'commissions', 'multi-currency', 'budgets', 'funding-gap', 'reports'];
-  for (const key of [...implementedWidgetKeys, ...future]) for (const copy of [workspaceEn, workspaceUr]) assert.notEqual(widgetTitle(key, copy), copy.unavailable, key);
-  for (const key of future) assert.equal(implementedWidgetKeys.has(key), false);
+  const productWidgets = ['transactions', 'receivables', 'payables', 'invoices', 'projects', 'costing', 'inventory', 'production', 'commissions', 'multi-currency', 'budgets', 'goals', 'profitability', 'break-even', 'action-center', 'calendar', 'funding-gap', 'reports'];
+  for (const key of [...implementedWidgetKeys, ...productWidgets]) for (const copy of [workspaceEn, workspaceUr]) assert.notEqual(widgetTitle(key, copy), copy.unavailable, key);
+  for (const key of productWidgets) assert.equal(implementedWidgetKeys.has(key), true, key);
+  const productWidgetsSource = readFileSync(new URL('../src/components/product/DashboardWidgets.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(productWidgetsSource, /needsPosition\s*=\s*\[[^\]]*'inventory'/);
+  assert.match(productWidgetsSource, /d\.totalValue\s*\?\?\s*d\.inventoryValue/);
 });
