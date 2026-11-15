@@ -94,6 +94,11 @@ function MovementForm({ items, onDone }: { items: Position[]; onDone: () => void
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ bad: boolean; text: string } | null>(null);
   const needsValue = kind === 'receipts' || kind === 'opening' || (kind === 'adjustments' && direction === 'INCREASE');
+  const issues = useLoad<{ movements: Movement[] } | null>(
+    signal => (kind === 'returns' && itemId ? stockApi.history(itemId, signal) : Promise.resolve(null)),
+    [kind, itemId]
+  );
+  const issueMovements = (issues.data?.movements ?? []).filter(m => m.movementType === 'ISSUE' && !m.reversed);
 
   const submit = async () => {
     setBusy(true);
@@ -108,7 +113,8 @@ function MovementForm({ items, onDone }: { items: Position[]; onDone: () => void
     try {
       const m = await stockApi.record(kind, body);
       setMessage({ bad: false, text: `${s.types[m.movementType] ?? m.movementType}: ${m.quantityDelta} → ${m.quantityAfter}` });
-      setQuantity(''); setValue(''); setNotes('');
+      setQuantity(''); setValue(''); setNotes(''); setIssueMovementId('');
+      if (kind === 'returns') issues.reload();
       onDone();
     } catch (failure) {
       setMessage({ bad: true, text: errorText(failure, copy.common.error) });
@@ -120,12 +126,21 @@ function MovementForm({ items, onDone }: { items: Position[]; onDone: () => void
   return (
     <Panel title={s.record} testId="stock-movement-form">
       <form className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={event => { event.preventDefault(); void submit(); }}>
-        <Select label={copy.common.status} value={kind} data-testid="stock-kind" onChange={e => setKind(e.target.value as MovementKind)}
+        <Select label={copy.common.status} value={kind} data-testid="stock-kind" onChange={e => { setKind(e.target.value as MovementKind); setIssueMovementId(''); }}
           options={KINDS.map(k => ({ value: k, label: s.kinds[k] }))}/>
-        {kind !== 'returns'
-          ? <Select label={s.item} value={itemId} data-testid="stock-item" onChange={e => setItemId(e.target.value)} required
-              options={[{ value: '', label: s.choose }, ...items.map(i => ({ value: i.itemId, label: `${i.sku} · ${i.name}` }))]}/>
-          : <Input label={s.issueMovementId} value={issueMovementId} onChange={e => setIssueMovementId(e.target.value)} dir="ltr" required/>}
+        <Select label={s.item} value={itemId} data-testid="stock-item" onChange={e => { setItemId(e.target.value); setIssueMovementId(''); }} required
+          options={[{ value: '', label: s.choose }, ...items.map(i => ({ value: i.itemId, label: `${i.sku} · ${i.name}` }))]}/>
+        {kind === 'returns' && (
+          <Select label={s.issueMovementId} value={issueMovementId} data-testid="stock-issue-movement" onChange={e => setIssueMovementId(e.target.value)} required
+            disabled={!itemId || issues.loading}
+            options={[
+              { value: '', label: s.choose },
+              ...issueMovements.map(m => ({
+                value: m.id,
+                label: `#${m.sequenceNo} · ${m.movementDate} · ${m.quantityDelta.replace(/^-/, '')}${m.purpose ? ` · ${s.purposes[m.purpose] ?? m.purpose}` : ''}`,
+              })),
+            ]}/>
+        )}
         <Input label={copy.common.quantity} inputMode="decimal" dir="ltr" value={quantity} onChange={e => setQuantity(e.target.value)} required data-testid="stock-quantity"/>
         {kind === 'adjustments' && <Select label={s.direction} value={direction} onChange={e => setDirection(e.target.value)}
           options={[{ value: 'DECREASE', label: s.decrease }, { value: 'INCREASE', label: s.increase }]}/>}

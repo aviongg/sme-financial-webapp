@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { isDemoMode } from '@/lib/api/config';
 import { copilotApi, insightApi, whatsappInboundApi, type CopilotResponse } from '@/lib/api/product';
 import { useLanguage } from '@/lib/i18n/context';
-import { productCopy } from '@/lib/i18n/translations/product';
+import { productCopy, type ProductCopy } from '@/lib/i18n/translations/product';
 import { Amount, LoadState, Panel, Pct, Pill, Stat, StatGrid, Table, asList, asRecord, errorText, monthStart, today, useLoad } from './shared';
 
 function Gate({ title, children }: { title: string; children: React.ReactNode }) {
@@ -210,7 +210,7 @@ export function FinancialPackView() {
           {Object.keys(r.sections).map(section => <section key={section} className="space-y-2 break-inside-avoid" data-testid={`pack-section-${section}`}>
             <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{r.sections[section]}</h3>
               <Button size="sm" variant="ghost" className="print:hidden" onClick={() => void download(section)} data-testid={`pack-csv-${section}`}>{r.csv}</Button></div>
-            <SectionTable value={data[section]}/>
+            <SectionTable value={data[section]} copy={copy}/>
           </section>)}
         </div>}
       </LoadState>}
@@ -218,21 +218,118 @@ export function FinancialPackView() {
   );
 }
 
-function SectionTable({ value }: { value: unknown }) {
+function packLabel(key: string, copy: ProductCopy): string {
+  const labels = copy.reports.labels;
+  return (
+    labels[key] ??
+    copy.planning.categories[key] ??
+    copy.planning.goals.metrics[key] ??
+    copy.planning.goals.statuses[key] ??
+    copy.planning.budgets.statuses[key] ??
+    copy.planning.budgets.lineKinds[key] ??
+    copy.sampleActuals.recoveryStatus[key] ??
+    copy.projectActuals.statuses[key] ??
+    key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
+  );
+}
+
+function formatPackCell(key: string, raw: unknown, copy: ProductCopy): React.ReactNode {
+  if (raw === null || raw === undefined || raw === '') return '—';
+  if (typeof raw === 'boolean') return copy.reports.labels[String(raw)] ?? String(raw);
+  const str = String(raw);
+  if (key.endsWith('Pct')) return <Pct value={raw}/>;
+  if (/^-?\d+\.\d+$/.test(str) && key !== 'quantity' && key !== 'compositeScore') return <Amount value={raw}/>;
+  if (key === 'category' || key === 'metric' || key === 'lineKind' || key === 'status' || key === 'completeness' || key === 'progressStatus' || key === 'recoveryStatus' || key === 'profitabilityStatus' || key === 'bucket') {
+    return packLabel(str, copy);
+  }
+  return <span className="break-words">{str}</span>;
+}
+
+function SectionTable({ value, copy }: { value: unknown; copy: ProductCopy }) {
+  const labels = copy.reports.labels;
   if (Array.isArray(value)) {
     const rows = asList(value);
-    if (rows.length === 0) return <p className="text-sm">—</p>;
-    const keys = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object' || rows[0][k] === null).slice(0, 8);
-    return <Table head={keys} rows={rows.map(row => keys.map(k => <span key={k} className="break-words">{/^-?\d+(\.\d+)?$/.test(String(row[k] ?? '')) && String(row[k]).includes('.') ? <Amount value={row[k]}/> : String(row[k] ?? '—')}</span>))}/>;
+    if (rows.length === 0) return <p className="text-sm">{copy.common.empty}</p>;
+    const hiddenCols = new Set(['id', 'version', 'ceiling']);
+    const keys = Object.keys(rows[0]).filter(k => !hiddenCols.has(k) && (typeof rows[0][k] !== 'object' || rows[0][k] === null)).slice(0, 9);
+    const nestedLists = rows.flatMap(row =>
+      Object.entries(row)
+        .filter(([, cell]) => Array.isArray(cell) && (cell as unknown[]).length > 0)
+        .map(([nestedKey, cell]) => ({ title: `${String(row.name ?? row.code ?? '')} — ${packLabel(nestedKey, copy)}`, items: cell }))
+    );
+    return (
+      <div className="space-y-3">
+        <Table
+          head={keys.map(k => packLabel(k, copy))}
+          rows={rows.map(row => keys.map(k => <span key={k} className="break-words">{formatPackCell(k, row[k], copy)}</span>))}
+        />
+        {nestedLists.map((nested, idx) => (
+          <div key={idx} className="space-y-1.5 ps-3 border-s-2 border-[var(--color-border-subtle)]">
+            <h4 className="text-xs font-semibold text-[var(--color-text-secondary)]">{nested.title}</h4>
+            <SectionTable value={nested.items} copy={copy}/>
+          </div>
+        ))}
+      </div>
+    );
   }
-  const flat: [string, unknown][] = [];
-  const walk = (prefix: string, v: unknown) => {
-    if (v && typeof v === 'object' && !Array.isArray(v)) Object.entries(v as Record<string, unknown>).forEach(([k, x]) => walk(prefix ? `${prefix}.${k}` : k, x));
-    else if (!Array.isArray(v)) flat.push([prefix, v]);
-  };
-  walk('', value);
-  return <Table head={['', '']} rows={flat.slice(0, 60).map(([k, v]) => [<bdi key="k" dir="ltr" className="font-mono text-xs">{k}</bdi>,
-    /^-?\d+\.\d+$/.test(String(v ?? '')) ? <Amount key="v" value={v}/> : <span key="v">{String(v ?? '—')}</span>])}/>;
+  const obj = asRecord(value);
+  const scalars: [string, unknown][] = [];
+  const subObjects: [string, Record<string, unknown>][] = [];
+  const subArrays: [string, unknown[]][] = [];
+  Object.entries(obj).forEach(([k, v]) => {
+    if (Array.isArray(v)) subArrays.push([k, v]);
+    else if (v && typeof v === 'object') subObjects.push([k, v as Record<string, unknown>]);
+    else scalars.push([k, v]);
+  });
+  return (
+    <div className="space-y-3">
+      {scalars.length > 0 && (
+        <Table
+          head={[labels.metricHeader, labels.valueHeader]}
+          rows={scalars.map(([k, v]) => [
+            <span key="k" className="font-medium">{packLabel(k, copy)}</span>,
+            <span key="v">{formatPackCell(k, v, copy)}</span>,
+          ])}
+        />
+      )}
+      {subObjects.map(([subKey, subVal]) => {
+        const subScalars = Object.entries(subVal).filter(([, x]) => !x || typeof x !== 'object');
+        const buckets = subVal.buckets && typeof subVal.buckets === 'object' && !Array.isArray(subVal.buckets)
+          ? Object.values(subVal.buckets as Record<string, unknown>).map(b => asRecord(b))
+          : [];
+        return (
+          <div key={subKey} className="space-y-2 pt-1">
+            <h4 className="text-sm font-semibold text-[var(--color-text-secondary)]">{packLabel(subKey, copy)}</h4>
+            {subScalars.length > 0 && (
+              <Table
+                head={[labels.metricHeader, labels.valueHeader]}
+                rows={subScalars.map(([k, v]) => [
+                  <span key="k" className="font-medium">{packLabel(k, copy)}</span>,
+                  <span key="v">{formatPackCell(k, v, copy)}</span>,
+                ])}
+              />
+            )}
+            {buckets.length > 0 && (
+              <Table
+                head={[labels.bucket, labels.totalOutstanding, labels.count]}
+                rows={buckets.map(b => [
+                  <span key="b">{packLabel(String(b.bucket ?? ''), copy)}</span>,
+                  <Amount key="a" value={b.totalOutstanding}/>,
+                  <bdi key="c" dir="ltr">{String(b.count ?? 0)}</bdi>,
+                ])}
+              />
+            )}
+          </div>
+        );
+      })}
+      {subArrays.map(([arrKey, arrVal]) => (
+        <div key={arrKey} className="space-y-1.5 pt-1">
+          <h4 className="text-sm font-semibold text-[var(--color-text-secondary)]">{packLabel(arrKey, copy)}</h4>
+          <SectionTable value={arrVal} copy={copy}/>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ================================================================== Copilot
