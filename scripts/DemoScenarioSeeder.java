@@ -28,6 +28,19 @@ public class DemoScenarioSeeder {
             "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects",
             "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports");
 
+    /**
+     * Synthetic local-demo accounts {email, full name, membership role, password}: one per MembershipRole, each a member
+     * of every seeded demo/sandbox business with that role. These credentials exist only in the local demo database;
+     * scripts/start-demo.ps1 prints this exact table and DemoToolingContractTest keeps the two in agreement.
+     */
+    static final String[][] DEMO_ACCOUNTS = {
+        {"demo.owner@finsight.local", "Demo Business Owner", "OWNER", "FinSight@Owner2026!"},
+        {"demo.accountant@finsight.local", "Demo Lead Accountant", "ACCOUNTANT", "FinSight@Account2026!"},
+        {"demo.manager@finsight.local", "Demo Operations Manager", "MANAGER", "FinSight@Manager2026!"},
+        {"demo.sales@finsight.local", "Demo Sales Executive", "SALESPERSON", "FinSight@Sales2026!"},
+        {"demo.viewer@finsight.local", "Demo Auditor / Viewer", "VIEWER", "FinSight@Viewer2026!"}
+    };
+
     private final Connection conn;
     private final Argon2PasswordEncoder passwordEncoder;
     private final byte[] aesKeyBytes;
@@ -185,14 +198,7 @@ public class DemoScenarioSeeder {
     private Map<String, UUID> seedUsers() throws Exception {
         Map<String, UUID> userMap = new HashMap<>();
 
-        String[][] userData = {
-            {"demo.owner@finsight.local", "Demo Business Owner", "OWNER", "FinSight@Owner2026!"},
-            {"demo.accountant@finsight.local", "Demo Lead Accountant", "ACCOUNTANT", "FinSight@Account2026!"},
-            {"demo.sales@finsight.local", "Demo Sales Executive", "SALESPERSON", "FinSight@Sales2026!"},
-            {"demo.viewer@finsight.local", "Demo Auditor / Viewer", "VIEWER", "FinSight@Viewer2026!"}
-        };
-
-        for (String[] u : userData) {
+        for (String[] u : DEMO_ACCOUNTS) {
             String email = u[0];
             String name = u[1];
             String rawPassword = u[3];
@@ -269,22 +275,15 @@ public class DemoScenarioSeeder {
         }
 
         // 4. business_memberships for each demo user
-        String[] roles = {"OWNER", "ACCOUNTANT", "SALESPERSON", "VIEWER"};
-        String[] emails = {
-            "demo.owner@finsight.local",
-            "demo.accountant@finsight.local",
-            "demo.sales@finsight.local",
-            "demo.viewer@finsight.local"
-        };
-        for (int i = 0; i < emails.length; i++) {
-            UUID uid = users.get(emails[i]);
+        for (String[] account : DEMO_ACCOUNTS) {
+            UUID uid = users.get(account[0]);
             try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO business_memberships (id, user_id, business_id, role, status, created_at, updated_at) " +
                 "VALUES (gen_random_uuid(), ?, ?, ?, 'ACTIVE', now(), now()) ON CONFLICT DO NOTHING"
             )) {
                 ps.setObject(1, uid);
                 ps.setObject(2, bizId);
-                ps.setString(3, roles[i]);
+                ps.setString(3, account[2]);
                 ps.executeUpdate();
             }
 
