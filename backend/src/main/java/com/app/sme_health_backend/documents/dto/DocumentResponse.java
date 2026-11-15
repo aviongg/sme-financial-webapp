@@ -21,5 +21,7 @@ public record DocumentResponse(
         String confirmedData,
         String linkedMonth,
         String failureReason,
-        LocalDateTime confirmedAt
+        LocalDateTime confirmedAt,
+        /** DEF-01: true only when the manual-review fallback may be started for this document. */
+        boolean manualReviewEligible
 ) {}

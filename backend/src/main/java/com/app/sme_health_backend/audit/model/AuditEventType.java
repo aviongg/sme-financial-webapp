@@ -40,6 +40,8 @@ public enum AuditEventType {
     DOCUMENT_UPLOADED,
     DOCUMENT_CONFIRMED,
     DOCUMENT_CORRECTED,
+    /** DEF-01: an OCR-failed upload entered manual review; metadata keeps the OCR failure reason. */
+    DOCUMENT_MANUAL_REVIEW_STARTED,
     DOCUMENT_DELETED,
     SAMPLE_CREATED,
     SAMPLE_UPDATED,
