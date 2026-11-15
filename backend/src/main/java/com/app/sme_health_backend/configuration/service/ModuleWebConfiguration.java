@@ -31,6 +31,8 @@ public class ModuleWebConfiguration {
         m.put("/api/finance/drafts", "transactions");
         m.put("/api/finance/recurring", "transactions");
         m.put("/api/finance/reconciliation", "transactions");
+        // Customer/supplier master data; every screen that creates or edits it belongs to transactions or a module requiring it.
+        m.put("/api/finance/counterparties", "transactions");
         m.put("/api/finance/obligations", "receivables");
         m.put("/api/finance/payments", "receivables");
         m.put("/api/finance/advances", "receivables");
