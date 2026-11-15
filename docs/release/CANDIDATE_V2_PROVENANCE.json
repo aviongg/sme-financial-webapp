@@ -1,0 +1,51 @@
+{
+  "baseline": "493cda58de25f8815e1b0b73d5bb385dfcd997f9",
+  "sources": [
+    "f9d686da811ae9f53c7a0dd6c1414601085356f0",
+    "be4441644fe4f7d57406e098ac3b3713911a8ad3"
+  ],
+  "source_files": {
+    "f9d686da811ae9f53c7a0dd6c1414601085356f0": 20,
+    "be4441644fe4f7d57406e098ac3b3713911a8ad3": 23
+  },
+  "overlapping_paths": [],
+  "all_source_blob_ids_match_candidate": true,
+  "migration_changes": [],
+  "merge_conflicts": false,
+  "head_at_check": "399764bce1cb3fe690aecefd9eac11621334d60d",
+  "source_production_code_unchanged_after_merges": true,
+  "initial_complete_hosted_validation": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43752726863",
+  "full_postgres_classes": 87,
+  "full_postgres_cases": 468,
+  "full_linux_unit_cases": 1821,
+  "frontend_cases": 463,
+  "local_real_product_browser_checks": 26,
+  "legacy_synthetic_browser_results": [
+    {
+      "Driver": "browser-landing.integration.mjs",
+      "Exit": 1
+    },
+    {
+      "Driver": "browser.integration.mjs",
+      "Exit": 1
+    },
+    {
+      "Driver": "browser-phase-two.integration.mjs",
+      "Exit": 1
+    },
+    {
+      "Driver": "browser-extra.integration.mjs",
+      "Exit": 1
+    },
+    {
+      "Driver": "financial-risk-browser.integration.mjs",
+      "Exit": 1
+    },
+    {
+      "Driver": "cash-forecast-browser.integration.mjs",
+      "Exit": 0
+    }
+  ],
+  "production_accepted": false,
+  "additional_application_changes_after_merges": []
+}

@@ -15,8 +15,18 @@ to integration regressions or essential candidate blockers supported by evidence
 No migration, financial policy or unrelated feature change is reserved. DEF-22 was
 retracted: actual inventory writes are `/api/inventory/**`; retained stock history
 reads stay available under disabled modules and existing role/tenant checks.
-Full verification and exact publication identities will be recorded in
-`docs/release/CANDIDATE_V2_VERIFICATION.md`. No merge to main or deployment.
+Current evidence: `docs/release/CANDIDATE_V2_VERIFICATION.md` and its provenance
+JSON. Published CI head `d3a613f01dc98d4ca50efe59178b1fae37869d20` passed 1,821
+Linux unit cases, all 87 PostgreSQL classes/468 cases, frontend 463/type/lint/build,
+OCR/ops, smoke 6/full browser 20 and security. Additive v2 browser gate is published
+at `399764bce1cb3fe690aecefd9eac11621334d60d`, with 26 real cross-stack checks
+passing locally. Full local unit passed with one Windows symlink capability skip;
+Linux ran it with zero skips. Five supplemental historical synthetic UI drivers
+failed (one cash-forecast driver passed 11 checks); no suppressed assertions or
+speculative product fixes. Existing DEF-08/10/11 and DEF-12–20 carry forward to QA;
+DEF-22 remains retracted. Final containing evidence commit is discoverable via
+git log and its exact remote HEAD is reported outside the commit. No merge to
+main, deployment or further feature scope.
 
 ## Production security/recovery continuation — 14 November 2026 (Asia/Karachi)
 
