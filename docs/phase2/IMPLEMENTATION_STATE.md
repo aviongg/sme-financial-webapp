@@ -1,5 +1,23 @@
 # Current Phase 2 implementation state
 
+## Candidate v2 integration — 16 November 2026 (Asia/Karachi)
+
+Authorized branch `integration/finsight-production-candidate-v2`, isolated worktree
+`tmp/finsight-production-candidate-v2`, created exactly from candidate v1
+`493cda58de25f8815e1b0b73d5bb385dfcd997f9`. Normal no-ff merges include core
+`f9d686da811ae9f53c7a0dd6c1414601085356f0` and frontend
+`be4441644fe4f7d57406e098ac3b3713911a8ad3`, without conflicts or overlapping files.
+Other branches/worktrees and frozen infrastructure HEAD remain untouched.
+
+Reserved scope: existing CI trigger/branch conditions for v2; additive integration
+contract/browser verification and candidate-v2 evidence/runbook/state. Fixes limited
+to integration regressions or essential candidate blockers supported by evidence.
+No migration, financial policy or unrelated feature change is reserved. DEF-22 was
+retracted: actual inventory writes are `/api/inventory/**`; retained stock history
+reads stay available under disabled modules and existing role/tenant checks.
+Full verification and exact publication identities will be recorded in
+`docs/release/CANDIDATE_V2_VERIFICATION.md`. No merge to main or deployment.
+
 ## Production security/recovery continuation — 14 November 2026 (Asia/Karachi)
 
 User independently accepted infrastructure HEAD `28bc6ba6fd49e35ebc0626e698a1a803e337c8b5`

@@ -2,7 +2,7 @@ name: Release validation
 on:
   pull_request:
   push:
-    branches: [main, dev/fatima, dev/suleman, 'codex/production-closure-infra-tests', 'integration/finsight-production-candidate']
+    branches: [main, dev/fatima, dev/suleman, 'codex/production-closure-infra-tests', 'integration/finsight-production-candidate', 'integration/finsight-production-candidate-v2']
   workflow_dispatch:
     inputs:
       full_browser:
@@ -125,7 +125,7 @@ jobs:
       - run: pnpm test:browser:smoke
         working-directory: frontend
       - run: pnpm test:browser:product
-        if: (github.event_name == 'workflow_dispatch' && inputs.full_browser) || github.ref == 'refs/heads/integration/finsight-production-candidate'
+        if: (github.event_name == 'workflow_dispatch' && inputs.full_browser) || github.ref == 'refs/heads/integration/finsight-production-candidate' || github.ref == 'refs/heads/integration/finsight-production-candidate-v2'
         working-directory: frontend
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
