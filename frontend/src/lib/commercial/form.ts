@@ -22,6 +22,7 @@ export interface CommercialLineInput {
   quantity: string;
   unit: string | null;
   unitPrice: string;
+  inventoryItemId?: string | null;
 }
 
 export interface CommercialLineDraft {
@@ -30,6 +31,7 @@ export interface CommercialLineDraft {
   quantity: string;
   unit: string;
   unitPrice: string;
+  inventoryItemId?: string;
 }
 
 export interface CommercialDocumentDraft {
@@ -88,6 +90,7 @@ export const commercialConflictCodes = [
   'document_already_void',
   'invalid_document_transition',
   'document_delete_forbidden',
+  'document_has_financial_effect',
 ] as const;
 export type CommercialConflictCode = typeof commercialConflictCodes[number];
 
@@ -121,7 +124,7 @@ export interface CommercialDocumentLike {
   documentDate: string | null;
   dueDate: string | null;
   notes: string | null;
-  lines: { id: string; description: string; quantity: string; unit: string | null; unitPrice: string }[] | null;
+  lines: { id: string; description: string; quantity: string; unit: string | null; unitPrice: string; inventoryItemId?: string | null }[] | null;
 }
 
 export function draftFromDocument(document: CommercialDocumentLike): CommercialDocumentDraft {
@@ -136,6 +139,7 @@ export function draftFromDocument(document: CommercialDocumentLike): CommercialD
       quantity: line.quantity,
       unit: line.unit ?? '',
       unitPrice: line.unitPrice,
+      ...(line.inventoryItemId ? { inventoryItemId: line.inventoryItemId } : {}),
     })),
   };
 }
@@ -237,12 +241,16 @@ export function validateVoidReason(reason: string): CommercialValidationIssue | 
 }
 
 export function commercialLinesPayload(lines: CommercialLineDraft[]): CommercialLineInput[] {
-  return lines.map(line => ({
-    description: line.description.trim(),
-    quantity: line.quantity.trim(),
-    unit: text(line.unit),
-    unitPrice: line.unitPrice.trim(),
-  }));
+  return lines.map(line => {
+    const item = text(line.inventoryItemId ?? '');
+    return {
+      description: line.description.trim(),
+      quantity: line.quantity.trim(),
+      unit: text(line.unit),
+      unitPrice: line.unitPrice.trim(),
+      ...(item ? { inventoryItemId: item } : {}),
+    };
+  });
 }
 
 /** Only client-owned fields are ever sent; totals, status, numbers and identities are server-owned. */
@@ -310,12 +318,12 @@ export interface CommercialActions {
   void: boolean;
 }
 
-export function commercialActions(status: CommercialStatus, canWrite: boolean): CommercialActions {
+export function commercialActions(status: CommercialStatus, canWrite: boolean, hasFinancialEffect = false): CommercialActions {
   return {
     edit: canWrite && status === 'DRAFT',
     remove: canWrite && status === 'DRAFT',
     finalize: canWrite && status === 'DRAFT',
-    void: canWrite && status === 'FINALIZED',
+    void: canWrite && status === 'FINALIZED' && !hasFinancialEffect,
   };
 }
 

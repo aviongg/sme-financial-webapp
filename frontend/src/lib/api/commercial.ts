@@ -19,6 +19,7 @@ export interface CommercialDocumentLineResponse {
   unit: string | null;
   unitPrice: string;
   lineAmount: string;
+  inventoryItemId?: string | null;
 }
 
 /** A recorded commercial document. It carries no paid/due/outstanding/payment values by design. */

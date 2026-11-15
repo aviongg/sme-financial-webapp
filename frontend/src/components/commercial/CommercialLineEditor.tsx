@@ -41,11 +41,20 @@ function Header({ copy }: { copy: CommercialCopy }) {
   );
 }
 
+export interface CommercialInventoryItemOption {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  status: string;
+}
+
 export function CommercialLineEditor({
   copy,
   locale,
   lines,
   lineAmounts,
+  inventoryItems = [],
   errors,
   showRequired,
   disabled,
@@ -57,10 +66,11 @@ export function CommercialLineEditor({
   locale: 'en' | 'ur';
   lines: CommercialLineDraft[];
   lineAmounts: (string | null)[];
+  inventoryItems?: CommercialInventoryItemOption[];
   errors: CommercialValidationErrors;
   showRequired: boolean;
   disabled: boolean;
-  onChange: (id: string, field: 'description' | 'quantity' | 'unit' | 'unitPrice', value: string) => void;
+  onChange: (id: string, field: 'description' | 'quantity' | 'unit' | 'unitPrice' | 'inventoryItemId', value: string) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -81,6 +91,9 @@ export function CommercialLineEditor({
           .map(field => issue(`lines[${index}].${field}`))
           .filter((message): message is string => Boolean(message));
         const invalid = (field: string) => Boolean(issue(`lines[${index}].${field}`));
+        const currentItemId = line.inventoryItemId ?? '';
+        const itemOptions = inventoryItems.filter(item => item.status === 'ACTIVE' || item.id === currentItemId);
+        const hasCurrentInOptions = !currentItemId || itemOptions.some(item => item.id === currentItemId);
         return (
           <div
             key={line.id}
@@ -89,6 +102,26 @@ export function CommercialLineEditor({
             data-testid={base}
             className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] p-3 md:rounded-none md:border-0 md:p-1"
           >
+            <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+              <label htmlFor={`${base}-inventory-item`} className="text-[12px] font-semibold text-[var(--color-text-secondary)] shrink-0">
+                {copy.fields.inventoryItem}
+              </label>
+              <select
+                id={`${base}-inventory-item`}
+                data-testid={`commercial-line-inventory-item-${index}`}
+                aria-label={`${copy.fields.inventoryItem} ${index + 1}`}
+                className={cn(fieldClass(invalid('inventoryItemId')), 'h-8 py-0 text-[13px] sm:max-w-xs')}
+                value={currentItemId}
+                disabled={disabled}
+                onChange={event => onChange(line.id, 'inventoryItemId', event.target.value)}
+              >
+                <option value="">{copy.fields.noInventoryItem}</option>
+                {itemOptions.map(item => (
+                  <option key={item.id} value={item.id}>{`${item.sku} · ${item.name} (${item.unit})`}</option>
+                ))}
+                {!hasCurrentInOptions && <option value={currentItemId}>{currentItemId}</option>}
+              </select>
+            </div>
             <div className={cn('grid grid-cols-2 gap-3 md:items-center', GRID)}>
               <div className="col-span-2 md:col-span-1 flex flex-col gap-1">
                 <Label htmlFor={`${base}-description`}>{copy.fields.description}</Label>
@@ -208,24 +241,36 @@ export function CommercialLineTable({
   copy,
   locale,
   lines,
+  inventoryItems = [],
 }: {
   copy: CommercialCopy;
   locale: 'en' | 'ur';
   lines: CommercialDocumentLineResponse[];
+  inventoryItems?: CommercialInventoryItemOption[];
 }) {
   if (lines.length === 0) {
     return <p className="text-sm text-[var(--color-text-muted)]" data-testid="commercial-no-lines">{copy.editor.noLines}</p>;
   }
+  const byId = new Map(inventoryItems.map(item => [item.id, item]));
   return (
     <div className="space-y-2" data-testid="commercial-line-table">
       <Header copy={copy} />
-      {lines.map((line, index) => (
+      {lines.map((line, index) => {
+        const matched = line.inventoryItemId ? byId.get(line.inventoryItemId) : undefined;
+        return (
         <div
           key={line.id}
           data-testid={`commercial-readonly-line-${index}`}
           className={cn('grid grid-cols-1 gap-y-1.5 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] p-3 text-sm md:gap-x-3 md:rounded-none md:border-0 md:border-b md:px-1 md:py-2', GRID)}
         >
-          <span className="font-medium break-words">{line.description}</span>
+          <span className="font-medium break-words">
+            {line.description}
+            {line.inventoryItemId && (
+              <span className="block text-xs font-normal text-[var(--color-text-muted)]" data-testid={`commercial-readonly-line-item-${index}`}>
+                {matched ? `${matched.sku} · ${matched.name}` : line.inventoryItemId}
+              </span>
+            )}
+          </span>
           <span className="flex items-center justify-between gap-3 md:block">
             <span className="text-[var(--color-text-muted)] md:hidden">{copy.fields.quantity}</span>
             <span dir="ltr" className="tabular-nums">{line.quantity}</span>
@@ -246,7 +291,8 @@ export function CommercialLineTable({
           </span>
           <span className="hidden md:block" />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

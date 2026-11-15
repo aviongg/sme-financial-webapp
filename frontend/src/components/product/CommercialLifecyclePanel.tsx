@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from '@/components/auth/SessionProvider';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +25,12 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
   const [evidenceId, setEvidenceId] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (data && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('finsight:lifecycle', { detail: data }));
+    }
+  }, [data]);
 
   const run = async (name: string, action: () => Promise<unknown>) => {
     setBusy(name);
