@@ -45,6 +45,9 @@ class DocumentControllerTests {
     private com.app.sme_health_backend.documents.service.DocumentReviewService reviewService;
 
     @MockitoBean
+    private com.app.sme_health_backend.documents.service.DocumentManualReviewService manualReviewService;
+
+    @MockitoBean
     private BusinessAuthorizationService authService;
 
     private final UUID userId = UUID.randomUUID();

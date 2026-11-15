@@ -26,7 +26,8 @@ public final class DocumentMapper {
                 doc.getConfirmedData(),
                 doc.getLinkedMonth(),
                 doc.getFailureReason(),
-                doc.getConfirmedAt()
+                doc.getConfirmedAt(),
+                com.app.sme_health_backend.documents.service.DocumentManualReviewService.isEligible(doc)
         );
     }
 }

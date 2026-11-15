@@ -21,10 +21,9 @@ public class ModuleAccessPolicy {
         this.configuration = configuration; this.registry = registry;
     }
     public boolean isEnabled(UUID businessId, String key) {
-        var module = registry.find(key).filter(ModuleRegistry.Module::implemented);
-        if (module.isEmpty()) return false;
+        if (registry.find(key).filter(ModuleRegistry.Module::implemented).isEmpty()) return false;
         BusinessConfiguration config = configuration.load(businessId);
-        return !config.configured() || module.get().required() || config.requestedModules().contains(key);
+        return registry.effectivelyEnabled(key, config.configured(), config.requestedModules());
     }
     public void requireEnabled(UUID businessId, String key) {
         if (!isEnabled(businessId, key)) throw new ConfigurationException("module_disabled", 403, "This module is unavailable or disabled.");

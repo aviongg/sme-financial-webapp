@@ -47,6 +47,32 @@ public class ModuleRegistry {
     }
     public List<Module> all() { return modules; }
     public Optional<Module> find(String key) { return modules.stream().filter(m -> m.key().equals(key)).findFirst(); }
+
+    /**
+     * The single effective-enabled rule, shared by enforcement ({@link ModuleAccessPolicy}) and the configuration
+     * response so the two cannot drift. Unimplemented or unknown keys are never enabled. A business whose owner never
+     * saved a configuration keeps every implemented module (backward compatible); once saved, a module is enabled only
+     * when it is required or explicitly requested, so an explicitly disabled module stays disabled.
+     */
+    public boolean effectivelyEnabled(String key, boolean configured, Collection<String> requested) {
+        return find(key).filter(Module::implemented)
+                .map(module -> !configured || module.required() || requested.contains(key)).orElse(false);
+    }
+
+    /** Effectively enabled module keys in registry order (see {@link #effectivelyEnabled}). */
+    public List<String> effectiveModules(boolean configured, Collection<String> requested) {
+        return modules.stream().map(Module::key).filter(key -> effectivelyEnabled(key, configured, requested)).toList();
+    }
+
+    /**
+     * Read-boundary normalisation of stored keys: keeps only known, implemented keys, de-duplicated, in registry order.
+     * Unknown historical keys (for example the pre-registry {@code commercial}) are dropped, never mapped to another
+     * module, so a stale row cannot block the owner from loading and re-saving a valid configuration.
+     */
+    public List<String> canonical(Collection<String> stored) {
+        Set<String> keys = stored == null ? Set.of() : new HashSet<>(stored);
+        return modules.stream().filter(Module::implemented).map(Module::key).filter(keys::contains).toList();
+    }
     /** Operational setup suggestions only; these do not alter the legacy financial/scoring profile. */
     public Map<String, Boolean> resolvedAnswers(OperatingProfile profile, Map<String, Boolean> answers) {
         return Map.of(

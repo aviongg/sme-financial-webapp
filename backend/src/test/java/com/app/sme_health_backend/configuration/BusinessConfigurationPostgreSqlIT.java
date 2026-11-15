@@ -113,7 +113,11 @@ class BusinessConfigurationPostgreSqlIT extends com.app.sme_health_backend.tests
                 .andExpect(jsonPath("$.operatingAnswers.tracksProjects").value(false))
                 .andExpect(jsonPath("$.operatingAnswers.sellsOnCredit").value(false))
                 .andExpect(jsonPath("$.configured").value(false)).andExpect(jsonPath("$.version").value(0))
-                .andExpect(jsonPath("$.requestedModules.length()").value(4));
+                // DEF-23: the response reports the same effective state enforcement uses. A never-configured business
+                // keeps every implemented module, so the settings panel must show (and on save keep) all of them.
+                .andExpect(jsonPath("$.requestedModules.length()").value(implementedKeys().size()));
+        assertEquals(implementedKeys(), configuration.get(f.actor()).requestedModules());
+        assertResponseMatchesEnforcement(f);
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM business_configuration WHERE business_id=?", Integer.class, f.businessId));
         var preview = configuration.preview(f.actor(), coreOnly(0));
         assertFalse(preview.configured()); assertEquals(0, configuration.get(f.actor()).version());
@@ -287,6 +291,81 @@ class BusinessConfigurationPostgreSqlIT extends com.app.sme_health_backend.tests
         String enabled = mvc.perform(authenticated(post("/api/inventory/items"), f).with(realCsrf(f.session))
                 .contentType("application/json").content(item)).andReturn().getResponse().getContentAsString();
         assertFalse(enabled.contains("module_disabled"), enabled);
+    }
+
+    @Autowired ModuleRegistry registry;
+    List<String> implementedKeys() {
+        return registry.all().stream().filter(ModuleRegistry.Module::implemented).map(ModuleRegistry.Module::key).toList();
+    }
+    /** DEF-23: every module's reported state equals the server-side enforcement decision. */
+    void assertResponseMatchesEnforcement(Fixture f) {
+        var response = configuration.get(f.actor());
+        for (var state : response.modules()) {
+            assertEquals(modules.isEnabled(f.businessId, state.key()), state.enabled(), "response/enforcement drift: " + state.key());
+            assertEquals(state.enabled(), response.requestedModules().contains(state.key()), "requestedModules drift: " + state.key());
+        }
+    }
+    void storeConfiguration(Fixture f, String modulesJson) {
+        jdbc.update("INSERT INTO business_configuration (business_id, operating_profile, operating_answers, requested_modules, version, configured, updated_at) "
+                + "VALUES (?, 'MANUFACTURING', '{}'::jsonb, CAST(? AS jsonb), 1, true, now())", f.businessId, modulesJson);
+    }
+
+    /**
+     * DEF-02/DEF-21: rows written by the old demo seeder hold the non-registry key "commercial" and omit real modules.
+     * The configuration must still load, the unknown key must be dropped (not mapped to invoices), the response must
+     * agree with enforcement, and the owner must be able to recover by saving a valid configuration.
+     */
+    @Test void staleUnknownStoredModuleKeysDoNotBrickSettingsAndOwnerCanRecover() throws Exception {
+        var f = fixture("manufacturing");
+        storeConfiguration(f, "[\"core_finance\",\"documents\",\"commercial\",\"inventory\",\"projects\",\"whatsapp\",\"ai\"]");
+        mvc.perform(authenticated(get("/api/business-configuration"), f)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.configured").value(true)).andExpect(jsonPath("$.version").value(1));
+        var loaded = configuration.get(f.actor());
+        assertFalse(loaded.requestedModules().contains("commercial"));
+        assertEquals(List.of("core_finance", "documents", "whatsapp", "ai", "projects", "inventory"), loaded.requestedModules());
+        assertTrue(loaded.modules().stream().noneMatch(m -> m.key().equals("commercial")));
+        // Unknown key is not translated into a real module; valid omitted modules stay disabled.
+        assertFalse(modules.isEnabled(f.businessId, "invoices")); assertFalse(modules.isEnabled(f.businessId, "transactions"));
+        assertFalse(modules.isEnabled(f.businessId, "commercial"));
+        assertResponseMatchesEnforcement(f);
+        mvc.perform(authenticated(post("/api/invoices"), f).with(realCsrf(f.session)).contentType("application/json").content("{}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("module_disabled"));
+        // Recovery: the owner re-saves what the panel shows plus the modules they want; the stored row is now canonical.
+        var recovered = new ArrayList<>(loaded.requestedModules());
+        recovered.addAll(List.of("transactions", "receivables", "invoices"));
+        String body = new tools.jackson.databind.json.JsonMapper().writeValueAsString(Map.of("operatingProfile", "MANUFACTURING",
+                "operatingAnswers", Map.of(), "requestedModules", recovered, "version", 1));
+        mvc.perform(authenticated(put("/api/business-configuration"), f).with(realCsrf(f.session)).contentType("application/json").content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2));
+        String stored = jdbc.queryForObject("SELECT requested_modules::text FROM business_configuration WHERE business_id=?", String.class, f.businessId);
+        assertFalse(stored.contains("commercial"), stored);
+        assertTrue(modules.isEnabled(f.businessId, "invoices"));
+        assertResponseMatchesEnforcement(f);
+    }
+
+    /** DEF-02: a business seeded with the corrected canonical demo modules can use every implemented module. */
+    @Test void fullyEnabledCanonicalSeededBusinessCanWriteToEveryModule() throws Exception {
+        var f = fixture("manufacturing");
+        storeConfiguration(f, new tools.jackson.databind.json.JsonMapper().writeValueAsString(
+                DemoSeederModuleContractTest.seederModules(DemoSeederModuleContractTest.seederSource())));
+        for (String key : implementedKeys()) assertTrue(modules.isEnabled(f.businessId, key), key);
+        assertResponseMatchesEnforcement(f);
+        for (var write : List.of(post("/api/invoices"), post("/api/bills"), post("/api/finance/transactions"), post("/api/estimates"),
+                post("/api/samples"), post("/api/finance/commissions"), post("/api/finance/fx/transfers"), post("/api/inventory/items"))) {
+            String response = mvc.perform(authenticated(write, f).with(realCsrf(f.session)).contentType("application/json").content("{}"))
+                    .andReturn().getResponse().getContentAsString();
+            assertFalse(response.contains("module_disabled"), response);
+        }
+    }
+
+    /** DEF-23: explicitly disabled valid modules on a configured business stay disabled in both response and enforcement. */
+    @Test void explicitlyDisabledModulesStayDisabledInResponseAndEnforcement() throws Exception {
+        var f = fixture("services");
+        configuration.update(f.actor(), coreOnly(0));
+        var response = configuration.get(f.actor());
+        assertEquals(List.of("core_finance"), response.requestedModules());
+        for (var state : response.modules()) assertEquals(state.key().equals("core_finance"), state.enabled(), state.key());
+        assertResponseMatchesEnforcement(f);
     }
 
     @Test void writePathsMapToTheirModules() {

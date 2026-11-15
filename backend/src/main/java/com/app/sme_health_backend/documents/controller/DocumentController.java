@@ -42,17 +42,20 @@ public class DocumentController {
     private final DocumentConfirmationService confirmationService;
     private final BusinessAuthorizationService authService;
     private final com.app.sme_health_backend.documents.service.DocumentReviewService reviewService;
+    private final com.app.sme_health_backend.documents.service.DocumentManualReviewService manualReviewService;
 
     public DocumentController(
             DocumentUploadService uploadService,
             DocumentConfirmationService confirmationService,
             BusinessAuthorizationService authService,
-            com.app.sme_health_backend.documents.service.DocumentReviewService reviewService
+            com.app.sme_health_backend.documents.service.DocumentReviewService reviewService,
+            com.app.sme_health_backend.documents.service.DocumentManualReviewService manualReviewService
     ) {
         this.uploadService = Objects.requireNonNull(uploadService, "uploadService is required");
         this.confirmationService = Objects.requireNonNull(confirmationService, "confirmationService is required");
         this.authService = Objects.requireNonNull(authService, "authService is required");
         this.reviewService = Objects.requireNonNull(reviewService, "reviewService is required");
+        this.manualReviewService = Objects.requireNonNull(manualReviewService, "manualReviewService is required");
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -153,6 +156,21 @@ public class DocumentController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(DocumentMapper.toResponse(doc));
     }
 
+    /**
+     * DEF-01: move an upload whose OCR failed for a provider/transient reason into manual review (needs_review) so the
+     * evidence can be entered by hand and then confirmed through the normal contract. Not a confirmation bypass.
+     */
+    @PostMapping("/{id}/manual-review")
+    public ResponseEntity<DocumentResponse> startManualReview(
+            @PathVariable("id") UUID id,
+            HttpServletRequest request
+    ) {
+        BusinessAccessContext context = authService.requirePermission(request, BusinessPermission.DOCUMENT_EDIT);
+
+        UploadedDocument doc = manualReviewService.startManualReview(context.businessId(), id, context.userId());
+        return ResponseEntity.ok(DocumentMapper.toResponse(doc));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDraft(
             @PathVariable("id") UUID id,
@@ -211,6 +229,13 @@ public class DocumentController {
     public ResponseEntity<Map<String, String>> handleAlreadyConfirmed(DocumentAlreadyConfirmedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "already_confirmed", "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.app.sme_health_backend.documents.exception.ManualReviewNotEligibleException.class)
+    public ResponseEntity<Map<String, String>> handleManualReviewNotEligible(
+            com.app.sme_health_backend.documents.exception.ManualReviewNotEligibleException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "manual_review_not_eligible", "message", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
