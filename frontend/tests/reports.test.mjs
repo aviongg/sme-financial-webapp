@@ -158,8 +158,8 @@ test('every limitation code the backend can emit has English and Urdu copy and a
   }
 });
 
-test('reports use the existing financial-read permission and do not enable the future reports module', () => {
-  assert.equal(routePermission('/reports'), 'FINANCIAL_DATA_READ'); assert.equal(routeModule('/reports'), null);
+test('reports use the existing financial-read permission and map to the reports module', () => {
+  assert.equal(routePermission('/reports'), 'FINANCIAL_DATA_READ'); assert.equal(routeModule('/reports'), 'reports');
 });
 
 test('browser report code never converts, sums or averages financial values', () => {

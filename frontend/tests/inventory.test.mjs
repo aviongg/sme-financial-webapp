@@ -137,7 +137,7 @@ test('routes are permission-gated by FINANCIAL_DATA_READ and inventory is a live
   const registry = readFileSync(new URL('../../backend/src/main/java/com/app/sme_health_backend/configuration/service/ModuleRegistry.java', import.meta.url), 'utf8');
   // Product completion: the authoritative perpetual inventory (F08 ledger) makes the module live.
   assert.match(registry, /live\("inventory", "transactions"\)/);
-  assert.doesNotMatch(source('../src/lib/api/configuration.ts'), /inventory/);
+  assert.match(source('../src/lib/api/configuration.ts'), /inventory/);
   const sidebar = source('../src/components/layout/Sidebar.tsx');
   assert.match(sidebar, /\{ label: inventoryCopy\(locale\)\.nav, href: '\/inventory', icon: Boxes \}/);
   assert.match(source('../src/components/layout/MobileNav.tsx'), /data-testid="mobile-inventory-action"/);

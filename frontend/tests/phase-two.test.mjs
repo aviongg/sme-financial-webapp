@@ -33,7 +33,33 @@ test('missing, disabled, unimplemented and permission-denied modules cannot expo
   for (const delta of [{ implemented: false }, { enabled: false }, { available: false }]) assert.equal(moduleAvailable({ modules: [{ ...feature, ...delta }] }, 'documents'), false);
   assert.equal(moduleAvailable({ modules: [feature] }, 'inventory'), false);
 });
-test('module route rules preserve historical document and financial reads', () => { assert.equal(routeModule('/scan'), 'documents'); assert.equal(routeModule('/ask-finsight'), 'ai'); for (const route of ['/upload', '/upload/saved-reference', '/records', '/health/components', '/']) assert.equal(routeModule(route), null); });
+test('module route rules preserve historical document and financial reads and map live module routes', () => {
+  assert.equal(routeModule('/scan'), 'documents');
+  assert.equal(routeModule('/ask-finsight'), 'ai');
+  assert.equal(routeModule('/invoices'), 'invoices');
+  assert.equal(routeModule('/invoices/new'), 'invoices');
+  assert.equal(routeModule('/bills'), 'invoices');
+  assert.equal(routeModule('/finance/recognition'), 'invoices');
+  assert.equal(routeModule('/inventory'), 'inventory');
+  assert.equal(routeModule('/inventory/stock'), 'inventory');
+  assert.equal(routeModule('/projects'), 'projects');
+  assert.equal(routeModule('/finance/projects/123'), 'projects');
+  assert.equal(routeModule('/finance/funding'), 'projects');
+  assert.equal(routeModule('/estimates'), 'costing');
+  assert.equal(routeModule('/samples'), 'production');
+  assert.equal(routeModule('/reports'), 'reports');
+  assert.equal(routeModule('/operations/calendar'), 'operations');
+  assert.equal(routeModule('/records?view=calendar'), 'operations');
+  assert.equal(routeModule('/finance/commissions'), 'commissions');
+  assert.equal(routeModule('/finance/fx'), 'multi_currency');
+  assert.equal(routeModule('/records/receivables'), 'receivables');
+  assert.equal(routeModule('/records/payables'), 'receivables');
+  assert.equal(routeModule('/records?view=advances'), 'receivables');
+  assert.equal(routeModule('/finance/accounts'), 'transactions');
+  assert.equal(routeModule('/finance/transactions'), 'transactions');
+  assert.equal(routeModule('/records?add=1'), 'transactions');
+  for (const route of ['/upload', '/upload/saved-reference', '/records', '/health/components', '/']) assert.equal(routeModule(route), null);
+});
 test('AI explanation requests never supply identity, model, provider, quotas or arbitrary fields', async () => {
   backend(); await aiApi.explain({ type: 'ask', language: 'ur', question: '  نقد ذخیرہ  ', conversation: [{ role: 'user', content: 'previous question', businessId: 'other' }], businessId: 'other', model: 'other', provider: 'openai' });
   assert.equal(calls.at(-1).url, '/api/ai/explain'); assert.deepEqual(JSON.parse(calls.at(-1).options.body), { type: 'ask', language: 'ur', question: 'نقد ذخیرہ', conversation: [{ role: 'user', content: 'previous question' }] });

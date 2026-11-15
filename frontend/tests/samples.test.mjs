@@ -127,8 +127,8 @@ test('money display preserves all authoritative digits and unknown never renders
   assert.equal(form.formatMoney('1234.123456789012', 'en'), 'PKR 1,234.123456789012');
   assert.equal(form.formatMoney('-800.00', 'ur'), '- 800.00 روپے'); assert.equal(form.formatMoney(null, 'en'), '—'); assert.equal(form.formatMoney('0.00', 'en'), 'PKR 0.00');
 });
-test('route permissions preserve F04, F05 and sample read-only access without enabling future modules', () => {
-  for (const route of ['/samples', '/samples/a']) { assert.equal(routePermission(route), 'FINANCIAL_DATA_READ'); assert.equal(routeModule(route), null); }
+test('route permissions preserve F04, F05 and sample read-only access with production module gating', () => {
+  for (const route of ['/samples', '/samples/a']) { assert.equal(routePermission(route), 'FINANCIAL_DATA_READ'); assert.equal(routeModule(route), 'production'); }
   for (const route of ['/samples/new', '/projects/new', '/invoices/new', '/bills/new']) assert.equal(routePermission(route), 'RECORD_CREATE_UPDATE');
   for (const file of ['Sidebar.tsx', 'MobileNav.tsx']) {
     const source = readFileSync(new URL(`../src/components/layout/${file}`, import.meta.url), 'utf8');
