@@ -18,6 +18,16 @@ public class DemoScenarioSeeder {
     private static final String CRYPTO_KEY_B64 = "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=";
     private static final String COUNTERPARTY_AAD = "FinSight|CommercialDocument|counterpartyName";
 
+    /**
+     * Demo businesses are fully enabled: every implemented module, using canonical ModuleRegistry keys in registry order.
+     * Server-side module enforcement treats a configured business as exactly these keys, so a stale or non-canonical key
+     * here locks the demo out of real modules. DemoSeederModuleContractTest validates this list against ModuleRegistry
+     * and ModuleResolver (known, implemented, dependency-closed, required modules present).
+     */
+    static final List<String> DEMO_MODULES = List.of(
+            "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects",
+            "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports");
+
     private final Connection conn;
     private final Argon2PasswordEncoder passwordEncoder;
     private final byte[] aesKeyBytes;
@@ -250,10 +260,11 @@ public class DemoScenarioSeeder {
         // 3. business_configuration
         try (PreparedStatement ps = conn.prepareStatement(
             "INSERT INTO business_configuration (business_id, operating_profile, operating_answers, requested_modules, version, configured, updated_at) " +
-            "VALUES (?, ?, '{}'::jsonb, '[\"core_finance\",\"documents\",\"commercial\",\"inventory\",\"projects\",\"whatsapp\",\"ai\"]'::jsonb, 1, true, now())"
+            "VALUES (?, ?, '{}'::jsonb, CAST(? AS jsonb), 1, true, now())"
         )) {
             ps.setObject(1, bizId);
             ps.setString(2, operatingProfile);
+            ps.setString(3, "[\"" + String.join("\",\"", DEMO_MODULES) + "\"]");
             ps.executeUpdate();
         }
 
