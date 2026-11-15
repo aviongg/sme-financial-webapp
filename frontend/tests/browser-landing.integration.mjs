@@ -1,6 +1,7 @@
+import { historicalOrigin as origin, historicalBackendPort as backendPort } from './historical-harness.mjs';
 // Real-browser acceptance for the public FinSight PK landing page (/landing).
-// Uses the production Next build on FRONTEND_TEST_ORIGIN (default http://127.0.0.1:3100) whose /api rewrite points at a
-// synthetic session fixture on 127.0.0.1:8080. It does not test Spring, PostgreSQL, email, OCR or AI providers.
+// Uses the production Next build on FRONTEND_TEST_ORIGIN (default http://127.0.0.1:13100) whose /api rewrite points at a
+// synthetic session fixture on 127.0.0.1:18080. It does not test Spring, PostgreSQL, email, OCR or AI providers.
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -10,8 +11,6 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const out = process.env.BROWSER_ARTIFACT_DIR || 'test-artifacts/browser-landing';
 mkdirSync(out, { recursive: true });
-const origin = process.env.FRONTEND_TEST_ORIGIN || 'http://127.0.0.1:3100';
-const backendPort = Number(process.env.FINSIGHT_BROWSER_BACKEND_PORT || 8080);
 const businessId = '11111111-1111-4111-8111-111111111111';
 
 // ---- Synthetic session fixture: anonymous by default; the private-route checks switch it explicitly. ----
@@ -58,7 +57,7 @@ const menuText = {
   ur: { open: 'مینو کھولیں', close: 'مینو بند کریں', faq: 'سوالات', lang: 'انگریزی میں دیکھیں' },
 };
 
-const browser = await chromium.launch({ headless: true, channel: process.env.FINSIGHT_BROWSER_CHANNEL || 'msedge' });
+const browser = await chromium.launch({ headless: true, ...(process.env.FINSIGHT_BROWSER_CHANNEL ? { channel: process.env.FINSIGHT_BROWSER_CHANNEL } : {}) });
 
 async function openContext(viewport, locale, extra = {}) {
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, ...extra });
@@ -421,8 +420,11 @@ await check('private routes remain protected exactly as before', async () => {
     }
     step = 'no business';
     mode = 'no-business';
-    await page.goto(`${origin}/?auth=login`, { waitUntil: 'networkidle' });
+    // A server-side mode switch is not a browser login. Enter a private route to
+    // probe the synthetic authenticated identity; normal load sets the session hint.
+    await page.goto(`${origin}/onboarding`, { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Create business' }).waitFor();
+    assert.equal(await page.locator('aside[aria-label="Primary Navigation"]').count(), 0);
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     await page.locator('h1').filter({ hasText: heroTitle.en }).waitFor();
     assert.equal(await page.locator('form').count(), 0);
@@ -431,15 +433,21 @@ await check('private routes remain protected exactly as before', async () => {
     const before = apiCalls.length;
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     await page.locator('h1').filter({ hasText: heroTitle.en }).waitFor();
-    assert.deepEqual(apiCalls.slice(before), [], 'a fresh /landing load makes no session or business request, even when signed in');
+    const sessionEndpoints = ['/api/auth/me', '/api/auth/csrf', '/api/businesses', '/api/businesses/active'];
+    assert.ok(apiCalls.slice(before).every(call => sessionEndpoints.includes(call.url)), 'a remembered session may revalidate identity, but public landing must not request financial data');
     assert.equal(await page.locator('aside[aria-label="Primary Navigation"]').count(), 0);
-    step = 'business sign in';
-    // Leaving the public page runs the probe; a signed-in visitor goes straight into the private shell.
-    await page.locator('header').getByRole('link', { name: 'Sign In' }).click();
+    step = 'remembered business opens app';
+    // A verified remembered session gets Open FinSight rather than an anonymous Sign In CTA.
+    await page.locator('header').getByRole('link', { name: 'Open FinSight' }).click();
     await page.locator('aside[aria-label="Primary Navigation" i], aside[aria-label="Primary navigation"]').waitFor({ timeout: 15000 });
     assert.ok(apiCalls.slice(before).some((call) => call.url === '/api/auth/me'));
     assert.deepEqual(log.pageErrors.filter((error) => /hydrat/i.test(error)), []);
     assert.deepEqual(log.external, []);
+    step = 'hint is not authentication';
+    mode = 'anonymous';
+    await page.goto(`${origin}/records`, { waitUntil: 'networkidle' });
+    await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+    assert.equal(await page.locator('aside[aria-label="Primary Navigation" i]').count(), 0, 'a stale session hint never authorizes private content');
   } finally { await context.close(); mode = 'anonymous'; }
 });
 

@@ -3,9 +3,9 @@ import { configurationFixture, aiStatusFixture } from './phase-two.mjs';
 
 const implemented = ['health-score', 'health-components', 'score-completeness', 'cash-flow', 'cash-projection',
   'financial-evidence', 'next-step', 'recommendation', 'financial-summary', 'ai-explanation', 'document-workflow'];
-const future = { transactions: 'transactions', receivables: 'receivables', payables: 'receivables', invoices: 'invoices',
+const additional = { transactions: 'transactions', receivables: 'receivables', payables: 'receivables', invoices: 'invoices',
   projects: 'projects', costing: 'costing', inventory: 'inventory', production: 'production', commissions: 'commissions',
-  'multi-currency': 'multi_currency', budgets: 'core_finance', 'funding-gap': 'projects', reports: 'reports' };
+  'multi-currency': 'multi_currency', budgets: 'core_finance', goals: 'core_finance', profitability: 'core_finance', 'break-even': 'core_finance', 'action-center': 'core_finance', calendar: 'operations', 'funding-gap': 'projects', reports: 'reports' };
 const presets = {
   manufacturing: ['health-score', 'cash-flow', 'financial-summary', 'health-components', 'financial-evidence', 'next-step', 'score-completeness', 'recommendation', 'cash-projection', 'ai-explanation'],
   'retail-trade': ['health-score', 'financial-summary', 'cash-flow', 'health-components', 'next-step', 'recommendation', 'score-completeness', 'cash-projection', 'ai-explanation'],
@@ -17,9 +17,9 @@ const monthIndex = month => { const [year, value] = month.split('-').map(Number)
 export function workspaceFixture({ dashboard, records = [], configuration = configurationFixture(),
   aiStatus = aiStatusFixture(), role = 'OWNER', presetKey = configuration.presetKey,
   overrides = [], preferenceVersion = 0 } = {}) {
-  const catalog = [...implemented, ...Object.keys(future)].map(key => {
-    const moduleKey = key === 'ai-explanation' ? 'ai' : key === 'document-workflow' ? 'documents' : future[key] || 'core_finance';
-    const isImplemented = implemented.includes(key), moduleState = configuration.modules.find(item => item.key === moduleKey);
+  const catalog = [...implemented, ...Object.keys(additional)].map(key => {
+    const moduleKey = key === 'ai-explanation' ? 'ai' : key === 'document-workflow' ? 'documents' : additional[key] || 'core_finance';
+    const isImplemented = true, moduleState = configuration.modules.find(item => item.key === moduleKey);
     const reason = key === 'document-workflow' && role === 'VIEWER' ? 'PERMISSION_REQUIRED'
       : !isImplemented || !moduleState?.implemented ? 'NOT_IMPLEMENTED'
       : !moduleState.available ? 'MODULE_DISABLED'
@@ -29,7 +29,7 @@ export function workspaceFixture({ dashboard, records = [], configuration = conf
   });
   const selected = presets[presetKey];
   if (!selected) throw new Error(`Unknown synthetic workspace preset ${presetKey}`);
-  const ordered = [...selected, ...implemented.filter(key => !selected.includes(key))]
+  const ordered = [...selected, ...[...implemented, ...Object.keys(additional)].filter(key => !selected.includes(key))]
     .filter(key => catalog.find(entry => entry.key === key)?.available);
   const preferences = ordered.map((key, order) => ({ key, order, hidden: !selected.includes(key),
     size: ['health-score', 'cash-flow', 'health-components', 'financial-evidence', 'ai-explanation'].includes(key)

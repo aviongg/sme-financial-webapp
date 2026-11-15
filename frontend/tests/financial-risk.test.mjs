@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
+import { buildRiskAssessmentResponse } from './fixtures/financial-risk.mjs';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'finsight-risk-'));
 for (const name of [
@@ -29,6 +30,33 @@ const require = createRequire(import.meta.url);
 const { riskEn, riskUr } = require(path.join(directory, 'components/records/risk/risk-copy.js'));
 const { recordsEn, recordsUr } = require(path.join(directory, 'components/records/records-copy.js'));
 const { financialRiskApi } = require(path.join(directory, 'lib/api/dev-a/financial-risk.js'));
+
+test('historical browser risk wire fixture preserves severity, exact exposure, provenance and unknowns through the real adapter', () => {
+  const { parseRiskAssessment } = require(path.join(directory, 'lib/api/dev-a/financial-risk.js'));
+  const raw = buildRiskAssessmentResponse();
+  const parsed = parseRiskAssessment(raw);
+  assert.equal(parsed.summary.overallSeverity, 'CRITICAL');
+  assert.deepEqual([parsed.summary.criticalCount, parsed.summary.highCount, parsed.summary.mediumCount], [1, 2, 1]);
+  assert.equal(parsed.summary.assessedCategoriesCount, 7);
+  assert.equal(parsed.insights.length, 4);
+  assert.equal(parsed.insights[0].affectedAmount, '45000.00');
+  assert.equal(parsed.insights[0].evidence[0].amount, '-45000.00');
+  assert.equal(parsed.insights[1].evidence[0].sourceId, 'ob-pay-1');
+  assert.equal(parsed.insights[1].evidence[0].relevantDate, '2026-10-20');
+  assert.equal(parsed.insights[2].metricValue, 62.5);
+  assert.equal(parsed.insights[3].affectedAmount, null);
+  assert.equal(parsed.insights[3].earliestImpactDate, null);
+  assert.equal(parsed.insights[3].dataCompleteness, 'PARTIAL');
+  assert.equal(parsed.categories.at(-1).status, 'NOT_ASSESSED');
+  assert.equal(parsed.generatedAt, '2026-10-15T12:00:00Z');
+  const filtered = parseRiskAssessment(buildRiskAssessmentResponse(60, 'UPCOMING_PAYMENTS', 'HIGH'));
+  assert.equal(filtered.insights.length, 1);
+  assert.equal(filtered.insights[0].riskCode, 'R02_UPCOMING_PAYMENT_PRESSURE');
+  assert.equal(filtered.horizonDays, 60);
+  assert.equal(filtered.summary.overallSeverity, 'CRITICAL', 'Filtering cannot downgrade the overall assessment');
+  assert.throws(() => parseRiskAssessment({ ...raw, version: undefined, contractVersion: raw.version }));
+  assert.throws(() => parseRiskAssessment({ ...raw, summary: { ...raw.summary, highestSeverity: undefined, overallSeverity: 'CRITICAL' } }));
+});
 
 test('Financial Risk copy has 1:1 English/Urdu key symmetry', () => {
   const enKeys = Object.keys(riskEn).sort();
