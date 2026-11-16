@@ -7,14 +7,17 @@
 
     The launcher only runs an environment created by scripts/init-demo.ps1 and only runs processes it starts itself:
       * refuses if anything already listens on 8080 or 3000 (an existing process is never reused or stopped);
-      * requires the init-created demo container and verifies its disposable marker, its link to this checkout's
-        .demo-runtime/environment.json, Flyway version 52 and its loopback-only port;
+      * requires the init-created demo container, identified by the full container ID, creation time, init instance
+        label, Compose project/service/working directory and data volume recorded in this checkout's
+        .demo-runtime/environment.json (never by its name alone), then verifies its disposable marker, Flyway version 52
+        and its loopback-only port; every Docker command addresses the verified container ID;
       * packages the Next standalone server with its .next/static and public assets;
       * starts the backend (demo database, demo document store, live AI/WhatsApp/OCR/SMTP off) and the frontend;
       * declares readiness only after real HTTP checks: the backend CSRF endpoint, the frontend health route, the root
         page and every referenced CSS/JS asset, and the API through the frontend proxy; it then proves the listening
         ports belong to the launched processes and that the backend's own connection reached the demo database.
-    On any failure it stops only what it started and reports why.
+    On any failure it stops only what it started and reports why: the database container is stopped only if this
+    launcher started it and it still verifies as the recorded container; otherwise it is left untouched.
 
 .PARAMETER PublicTunnel
     Refused: public demonstration is not approved.
@@ -102,19 +105,24 @@ try {
 }
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Stop-Refused 4 "Docker is required." }
 if (-not (Test-Path $EnvironmentFile)) { Stop-Refused 4 "No initialized demo environment. Run: powershell scripts/init-demo.ps1 -CreateFreshDisposableDemo" }
-$environment = Get-Content -Raw $EnvironmentFile | ConvertFrom-Json
-docker container inspect $DbContainer *> $null
-if ($LASTEXITCODE -ne 0) { Stop-Refused 4 "Demo container $DbContainer does not exist. Run scripts/init-demo.ps1 -CreateFreshDisposableDemo." }
+$environment = Read-DemoEnvironment $EnvironmentFile
+$ownership = Test-DemoContainerOwnership $environment $ProjectRoot
+if (-not $ownership.Owned) {
+    Stop-Refused 4 ("The demo database container is not verified as this checkout's init-demo.ps1 container: $($ownership.Reason). " +
+        "Nothing was started, stopped or changed. Run scripts/init-demo.ps1 -CreateFreshDisposableDemo for a new environment.")
+}
+$DbId = $ownership.ContainerId
 $backendJar = Join-Path $ProjectRoot "backend\target\sme-health-backend-0.0.1-SNAPSHOT.jar"
 if (-not (Test-Path $backendJar)) { Stop-Refused 4 "Backend jar not found at $backendJar. Build it first (backend: mvnw -DskipTests package)." }
 
-$state = [ordered]@{ startedAt = (Get-Date).ToUniversalTime().ToString('o'); dbStartedByLauncher = $false; processes = @() }
+$state = [ordered]@{ startedAt = (Get-Date).ToUniversalTime().ToString('o'); dbStartedByLauncher = $false
+    database = [ordered]@{ containerId = $DbId; instance = $environment.instance }; processes = @() }
 $started = New-Object System.Collections.ArrayList
 
 function Save-State { $state.processes = @($started); Write-DemoRuntime $RuntimeFile $state }
 
 function Invoke-Psql([string]$Sql) {
-    $out = docker exec $DbContainer psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -tA -c $Sql 2>$null
+    $out = docker exec $DbId psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -tA -c $Sql 2>$null
     if ($LASTEXITCODE -ne 0) { throw "Could not query the demo database: $Sql" }
     (($out | Out-String).Trim())
 }
@@ -135,19 +143,19 @@ try {
 
     # 1. Demo database: the init-created container, proven by marker, environment link, schema and loopback port.
     Write-Host "`n[1/4] Verifying the initialized demo database..." -ForegroundColor Yellow
-    $running = (docker container inspect -f '{{.State.Running}}' $DbContainer).Trim()
-    if ($running -ne 'true') {
-        docker start $DbContainer | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not start $DbContainer." }
+    if (-not $ownership.Running) {
+        # Recorded before the start request so a failure part-way still lets cleanup consider (and re-verify) it.
         $state.dbStartedByLauncher = $true; Save-State
+        docker start $DbId | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not start the verified demo container $($DbId.Substring(0, 12))." }
     }
     $ready = $false
     for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
-        docker exec $DbContainer pg_isready -U postgres -d finsight_demo *> $null
+        docker exec $DbId pg_isready -U postgres -d finsight_demo *> $null
         if ($LASTEXITCODE -eq 0) { $ready = $true } else { Start-Sleep -Seconds 1 }
     }
-    if (-not $ready) { throw "PostgreSQL in $DbContainer did not accept connections within 60s." }
-    $binding = ((docker port $DbContainer 5432/tcp) | Out-String).Trim()
+    if (-not $ready) { throw "PostgreSQL in $DbContainer ($($DbId.Substring(0, 12))) did not accept connections within 60s." }
+    $binding = ((docker port $DbId 5432/tcp) | Out-String).Trim()
     if ($binding -ne '127.0.0.1:5433') { throw "Demo database is published on '$binding', expected loopback 127.0.0.1:5433 only." }
     $marker = Invoke-Psql "SELECT coalesce(shobj_description(oid, 'pg_database'), '') FROM pg_database WHERE datname = 'finsight_demo'"
     if (-not $marker.StartsWith('finsight-disposable-synthetic-demo:') -or $marker -ne $environment.marker) {
@@ -155,7 +163,7 @@ try {
     }
     $version = Invoke-Psql "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"
     if ($version -ne $ExpectedSchemaVersion) { throw "Demo schema is at Flyway version '$version', expected $ExpectedSchemaVersion." }
-    Write-Host "Demo database verified (disposable marker, schema V$version, loopback 127.0.0.1:5433)." -ForegroundColor Green
+    Write-Host "Demo database verified (container $($DbId.Substring(0, 12)), disposable marker, schema V$version, loopback 127.0.0.1:5433)." -ForegroundColor Green
 
     # 2. Frontend assets packaged into the standalone server.
     Write-Host "`n[2/4] Packaging the standalone frontend with its static assets..." -ForegroundColor Yellow
@@ -201,7 +209,11 @@ try {
 } catch {
     [Console]::Error.WriteLine("FAILED: $($_.Exception.Message)")
     foreach ($record in @($started)) { [Console]::Error.WriteLine("  cleanup " + (Stop-OwnedProcessTree $record)) }
-    if ($state.dbStartedByLauncher) { docker stop $DbContainer *> $null; [Console]::Error.WriteLine("  cleanup: stopped $DbContainer (it was started by this launcher)") }
+    if ($state.dbStartedByLauncher) {
+        [Console]::Error.WriteLine("  cleanup " + (Stop-OwnedDemoContainer $environment $state $ProjectRoot).Message)
+    } else {
+        [Console]::Error.WriteLine("  cleanup database container: already running before this launch; left untouched")
+    }
     Remove-Item $RuntimeFile -Force -ErrorAction SilentlyContinue
     exit 1
 }
