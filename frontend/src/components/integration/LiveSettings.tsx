@@ -21,6 +21,8 @@ import { useAi } from '@/components/ai/AiProvider';
 import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { productCopy } from '@/lib/i18n/translations/product';
+import { deliveryProvider } from '@/lib/providerDisclosure';
 interface Delivery {
     id: string;
     targetMonth: string;
@@ -28,10 +30,11 @@ interface Delivery {
     deliveryStatus: string;
     failureReason: string | null;
     sentAt: string | null;
+    providerName: string | null;
 }
 export function LiveSettings() {
     const session = useSession();
-    const { t, locale } = useLanguage(); const copy = phaseTwoCopy(locale); const ai = useAi();
+    const { t, locale } = useLanguage(); const copy = phaseTwoCopy(locale); const ai = useAi(); const deliveryCopy = productCopy(locale).whatsappDelivery;
     const [error, setError] = useState('');
     const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [profile, deliveries] = await Promise.all([phaseOneApi.getProfile(), apiClient<Delivery[]>('/whatsapp/deliveries', { signal })]); return { profile, deliveries }; }, []));
     const changeBusiness = (id: string) => void session.switchBusiness(id).catch(e => setError(localizedError(e, t)));
@@ -44,7 +47,7 @@ export function LiveSettings() {
     <BusinessIdentity />
     {session.can('MEMBERSHIP_MANAGE') && <TeamAccess/>}<Invitations/>
     <PasswordSettings />
-    <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.deliveryHistory}</h2>{resource.data?.deliveries.length ? resource.data.deliveries.map(d => <div key={d.id} className="border-b py-2"><p>{d.targetMonth} · {d.maskedDestinationNumber} · <strong>{liveLabel(t, d.deliveryStatus)}</strong></p>{d.failureReason && <p className="text-sm">{t.live.deliveryFailure}</p>}</div>) : <p>{t.live.noDeliveries}</p>}</Card>
+    <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.deliveryHistory}</h2>{resource.data?.deliveries.length ? resource.data.deliveries.map(d => { const provider = deliveryProvider(d.providerName); return <div key={d.id} className="border-b py-2" data-testid="whatsapp-delivery" data-provider={provider}><p>{d.targetMonth} · {d.maskedDestinationNumber} · <strong>{liveLabel(t, d.deliveryStatus)}</strong></p><p className={`text-sm ${provider === 'meta' ? '' : 'font-semibold'}`} data-testid="whatsapp-delivery-provider">{deliveryCopy.provider}: {deliveryCopy.providers[provider]}</p>{d.failureReason && <p className="text-sm">{t.live.deliveryFailure}</p>}</div>; }) : <p>{t.live.noDeliveries}</p>}</Card>
   </LivePage>;
 }
 function WhatsAppSettings({ profile, editable }: {
