@@ -1,0 +1,15 @@
+﻿{
+    "scope":  "Windows guard module with one task-owned ephemeral Node listener",
+    "status":  "PASS",
+    "identity":  {
+                     "role":  "task-owned-probe",
+                     "pid":  30628,
+                     "startTicks":  639304293207479772,
+                     "name":  "node"
+                 },
+    "port":  58636,
+    "ownedListenerVerified":  true,
+    "recordedProcessStopped":  true,
+    "portReleased":  true,
+    "message":  "task-owned-probe: stopped PID 30628"
+}

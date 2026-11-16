@@ -1,0 +1,27 @@
+{
+  "scope": "Synthetic copilot-v1/configuration fixture + frozen production Next",
+  "checks": [
+    "empty business exposes its financial overview without inventing a health score while preset previews remain available without saving",
+    "disabled AI leaves deterministic dashboard usable and never requests explanations",
+    "existing business gets compatible defaults and implemented inventory and its transaction dependency are enabled; required core cannot be toggled",
+    "server preview adapts terminology without persisting",
+    "configuration and optional module choices persist across reload",
+    "disabled document route is guarded and cannot upload; authorized history fixture remains intact",
+    "disabled WhatsApp prevents preference mutations without deleting delivery history",
+    "optimistic conflict requires reloading latest settings before saving",
+    "provider-disabled Copilot is disclosed as offline and does not submit automatically",
+    "current Copilot displays exact strings, unknown readiness and a source-labelled plan without treating it as posted cash",
+    "current rate-limit response is disclosed without automatic retry",
+    "Copilot keeps a bounded rolling request history of at most eight turns",
+    "new conversation clears history and unsupported request submits only to the read-only Copilot API",
+    "business switch loads independent configuration and removes prior Copilot evidence",
+    "current Copilot submits Urdu, renders RTL and fits mobile width",
+    "Urdu configuration remains usable on mobile",
+    "viewer receives read-only settings without owner controls",
+    "logout removes all private configuration and assistant state",
+    "no browser exceptions, CSP failures or hydration errors"
+  ],
+  "errors": [],
+  "status": "FAILED",
+  "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('copilot-mode').getByText('AI assistant', { exact: true }) to be visible\n"
+}

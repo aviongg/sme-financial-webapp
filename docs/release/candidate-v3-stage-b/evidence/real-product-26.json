@@ -1,0 +1,32 @@
+{
+  "testedSHA": "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+  "passed": 26,
+  "checks": [
+    "fixture seeded through authenticated API (account, item, stock, invoice recognized, cash sale)",
+    "EN 1280x900: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "EN 1024x768: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "EN 390x844: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "EN 390x600: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "UR 1280x900: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "UR 1024x768: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "UR 390x844: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "UR 390x600: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "No rebuild storm: 72 page loads served the settled projection without a rebuild",
+    "F04 credit note issued in the browser reduces the authoritative outstanding to 3,500.00",
+    "F08 invoice fulfilment issues 4 bags at WAC: stock 6 bags / 3,000.00, COGS 2,000.00",
+    "F08 receipt recorded from the form by keyboard (Enter) updates the register to 8 bags",
+    "Planning: accrual revenue 4,734.00 (3,600 invoice − 100 note + 1,234 cash sale); break-even 0.00 with only policy-variable COGS",
+    "Monthly record derived from daily activity equals P&L: revenue 4,734.00, COGS 2,000.00, stock 4,100.00, cash in 1,234.00",
+    "Late entry dated last month updates last month (500.00) and its health score; this month stays 4,734.00",
+    "Recalculation is idempotent; supplemental loan input (keyboard) flows into last month; manual monthly totals are refused (409)",
+    "Copilot answers by keyboard with the exact grounded figure 4734.00 and cited evidence",
+    "F12B financial pack renders all sections and downloads the P&L CSV",
+    "Action center items show their reason and evidence",
+    "DEF-02/21/23 canonical seeded-style module selection saves; unconfigured and configured availability agree",
+    "DEF-01 real failed upload enters manual review, saves corrections and confirms evidence without posting transactions",
+    "DEF-05 inventory item chosen in the commercial line editor persists through the real invoice API",
+    "DEF-06 stock return selector submits the selected prior issue to the authoritative inventory endpoint",
+    "DEF-04/23 counterparty, invoice and actual /api/inventory writes deny disabled modules; retained API history and UI route guards agree",
+    "Candidate v2 document/manual-review and stock history remain isolated across active businesses"
+  ]
+}

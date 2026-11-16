@@ -1,0 +1,46 @@
+{
+  "testedSHA" : "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+  "scope" : "Real seed preflight + fresh V52 embedded PostgreSQL + ephemeral Spring; not Docker launcher acceptance",
+  "logins" : [ {
+    "role" : "OWNER",
+    "login" : 200,
+    "requestedModules" : 15,
+    "email" : "demo.owner@finsight.local",
+    "businesses" : 8,
+    "configuration" : 200,
+    "matchingRoleMemberships" : 8
+  }, {
+    "role" : "ACCOUNTANT",
+    "login" : 200,
+    "requestedModules" : 15,
+    "email" : "demo.accountant@finsight.local",
+    "businesses" : 8,
+    "configuration" : 200,
+    "matchingRoleMemberships" : 8
+  }, {
+    "role" : "MANAGER",
+    "login" : 200,
+    "requestedModules" : 15,
+    "email" : "demo.manager@finsight.local",
+    "businesses" : 8,
+    "configuration" : 200,
+    "matchingRoleMemberships" : 8
+  }, {
+    "role" : "SALESPERSON",
+    "login" : 200,
+    "requestedModules" : "denied by role",
+    "email" : "demo.sales@finsight.local",
+    "businesses" : 8,
+    "configuration" : 403,
+    "matchingRoleMemberships" : 8
+  }, {
+    "role" : "VIEWER",
+    "login" : 200,
+    "requestedModules" : 15,
+    "email" : "demo.viewer@finsight.local",
+    "businesses" : 8,
+    "configuration" : 200,
+    "matchingRoleMemberships" : 8
+  } ],
+  "status" : "PASS"
+}

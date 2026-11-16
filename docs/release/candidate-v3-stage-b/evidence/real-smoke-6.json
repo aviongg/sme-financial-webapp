@@ -1,0 +1,11 @@
+{
+  "passed": 6,
+  "checks": [
+    "fixture seeded through authenticated API (account, item, stock, invoice recognized, cash sale)",
+    "EN 1280x900: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "EN 390x844: 9 product pages render, no page overflow, no page/console/hydration/CSP errors",
+    "UR 1280x900: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "UR 390x844: 9 product pages render, RTL, no page overflow, no page/console/hydration/CSP errors",
+    "No rebuild storm: 36 page loads served the settled projection without a rebuild"
+  ]
+}

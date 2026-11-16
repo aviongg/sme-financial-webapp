@@ -15,6 +15,22 @@ Docker CLI is absent on this Windows host; full init/start/stop rehearsal remain
 unverified. Corrected demo behavior is reviewed/tested only within explicit fixture
 and runtime boundaries. Existing DEF-08 empty-history P1 remains open; v3 is not final.
 Results: `docs/release/CANDIDATE_V3_STAGE_B_VERIFICATION.md` (publication pending).
+Stage-B verification `aa0b9e15ebc6dd1274983c31b2338fcce7e0e132` passed hosted release/
+security, 1,833 unit cases (one Windows-only skip on Linux), all 88 PostgreSQL
+classes/473 cases (zero skips), frontend 479/type/lint/build, OCR 248, operations
+63/17/14, smoke 6/full 26, provider browser 9 and standalone 3 CSS/21 JS HTTP 200.
+Windows unit also passed with one symlink skip; all 12 demo contracts, five new
+seeder PostgreSQL cases and explicit HTTPS 15 passed locally. Five seeded logins
+and 40 memberships were verified through real disposable Spring; salesperson
+general financial read remains 403. Positive PID/start-time owned-child shutdown
+passed. Original hosted historical phase-two re-login/navigation race was retained;
+the narrow driver repair awaits authenticated inline settings before navigation,
+preserving all assertions; all five drivers/86 checks then pass locally.
+Open: DEF-08 empty-history WhatsApp P1; demo container-name shutdown without runtime
+ownership proof (safe Docker-function-only negative fixture); full Windows/Docker
+operator drill (Docker absent), plus existing production acceptance conditions.
+No application/migration/demo-source changes beyond the exact authorized merge.
+Final containing publication and its own CI statuses are reported outside this file.
 
 
 ## Candidate v3 Stage A integration — 16 November 2026 (Asia/Karachi)

@@ -1,0 +1,123 @@
+{
+  "verification_head": "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+  "scope": "Initial Stage-B hosted evidence; historical failure retained and diagnosed, not suppressed",
+  "runs": [
+    {
+      "id": 43865504920,
+      "name": "Dependency and secret checks",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43865504920"
+    },
+    {
+      "id": 43865504793,
+      "name": "Historical browser reconciliation",
+      "status": "completed",
+      "conclusion": "failure",
+      "sha": "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43865504793"
+    },
+    {
+      "id": 43865504538,
+      "name": "Release validation",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "aa0b9e15ebc6dd1274983c31b2338fcce7e0e132",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43865504538"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 133292881108,
+      "name": "backend-unit",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:25:09.4179588Z [INFO] Running com.app.sme_health_backend.demotooling.DemoToolingContractTest",
+        "2026-11-16T12:25:21.8553825Z [WARNING] Tests run: 12, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 12.44 s -- in com.app.sme_health_backend.demotooling.DemoToolingContractTest",
+        "2026-11-16T12:26:58.6633504Z [INFO] Tests run: 1833, Failures: 0, Errors: 0, Skipped: 1"
+      ]
+    },
+    {
+      "id": 133292881602,
+      "name": "ocr-and-operations",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:19:40.1960843Z 248 passed, 4 warnings in 1.09s",
+        "2026-11-16T12:19:41.3665009Z Ran 63 tests in 0.936s",
+        "2026-11-16T12:19:41.5119433Z Ran 17 tests in 0.062s",
+        "2026-11-16T12:19:41.6713778Z Ran 14 tests in 0.056s"
+      ]
+    },
+    {
+      "id": 133292881634,
+      "name": "browser-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:22:00.3413887Z ALL 6 RELEASE-SMOKE BROWSER CHECKS PASSED",
+        "2026-11-16T12:22:27.4193886Z PASS packaged standalone build serves all 3 CSS and 21 JS assets (HTTP 200)",
+        "2026-11-16T12:23:07.1911195Z ALL 26 PRODUCT-COMPLETION BROWSER CHECKS PASSED"
+      ]
+    },
+    {
+      "id": 133292881658,
+      "name": "postgres (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:19:30.3664241Z Disposable PostgreSQL shard 2/4: 22/88 classes",
+        "2026-11-16T12:26:16.1847644Z Selected report totals: {'tests': 98, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133292881660,
+      "name": "postgres (3)",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:19:26.8176540Z Disposable PostgreSQL shard 3/4: 22/88 classes",
+        "2026-11-16T12:23:12.5644048Z Selected report totals: {'tests': 110, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133292881811,
+      "name": "postgres (4)",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:19:30.8197322Z Disposable PostgreSQL shard 4/4: 22/88 classes",
+        "2026-11-16T12:25:21.7783404Z Selected report totals: {'tests': 136, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133292881827,
+      "name": "postgres (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "run": 43865504538,
+      "summary": [
+        "2026-11-16T12:19:29.0531926Z Disposable PostgreSQL shard 1/4: 22/88 classes",
+        "2026-11-16T12:25:51.0725268Z Selected report totals: {'tests': 129, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    }
+  ],
+  "historical_failed_job": 133292881287,
+  "historical_failure_summary": [
+    "2026-11-16T12:23:00.3295658Z PASS browser-landing: exit=0 signal=null",
+    "2026-11-16T12:23:08.5968508Z PASS browser: exit=0 signal=null",
+    "2026-11-16T12:23:43.8925383Z FAIL browser-phase-two: exit=1 signal=null",
+    "2026-11-16T12:23:47.2666933Z PASS browser-extra: exit=0 signal=null",
+    "2026-11-16T12:23:50.9432281Z PASS financial-risk-browser: exit=0 signal=null"
+  ],
+  "historical_artifact_id": 14224444972,
+  "historical_repair": "Await authenticated inline settings after re-login before hard navigation; preserves Viewer denial and exact DEF-08 assertion. Original failure retained."
+}

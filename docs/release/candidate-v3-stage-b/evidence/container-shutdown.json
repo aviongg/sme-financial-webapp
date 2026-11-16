@@ -1,0 +1,12 @@
+﻿{
+    "scope":  "Exact stop-demo script; Docker function fixture only; no real container/process stopped",
+    "runtimeManifestPresent":  false,
+    "calls":  [
+                  "ps -q --filter name=^finsight-postgres-demo$",
+                  "stop finsight-postgres-demo",
+                  "ps -q --filter name=^finsight-tunnel-demo$",
+                  "stop finsight-tunnel-demo"
+              ],
+    "stoppedUnrecordedNamedContainer":  true,
+    "stoppedLegacyTunnelByName":  true
+}
