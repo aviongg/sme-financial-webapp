@@ -11,6 +11,7 @@ import { isDemoMode } from '@/lib/api/config';
 import { copilotApi, insightApi, whatsappInboundApi, type CopilotResponse } from '@/lib/api/product';
 import { useLanguage } from '@/lib/i18n/context';
 import { productCopy, type ProductCopy } from '@/lib/i18n/translations/product';
+import { copilotProvenance, type CopilotProvenance } from '@/lib/providerDisclosure';
 import { Amount, LoadState, Panel, Pct, Pill, Stat, StatGrid, Table, asList, asRecord, errorText, monthStart, today, useLoad } from './shared';
 
 function Gate({ title, children }: { title: string; children: React.ReactNode }) {
@@ -347,7 +348,7 @@ function CopilotInner() {
   const c = copy.copilot;
   const status = useLoad(signal => copilotApi.status(signal), []);
   const [question, setQuestion] = useState('');
-  const [turns, setTurns] = useState<{ q: string; r: CopilotResponse }[]>([]);
+  const [turns, setTurns] = useState<{ q: string; r: CopilotResponse; provenance: CopilotProvenance }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const abort = useRef<AbortController | null>(null);
@@ -361,7 +362,8 @@ function CopilotInner() {
     const conversation = turns.slice(-4).flatMap(t => [{ role: 'user' as const, content: t.q.slice(0, 1000) }, { role: 'assistant' as const, content: t.r.answer.slice(0, 1000) }]);
     try {
       const r = await copilotApi.ask(q, locale, conversation, controller.signal);
-      setTurns(prev => [...prev, { q, r }]);
+      // Classified when received, against the status the user saw while asking.
+      setTurns(prev => [...prev, { q, r, provenance: copilotProvenance(r, status.data?.mode) }]);
       setQuestion('');
     } catch (failure) {
       if ((failure as Error)?.name !== 'AbortError') setError(errorText(failure, copy.common.error));
@@ -375,15 +377,21 @@ function CopilotInner() {
         {status.data && !status.data.moduleEnabled ? <p role="status">{c.disabled}</p> : <>
           <div className="flex flex-wrap gap-2">{c.suggestions.map(s => <Button key={s} size="sm" variant="secondary" disabled={busy} onClick={() => void ask(s)}>{s}</Button>)}</div>
           <ol className="space-y-4" aria-live="polite" data-testid="copilot-conversation">
-            {turns.map((t, idx) => <li key={idx} className="space-y-2">
+            {turns.map((t, idx) => { const p = t.provenance; return <li key={idx} className="space-y-2">
               <p className="rounded-lg bg-[var(--color-surface-sunken,#f3f4f6)] p-3 text-sm font-medium break-words">{t.q}</p>
-              <div className="rounded-lg border border-[var(--color-border-subtle)] p-3 space-y-2">
+              <div className="rounded-lg border border-[var(--color-border-subtle)] p-3 space-y-2" data-testid="copilot-turn" data-provenance={p.kind}>
+                {/* DEF-08: per-answer provenance from this response, not the page-level status. */}
+                <p data-testid="copilot-provenance" data-provenance={p.kind}
+                  className={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${p.kind === 'ai' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                  {c.provenance[p.kind]}{p.kind === 'ai' && t.r.model && <> (<bdi dir="ltr">{t.r.model}</bdi>)</>}
+                </p>
+                {p.kind === 'fallback' && p.cause && <p className="text-xs" role="status" data-testid="copilot-fallback-cause">{c.fallbackCause[p.cause]}</p>}
                 <p className="text-sm whitespace-pre-wrap break-words" data-testid="copilot-answer">{t.r.answer}</p>
-                {t.r.reasonCode && c.reasons[t.r.reasonCode] && <p className="text-xs" role="status">{c.reasons[t.r.reasonCode]}</p>}
+                {p.kind !== 'fallback' && t.r.reasonCode && c.reasons[t.r.reasonCode] && <p className="text-xs" role="status">{c.reasons[t.r.reasonCode]}</p>}
                 {t.r.evidence.length > 0 && <details><summary className="cursor-pointer text-xs font-medium">{c.evidence} ({t.r.evidence.length})</summary>
                   <ul className="mt-2 space-y-1 text-xs">{t.r.evidence.slice(0, 20).map(e => <li key={e.id} className="break-all"><bdi dir="ltr" className="font-mono">{e.id}</bdi>: <bdi dir="ltr">{e.value}</bdi></li>)}</ul></details>}
               </div>
-            </li>)}
+            </li>; })}
           </ol>
           <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={e => { e.preventDefault(); void ask(question); }}>
             <div className="flex-1"><Input label={c.title} placeholder={c.placeholder} value={question} maxLength={1000} onChange={e => setQuestion(e.target.value)} data-testid="copilot-question"/></div>

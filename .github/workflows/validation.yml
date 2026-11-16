@@ -124,6 +124,8 @@ jobs:
         working-directory: frontend
       - run: pnpm test:browser:smoke
         working-directory: frontend
+      - run: pnpm test:browser:provider-disclosure
+        working-directory: frontend
       - run: pnpm test:browser:product ${{ github.ref == 'refs/heads/integration/finsight-production-candidate-v2' && '--candidate-v2' || '' }}
         if: (github.event_name == 'workflow_dispatch' && inputs.full_browser) || github.ref == 'refs/heads/integration/finsight-production-candidate' || github.ref == 'refs/heads/integration/finsight-production-candidate-v2'
         working-directory: frontend

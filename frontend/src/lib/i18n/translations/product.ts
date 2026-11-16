@@ -126,7 +126,28 @@ const en = {
     grounded: 'Every figure comes from your FinSight records.', evidence: 'Sources', modes: { deterministic: 'Offline assistant', openai: 'AI assistant', disabled: 'Disabled' } as Record<string, string>,
     reasons: { ungrounded_answer: 'The AI answer could not be verified, so verified figures are shown instead.', rate_limited: 'Too many questions — please wait a minute.', tool_budget_exceeded: 'The question needed too many lookups; showing what was found.' } as Record<string, string>,
     suggestions: ['What is my profit this month?', 'How much stock do I hold?', 'Which receivables are overdue?', 'What should I do next?'],
-    clear: 'New conversation', disabled: 'The assistant is disabled for this business.' },
+    clear: 'New conversation', disabled: 'The assistant is disabled for this business.',
+    provenance: {
+      ai: 'AI-generated answer, checked against your records',
+      fallback: 'Evidence-based fallback — not AI-generated',
+      offline: 'Offline assistant answer — built from your records without an AI provider',
+      limited: 'Not answered — request limit reached',
+    } as Record<string, string>,
+    fallbackCause: {
+      provider: 'The AI provider was unavailable for this answer, so FinSight built it only from your verified records.',
+      quota: 'The AI provider’s usage limit was reached, so FinSight built this answer only from your verified records.',
+      ungrounded: 'The AI provider’s answer could not be verified against your records, so FinSight built this answer only from your verified records.',
+      tool_budget: 'The AI provider needed too many lookups, so FinSight built this answer only from your verified records.',
+    } as Record<string, string> },
+  whatsappDelivery: {
+    provider: 'Delivery provider',
+    providers: {
+      meta: 'WhatsApp Cloud API (Meta)',
+      mock: 'Simulated — test provider, no WhatsApp message was transmitted',
+      disabled: 'WhatsApp sending is turned off — nothing was transmitted',
+      unknown: 'Provider not recorded',
+    } as Record<string, string>,
+  },
   monthly: {
     principle: 'Monthly financial health is derived automatically from your daily financial activity. You do not enter monthly totals.',
     how: 'How each month is built', recordActivity: 'Record the activity instead',
@@ -289,7 +310,28 @@ const ur: ProductCopy = {
     grounded: 'ہر عدد آپ کے FinSight ریکارڈ سے لیا گیا ہے۔', evidence: 'ذرائع', modes: { deterministic: 'آف لائن معاون', openai: 'AI معاون', disabled: 'غیر فعال' },
     reasons: { ungrounded_answer: 'AI جواب کی تصدیق نہیں ہو سکی، اس لیے تصدیق شدہ اعداد دکھائے گئے۔', rate_limited: 'بہت زیادہ سوالات — ایک منٹ انتظار کریں۔', tool_budget_exceeded: 'سوال کے لیے بہت زیادہ تلاش درکار تھی؛ جو ملا وہ دکھایا گیا۔' },
     suggestions: ['اس مہینے میرا منافع کتنا ہے؟', 'میرے پاس اسٹاک کی مالیت کتنی ہے؟', 'کون سی وصولیاں تاخیر شدہ ہیں؟', 'مجھے اب کیا اقدامات کرنے چاہئیں؟'],
-    clear: 'نئی گفتگو', disabled: 'اس کاروبار کے لیے معاون غیر فعال ہے۔' },
+    clear: 'نئی گفتگو', disabled: 'اس کاروبار کے لیے معاون غیر فعال ہے۔',
+    provenance: {
+      ai: 'AI کا تیار کردہ جواب، آپ کے ریکارڈ سے جانچا گیا',
+      fallback: 'شواہد پر مبنی متبادل جواب — AI کا تیار کردہ نہیں',
+      offline: 'آف لائن معاون کا جواب — AI فراہم کنندہ کے بغیر آپ کے ریکارڈ سے تیار کیا گیا',
+      limited: 'جواب نہیں دیا گیا — درخواستوں کی حد پوری ہو گئی',
+    },
+    fallbackCause: {
+      provider: 'اس جواب کے لیے AI فراہم کنندہ دستیاب نہیں تھا، اس لیے FinSight نے یہ جواب صرف آپ کے تصدیق شدہ ریکارڈ سے تیار کیا۔',
+      quota: 'AI فراہم کنندہ کے استعمال کی حد پوری ہو گئی، اس لیے FinSight نے یہ جواب صرف آپ کے تصدیق شدہ ریکارڈ سے تیار کیا۔',
+      ungrounded: 'AI فراہم کنندہ کے جواب کی آپ کے ریکارڈ سے تصدیق نہیں ہو سکی، اس لیے FinSight نے یہ جواب صرف آپ کے تصدیق شدہ ریکارڈ سے تیار کیا۔',
+      tool_budget: 'AI فراہم کنندہ کو بہت زیادہ تلاش درکار تھی، اس لیے FinSight نے یہ جواب صرف آپ کے تصدیق شدہ ریکارڈ سے تیار کیا۔',
+    } },
+  whatsappDelivery: {
+    provider: 'ترسیل فراہم کنندہ',
+    providers: {
+      meta: 'واٹس ایپ کلاؤڈ API (Meta)',
+      mock: 'فرضی — آزمائشی فراہم کنندہ، کوئی واٹس ایپ پیغام نہیں بھیجا گیا',
+      disabled: 'واٹس ایپ ترسیل بند ہے — کچھ نہیں بھیجا گیا',
+      unknown: 'فراہم کنندہ درج نہیں',
+    },
+  },
   monthly: {
     principle: 'ماہانہ مالی صحت آپ کی روزانہ مالی سرگرمی سے خودبخود اخذ ہوتی ہے۔ آپ ماہانہ مجموعے درج نہیں کرتے۔',
     how: 'ہر مہینہ کیسے بنتا ہے', recordActivity: 'اس کے بجائے سرگرمی درج کریں',
