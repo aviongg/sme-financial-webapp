@@ -120,6 +120,11 @@ try {
   await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor(); assert.equal(await page.getByTestId('copilot-conversation').count(), 0); assert.equal(await page.getByTestId('business-configuration').count(), 0); mark('logout removes all private configuration and assistant state');
   assert.deepEqual(errors, []); mark('no browser exceptions, CSP failures or hydration errors');
   await page.getByLabel(/^Email/).fill('owner@example.test');await page.getByLabel(/^Password/).fill('test-password-123');await page.getByRole('button',{name:'Continue',exact:true}).click();
+  // The submit click does not await SessionProvider's asynchronous login/load.
+  // Sign-in is inline on /settings; observe that protected page again before
+  // a hard navigation can abort login/load. The fixture is still a VIEWER.
+  await page.getByTestId('operating-profile').waitFor();
+  assert.ok(await page.getByTestId('operating-profile').isDisabled());
   await page.goto(`${origin}/ask-finsight`);await page.getByTestId('copilot-mode').getByText('AI assistant',{exact:true}).waitFor();
   unavailable=true;await ask('Explain the trend');await page.getByTestId('copilot-answer').waitFor();writeFileSync(`${out}/fallback-contract.json`,JSON.stringify({statusMode:'openai',response:copilotFixture({unavailable:true,businessLabel:'fixture B'}),displayed:await page.getByTestId('copilot').innerText()},null,2));
   assert.match(await page.getByTestId('copilot').innerText(),/Offline assistant|not AI-generated|provider unavailable|fallback/i,'DEF-08: a deterministic provider_unavailable answer must be disclosed instead of only the pre-request AI assistant status');
