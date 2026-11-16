@@ -1,0 +1,10 @@
+{
+  "scope": "Synthetic API fixture + production Next",
+  "deliveryHistory": [],
+  "outboundCard": {
+    "mock": "WhatsApp updates\n\nMessage sending in this environment\n\nSimulated: a test provider is active. No WhatsApp messages are transmitted, even if a delivery shows as sent.\n\nAutomatic weekly summaries: off in this environment\n\nReceive financial updates on WhatsApp\nYou can withdraw consent in Settings at any time.\nWhatsApp number including country code*\nSave preferences",
+    "disabled": "WhatsApp updates\n\nMessage sending in this environment\n\nWhatsApp delivery is disabled: no provider is configured, so no messages are sent.\n\nAutomatic weekly summaries: off in this environment\n\nReceive financial updates on WhatsApp\nYou can withdraw consent in Settings at any time.\nWhatsApp number including country code*\nSave preferences",
+    "meta": "WhatsApp updates\n\nMessage sending in this environment\n\nConfigured provider: WhatsApp Cloud API (Meta). This shows configuration only. It does not confirm that any message was transmitted or delivered; check each delivery in the delivery history.\n\nAutomatic weekly summaries: on\n\nReceive financial updates on WhatsApp\nYou can withdraw consent in Settings at any time.\nWhatsApp number including country code*\nSave preferences",
+    "unknown": "WhatsApp updates\n\nMessage sending in this environment\n\nThe sending provider could not be confirmed. Do not assume WhatsApp messages are being transmitted.\n\nReceive financial updates on WhatsApp\nYou can withdraw consent in Settings at any time.\nWhatsApp number including country code*\nSave preferences"
+  }
+}

@@ -1,0 +1,1977 @@
+{
+  "verification_head": "5cf46349272960baadd261140a61aebc8602a5b6",
+  "stage_b": "ce3d1b06436c478b71f792b700b8e42467ad5e84",
+  "exact_fix_head": "7ecf6097779cbb64963baf3f50f6bb724f0dd140",
+  "merge": "10e4b71937177b3957f3c333117b06abfec22156",
+  "source_fix_paths": [
+    "backend/src/main/java/com/app/sme_health_backend/whatsapp/controller/WhatsAppDeliveryCapabilityController.java",
+    "backend/src/main/java/com/app/sme_health_backend/whatsapp/dto/WhatsAppDeliveryCapabilityResponse.java",
+    "backend/src/main/java/com/app/sme_health_backend/whatsapp/scheduler/WhatsAppSummaryScheduler.java",
+    "backend/src/test/java/com/app/sme_health_backend/whatsapp/capability/WhatsAppDisabledOutboundCapabilityPostgreSqlIT.java",
+    "backend/src/test/java/com/app/sme_health_backend/whatsapp/capability/WhatsAppMetaOutboundCapabilityPostgreSqlIT.java",
+    "backend/src/test/java/com/app/sme_health_backend/whatsapp/capability/WhatsAppMockOutboundCapabilityPostgreSqlIT.java",
+    "backend/src/test/java/com/app/sme_health_backend/whatsapp/capability/WhatsAppOutboundCapabilityContract.java",
+    "backend/src/test/java/com/app/sme_health_backend/whatsapp/controller/WhatsAppDeliveryCapabilityControllerTest.java",
+    "frontend/src/components/integration/LiveSettings.tsx",
+    "frontend/src/lib/i18n/translations/product.ts",
+    "frontend/src/lib/providerDisclosure.ts",
+    "frontend/tests/fixtures/provider-disclosure.mjs",
+    "frontend/tests/provider-disclosure-browser.integration.mjs",
+    "frontend/tests/provider-disclosure.test.mjs"
+  ],
+  "all_source_blobs_match": true,
+  "merge_conflicts": false,
+  "stage_b_preserved_blobs": {
+    "scripts": "4545f09da5e50e68b5e4acc6198d57c5fe95ccbb",
+    ".github": "eb8126f8e327679ad23ac88624fd634bc97be0a9",
+    "frontend/package.json": "6728f31365e053b516d9a594bd4e1313b44c3547",
+    "frontend/pnpm-lock.yaml": "7113855d701020cb07353012c6569ad2b1c59f4b",
+    "backend/src/main/resources/db/migration": "10e367415ba44e6a7d93a0a7fadd253509378fea",
+    "database": "5640e498004eb27bddf0deaf926a68bbbdfeadbf",
+    "docker": "a4f3701677d2dff9329476472ad069cf37192ba9",
+    "docs/release/candidate-v3-stage-a": "1a14115f9b7aea3a532b219fe5a9f948fb6c3d1e",
+    "docs/release/candidate-v3-stage-b": "13d27f2cc7e8589057ce1b066d0cd4900e790969",
+    "frontend/tests/browser-phase-two.integration.mjs": "30626fcf66c6a858c0ff155711d80c04b84e1d3a"
+  },
+  "environment": {
+    "os": "Windows",
+    "java": "26.0.1 target21",
+    "node": "26.13.0",
+    "pnpm": "10.28.2",
+    "python": "3.12",
+    "playwright": "1.62.0",
+    "postgres": "14.22"
+  },
+  "unit": {
+    "totals": {
+      "tests": 1837,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "reports": [
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.AccountControllerTest.xml",
+        "sha256": "7922665ec00ac6ea50271ce535caececf09b87593d20ed26dcece99d01a27d6a",
+        "name": "com.app.sme_health_backend.accounting.AccountControllerTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.AccountCreateServiceTest.xml",
+        "sha256": "963cd9ceb81ffb2d743c0f7723924486a36188bde0dc2a442d424fb6d5a448b3",
+        "name": "com.app.sme_health_backend.accounting.AccountCreateServiceTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.AccountReadServiceTest.xml",
+        "sha256": "ca1f79d44bfea3b9a046c026a6681fbc73aafd45ef1afb580f26c96d4628989b",
+        "name": "com.app.sme_health_backend.accounting.AccountReadServiceTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.CurrencyRegistryTest.xml",
+        "sha256": "72c8d54f8a72f486674f51153057e53676fc5e3e355985ae12e43d9b8806efca",
+        "name": "com.app.sme_health_backend.accounting.CurrencyRegistryTest",
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.draft.imports.ImportDraftControllerTest.xml",
+        "sha256": "2acde42e20b40dddd1fcbca04c17fed61f61c48673d6ed26dc9149bc4c5aa375",
+        "name": "com.app.sme_health_backend.accounting.draft.imports.ImportDraftControllerTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.draft.imports.ImportDraftServiceTest.xml",
+        "sha256": "7ff0d7f7d04c6ffe95822cbd0cd67d5a748e5ab753834a3df48f32d2b8e083ec",
+        "name": "com.app.sme_health_backend.accounting.draft.imports.ImportDraftServiceTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.draft.RecordDraftControllerTest.xml",
+        "sha256": "50e13cfda83098b10b8f448928bc63ceeef061872e98d6d27fb2c09739fb99c3",
+        "name": "com.app.sme_health_backend.accounting.draft.RecordDraftControllerTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.draft.RecordDraftServiceTest.xml",
+        "sha256": "854c1fb1a406f724227374e1c68fa44559c691e4979c501c2442783ace3358ff",
+        "name": "com.app.sme_health_backend.accounting.draft.RecordDraftServiceTest",
+        "tests": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.TransactionControllerTest.xml",
+        "sha256": "777d080bd977c07e5b3f052c9bbca7270d4cd11fe0d8e56fa578ea7d2468faf7",
+        "name": "com.app.sme_health_backend.accounting.TransactionControllerTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.TransactionPostServiceTest.xml",
+        "sha256": "2fbc7dece200bf7e24143072505dc21b39763fbe7d13714ba61925f33d2798df",
+        "name": "com.app.sme_health_backend.accounting.TransactionPostServiceTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.TransactionReverseServiceTest.xml",
+        "sha256": "3e5a2cff5d3e5ae30a69832cf795e5e9a29e8b57f737eaf1397f56889a9964b1",
+        "name": "com.app.sme_health_backend.accounting.TransactionReverseServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.TransferControllerTest.xml",
+        "sha256": "6955dae64cc191d7a08b1df590145265052db92437d65aa46f9f50c0deefe70e",
+        "name": "com.app.sme_health_backend.accounting.TransferControllerTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.accounting.TransferServiceTest.xml",
+        "sha256": "880709e1cc9eae80920bad0750aa33768d03afb9ab3d526ed0f04983f83aa3fa",
+        "name": "com.app.sme_health_backend.accounting.TransferServiceTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiAvailabilityTests.xml",
+        "sha256": "97a0173d4d5a91576e5ef989bf063c6278c5493fb693e36bf166b96c87b84e8a",
+        "name": "com.app.sme_health_backend.ai.AiAvailabilityTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiControllerTests.xml",
+        "sha256": "15f1eab5ec9f082061688e436c2479ba88893170cf392ce8526c8c40452083c1",
+        "name": "com.app.sme_health_backend.ai.AiControllerTests",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiExplanationServiceTests.xml",
+        "sha256": "e689feab951ac6bb969e58aedabb281a7651f83458591af4ac5faa889921c673",
+        "name": "com.app.sme_health_backend.ai.AiExplanationServiceTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiGroundingEvaluationTests.xml",
+        "sha256": "b28c6f7f015d03c7d012aaa53e57b1088ddcda9a25dde7a26ca732b840758762",
+        "name": "com.app.sme_health_backend.ai.AiGroundingEvaluationTests",
+        "tests": 101,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiQuestionRouterTests.xml",
+        "sha256": "5dbf975ee7fc9f476dd8ce5ef88a511fe4e5d3c4b99437f59eb3c24cf9278078",
+        "name": "com.app.sme_health_backend.ai.AiQuestionRouterTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.AiResourceLimitsTests.xml",
+        "sha256": "3e0e66ec93f279216a190180d083a28a53e18888ddbddcf6e92282629c9e4d77",
+        "name": "com.app.sme_health_backend.ai.AiResourceLimitsTests",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.copilot.CopilotSecurityTests.xml",
+        "sha256": "50aa191a1838a3077adfb99a897359157d53e6eb6311cae4efa4f0a97f02b282",
+        "name": "com.app.sme_health_backend.ai.copilot.CopilotSecurityTests",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.copilot.OpenAiCopilotProviderTests.xml",
+        "sha256": "670725fea97ec326c17b520438b44abb0dcf5c95103c7a2d2cf0262ef3a8dd4d",
+        "name": "com.app.sme_health_backend.ai.copilot.OpenAiCopilotProviderTests",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.MvpFinancialEvidenceAdapterTests.xml",
+        "sha256": "1f5cc29a75538c5f5b4ac38b980cb4e72f7b5f4fa000d5a341171b0a326ce58b",
+        "name": "com.app.sme_health_backend.ai.MvpFinancialEvidenceAdapterTests",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.ai.OpenAiResponsesProviderTests.xml",
+        "sha256": "f422707707576427317c0c2e57a64f079a59adb353ccfa430470f22442e1eaaa",
+        "name": "com.app.sme_health_backend.ai.OpenAiResponsesProviderTests",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.BusinessProfileControllerTests.xml",
+        "sha256": "a84f0fea81255dbfeb0d4e66676caac9ed8ae8f2a2cb475d9d375c83254bcd1d",
+        "name": "com.app.sme_health_backend.BusinessProfileControllerTests",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.BusinessProfileServiceTests.xml",
+        "sha256": "1e6e8ee7132eb33013350e12c963cb61be1c1e9df3e5ccbfaca3a3cc0c5e0992",
+        "name": "com.app.sme_health_backend.BusinessProfileServiceTests",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.cashflow.CashFlowControllerTests.xml",
+        "sha256": "d7bee88988aeb536cf3d38bacc6026023245219aefb9b5a31a61f351ec4bc655",
+        "name": "com.app.sme_health_backend.cashflow.CashFlowControllerTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.cashflow.CashFlowIntegrationTests.xml",
+        "sha256": "d9f06f10736f44a3cc865f1319ac1dc8cdd5445fc87bca84d53a019b0a5e2f8e",
+        "name": "com.app.sme_health_backend.cashflow.CashFlowIntegrationTests",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.cashflow.CashFlowServiceTests.xml",
+        "sha256": "d56e97e6a5e9f334864d4826291de8fdcf78bf43460663710e8c9c01e9f9d44f",
+        "name": "com.app.sme_health_backend.cashflow.CashFlowServiceTests",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.cashflow.TrendProjectionCalculatorTests.xml",
+        "sha256": "29c8674e68035b6b68b7abcea9c44f5d12e94306fe7e6060031aba41df4e5d69",
+        "name": "com.app.sme_health_backend.cashflow.TrendProjectionCalculatorTests",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commercial.CommercialDocumentCalculatorTests.xml",
+        "sha256": "63fb06ce5040a80366d90a709f39e06b720b8fc50ecad196378e478697e2f0c6",
+        "name": "com.app.sme_health_backend.commercial.CommercialDocumentCalculatorTests",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commercial.CommercialDocumentLifecycleTests.xml",
+        "sha256": "6e4dac5d54ae68fa77ea97c0addc9bf610b664391a986b0554c06b232c41958f",
+        "name": "com.app.sme_health_backend.commercial.CommercialDocumentLifecycleTests",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commercial.CommercialDocumentRequestReaderTests.xml",
+        "sha256": "5470d6ef4e4d8bf9201ef8a26b14e9b1105b74013c6c30c51dc1257f79fac019",
+        "name": "com.app.sme_health_backend.commercial.CommercialDocumentRequestReaderTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.controller.CommissionControllerTest.xml",
+        "sha256": "484becf87bb0855a7a268910f585c6497116fc94f351a827cf01781970000aed",
+        "name": "com.app.sme_health_backend.commission.controller.CommissionControllerTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.controller.CommissionReportingControllerTest.xml",
+        "sha256": "a6834bf443e2285b2831a1ea4988532791ad93934ea2595d6352dc200c2f6c7e",
+        "name": "com.app.sme_health_backend.commission.controller.CommissionReportingControllerTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.controller.SalespersonControllerTest.xml",
+        "sha256": "c615c724191f83a47ca67e325f96bbd0613865caeb74b37c3948b4331fb7c2b9",
+        "name": "com.app.sme_health_backend.commission.controller.SalespersonControllerTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.facade.CommissionCostEvidenceFacadeTest.xml",
+        "sha256": "fe183d5d6d05a8205ad05fbbb5292ee811f6bf21ef7f3fb998f238b55789153d",
+        "name": "com.app.sme_health_backend.commission.facade.CommissionCostEvidenceFacadeTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.CommissionCalculationServiceTest.xml",
+        "sha256": "4f04a0685c9f5c0af6332cafda8a8350ca1b64dd8c1236a7618eed826c7b787e",
+        "name": "com.app.sme_health_backend.commission.service.CommissionCalculationServiceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.CommissionEarningServiceTest.xml",
+        "sha256": "0ecb3387cc11ac1e9f14341c489aff2bc054df231d0e1b0dbbea578072bf3399",
+        "name": "com.app.sme_health_backend.commission.service.CommissionEarningServiceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.CommissionReportingServiceTest.xml",
+        "sha256": "7ca7f3a63bfd9da0a730419668c64cfd9fee85a5c99d7f9afc6f9f9cdc4ec8ee",
+        "name": "com.app.sme_health_backend.commission.service.CommissionReportingServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.CommissionRuleServiceTest.xml",
+        "sha256": "ef5239594ad7b6f14d09551d5d616f201f87aa7314994f99f59fa2eac25ab2d7",
+        "name": "com.app.sme_health_backend.commission.service.CommissionRuleServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.CommissionSettlementServiceTest.xml",
+        "sha256": "27a8ad8661c43d81c308e7e00f6a9a27e6a4b02e860947b8a31292ec0cf81ae3",
+        "name": "com.app.sme_health_backend.commission.service.CommissionSettlementServiceTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.commission.service.SalespersonServiceTest.xml",
+        "sha256": "ca65189fb1e898a09c29e56b4fedf90cb1fa4ed265b00144e226e29ce500afab",
+        "name": "com.app.sme_health_backend.commission.service.SalespersonServiceTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.configuration.DemoSeederModuleContractTest.xml",
+        "sha256": "f39a29cf0cd3ee9b08031b73b4c2df2f38ca9044985ed58cbb53a5742f663b0c",
+        "name": "com.app.sme_health_backend.configuration.DemoSeederModuleContractTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.configuration.ModuleResolverTests.xml",
+        "sha256": "cb56fa2fe9cb5c6bf6f31fd8c58aa2cb56135c35e4b894d8d6c476fc6bd8e8f5",
+        "name": "com.app.sme_health_backend.configuration.ModuleResolverTests",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.counterparty.CounterpartyControllerTest.xml",
+        "sha256": "bcbe46a598d0c2fb63db20bdd1ef0964848edffe7fb8aa456fe50de6a609add3",
+        "name": "com.app.sme_health_backend.counterparty.CounterpartyControllerTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.counterparty.CounterpartyServiceTest.xml",
+        "sha256": "719c330997bba1dec936309d0dba5cc9aa81f72bd148de6a2e6167468a99475c",
+        "name": "com.app.sme_health_backend.counterparty.CounterpartyServiceTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.counterparty.CounterpartyWriteRouteModuleContractTest.xml",
+        "sha256": "385ba619c541266075aa861715c751937cd19a5fd9b56be3262d65cdc76520dd",
+        "name": "com.app.sme_health_backend.counterparty.CounterpartyWriteRouteModuleContractTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.crypto.AesGcmSensitiveDataCipherTest.xml",
+        "sha256": "cf1c803c711c61b9a9fe6e9a0ebb21198dddc9b172f36a1b31edb1e9802676f0",
+        "name": "com.app.sme_health_backend.crypto.AesGcmSensitiveDataCipherTest",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.crypto.CryptoConverterTest.xml",
+        "sha256": "d65fd2d03ff491dc825550cc875f68f76a747a565025af55055a7b534cf8bbc7",
+        "name": "com.app.sme_health_backend.crypto.CryptoConverterTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.crypto.CryptoPropertiesAndStartupTest.xml",
+        "sha256": "b64803015575f7b689c5c915bc641a77cd1b1933c8d2c1b443d320a9f1ee4957",
+        "name": "com.app.sme_health_backend.crypto.CryptoPropertiesAndStartupTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.crypto.LocalKeyringProviderTest.xml",
+        "sha256": "19918bdd3c804d0df9a0ac73ae8bf44dda549950d76d75e8fb550605dba0c06f",
+        "name": "com.app.sme_health_backend.crypto.LocalKeyringProviderTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.crypto.ProductionConfigTreeCryptoTest.xml",
+        "sha256": "c30ec789a0678d3d47cdefdbaae9af5704f1ed02ce9931787bb1c7245ea5d0f7",
+        "name": "com.app.sme_health_backend.crypto.ProductionConfigTreeCryptoTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.dashboard.DashboardControllerTests.xml",
+        "sha256": "2afca0e3b7765fd94447a5bd48aca5a948ed5772381e8ddb47d6e968ff0d400b",
+        "name": "com.app.sme_health_backend.dashboard.DashboardControllerTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.dashboard.DashboardServiceTests.xml",
+        "sha256": "e942b1e60e8b86fc4212dd6b0ac5b2c40a09d8bf9b240802ed0ecf28238c70d2",
+        "name": "com.app.sme_health_backend.dashboard.DashboardServiceTests",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.dashboard.workspace.WorkspaceQueryServiceTests.xml",
+        "sha256": "2cc69a956dff30e6e5493c4baa3aa64380cc44d6f2e690f11cfcb5cee85e937f",
+        "name": "com.app.sme_health_backend.dashboard.workspace.WorkspaceQueryServiceTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.dashboard.workspace.WorkspaceResolverTests.xml",
+        "sha256": "1b6401bed99ce4832a76ae9bb61b30565717e3acd2fc7200a3e1384ca76d2d44",
+        "name": "com.app.sme_health_backend.dashboard.workspace.WorkspaceResolverTests",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.database.OneShotMigrationExecutionTest.xml",
+        "sha256": "040d6eb132004dd7b0e2534247c65bdbfd2a95c78f7c52c5d8e7a214ecbf39fc",
+        "name": "com.app.sme_health_backend.database.OneShotMigrationExecutionTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.demotooling.DemoToolingContractTest.xml",
+        "sha256": "1a1e532ed09a686530e56bda50b93d873b47ccdc58b839c387f5d434c2ba2c8e",
+        "name": "com.app.sme_health_backend.demotooling.DemoToolingContractTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.controller.DocumentControllerTests.xml",
+        "sha256": "ed1968cf48ee4f4b62697cabc06d0e17e5de7a6b84753883fdecab0f2bb2eb36",
+        "name": "com.app.sme_health_backend.documents.controller.DocumentControllerTests",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.Feature12PostgreSqlIntegrationTests.xml",
+        "sha256": "02b87e40ecbaf3411080ac7eb467e03912e1c4078e46a633ad76584c0e0929b2",
+        "name": "com.app.sme_health_backend.documents.Feature12PostgreSqlIntegrationTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.ocr.HttpOcrClientTests.xml",
+        "sha256": "28955d7a092f39767bc0e1801c0055ec9790af84f948426d4977a014b13d1d6f",
+        "name": "com.app.sme_health_backend.documents.ocr.HttpOcrClientTests",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.ocr.JdkOcrHttpTransportTests.xml",
+        "sha256": "6c8c3a36155ee182e2749b07625717d86b8844a9991af119c5dacb0228b0dfd3",
+        "name": "com.app.sme_health_backend.documents.ocr.JdkOcrHttpTransportTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.ocr.OcrIntegrationConfigurationTests.xml",
+        "sha256": "256409b4f9733cab1dd1645cffd1a0b698450fad3b088951c9d1c5afddbf544e",
+        "name": "com.app.sme_health_backend.documents.ocr.OcrIntegrationConfigurationTests",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.ocr.OcrJsonCodecTests.xml",
+        "sha256": "995834b2f168d59de5ee5e1f43f233221e879348fe2e27c5ce675e6dfd82e440",
+        "name": "com.app.sme_health_backend.documents.ocr.OcrJsonCodecTests",
+        "tests": 27,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.processing.AsyncDocumentProcessingTests.xml",
+        "sha256": "07b074cccbccc32fa581ce48568c39ed1ead2879d918eeb3dc53f9fde82e1916",
+        "name": "com.app.sme_health_backend.documents.processing.AsyncDocumentProcessingTests",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.processing.DocumentDraftProcessorTests.xml",
+        "sha256": "733589b8dedef0cb7de8334abc3cc73207597bed99e3f22be660369bad7cca47",
+        "name": "com.app.sme_health_backend.documents.processing.DocumentDraftProcessorTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.processing.DocumentStartupRecoveryTests.xml",
+        "sha256": "cc5261587a65e67401552a00f99ffa48791331e63bda2f2008edaea1b5dfba5c",
+        "name": "com.app.sme_health_backend.documents.processing.DocumentStartupRecoveryTests",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.processing.JpaDocumentDraftStoreTests.xml",
+        "sha256": "f1ecf40662f36feb4ac5fc6981cc3efdb9040f5496536393c18ef8f53fc89eed",
+        "name": "com.app.sme_health_backend.documents.processing.JpaDocumentDraftStoreTests",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.service.DocumentConfirmationServiceTests.xml",
+        "sha256": "2cc01291784fbd00c56c18c3dd3a9f0f63d83fdd7d3558e14e263480340436ed",
+        "name": "com.app.sme_health_backend.documents.service.DocumentConfirmationServiceTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.service.DocumentReviewServiceTests.xml",
+        "sha256": "4e34707e550a0c346a15fbeaebbc0573a293aa6c259f7eb2e885defc354ab3a4",
+        "name": "com.app.sme_health_backend.documents.service.DocumentReviewServiceTests",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.service.DocumentUploadServiceTests.xml",
+        "sha256": "6728abae87634f4d5c5ec030abb66c028f5dc6b45017635e04cf726ff2346ddf",
+        "name": "com.app.sme_health_backend.documents.service.DocumentUploadServiceTests",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.storage.DocumentFileValidatorTests.xml",
+        "sha256": "eb12a7b4a07bad3569e4bd00154192613662747f928776c097ec52b62a749721",
+        "name": "com.app.sme_health_backend.documents.storage.DocumentFileValidatorTests",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.storage.LocalFileSystemStorageServiceTests.xml",
+        "sha256": "8ba6bc1d649655968eaa1ecd3b20c69faac6da39169ec1429759b68996d8e4d0",
+        "name": "com.app.sme_health_backend.documents.storage.LocalFileSystemStorageServiceTests",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "skipped_tests": [
+          "symlinkEscapeOutsideStorageRootIsPrevented(Path)"
+        ]
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.documents.storage.StorageKeyContractTests.xml",
+        "sha256": "bcf8d7e74ad7bea066fd681b518eadcbf87f037233219bcd43b22c5c4ddee59c",
+        "name": "com.app.sme_health_backend.documents.storage.StorageKeyContractTests",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.estimates.controller.EstimateRequestReaderTests.xml",
+        "sha256": "3dec4e652014fd5282281a5f0cea1f15aa509fcbbe85cc55603aa2fa24731dc3",
+        "name": "com.app.sme_health_backend.estimates.controller.EstimateRequestReaderTests",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.estimates.EstimatePersistenceParityTests.xml",
+        "sha256": "af031d5195521eefe242b2c133306865153e02662531dd4d8e47a8103a38f988",
+        "name": "com.app.sme_health_backend.estimates.EstimatePersistenceParityTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.estimates.EstimatePreviewBoundaryTests.xml",
+        "sha256": "07235ffa9cdd74f6f198dde0b2fdb2b3efa39684751fde5aeeedda8094b02c03",
+        "name": "com.app.sme_health_backend.estimates.EstimatePreviewBoundaryTests",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.estimates.PricingCalculatorTests.xml",
+        "sha256": "5c2b23d727847b45e7bd6fa37fd087757210154b4870963f4b6c20f972e68681",
+        "name": "com.app.sme_health_backend.estimates.PricingCalculatorTests",
+        "tests": 31,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.estimates.ProjectConversionValidatorTests.xml",
+        "sha256": "98cd6d8afa4c732c9eed5f5e7045356deb7de33d137dd8487df51336cd1c08de",
+        "name": "com.app.sme_health_backend.estimates.ProjectConversionValidatorTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.financialquery.controller.FinancialQueryControllerTest.xml",
+        "sha256": "4a858ed59e2423959cdd474d067fd9515481d340c1e7336c9ec3e20a2f2cfc79",
+        "name": "com.app.sme_health_backend.financialquery.controller.FinancialQueryControllerTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.financialquery.FinancialQueryFacadeServiceTest.xml",
+        "sha256": "1d65c07d4f02b7a675c7c3f106c1661d3cf7a0cd7187ee57b9acc13bb24d3d0b",
+        "name": "com.app.sme_health_backend.financialquery.FinancialQueryFacadeServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.forecast.controller.CashForecastControllerTest.xml",
+        "sha256": "866f7641a179c9166e441095161a4ba852a4527c1b63a70c5e329b3afda695d8",
+        "name": "com.app.sme_health_backend.forecast.controller.CashForecastControllerTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.forecast.service.DailyCashForecastServiceTest.xml",
+        "sha256": "a89d38fe1ab5153cb5a358bacea6bc9d69068e2d9741cc5d3fd8709786834fc8",
+        "name": "com.app.sme_health_backend.forecast.service.DailyCashForecastServiceTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.funding.FundingScenarioCalculatorTest.xml",
+        "sha256": "f588da38ddefce700f735d4938fb24c1bf3808cc9fa3b8fa0e371f4274392697",
+        "name": "com.app.sme_health_backend.funding.FundingScenarioCalculatorTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.funding.FundingScenarioControllerTest.xml",
+        "sha256": "17f891457306dac04ca4b7b09f78b54b21bbc32356ecc7e603b776101dc1f7ca",
+        "name": "com.app.sme_health_backend.funding.FundingScenarioControllerTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.funding.FundingScenarioServiceTest.xml",
+        "sha256": "86fd3f52348645a4ad469098b8ec95ceb6e51731367e3b8aa4b72b8541e5b44f",
+        "name": "com.app.sme_health_backend.funding.FundingScenarioServiceTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.CurrencyMetadataServiceTest.xml",
+        "sha256": "3bdcc58c481adb2ca2dfd6957c7917a2fba6a84825e54952da4ed1debd19a391",
+        "name": "com.app.sme_health_backend.fx.CurrencyMetadataServiceTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxAnalyticsServiceTest.xml",
+        "sha256": "3b79c522e100e24bb36ffdbfc4df734f882623f0bcec37dd0c8361c8b5adf863",
+        "name": "com.app.sme_health_backend.fx.FxAnalyticsServiceTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxCalculationServiceTest.xml",
+        "sha256": "7d4f3d620fe8e7dea0fa2a11f054688f592e890230adba81f98e9df45b5c5b11",
+        "name": "com.app.sme_health_backend.fx.FxCalculationServiceTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxControllerTest.xml",
+        "sha256": "35eec0e40797dfb4d39bf6baebad2afdbc29e4afc5d710c7e159c57abe58da15",
+        "name": "com.app.sme_health_backend.fx.FxControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxReconciliationServiceTest.xml",
+        "sha256": "427c5f9bbbfba0aa44c0b33a9705fe5829655d5e52cc73807c0f9ffdf87c74d3",
+        "name": "com.app.sme_health_backend.fx.FxReconciliationServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxSettlementServiceTest.xml",
+        "sha256": "91b742481fd3d7bc93c80c3a0ad340986eb7e58b6eb39f9055050d39a48802a2",
+        "name": "com.app.sme_health_backend.fx.FxSettlementServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.fx.FxTransferServiceTest.xml",
+        "sha256": "c37341f5efc00748dced49f91e6e2053fc167af5813da62918aa86a407bd7d12",
+        "name": "com.app.sme_health_backend.fx.FxTransferServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.i18n.TranslationServiceTests.xml",
+        "sha256": "b3c29f02d49f10bbc3b50421d975d4ce43ceaeea471d6047273d45ddb780a56d",
+        "name": "com.app.sme_health_backend.i18n.TranslationServiceTests",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.controller.AuthControllerTest.xml",
+        "sha256": "5f45c2b6c406b81ffa25cc0927c8619c3a20626dc7551de3d422d0ac74aeaed1",
+        "name": "com.app.sme_health_backend.identity.controller.AuthControllerTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.controller.BusinessControllerTest.xml",
+        "sha256": "4d1bfada508e482d6be483211edfec68c26d3715561b6d6659075e0b6f779ef7",
+        "name": "com.app.sme_health_backend.identity.controller.BusinessControllerTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.credential.notification.PasswordResetNotifierConfigurationTest.xml",
+        "sha256": "59b675f211d4da8f4a76eaf7b1fce43b49e3fb07910a7a098943a8fdb97e39ca",
+        "name": "com.app.sme_health_backend.identity.credential.notification.PasswordResetNotifierConfigurationTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.service.AuthenticationServiceTest.xml",
+        "sha256": "d6f9bc967ec6a7318bd834278f7fffc7b54263178764c4e0cba7c0eded1458f8",
+        "name": "com.app.sme_health_backend.identity.service.AuthenticationServiceTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.service.BusinessAuthorizationServiceTest.xml",
+        "sha256": "b10fe68e862673e59288d36999989709bc69edce362353b1ac4dc5b96ce11309",
+        "name": "com.app.sme_health_backend.identity.service.BusinessAuthorizationServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.identity.service.MembershipServiceTests.xml",
+        "sha256": "92ac08294d073794d49354ed1a6ca9c75896a9d05a907bec3e448f704ebe019a",
+        "name": "com.app.sme_health_backend.identity.service.MembershipServiceTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.InsightControllerTests.xml",
+        "sha256": "a3bcae3510ad0142fcd81ca0b9311517015e1283104d7ee3649dc1d5d4876a4d",
+        "name": "com.app.sme_health_backend.InsightControllerTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.InsightServiceTests.xml",
+        "sha256": "c8df35196ba170bb3e57fc6214317ba57f48297743ee1ef089fb206c96be2186",
+        "name": "com.app.sme_health_backend.InsightServiceTests",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.intelligence.BreakEvenCalculationTests.xml",
+        "sha256": "c0d3ddf7a24d123c571f193558b56dd6db7c8159a1bb35484edee715e952472b",
+        "name": "com.app.sme_health_backend.intelligence.BreakEvenCalculationTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.inventory.InventoryRequestAndPreviewTests.xml",
+        "sha256": "7c38e3e4fbe33668332a712a45b8df3238b39b0893e9bc35c7ccff33e5555d93",
+        "name": "com.app.sme_health_backend.inventory.InventoryRequestAndPreviewTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.inventory.InventoryWriteRouteModuleContractTest.xml",
+        "sha256": "1aa4e8150c494e7b702e9f21a710e33a80a9671c3f9c27ed5f12fd603d32cb84",
+        "name": "com.app.sme_health_backend.inventory.InventoryWriteRouteModuleContractTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.inventory.WeightedAverageCostCalculatorTests.xml",
+        "sha256": "5f9270d5aa25bacdca5b411202b904389496109c77c57db467493bce78bd4095",
+        "name": "com.app.sme_health_backend.inventory.WeightedAverageCostCalculatorTests",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.liquidity.ProjectFundingGapCalculatorTest.xml",
+        "sha256": "45f87b6a4bbf7c80d6e79fca20089694c8bac73f637dbdb9686cffe5b040f8cf",
+        "name": "com.app.sme_health_backend.liquidity.ProjectFundingGapCalculatorTest",
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.MonthlyRecordControllerTests.xml",
+        "sha256": "2aa77ce87eb6981d00a7423fbffa59ac7fbb4a722a422a54990508bf8cd29ddd",
+        "name": "com.app.sme_health_backend.MonthlyRecordControllerTests",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.MonthlyRecordServiceTests.xml",
+        "sha256": "f700be0e2b5b35f0c2323256ace4151c6c3129436144d5f42c9e923f610252bd",
+        "name": "com.app.sme_health_backend.MonthlyRecordServiceTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.AdvanceControllerTest.xml",
+        "sha256": "d8115c6da0c99cc70f74b6ab174f7432121dbecfcf6a3ad13319ec7d71b29534",
+        "name": "com.app.sme_health_backend.obligation.AdvanceControllerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.aging.ObligationAgingCalculatorTest.xml",
+        "sha256": "db84bc57a867fd083a0353cfa7c20cd332b560a3d56eda30fe25c2a415bf5a21",
+        "name": "com.app.sme_health_backend.obligation.aging.ObligationAgingCalculatorTest",
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.CommercialRecognitionServiceTest.xml",
+        "sha256": "5fc583e4f4ca6593ef26512a8d9be9c77d68d851be4361a69eb527f5c0322d09",
+        "name": "com.app.sme_health_backend.obligation.CommercialRecognitionServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.FinancialObligationControllerTest.xml",
+        "sha256": "4fbd037348e62cd092c8f31e74e04cb79bd2383d6474034a9dcac94375496ecd",
+        "name": "com.app.sme_health_backend.obligation.FinancialObligationControllerTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.FinancialObligationServiceTest.xml",
+        "sha256": "ff5d34cf8af0b522dac17acccfd807e43b2a214adc7c7f6da452abbc05f0638e",
+        "name": "com.app.sme_health_backend.obligation.FinancialObligationServiceTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.PaymentCalendarControllerTest.xml",
+        "sha256": "e0e3357f502cbe9edf2f30bb6552e89cca2ad9dfea78f1c28a8cbdc6b77ddbc8",
+        "name": "com.app.sme_health_backend.obligation.PaymentCalendarControllerTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.obligation.PaymentControllerTest.xml",
+        "sha256": "ab8e5d45caedf407db31dfc3ac7583d70c1ef7b0b6015e119d0b366699c8eb23",
+        "name": "com.app.sme_health_backend.obligation.PaymentControllerTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.operations.health.RuntimeHealthControllerTests.xml",
+        "sha256": "ac139180d78ba9daa17cff925b6de2b82974c4e30cbbaa4aaec7ebfa6e205e62",
+        "name": "com.app.sme_health_backend.operations.health.RuntimeHealthControllerTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.platform.cli.PlatformAdminOperatorServiceTest.xml",
+        "sha256": "b36a19106c4187d35cb042fdd180598a9ae5448879d1f345a266049bfe1eafb1",
+        "name": "com.app.sme_health_backend.platform.cli.PlatformAdminOperatorServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.projects.ProjectBudgetCalculatorTests.xml",
+        "sha256": "aee8e12c0e4b6c10d8b9c091aaad71b46bbb53fae4ba4d86b509ca3eafef0800",
+        "name": "com.app.sme_health_backend.projects.ProjectBudgetCalculatorTests",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.projects.ProjectLifecycleTests.xml",
+        "sha256": "cf7f3086f186bdbf2ad34121705f98ab58397e16646de7b0cbfddaaa77a578b4",
+        "name": "com.app.sme_health_backend.projects.ProjectLifecycleTests",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.projects.ProjectRequestReaderTests.xml",
+        "sha256": "555f761c143bb8ed9a748754a017a40311fa1bd46f7c9efaef23f8a76fa1ce66",
+        "name": "com.app.sme_health_backend.projects.ProjectRequestReaderTests",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.RecommendationControllerTests.xml",
+        "sha256": "62927a448bcb50d49738864bdce002bcea2e34a65b3a27d61836cc60dbccfa08",
+        "name": "com.app.sme_health_backend.RecommendationControllerTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.RecommendationServiceTests.xml",
+        "sha256": "e7d31da6334aa3ba44af92fd1cd0aa95e76edc6eb43030f3109480020206e5ac",
+        "name": "com.app.sme_health_backend.RecommendationServiceTests",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reconciliation.controller.BankReconciliationControllerTest.xml",
+        "sha256": "f54c7d66601cb0bae88e6b8e9f8939dceca58d68347a60b52c14b44152fbc7b8",
+        "name": "com.app.sme_health_backend.reconciliation.controller.BankReconciliationControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reconciliation.service.BankReconciliationServiceTest.xml",
+        "sha256": "a646805930ca2cc1271462c95679af95579cff9cc9097b58622f45c87a7a5c0a",
+        "name": "com.app.sme_health_backend.reconciliation.service.BankReconciliationServiceTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reconciliation.service.BankStatementImportServiceTest.xml",
+        "sha256": "1f55a82079da7b90110e02bdb1613169b4479d2f46f78f3c5469001dbd7f1e0d",
+        "name": "com.app.sme_health_backend.reconciliation.service.BankStatementImportServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.records.derived.ProjectionFreshnessPathContractTest.xml",
+        "sha256": "3b9d7d1071744f4a197a515ee02a26cd73e69e5c680ee6decc0b6b6af1464500",
+        "name": "com.app.sme_health_backend.records.derived.ProjectionFreshnessPathContractTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.records.MonthlyRecordIntegrationTests.xml",
+        "sha256": "e3cd9f987eaa052bb31f4f907315088365cc2f5f0f26d3eb91457773c087f572",
+        "name": "com.app.sme_health_backend.records.MonthlyRecordIntegrationTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.records.projection.controller.MonthlyLedgerProjectionControllerTest.xml",
+        "sha256": "e007bbbfc1761dcaafababb26dd9f695006675a3d929064717d47cecc922fcb2",
+        "name": "com.app.sme_health_backend.records.projection.controller.MonthlyLedgerProjectionControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.records.projection.MonthlyLedgerProjectionServiceTest.xml",
+        "sha256": "a2b10c21aff8236b7721089a053e1a077a590ada60fa18a89d9b2dfb5db9122d",
+        "name": "com.app.sme_health_backend.records.projection.MonthlyLedgerProjectionServiceTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.recurring.calculator.RecurrenceCalculatorTest.xml",
+        "sha256": "c89fdd7aa2662717eecc598c9b8327d921a3d555dc5ecb00e29c5ccc25a4a558",
+        "name": "com.app.sme_health_backend.recurring.calculator.RecurrenceCalculatorTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.recurring.controller.RecurringRuleControllerTest.xml",
+        "sha256": "05638cb80650435669d8fe94a4644af3e4d435d9979f9dd44f23e2b32cf2f11a",
+        "name": "com.app.sme_health_backend.recurring.controller.RecurringRuleControllerTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.recurring.service.RecurringRuleServiceTest.xml",
+        "sha256": "d220da650010b31eaf4de91f6f1c26b377c4acb93ed5056818bd9d8e15efe3cb",
+        "name": "com.app.sme_health_backend.recurring.service.RecurringRuleServiceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reports.BusinessFinancialReportAssemblerTests.xml",
+        "sha256": "0041018e343a0ef843f3eee20855f00b55a85c5299a9c0f09c5172fe8a30f93f",
+        "name": "com.app.sme_health_backend.reports.BusinessFinancialReportAssemblerTests",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reports.BusinessFinancialReportCsvTests.xml",
+        "sha256": "2c878b759ad160c8ccbfd18e26910629ff70ea636f99c6b71d3f95246980a7c4",
+        "name": "com.app.sme_health_backend.reports.BusinessFinancialReportCsvTests",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.reports.controller.ReportRequestReaderTests.xml",
+        "sha256": "1a389069aca460edb18e4938d2a637e0450d70397405d2a4fc6d77e0b9306018",
+        "name": "com.app.sme_health_backend.reports.controller.ReportRequestReaderTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.risk.controller.FinancialRiskControllerTest.xml",
+        "sha256": "504eb9047d32680173bd52e6bcae3074a415ae692b60c9a530cda11ab6b84368",
+        "name": "com.app.sme_health_backend.risk.controller.FinancialRiskControllerTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.risk.service.FinancialRiskAssessmentServiceTest.xml",
+        "sha256": "407083125a413734645ae8559fc978c874d7ba653cbd8be2db3742e318a8f7da",
+        "name": "com.app.sme_health_backend.risk.service.FinancialRiskAssessmentServiceTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.samples.SampleLifecycleTests.xml",
+        "sha256": "573a5179d0734d0fe5d76af8ccea2f4662adb666a2575fce91960a9c052ced55",
+        "name": "com.app.sme_health_backend.samples.SampleLifecycleTests",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.samples.SamplePlanCalculatorTests.xml",
+        "sha256": "e88fa8207f84fa713fe2654fcecae20212ae0063d773ad9042be4dfaf7a28e61",
+        "name": "com.app.sme_health_backend.samples.SamplePlanCalculatorTests",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.samples.SampleProjectLinkExceptionHandlerTests.xml",
+        "sha256": "e31b821f9d20e07f64e3bd7f33b086fe7aa2b4c144598c9d08166ca98adb88e2",
+        "name": "com.app.sme_health_backend.samples.SampleProjectLinkExceptionHandlerTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.samples.SampleProjectLockingTests.xml",
+        "sha256": "ada29cb4bf016acf20ce7931099ecbcf312dbdcb020d87dc73a8377f602e1aa0",
+        "name": "com.app.sme_health_backend.samples.SampleProjectLockingTests",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.samples.SampleRequestReaderTests.xml",
+        "sha256": "e529bfe02dffbb693ca5c587e4dad77e19bfdfbda70ef1abb242829454011b0f",
+        "name": "com.app.sme_health_backend.samples.SampleRequestReaderTests",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.CashFlowStabilityCalculatorTests.xml",
+        "sha256": "5237934aa9eab7abccf7c96129294074431b6690acf3a9b73c85c3c12c481580",
+        "name": "com.app.sme_health_backend.scoring.CashFlowStabilityCalculatorTests",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.ComplianceCalculatorTests.xml",
+        "sha256": "002ad1618b0674605fd0055015c384546a99d5b9a88f4707b80d81c3d9144c4a",
+        "name": "com.app.sme_health_backend.scoring.ComplianceCalculatorTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.ProfitabilityEfficiencyCalculatorTests.xml",
+        "sha256": "7d911db1eaceffa1bfff6e7b610ea8bcd79493b59116859926b163d0ad0d2b3b",
+        "name": "com.app.sme_health_backend.scoring.ProfitabilityEfficiencyCalculatorTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.RepaymentCalculatorTests.xml",
+        "sha256": "22c63b9854dd983fd89f0ef0732d9ad4d68917c8c3edb205124a4b0827bc27c5",
+        "name": "com.app.sme_health_backend.scoring.RepaymentCalculatorTests",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.ScoreControllerTests.xml",
+        "sha256": "418bbfdb950719b975f28da60c97211986ea756d4ff32af88360aea251a0ed06",
+        "name": "com.app.sme_health_backend.scoring.ScoreControllerTests",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.ScoringMethodologyRegressionTests.xml",
+        "sha256": "44854951554c68c7a9b65ed8fbd1e962dc0f7e151678475ee86b78fad8998206",
+        "name": "com.app.sme_health_backend.scoring.ScoringMethodologyRegressionTests",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.ScoringServiceTests.xml",
+        "sha256": "545da50f28713932961ef96dcbeeeeaba8a80efbbdce588fae431d37712c7e0b",
+        "name": "com.app.sme_health_backend.scoring.ScoringServiceTests",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.scoring.TrendCalculatorTests.xml",
+        "sha256": "e32bcbf09abce252c30f28f6576f08ab909cc7afa86ee2f00ece974750af3cf7",
+        "name": "com.app.sme_health_backend.scoring.TrendCalculatorTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.search.SearchControllerTests.xml",
+        "sha256": "ac53b4ef9ce2881c9fc827ef4fc67c03ca6a66abbbae0b96d797f1058710256e",
+        "name": "com.app.sme_health_backend.search.SearchControllerTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.search.SearchResultRankerTests.xml",
+        "sha256": "0bff61547670f76900822b75a74af00092a60eda088a9532b82fd2ce0cf091ab",
+        "name": "com.app.sme_health_backend.search.SearchResultRankerTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.search.SearchServiceTests.xml",
+        "sha256": "8ca0125b5b46d952fe78cf4917c544acd815095f20dcb4a79d4f3709b619d132",
+        "name": "com.app.sme_health_backend.search.SearchServiceTests",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.Argon2PasswordEncoderTest.xml",
+        "sha256": "e76ce8455126449c9699b865ef6405323d62031825576a39e519a9c1637850f5",
+        "name": "com.app.sme_health_backend.security.Argon2PasswordEncoderTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.config.CorsOriginPolicyTest.xml",
+        "sha256": "cf856597535e70f2eac37761fe5e3234938e870b6f71a94a11a3bdd3d62eea06",
+        "name": "com.app.sme_health_backend.security.config.CorsOriginPolicyTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.filter.TrustedProxyValidationFilterTest.xml",
+        "sha256": "7a57eb168150a03aecab59780137059c5bccb0bd7673f3032587ab2dbccb6a20",
+        "name": "com.app.sme_health_backend.security.filter.TrustedProxyValidationFilterTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.MfaEnrollmentProtectionTest.xml",
+        "sha256": "e92593b9831a6990dbe0264e216eba451ad9900455055b6bbe659daad678b3fb",
+        "name": "com.app.sme_health_backend.security.MfaEnrollmentProtectionTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.PreAuthenticationSecurityTest.xml",
+        "sha256": "b6855a7e5ee818960f28c23189fd615bd0816943d662780aa0f2069db6819071",
+        "name": "com.app.sme_health_backend.security.PreAuthenticationSecurityTest",
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.ProductionSecretConfigurationTest.xml",
+        "sha256": "39a9289d9de89a1bbf523aa78251b6c1deb5701810af2a4d605888a998c1956d",
+        "name": "com.app.sme_health_backend.security.ProductionSecretConfigurationTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingServiceTest.xml",
+        "sha256": "c2f0d4d16363dd83040c93c2d1c4febc2942313b8a0ddebfd31db493c34c52c6",
+        "name": "com.app.sme_health_backend.security.ratelimit.IdentityRateLimitingServiceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.security.SecurityFilterChainTest.xml",
+        "sha256": "458dff4a34d2dae99e3698042590ecf30ef8d68cb0fc74c799bd45a31a1d4d09",
+        "name": "com.app.sme_health_backend.security.SecurityFilterChainTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.shared.advice.AdviceContextServiceTests.xml",
+        "sha256": "8596cd91d11fb13219053a2b7523119d4d66bf934fd9d892c36d0524f0a4f1cc",
+        "name": "com.app.sme_health_backend.shared.advice.AdviceContextServiceTests",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.shared.advice.EvidenceAdviceTests.xml",
+        "sha256": "4420e6d0f828a37675c944c789265560569f93a1052582c1b131d935c0399a22",
+        "name": "com.app.sme_health_backend.shared.advice.EvidenceAdviceTests",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.SmeHealthBackendApplicationTests.xml",
+        "sha256": "e553d88f8a5aad621963754f90a7ce941a34c42731aec859e30e1cf10e437b83",
+        "name": "com.app.sme_health_backend.SmeHealthBackendApplicationTests",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.client.MetaWhatsAppCloudApiClientTest.xml",
+        "sha256": "9d24722ea94e4dcf4b0c258731d0746727ec4228fc99514b4357380fa01acc94",
+        "name": "com.app.sme_health_backend.whatsapp.client.MetaWhatsAppCloudApiClientTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.client.MockWhatsAppClientTest.xml",
+        "sha256": "ec1e917a0bedc997b6bca0c0a21f07d509ccce36a553405083cac41ec98cd098",
+        "name": "com.app.sme_health_backend.whatsapp.client.MockWhatsAppClientTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.config.WhatsAppProductionFailClosedTest.xml",
+        "sha256": "bd8fbe27fce5f0424ec238d785d5510949900a0b71525c83901152a97f22d6be",
+        "name": "com.app.sme_health_backend.whatsapp.config.WhatsAppProductionFailClosedTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryCapabilityControllerTest.xml",
+        "sha256": "c400f19a6595fad8aa69439df7e7acf2174d858af29f570ecf3a5f3a01a94c2b",
+        "name": "com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryCapabilityControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryControllerTest.xml",
+        "sha256": "bf3458fa59998d36a23b3716fb4fa4cfb9cea22f2ab14ef3a5dc5bb9ca9f274c",
+        "name": "com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecoveryTest.xml",
+        "sha256": "67298a7caeee34ae168efdb907c7b13fecfd947e56a249b582ac449d2cdd5681",
+        "name": "com.app.sme_health_backend.whatsapp.recovery.WhatsAppDeliveryRecoveryTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.scheduler.WhatsAppSummarySchedulerTest.xml",
+        "sha256": "8d9ff499f0919098f839c3ea295f577a3673825af253c2f464e01088b8b1b1a1",
+        "name": "com.app.sme_health_backend.whatsapp.scheduler.WhatsAppSummarySchedulerTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryServiceTest.xml",
+        "sha256": "a49057db378dd5d82b0796f1c828a984225de79caf1ae6d50d5e230255f4f66b",
+        "name": "com.app.sme_health_backend.whatsapp.service.WhatsAppDeliveryServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.service.WhatsAppSummaryComposerTest.xml",
+        "sha256": "aebd773398e419327a47fa06b8db38f0684f9437a6336ca6fb15f9cdc5e77a85",
+        "name": "com.app.sme_health_backend.whatsapp.service.WhatsAppSummaryComposerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.validation.PhoneNumberValidatorTest.xml",
+        "sha256": "f5e38b7c07dbae7333f128eddd6f467ef1f4e59f9f02c0245239a6aedfd025f7",
+        "name": "com.app.sme_health_backend.whatsapp.validation.PhoneNumberValidatorTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.zakat.ZakatCalculationServiceTests.xml",
+        "sha256": "8cd271a92beb87e8ddb7d9e00b4a7d23cbb765fe20d91d281b394157df00c364",
+        "name": "com.app.sme_health_backend.zakat.ZakatCalculationServiceTests",
+        "tests": 81,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.zakat.ZakatControllerTests.xml",
+        "sha256": "35212c1ab3a679a480f0385adfc9290126cb7d276a9ea1d4bd9050a22f4fed09",
+        "name": "com.app.sme_health_backend.zakat.ZakatControllerTests",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.zakat.ZakatServiceTests.xml",
+        "sha256": "627161b0a856fe309a726ec2ae5344bb4f823a145e2a625dcb147e2f2a50d091",
+        "name": "com.app.sme_health_backend.zakat.ZakatServiceTests",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      }
+    ]
+  },
+  "demo_contract": {
+    "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.demotooling.DemoToolingContractTest.xml",
+    "sha256": "1a1e532ed09a686530e56bda50b93d873b47ccdc58b839c387f5d434c2ba2c8e",
+    "name": "com.app.sme_health_backend.demotooling.DemoToolingContractTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "skipped_tests": []
+  },
+  "controller_contract": {
+    "path": "tmp/stage-c/backend-unit-xml/TEST-com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryCapabilityControllerTest.xml",
+    "sha256": "c400f19a6595fad8aa69439df7e7acf2174d858af29f570ecf3a5f3a01a94c2b",
+    "name": "com.app.sme_health_backend.whatsapp.controller.WhatsAppDeliveryCapabilityControllerTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "skipped_tests": []
+  },
+  "https": {
+    "totals": {
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      {
+        "path": "backend/target/surefire-reports/TEST-com.app.sme_health_backend.documents.ocr.OcrFastApiClosureProbe.xml",
+        "sha256": "11a70d12bd58f2cf5aee96e59471f6aa34253718de756f755e62e6156ae8ad20",
+        "name": "com.app.sme_health_backend.documents.ocr.OcrFastApiClosureProbe",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "backend/target/surefire-reports/TEST-com.app.sme_health_backend.documents.ocr.OcrIntegrationConfigurationTests.xml",
+        "sha256": "5da097da7b27f7d0343560fd0896ef4b13e98f9331af821382fd0e6d1409a92a",
+        "name": "com.app.sme_health_backend.documents.ocr.OcrIntegrationConfigurationTests",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      }
+    ]
+  },
+  "capability_postgres": {
+    "totals": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      {
+        "path": "backend/target/failsafe-reports/TEST-com.app.sme_health_backend.whatsapp.capability.WhatsAppDisabledOutboundCapabilityPostgreSqlIT.xml",
+        "sha256": "b27b62765765361c8d4b3daa88e947481ced5292134010b8fb172e7035b74db0",
+        "name": "com.app.sme_health_backend.whatsapp.capability.WhatsAppDisabledOutboundCapabilityPostgreSqlIT",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "backend/target/failsafe-reports/TEST-com.app.sme_health_backend.whatsapp.capability.WhatsAppMetaOutboundCapabilityPostgreSqlIT.xml",
+        "sha256": "4470e2d4e23cea896f433c92395273391c619cab8bb53019f6eeea84f295834d",
+        "name": "com.app.sme_health_backend.whatsapp.capability.WhatsAppMetaOutboundCapabilityPostgreSqlIT",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      },
+      {
+        "path": "backend/target/failsafe-reports/TEST-com.app.sme_health_backend.whatsapp.capability.WhatsAppMockOutboundCapabilityPostgreSqlIT.xml",
+        "sha256": "6898ae7f0d7eb22f6b91513eb48929b75bd1a73fb19ca20f2a68474e7dc08895",
+        "name": "com.app.sme_health_backend.whatsapp.capability.WhatsAppMockOutboundCapabilityPostgreSqlIT",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "skipped_tests": []
+      }
+    ]
+  },
+  "frontend": {
+    "tests": 482,
+    "failures": 0,
+    "skipped": 0,
+    "typecheck": "PASS",
+    "lint_errors": 0,
+    "existing_lint_warnings": 51,
+    "production_build": "PASS"
+  },
+  "ocr_python": {
+    "passed": 248,
+    "skipped": 0
+  },
+  "backup": 63,
+  "configuration": 17,
+  "release_tools": 14,
+  "log_sha256": {
+    "frontend-install.log": "530b1533e225fef520fb751af2596230b8477042e7a83eae80f448abaa1a3b2e",
+    "frontend-unit.log": "94ed81f708d121fc820cd3eef8504032c0d10a28bfadf0b77d0d70ef4411d6da",
+    "typecheck.log": "506f849880741e220b3cfca9696c88360b1014306b66a8274da057400eef85ee",
+    "lint.log": "71ebab77af92a8b1816aba5b2080730f51f6d5fd22b21f28793a03873559ab70",
+    "frontend-build.log": "185a20d46077fa2cd53256ada8cde967dfd96c3ad2607bdbf741b331c8865382",
+    "backend-unit.log": "3fd01a48ab5962ce27f75b0012ec46bf47d3aeff8dc6e8e1b627f378ee85f7a7",
+    "ocr.log": "9d1290341154dff5bfdea4307e5bcfb3f743b840bfdd129740257d6f19c6748d",
+    "ocr-https.log": "7f74a07931aea3239572059e39c4b5d11dbe1f7476d50c68a94745b5c0327622",
+    "capability-postgres.log": "551eec761f6039f58e7429b4d4e3b37166113d3ab9d6fce2ea2857b154353831",
+    "backup.log": "346022153f03bd9a467e366ac1a068f9ff90ed0ccf97e473412a0a6b39988a33",
+    "configuration.log": "e27f760ed351c9a0ccb03d4fb1876896c2815511af307954f27f8df061d24f3b",
+    "release-tools.log": "afc6b8a039b4ad43ecfe2104df92f5705e0e5d8f8b508e99838a009763eaed95",
+    "v52-inventory.log": "caae48fc294ee2c1136329f323ed3f0c0aa0e13539eb3e02c7fe5464acaefe3b",
+    "dependency-audit.log": "8627884ecce6073bbe21ca079e62a6a078984d54ca01e91f5228d2901df8e5c6",
+    "historical-browser.log": "c65c329c6116731b986cae54a865f2997bfc82ff049bd4edb84649dabf746f26",
+    "provider-browser.log": "a4c704cd9b4adc63b0d148b69885056befec268cbc3eef4b5350c3f71efef3b3",
+    "demo-standalone.log": "9b6cf7c59e53504ffe23e810011abeb728d4566c482858c6abfa2a9e651e7279",
+    "real-capability-qa.log": "b33dca012361a76506fd40b134db1e742cf340b27380c70045547f45e5155922",
+    "smoke.log": "0b2ecd18b07bae1a1d374fdac39f0752040658087b13a40c290a87b53f043b8f"
+  },
+  "qa_helpers_sha256": {
+    "capability-readonly.mjs": "17da3b8509c22b29dc73f8e74e217960788d9b09ff7ba347e041873b5826fdce",
+    "README.md": "09aa34be483e662897899556b799374e4f8548f5a7e76434b24d06fe973934da",
+    "run-capability-qa.mjs": "492229f2c210d86b78a615561f5802ecc0267a1f1fc6f3fc6b5deb1dddd3ed44"
+  },
+  "original_assertions_unchanged": true,
+  "def08": "RESOLVED IN TESTED SCENARIOS",
+  "candidate_final": false,
+  "remaining": [
+    "separate container-shutdown ownership correction not integrated",
+    "full Windows/Docker operator rehearsal not executed; Docker absent",
+    "actual PG17/TLS/grants, image/provider/recovery/rollback production acceptance"
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "verification_head": "5cf46349272960baadd261140a61aebc8602a5b6",
+  "scope": "Combined Stage-C integration, not the separate Claude source branch",
+  "runs": [
+    {
+      "id": 43877476080,
+      "name": "Dependency and secret checks",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "5cf46349272960baadd261140a61aebc8602a5b6",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43877476080"
+    },
+    {
+      "id": 43877475845,
+      "name": "Historical browser reconciliation",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "5cf46349272960baadd261140a61aebc8602a5b6",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43877475845"
+    },
+    {
+      "id": 43877475968,
+      "name": "Release validation",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "5cf46349272960baadd261140a61aebc8602a5b6",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43877475968"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 133334177629,
+      "name": "ocr-and-operations",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:37:24.9057432Z 248 passed, 4 warnings in 1.62s",
+        "2026-11-16T13:37:26.3486598Z Ran 63 tests in 1.202s",
+        "2026-11-16T13:37:26.5259181Z Ran 17 tests in 0.080s",
+        "2026-11-16T13:37:26.7345971Z Ran 14 tests in 0.081s"
+      ]
+    },
+    {
+      "id": 133334178034,
+      "name": "backend-unit",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:43:06.2118143Z [INFO] Tests run: 1837, Failures: 0, Errors: 0, Skipped: 1"
+      ]
+    },
+    {
+      "id": 133334178104,
+      "name": "browser-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:39:20.0293071Z ALL 6 RELEASE-SMOKE BROWSER CHECKS PASSED",
+        "2026-11-16T13:39:53.2761065Z PASS packaged standalone build serves all 3 CSS and 21 JS assets (HTTP 200)",
+        "2026-11-16T13:40:28.3909600Z ALL 26 PRODUCT-COMPLETION BROWSER CHECKS PASSED"
+      ]
+    },
+    {
+      "id": 133334178214,
+      "name": "postgres (4)",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:37:08.3028559Z Disposable PostgreSQL shard 4/4: 22/91 classes",
+        "2026-11-16T13:42:02.1028840Z Selected report totals: {'tests': 132, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133334178219,
+      "name": "postgres (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:37:08.9131975Z Disposable PostgreSQL shard 1/4: 23/91 classes",
+        "2026-11-16T13:42:23.8516141Z Selected report totals: {'tests': 133, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133334178222,
+      "name": "postgres (3)",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:37:12.0822624Z Disposable PostgreSQL shard 3/4: 23/91 classes",
+        "2026-11-16T13:42:43.6638158Z Selected report totals: {'tests': 118, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133334178800,
+      "name": "postgres (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "summary": [
+        "2026-11-16T13:37:07.0244379Z Disposable PostgreSQL shard 2/4: 23/91 classes",
+        "2026-11-16T13:41:17.8292812Z Selected report totals: {'tests': 102, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    }
+  ]
+}

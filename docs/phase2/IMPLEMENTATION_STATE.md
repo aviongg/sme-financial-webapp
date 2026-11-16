@@ -14,6 +14,22 @@ Stage-C evidence/docs only. Do not modify shutdown tooling or integrate Claude's
 unfinished correction. Candidate v3 remains non-final pending that separate fix
 and existing Docker/operator/production acceptance conditions. Current report:
 `docs/release/CANDIDATE_V3_STAGE_C_VERIFICATION.md` (verification in progress).
+Combined verification head `5cf46349272960baadd261140a61aebc8602a5b6` passed full
+hosted release/security/historical CI: backend 1,837 cases (one Windows-only skip
+on Linux), all 91 PostgreSQL classes/485 cases (zero skips), frontend 482/type/lint/
+build, OCR 248, operations 63/17/14, real product 26/smoke 6, historical 86, expanded
+provider browser 10 and standalone 3 CSS/21 JS assets. Local Windows unit has the
+complementary symlink skip; all 12 demo contracts, 12 capability PostgreSQL cases
+and 15 explicit OCR HTTPS checks passed. BOTH original independent DEF-08 assertions
+pass unchanged against combined real Spring/PostgreSQL with EMPTY delivery history.
+Extra capability probe: strict two-field/no-secret response, anonymous 401, all four
+write verbs 405 with valid CSRF, exact account/transaction/month/delivery facts equal.
+DEF-08 is resolved in tested disclosure scenarios, not real-provider acceptance.
+Shutdown source is unchanged from Stage B and its separate correction is not
+integrated; candidate stays NON-FINAL pending that review/integration plus Docker/
+operator and production acceptance conditions. Original Stage-A/B red evidence is
+retained. Final containing publication and its own CI status are reported outside
+this file; no app/test/gate/shutdown source changes after the verified merge.
 
 
 ## Candidate v3 Stage B integration — 16 November 2026 (Asia/Karachi)

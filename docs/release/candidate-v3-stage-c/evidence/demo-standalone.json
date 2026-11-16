@@ -1,0 +1,19 @@
+{
+  "scope": "Production standalone server on task-owned loopback port; no backend",
+  "unpackaged": {
+    "ready": false,
+    "reason": "Not ready within 20s: 24/24 static assets not served: /_next/static/css/f3f7abbfb9a074e5.css -> HTTP 404 text/plain; charset=utf-8; /_next/static/css/9088c2abd02aba6f.css -> HTTP 404 text/plain; charset=utf-8; /_next/static/css/76a52f94d0020fa1.css -> HTTP 404 text/plain; charset=utf-8; /_next/static/chunks/webpack-426cfff87cadce9a.js -> HTTP 404 text/plain; charset=utf-8; /_next/static/chunks/d7d739d5-884f681c21fb1334.js -> HTTP 404 text/plain; charset=utf-8"
+  },
+  "package": {
+    "buildId": "5DeU6mfr31ld1_Qu-mBF0",
+    "standaloneDir": "C:\\Users\\Hp\\FYP\\sme-financial-webapp\\tmp\\finsight-production-candidate-v3\\frontend\\.next\\standalone",
+    "static": "C:\\Users\\Hp\\FYP\\sme-financial-webapp\\tmp\\finsight-production-candidate-v3\\frontend\\.next\\standalone\\.next\\static",
+    "public": "C:\\Users\\Hp\\FYP\\sme-financial-webapp\\tmp\\finsight-production-candidate-v3\\frontend\\.next\\standalone\\public",
+    "builtAt": "2026-11-16T13:36:07.652Z"
+  },
+  "packaged": {
+    "root": 200,
+    "css": 3,
+    "js": 21
+  }
+}
