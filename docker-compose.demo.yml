@@ -2,6 +2,9 @@ services:
   postgres-demo:
     image: postgres:17
     container_name: finsight-postgres-demo
+    labels:
+      # Set by scripts/init-demo.ps1 to a new GUID; start/stop act only on the container carrying the recorded value.
+      com.finsight.demo.instance: "${FINSIGHT_DEMO_INSTANCE:-unassigned}"
     restart: unless-stopped
     environment:
       POSTGRES_DB: finsight_demo

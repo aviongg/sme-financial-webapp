@@ -6,12 +6,18 @@
     Initialization only ever targets a NEW environment it creates itself:
       * refuses if the demo container, the demo volume or the demo document store already exists (existing, restored
         or mixed data is never modified, upgraded or reseeded);
-      * creates the PostgreSQL container from docker-compose.demo.yml (loopback 127.0.0.1:5433), proves the new
-        database has no tables, and marks it with a unique disposable-demo marker (superuser-only database comment);
+      * creates the PostgreSQL container from docker-compose.demo.yml (loopback 127.0.0.1:5433) labelled with a new
+        instance GUID, proves Docker created exactly that container (instance label, Compose project/service/working
+        directory, data volume) and from then on addresses it only by its full container ID;
+      * proves the new database has no tables and marks it with a unique disposable-demo marker (superuser-only
+        database comment);
       * creates the restricted roles, migrates V1-V52 as finsight_migrator and verifies Flyway version 52;
       * runs scripts/DemoScenarioSeeder.java, which independently refuses unless the marker is present and every
         application table is empty.
-    Nothing is deleted on failure; the operator decides whether to inspect or remove the new environment.
+      * records the container identity (ID, creation time, instance, Compose working directory, volume, checkout) in
+        .demo-runtime/environment.json; start-demo.ps1 and stop-demo.ps1 act only on a container matching it.
+    Nothing is deleted, stopped or changed on failure; the operator decides whether to inspect or remove the new
+    environment.
     To start over: scripts/stop-demo.ps1, then  docker compose -p finsight-demo -f docker-compose.demo.yml down -v
     and remove .demo-runtime (only after confirming it holds nothing you need).
 
@@ -62,7 +68,7 @@ function Invoke-Native([string]$What, [scriptblock]$Command) {
 }
 
 function Invoke-Psql([string]$Sql) {
-    $out = docker exec $DbContainer psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -tA -c $Sql
+    $out = docker exec $script:DbId psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -tA -c $Sql
     if ($LASTEXITCODE -ne 0) { throw "psql failed: $Sql" }
     (($out | Out-String).Trim())
 }
@@ -80,13 +86,31 @@ if ((Test-Path $DocumentsDir) -and (Get-ChildItem -Force $DocumentsDir | Select-
     Stop-Refused 3 "Document store $DocumentsDir is not empty. Existing uploads are never reused for a new demo."
 }
 
+Import-Module (Join-Path $ScriptDir 'demo-guards.psm1') -Force
 Set-Location $ProjectRoot
+$instance = [guid]::NewGuid().ToString()
+$script:DbId = $null
 try {
-    Write-Host "`n[1/7] Creating new PostgreSQL demo container..." -ForegroundColor Yellow
+    Write-Host "`n[1/7] Creating new PostgreSQL demo container (instance $instance)..." -ForegroundColor Yellow
+    $env:FINSIGHT_DEMO_INSTANCE = $instance
     Invoke-Native "docker compose up" { docker compose -p $ComposeProject -f docker-compose.demo.yml up -d }
+    $ids = @(docker compose -p $ComposeProject -f docker-compose.demo.yml ps -q --all postgres-demo | Where-Object { $_ })
+    if ($LASTEXITCODE -ne 0 -or $ids.Count -ne 1) { throw "Docker Compose did not report exactly one $ComposeProject database container." }
+    $facts = Get-DemoContainerFacts $ids[0]
+    if ($null -eq $facts -or -not ($facts.Id -match '^[0-9a-f]{64}$')) { throw "The new database container could not be inspected." }
+    $expectedVolume = "volume:${DbVolume}:/var/lib/postgresql/data"
+    $provenance = [ordered]@{ 'instance label' = ($facts.Instance -eq $instance); 'container name' = ($facts.Name -eq $DbContainer)
+        'Compose project' = ($facts.Project -eq $ComposeProject); 'Compose service' = ($facts.Service -eq 'postgres-demo')
+        'Compose working directory' = ((ConvertTo-ComparablePath $facts.WorkingDir) -eq (ConvertTo-ComparablePath $ProjectRoot))
+        'data volume' = ($facts.Mounts -contains $expectedVolume) }
+    $mismatch = @($provenance.Keys | Where-Object { -not $provenance[$_] })
+    if ($mismatch.Count -gt 0) {
+        throw ("Container $($facts.Id.Substring(0, 12)) is not the one this initialization created (" + ($mismatch -join ', ') + "); it is left untouched.")
+    }
+    $script:DbId = $facts.Id
     $ready = $false
     for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
-        docker exec $DbContainer pg_isready -U postgres -d finsight_demo *> $null
+        docker exec $script:DbId pg_isready -U postgres -d finsight_demo *> $null
         if ($LASTEXITCODE -eq 0) { $ready = $true } else { Start-Sleep -Seconds 1 }
     }
     if (-not $ready) { throw "PostgreSQL did not accept connections within 60s." }
@@ -98,7 +122,7 @@ try {
     Invoke-Psql "COMMENT ON DATABASE finsight_demo IS '$marker'" | Out-Null
 
     Write-Host "[3/7] Creating restricted demo roles..." -ForegroundColor Yellow
-    Invoke-Native "role setup" { Get-Content -Raw (Join-Path $ScriptDir 'demo_roles_init.sql') | docker exec -i $DbContainer psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -q -f - }
+    Invoke-Native "role setup" { Get-Content -Raw (Join-Path $ScriptDir 'demo_roles_init.sql') | docker exec -i $script:DbId psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -q -f - }
 
     Write-Host "[4/7] Resolving backend classpath..." -ForegroundColor Yellow
     $classpathFile = Join-Path $ProjectRoot 'backend\target\demo-classpath.txt'
@@ -112,17 +136,19 @@ try {
     if ($version -ne $ExpectedSchemaVersion) { throw "Schema is at Flyway version '$version', expected $ExpectedSchemaVersion." }
 
     Write-Host "[6/7] Granting runtime privileges..." -ForegroundColor Yellow
-    Invoke-Native "grants" { Get-Content -Raw (Join-Path $ScriptDir 'grant_demo_permissions.sql') | docker exec -i $DbContainer psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -q -f - }
+    Invoke-Native "grants" { Get-Content -Raw (Join-Path $ScriptDir 'grant_demo_permissions.sql') | docker exec -i $script:DbId psql -U postgres -d finsight_demo -v ON_ERROR_STOP=1 -q -f - }
 
     Write-Host "[7/7] Seeding synthetic demo data once..." -ForegroundColor Yellow
     Invoke-Native "seeding" { java -cp $classpath (Join-Path $ScriptDir 'DemoScenarioSeeder.java') --fresh-disposable-database }
 
     New-Item -ItemType Directory -Force -Path $DocumentsDir | Out-Null
-    (@{ marker = $marker; composeProject = $ComposeProject; container = $DbContainer; volume = $DbVolume; schemaVersion = $version;
+    ([ordered]@{ provenance = 'init-demo.ps1'; marker = $marker; instance = $instance; composeProject = $ComposeProject
+        container = $DbContainer; containerId = $facts.Id; containerCreated = $facts.Created; composeWorkingDir = $facts.WorkingDir
+        volume = $DbVolume; projectRoot = $ProjectRoot; schemaVersion = $version
         createdAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json) | Set-Content -Encoding UTF8 -Path $EnvironmentFile
 } catch {
     [Console]::Error.WriteLine("FAILED: $($_.Exception.Message)")
-    [Console]::Error.WriteLine("The new environment was left as-is for inspection. Remove it deliberately with: docker compose -p $ComposeProject -f docker-compose.demo.yml down -v")
+    [Console]::Error.WriteLine("Nothing was stopped or removed; the new environment was left as-is for inspection. Remove it deliberately with: docker compose -p $ComposeProject -f docker-compose.demo.yml down -v")
     exit 1
 }
 
