@@ -1,5 +1,21 @@
 # Current Phase 2 implementation state
 
+## Candidate v3 Stage C application disclosure integration — 16 November 2026
+
+Authorized continuation from exact Stage B `ce3d1b06436c478b71f792b700b8e42467ad5e84`
+on `integration/finsight-production-candidate-v3`. Normal no-ff merge of exact
+WhatsApp fix `7ecf6097779cbb64963baf3f50f6bb724f0dd140` is
+`10e4b71937177b3957f3c333117b06abfec22156`, without conflicts. Source fix is based
+on Stage-A `93c268d`, so Stage-B-only demo and historical-driver changes are
+explicitly retained. CI/package/lockfile, shutdown scripts, migrations and all
+original independent DEF-08 assertions remain unchanged from Stage B.
+Reserved: read-only contract/security verification, pinned full regression and
+Stage-C evidence/docs only. Do not modify shutdown tooling or integrate Claude's
+unfinished correction. Candidate v3 remains non-final pending that separate fix
+and existing Docker/operator/production acceptance conditions. Current report:
+`docs/release/CANDIDATE_V3_STAGE_C_VERIFICATION.md` (verification in progress).
+
+
 ## Candidate v3 Stage B integration — 16 November 2026 (Asia/Karachi)
 
 Authorized continuation on `integration/finsight-production-candidate-v3` from
