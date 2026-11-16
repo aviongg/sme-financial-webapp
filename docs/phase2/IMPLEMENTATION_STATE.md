@@ -1,5 +1,22 @@
 # Current Phase 2 implementation state
 
+## Candidate v3 Stage B integration — 16 November 2026 (Asia/Karachi)
+
+Authorized continuation on `integration/finsight-production-candidate-v3` from
+exact Stage-A `93c268dacf9825f600f8e7997f6db1ad63c40ecb`; normal no-ff merge of
+exact final demo tooling `086957dfdb421e1d62bed64c43e124c97cc1f915` is
+`ce68723e5526b98b70be4cd74984ebc3438b0b54`. Two expected textual conflicts in
+validation.yml/package.json were resolved as a union, preserving Stage-A provider,
+security, historical and full v3 gates plus the new standalone gate.
+Reserved: integration gate preservation, disposable verification and Stage-B
+release evidence/handoff only. Production application functionality and V1–V52
+are unchanged. No incomplete WhatsApp fix, public tunnel or deployment is included.
+Docker CLI is absent on this Windows host; full init/start/stop rehearsal remains
+unverified. Corrected demo behavior is reviewed/tested only within explicit fixture
+and runtime boundaries. Existing DEF-08 empty-history P1 remains open; v3 is not final.
+Results: `docs/release/CANDIDATE_V3_STAGE_B_VERIFICATION.md` (publication pending).
+
+
 ## Candidate v3 Stage A integration — 16 November 2026 (Asia/Karachi)
 
 Authorized isolated branch `integration/finsight-production-candidate-v3`, worktree

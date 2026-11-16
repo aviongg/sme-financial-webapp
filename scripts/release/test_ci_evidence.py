@@ -19,6 +19,7 @@ class EvidenceTests(unittest.TestCase):
         normal = yaml.safe_load((ROOT / '.github/workflows/validation.yml').read_text())
         browser = normal['jobs']['browser-smoke']['steps']
         self.assertTrue(any(s.get('run') == 'pnpm test:browser:provider-disclosure' for s in browser))
+        self.assertTrue(any(s.get('run') == 'pnpm test:demo-standalone' for s in browser))
         product = next(s for s in browser if s.get('run', '').startswith('pnpm test:browser:product'))
         self.assertIn(branch, product['if'])
         self.assertIn(branch, product['run'])
