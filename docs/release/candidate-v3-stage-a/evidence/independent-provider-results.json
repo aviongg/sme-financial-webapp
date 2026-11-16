@@ -1,0 +1,14 @@
+{
+  "testedSHA": "3ab1069615932664c570336da2306d2d84a915d3",
+  "results": [
+    {
+      "id": "DEF-08-WHATSAPP-EMPTY-HISTORY",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Outbound card does not identify its mock provider"
+    },
+    {
+      "id": "DEF-08-COPILOT",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "Synthetic API fixture + production Next; not real provider or deployed acceptance",
+  "checks": [
+    "provider-generated answer is labelled AI-generated with its model and keeps the exact figure",
+    "provider_unavailable fallback under an AI status is disclosed as an evidence-based fallback, not AI-generated",
+    "rate-limited request is labelled as not answered and keeps its reason",
+    "offline assistant and unsupported answers keep accurate labels",
+    "disabled assistant offers no question and sends no request",
+    "Urdu RTL fallback answer is disclosed as not AI-generated with exact figures",
+    "WhatsApp mock deliveries are identified as simulated; Meta, disabled and unrecorded providers are distinct",
+    "disclosure flows send no financial, delivery, consent or provider mutations",
+    "no browser exceptions, CSP failures or hydration errors"
+  ],
+  "errors": []
+}

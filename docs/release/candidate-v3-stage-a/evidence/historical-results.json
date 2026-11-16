@@ -1,0 +1,253 @@
+{
+  "verification_head": "3ab1069615932664c570336da2306d2d84a915d3",
+  "scope": "Synthetic APIs + production Next, not Spring/provider acceptance",
+  "drivers": [
+    {
+      "driver": "browser-landing",
+      "checks": 20,
+      "result": {
+        "origin": "http://127.0.0.1:13100",
+        "artifacts": "C:\\Users\\Hp\\FYP\\sme-financial-webapp\\tmp\\finsight-production-candidate-v3\\frontend\\test-artifacts\\historical\\browser-landing",
+        "total": 20,
+        "passed": 20,
+        "failed": 0,
+        "toleratedConsole": {},
+        "measurements": {
+          "desktop-1440-en": {
+            "problems": [],
+            "minimumUrduRatio": null
+          },
+          "laptop-1024-en": {
+            "problems": [],
+            "minimumUrduRatio": null
+          },
+          "mobile-390x844-en": {
+            "problems": [],
+            "minimumUrduRatio": null
+          },
+          "mobile-390x600-en": {
+            "problems": [],
+            "minimumUrduRatio": null
+          },
+          "mobile-360x800-en": {
+            "problems": [],
+            "minimumUrduRatio": null
+          },
+          "desktop-1440-ur": {
+            "problems": [],
+            "minimumUrduRatio": 1.9
+          },
+          "laptop-1024-ur": {
+            "problems": [],
+            "minimumUrduRatio": 1.9
+          },
+          "mobile-390x844-ur": {
+            "problems": [],
+            "minimumUrduRatio": 1.9
+          },
+          "mobile-390x600-ur": {
+            "problems": [],
+            "minimumUrduRatio": 1.9
+          },
+          "mobile-360x800-ur": {
+            "problems": [],
+            "minimumUrduRatio": 1.9
+          }
+        },
+        "results": [
+          {
+            "name": "anonymous /landing renders cleanly (desktop-1440-en)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (laptop-1024-en)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-390x844-en)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-390x600-en)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-360x800-en)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (desktop-1440-ur)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (laptop-1024-ur)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-390x844-ur)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-390x600-ur)",
+            "ok": true
+          },
+          {
+            "name": "anonymous /landing renders cleanly (mobile-360x800-ur)",
+            "ok": true
+          },
+          {
+            "name": "desktop anchors scroll each section below the sticky header and keyboard focus is visible",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (laptop-1024-en)",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (laptop-1024-ur)",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (mobile-390x844-en)",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (mobile-390x600-ur)",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (mobile-360x800-en)",
+            "ok": true
+          },
+          {
+            "name": "menu opens, closes on Escape, outside tap, focus leaving and link choice (mobile-360x800-ur)",
+            "ok": true
+          },
+          {
+            "name": "Get Started opens account creation and Sign In opens sign-in in the existing auth screen",
+            "ok": true
+          },
+          {
+            "name": "private routes remain protected exactly as before",
+            "ok": true
+          },
+          {
+            "name": "reduced-motion users get no landing animation",
+            "ok": true
+          }
+        ]
+      },
+      "sha256": "6e25e464ceba6c2811266ea69eb3e2f96fd72e95648c3664a575cb85ec08d938"
+    },
+    {
+      "driver": "browser",
+      "checks": 24,
+      "result": {
+        "scope": "Production Next build against synthetic backend contract fixture, not deployed Spring/PostgreSQL",
+        "checks": [
+          "anonymous landing discloses no private data and explicit Sign In opens authentication",
+          "login rejection shown without sample fallback",
+          "cookie session loads canonical score and null-safe dashboard",
+          "no legacy UUID identity in localStorage",
+          "live recommendation widget shows text, status and actions while preview hides mutation buttons",
+          "cash-flow chevron expands recorded data",
+          "incomplete cash-flow data renders neutral unavailable net movement rather than deficit",
+          "health history shows evidence and recommendation lifecycle persists across reload",
+          "owner can rename business and manage an existing-account invitation without creating owner access",
+          "derived month is read-only with source evidence and unknown values",
+          "unchanged session focus revalidation preserves unsaved financing input",
+          "single tenant-free versioned financing PUT preserves financial totals",
+          "financing survives reload and updates use the stored version",
+          "switching businesses removes previous financial rows",
+          "logout removes all private screens",
+          "viewer direct URL exposes no financing, totals or recalculation controls",
+          "search converts results into safe supported local links",
+          "expired session cannot retain financial data",
+          "MFA challenge gates finances until completion",
+          "mobile dashboard fits viewport",
+          "Urdu direction and mobile layout render",
+          "invited account has no business access before acceptance and gains named business after accepting",
+          "production CSP ignores untrusted caller nonce and omits unsafe-eval",
+          "no browser exceptions, CSP violations or hydration errors"
+        ],
+        "errors": []
+      },
+      "sha256": "d0a117686408fbb2b0c9bc60ba9525af8950da0632894b69bdaf1341b38cd1fd"
+    },
+    {
+      "driver": "browser-phase-two",
+      "checks": 20,
+      "result": {
+        "scope": "Synthetic API fixture + production Next; not real provider or deployed acceptance",
+        "checks": [
+          "empty business exposes its financial overview without inventing a health score while preset previews remain available without saving",
+          "disabled AI leaves deterministic dashboard usable and never requests explanations",
+          "existing business gets compatible defaults and implemented inventory and its transaction dependency are enabled; required core cannot be toggled",
+          "server preview adapts terminology without persisting",
+          "configuration and optional module choices persist across reload",
+          "disabled document route is guarded and cannot upload; authorized history fixture remains intact",
+          "disabled WhatsApp prevents preference mutations without deleting delivery history",
+          "optimistic conflict requires reloading latest settings before saving",
+          "provider-disabled Copilot is disclosed as offline and does not submit automatically",
+          "current Copilot displays exact strings, unknown readiness and a source-labelled plan without treating it as posted cash",
+          "current rate-limit response is disclosed without automatic retry",
+          "Copilot keeps a bounded rolling request history of at most eight turns",
+          "new conversation clears history and unsupported request submits only to the read-only Copilot API",
+          "business switch loads independent configuration and removes prior Copilot evidence",
+          "current Copilot submits Urdu, renders RTL and fits mobile width",
+          "Urdu configuration remains usable on mobile",
+          "viewer receives read-only settings without owner controls",
+          "logout removes all private configuration and assistant state",
+          "no browser exceptions, CSP failures or hydration errors",
+          "per-answer deterministic provider fallback is disclosed"
+        ],
+        "errors": []
+      },
+      "sha256": "a8198044517ce2baaed3229028280cf5d87291ca233c378a19cb8556042a498b"
+    },
+    {
+      "driver": "browser-extra",
+      "checks": 10,
+      "result": {
+        "scope": "Production Next build against synthetic backend contract fixture; not deployed Spring/PostgreSQL or email/OCR provider E2E",
+        "checks": [
+          "registration creates an account without treating its response as a login",
+          "reset request shows the account-neutral server response",
+          "password reset removes the fragment and sends the token once in the confirm body",
+          "document review initializes extracted draft values and uses the protected original URL",
+          "vendor-only draft correction preserves OCR category and document type and does not confirm financial data",
+          "evidence-only confirmation requires explicit review, persists once, and never changes monthly financial observations",
+          "saved-month Zakat sends unknown declarations as null and renders incomplete results without inventing zero",
+          "changing Zakat inputs clears stale results and manual blank balances remain unknown",
+          "invalid MFA code preserves the challenge, shows feedback, and allows a subsequent valid code",
+          "additional flows have no browser exceptions, CSP violations or hydration errors"
+        ],
+        "errors": []
+      },
+      "sha256": "b9344385a6247f8adc375a22a4d9577e848c4386df6b0ff7a460a219c01d0914"
+    },
+    {
+      "driver": "financial-risk-browser",
+      "checks": 12,
+      "result": {
+        "checks": [
+          "1. risk intelligence workspace loads and displays authorized title",
+          "2. summary KPI cards render overall severity and counts",
+          "3. data completeness constraint warning banner renders",
+          "4. active risk insight cards render across multiple categories",
+          "5. supporting financial evidence drill-down expands with source item trace",
+          "6. action recommendation box renders with urgency badge and target link",
+          "7. category filtering dynamically restricts active alert cards",
+          "8. category breakdown table shows assessment status and diagnostic notes",
+          "9. embedded tab in /records?view=risks mounts FinancialRiskWorkspace",
+          "10. Urdu switch changes direction and renders translated risk copy",
+          "11. mobile 390x844 responsive layout renders with zero horizontal overflow",
+          "12. zero browser runtime errors, CSP violations, or hydration mismatches"
+        ],
+        "errors": [],
+        "status": "SUCCESS"
+      },
+      "sha256": "c262c37de3aa7faa122a36e62de867af47afa9509a73ffaaf560704d1816eab8"
+    }
+  ]
+}

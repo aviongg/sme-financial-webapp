@@ -1,0 +1,22 @@
+{
+  "base": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "provider_source": "0f3729f27a015457b3a3aee98deea6ea1a9244e4",
+  "historical_source": "380acac342cc162f11e39c2a33651d2b916802ab",
+  "provider_merge": "5736d452f72a40b11acd757107336b2e287bf8f3",
+  "historical_merge": "603f3b3173eba3c4daccf5e06f81ea3191eb5294",
+  "verification_head": "3ab1069615932664c570336da2306d2d84a915d3",
+  "source_heads_included": true,
+  "merge_conflicts": false,
+  "provider_application_tree_matches": true,
+  "frozen_trees": {
+    "backend": true,
+    "database": true,
+    "docker": true
+  },
+  "demo_scripts_unchanged": true,
+  "demo_tooling_integrated": false,
+  "v2_qa_reference": "a70f1860628c4d0659ba86a90c4366f81fb2f5c6",
+  "v2_qa_relabelled": false,
+  "stage": "A; not final",
+  "independent_qa_status": "RED: original outbound WhatsApp card undisclosed with empty history"
+}

@@ -1,0 +1,127 @@
+{
+  "verification_head": "3ab1069615932664c570336da2306d2d84a915d3",
+  "scope": "Fresh Candidate-v3 Stage-A hosted runs; not historical v2 testing or final production acceptance",
+  "runs": [
+    {
+      "id": 43837326873,
+      "name": "Dependency and secret checks",
+      "sha": "3ab1069615932664c570336da2306d2d84a915d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326873"
+    },
+    {
+      "id": 43837326944,
+      "name": "Historical browser reconciliation",
+      "sha": "3ab1069615932664c570336da2306d2d84a915d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326944"
+    },
+    {
+      "id": 43837326896,
+      "name": "Release validation",
+      "sha": "3ab1069615932664c570336da2306d2d84a915d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 133197101630,
+      "name": "ocr-and-operations",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101630",
+      "summary": [
+        "2026-11-16T09:10:41.9200129Z 248 passed, 4 warnings in 1.68s",
+        "2026-11-16T09:10:43.4242005Z Ran 63 tests in 1.210s",
+        "2026-11-16T09:10:43.6109614Z Ran 17 tests in 0.079s",
+        "2026-11-16T09:10:43.8230459Z Ran 14 tests in 0.082s"
+      ]
+    },
+    {
+      "id": 133197101709,
+      "name": "backend-unit",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101709",
+      "summary": [
+        "2026-11-16T09:18:02.0902302Z [INFO] Tests run: 1821, Failures: 0, Errors: 0, Skipped: 0"
+      ]
+    },
+    {
+      "id": 133197101721,
+      "name": "browser-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101721",
+      "summary": []
+    },
+    {
+      "id": 133197101737,
+      "name": "postgres (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101737",
+      "summary": [
+        "2026-11-16T09:10:23.5842868Z Disposable PostgreSQL shard 2/4: 22/87 classes",
+        "2026-11-16T09:17:29.9370234Z [INFO] Tests run: 112, Failures: 0, Errors: 0, Skipped: 0",
+        "2026-11-16T09:17:30.2508231Z Selected report totals: {'tests': 112, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133197101820,
+      "name": "postgres (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101820",
+      "summary": [
+        "2026-11-16T09:10:23.0374637Z Disposable PostgreSQL shard 1/4: 22/87 classes",
+        "2026-11-16T09:17:01.1239317Z [INFO] Tests run: 105, Failures: 0, Errors: 0, Skipped: 0",
+        "2026-11-16T09:17:01.6085034Z Selected report totals: {'tests': 105, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133197101892,
+      "name": "postgres (3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101892",
+      "summary": [
+        "2026-11-16T09:10:21.8402211Z Disposable PostgreSQL shard 3/4: 22/87 classes",
+        "2026-11-16T09:16:15.0082237Z [INFO] Tests run: 115, Failures: 0, Errors: 0, Skipped: 0",
+        "2026-11-16T09:16:15.3329371Z Selected report totals: {'tests': 115, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    },
+    {
+      "id": 133197101926,
+      "name": "postgres (4)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43837326896/job/133197101926",
+      "summary": [
+        "2026-11-16T09:10:21.2637820Z Disposable PostgreSQL shard 4/4: 21/87 classes",
+        "2026-11-16T09:14:22.8421084Z [INFO] Tests run: 136, Failures: 0, Errors: 0, Skipped: 0",
+        "2026-11-16T09:14:22.9009553Z Selected report totals: {'tests': 136, 'failures': 0, 'errors': 0, 'skipped': 0}"
+      ]
+    }
+  ],
+  "historical_summary": [
+    "2026-11-16T09:11:09.4698164Z # tests 473",
+    "2026-11-16T09:11:09.4698888Z # pass 473",
+    "2026-11-16T09:13:34.9265889Z PASS browser-landing: exit=0 signal=null",
+    "2026-11-16T09:13:42.9329642Z PASS browser: exit=0 signal=null",
+    "2026-11-16T09:13:48.4650817Z PASS browser-phase-two: exit=0 signal=null",
+    "2026-11-16T09:13:51.6348642Z PASS browser-extra: exit=0 signal=null",
+    "2026-11-16T09:13:55.0784605Z PASS financial-risk-browser: exit=0 signal=null"
+  ],
+  "browser_summary": [
+    "2026-11-16T09:12:37.1935254Z ALL 6 RELEASE-SMOKE BROWSER CHECKS PASSED",
+    "2026-11-16T09:12:39.8806297Z PASS provider-generated answer is labelled AI-generated with its model and keeps the exact figure",
+    "2026-11-16T09:12:40.0740643Z PASS provider_unavailable fallback under an AI status is disclosed as an evidence-based fallback, not AI-generated",
+    "2026-11-16T09:12:42.2405436Z PASS WhatsApp mock deliveries are identified as simulated; Meta, disabled and unrecorded providers are distinct",
+    "2026-11-16T09:13:17.1305534Z ALL 26 PRODUCT-COMPLETION BROWSER CHECKS PASSED"
+  ]
+}

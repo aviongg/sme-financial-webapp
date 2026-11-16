@@ -13,6 +13,17 @@ activation or demo-tooling integration. Independent v2 QA remains historical at
 `a70f1860628c4d0659ba86a90c4366f81fb2f5c6`; it is not v3 runtime evidence.
 Stage A is not final; demo-tooling Stage B requires separate authorization.
 Current results will be recorded in `docs/release/CANDIDATE_V3_STAGE_A_VERIFICATION.md`.
+Stage-A verification head `3ab1069615932664c570336da2306d2d84a915d3` passed hosted
+release/security/historical workflows: 1,821 Linux unit cases (0 skips), all 87
+PostgreSQL classes/468 cases, frontend 473/type/lint/build, OCR 248, operations
+63/17/14, real smoke 6/full 26, provider fixture browser 9 and historical 86 checks.
+Local full unit has one Windows symlink-capability skip; explicit OCR HTTPS is 15/15.
+Independent original DEF-08 retest remains RED: Copilot fallback now passes;
+WhatsApp delivery rows pass EN/UR but the outbound card still lacks disclosure
+when history is empty. Do not claim full DEF-08 closure. DEF-11 remains a UX/product
+decision; tenant isolation is unchanged. Demo-tooling and external deployment/
+provider/recovery acceptance remain pending. Final containing publication adds
+test/evidence/docs only; exact remote SHA is reported outside this file.
 
 
 ## Historical browser reconciliation — 16 November 2026

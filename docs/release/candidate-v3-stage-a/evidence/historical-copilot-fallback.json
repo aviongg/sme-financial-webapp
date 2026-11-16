@@ -1,0 +1,44 @@
+{
+  "statusMode": "openai",
+  "response": {
+    "version": "copilot-v1",
+    "language": "en",
+    "answer": "ledgerCashInflow: 123456789012345.6700. readinessStatus: UNKNOWN. budgets #1 name: Synthetic planned budget (not posted).",
+    "evidence": [
+      {
+        "id": "health_evidence.ledgerCashInflow",
+        "tool": "health_evidence",
+        "label": "ledgerCashInflow",
+        "value": "123456789012345.6700"
+      },
+      {
+        "id": "health_evidence.readinessStatus",
+        "tool": "health_evidence",
+        "label": "readinessStatus",
+        "value": "UNKNOWN"
+      },
+      {
+        "id": "budget_goal_status.budgets[0].name",
+        "tool": "budget_goal_status",
+        "label": "budgets #1 name",
+        "value": "Synthetic planned budget (not posted)"
+      }
+    ],
+    "tools": [
+      {
+        "name": "health_evidence",
+        "status": "OK",
+        "message": null
+      },
+      {
+        "name": "budget_goal_status",
+        "status": "OK",
+        "message": null
+      }
+    ],
+    "mode": "deterministic",
+    "model": null,
+    "reasonCode": "provider_unavailable"
+  },
+  "displayed": "Ask FinSight\nAI assistant\n\nEvery figure comes from your FinSight records.\n\nWhat is my profit this month?\nHow much stock do I hold?\nWhich receivables are overdue?\nWhat should I do next?\n\nExplain the trend\n\nEvidence-based fallback — not AI-generated\n\nThe AI provider was unavailable for this answer, so FinSight built it only from your verified records.\n\nledgerCashInflow: 123456789012345.6700. readinessStatus: UNKNOWN. budgets #1 name: Synthetic planned budget (not posted).\n\nSources (3)\nAsk FinSight\nAsk\nNew conversation"
+}
