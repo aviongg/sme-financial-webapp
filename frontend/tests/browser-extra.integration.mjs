@@ -1,8 +1,9 @@
+import { historicalOrigin as origin, historicalBackendPort as backendPort } from './historical-harness.mjs';
 import { configurationFixture, aiStatusFixture } from './fixtures/phase-two.mjs';
 import { workspaceFixture } from './fixtures/workspace.mjs';
 // Production frontend browser checks using a synthetic API contract fixture.
 // This does not test the deployed Spring service, PostgreSQL, email or OCR providers.
-// Requires the current production Next build serving http://127.0.0.1:3100.
+// Requires the current production Next build serving FRONTEND_TEST_ORIGIN (default http://127.0.0.1:13100).
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -12,7 +13,6 @@ const require = createRequire(import.meta.url);
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const out = process.env.BROWSER_ARTIFACT_DIR || 'test-artifacts/browser-extra';
 mkdirSync(out, {recursive: true});
-const origin = process.env.FRONTEND_TEST_ORIGIN || 'http://127.0.0.1:3100';
 const businessId = '11111111-1111-4111-8111-111111111111';
 const documentId = '44444444-4444-4444-8444-444444444444';
 const resetToken = 'synthetic-reset-token-DO-NOT-USE';
@@ -133,13 +133,13 @@ const server = http.createServer((req, res) => void handler(req, res).catch(erro
   console.error(error);
   json(res, {message: 'Fixture failed'}, 500);
 }));
-await new Promise((resolve, reject) => {server.once('error', reject); server.listen(8080, '127.0.0.1', resolve);});
+await new Promise((resolve, reject) => {server.once('error', reject); server.listen(backendPort, '127.0.0.1', resolve);});
 let browser;
 const checks = [], errors = [];
 const mark = name => {checks.push(name); console.log('PASS', name);};
 const matching = (url, method = 'POST') => events.filter(event => event.url === url && event.method === method);
 try {
-  browser = await chromium.launch({headless: true, channel: 'msedge'});
+  browser = await chromium.launch({headless: true, ...(process.env.FINSIGHT_BROWSER_CHANNEL ? { channel: process.env.FINSIGHT_BROWSER_CHANNEL } : {})});
   const context = await browser.newContext({viewport: {width: 1440, height: 1000}});
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -147,7 +147,7 @@ try {
     if (message.type() === 'error' && /Content Security Policy|Refused to|Hydration/.test(message.text())) errors.push(message.text());
   });
 
-  await page.goto(origin);
+  await page.goto(origin + '/?auth=login');
   await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
   await page.getByRole('button', {name: 'Create your account', exact: true}).click();
   await page.getByLabel(/^Full name/).fill('New Test Owner');
@@ -203,22 +203,24 @@ try {
   assert.equal(JSON.parse(doc.extractedData).vendor_or_party,'Fixture supplier');assert.equal(JSON.parse(doc.reviewedData).vendor_or_party,'Corrected supplier');assert.equal(JSON.parse(doc.reviewedData).confidence,'low');await page.getByRole('heading',{name:'Current reviewed draft',exact:true}).waitFor();await page.getByRole('heading',{name:'Original machine extraction',exact:true}).waitFor();assert.equal(corrections.length,1);
   mark('vendor-only draft correction preserves OCR category and document type and does not confirm financial data');
 
+  const financialBefore=structuredClone(records);
   await page.getByLabel(/^Target month/).fill('2026-09');
   await page.getByLabel(/^Financial classification/).selectOption('revenue');
   await page.getByLabel(/^Cash-flow impact/).selectOption('cash_inflow');
-  await page.getByRole('button', {name: 'Review contribution', exact: true}).click();
-  await page.getByRole('group', {name: 'Confirm financial contribution', exact: true}).waitFor();
+  await page.getByRole('button', {name: 'Review values', exact: true}).click();
+  await page.getByRole('group', {name: 'Confirm reviewed values', exact: true}).waitFor();
   assert.equal(matching(`/api/documents/${documentId}/confirm`).length, 0);
   await page.getByRole('button', {name: 'Confirm and add once', exact: true}).click();
-  await page.getByText('Confirmed in 2026-09. This document cannot be added again.', {exact: true}).waitFor();
+  await page.getByText('Reviewed and confirmed as evidence for 2026-09. It does not change monthly figures.', {exact: true}).waitFor();
   assert.deepEqual(matching(`/api/documents/${documentId}/confirm`).map(event => event.body),
     [{targetMonth: '2026-09', confirmedAmount: 1250, confirmedDate: '2026-09-15', confirmedParty: 'Corrected supplier',
       targetClassification: 'revenue', cashFlowImpact: 'cash_inflow', initialCashBalanceEom: null}]);
   await page.reload();
-  await page.getByText('Confirmed in 2026-09. This document cannot be added again.', {exact: true}).waitFor();
+  await page.getByText('Reviewed and confirmed as evidence for 2026-09. It does not change monthly figures.', {exact: true}).waitFor();
   assert.equal(await page.getByRole('button', {name: 'Confirm and add once', exact: true}).count(), 0);
   assert.equal(matching(`/api/documents/${documentId}/confirm`).length, 1);
-  mark('document contribution requires explicit review, confirms once, and stays confirmed after reload');
+  assert.deepEqual(records,financialBefore);assert.equal(matching('/api/records/monthly').length,0);
+  mark('evidence-only confirmation requires explicit review, persists once, and never changes monthly financial observations');
   await page.screenshot({path: `${out}/confirmed-document.png`, fullPage: true});
 
   await page.goto(`${origin}/sharia-zakat`);

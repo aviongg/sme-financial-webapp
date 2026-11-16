@@ -1,0 +1,112 @@
+{
+  "applicationBaseline": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "scope": "Frozen production Next frontend, synthetic loopback API fixtures only; no Spring/PostgreSQL/live providers",
+  "originalReproduction": "Original journey/assertions reproduced with transport-only adaptations: unused loopback ports, shared runner, declared Playwright module resolution for risk; original Edge channel retained. No semantic fixture repair in these logs.",
+  "original": [
+    {
+      "driver": "browser-landing",
+      "exitCode": 1,
+      "passedChecks": 19,
+      "logSha256": "d2bb091db982f9fc219b0f111ae3d34d3cf5e0bb495803fe0467f6dd04bf02a8",
+      "diagnostic": [
+        "locator.waitFor: Timeout 30000ms exceeded.",
+        "  - waiting for getByRole('heading', { name: 'Create business' }) to be visible",
+        "19/20 landing browser checks passed"
+      ]
+    },
+    {
+      "driver": "browser",
+      "exitCode": 1,
+      "passedChecks": 0,
+      "logSha256": "d9ebc617914cf1e4aa11650c94a72c617ecf78f58fc135cff4f1edab83579e5d",
+      "diagnostic": [
+        "locator.waitFor: Timeout 30000ms exceeded.",
+        "  - waiting for getByRole('heading', { name: 'Sign in to FinSight' }) to be visible",
+        "\"  - waiting for getByRole('heading', { name: 'Sign in to FinSight' }) to be visible\""
+      ]
+    },
+    {
+      "driver": "browser-phase-two",
+      "exitCode": 1,
+      "passedChecks": 0,
+      "logSha256": "3589c23aa73f4e18b94a1dca4bcd839825c1c3640a4e06d69bbfcd3d927f20dd",
+      "diagnostic": [
+        "locator.fill: Timeout 30000ms exceeded.",
+        "  - waiting for getByLabel(/^Email/)",
+        "log: [ '  - waiting for getByLabel(/^Email/)' ],"
+      ]
+    },
+    {
+      "driver": "browser-extra",
+      "exitCode": 1,
+      "passedChecks": 0,
+      "logSha256": "f92f277391af446ea1a69d4038c410ae3045da3ada4fe6a57ca70bc81e3339e1",
+      "diagnostic": [
+        "locator.waitFor: Timeout 30000ms exceeded.",
+        "  - waiting for getByRole('heading', { name: 'Sign in to FinSight' }) to be visible",
+        "\"  - waiting for getByRole('heading', { name: 'Sign in to FinSight' }) to be visible\""
+      ]
+    },
+    {
+      "driver": "financial-risk-browser",
+      "exitCode": 1,
+      "passedChecks": 1,
+      "logSha256": "87e58701c8117fdff8a632d2ab0d54fe02a160a202b3ea3deceda378b2159498",
+      "diagnostic": [
+        "Edge Browser Test Error: locator.waitFor: Timeout 30000ms exceeded.",
+        "  - waiting for getByTestId('overall-severity-badge') to be visible",
+        "\"  - waiting for getByTestId('overall-severity-badge') to be visible\"",
+        "locator.waitFor: Timeout 30000ms exceeded."
+      ]
+    }
+  ],
+  "repairedBrowser": "Declared playwright@1.62.0 Chromium; all five drivers run, no retries or skips",
+  "repaired": [
+    {
+      "driver": "browser-landing",
+      "exitCode": 0,
+      "passedChecks": 20,
+      "failedChecks": 0,
+      "failure": null
+    },
+    {
+      "driver": "browser",
+      "exitCode": 0,
+      "passedChecks": 24,
+      "failedChecks": 0,
+      "failure": null
+    },
+    {
+      "driver": "browser-phase-two",
+      "exitCode": 1,
+      "passedChecks": 19,
+      "failedChecks": 1,
+      "failure": "AssertionError [ERR_ASSERTION]: DEF-08: a deterministic provider_unavailable answer must be disclosed instead of only the pre-request AI assistant status"
+    },
+    {
+      "driver": "browser-extra",
+      "exitCode": 0,
+      "passedChecks": 10,
+      "failedChecks": 0,
+      "failure": null
+    },
+    {
+      "driver": "financial-risk-browser",
+      "exitCode": 0,
+      "passedChecks": 12,
+      "failedChecks": 0,
+      "failure": null
+    }
+  ],
+  "supportingValidation": {
+    "frontendUnit": {
+      "passed": 468,
+      "failed": 0,
+      "skipped": 0
+    },
+    "typescript": "passed",
+    "eslint": "passed, 0 errors / 51 existing application warnings",
+    "build": "pnpm@10.28.2 build:release --webpack passed from frozen application with BACKEND_API_URL=http://127.0.0.1:18080"
+  },
+  "aggregate": "FAILED: P1 DEF-08 fallback-disclosure assertion retained"
+}

@@ -1,5 +1,30 @@
 # Current Phase 2 implementation state
 
+## Historical browser reconciliation — 16 November 2026
+
+User authorizes test/fixture-only reconciliation on
+`test/finsight-v2-historical-browser-reconciliation`, isolated worktree
+`tmp/finsight-v2-browser-reconciliation`, starting exactly at frozen v2
+`71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3`.
+Reserved: the five named historical browser drivers, their synthetic fixture
+helpers, a disposable test runner/configuration, test-only regression checks and
+reconciliation evidence. No production application/backend/migration/dependency
+upgrade is authorized. Genuine application defects must be documented and that
+specific fix stopped. Candidate v2/main/source branches remain untouched.
+Original supplemental failures remain in `docs/release/CANDIDATE_V2_VERIFICATION.md`.
+
+Reconciled results: landing 20/20, main 24/24, extra 10/10, risk 12/12;
+phase-two 19 passed plus a hard **P1 DEF-08** failure: deterministic
+`provider_unavailable` Copilot answer retains only the status-derived AI badge.
+No application fix attempted. The historical aggregate remains RED.
+Frontend 468/468 tests, TypeScript, production webpack build passed;
+ESLint zero errors / 51 existing application warnings. Declared Playwright
+Chromium, disposable loopback 13100/18080 only. No real backend/provider claim.
+See `docs/release/CANDIDATE_V2_HISTORICAL_BROWSER_RECONCILIATION.md` and its
+committed JSON evidence for original/repaired coverage and clean-clone commands.
+Dedicated strict historical CI preserves artifacts for 90 days; check hosted
+status against the published head. Do not merge into candidate v2/main.
+
 ## Candidate v2 integration — 16 November 2026 (Asia/Karachi)
 
 Authorized branch `integration/finsight-production-candidate-v2`, isolated worktree
