@@ -191,7 +191,9 @@ try {
   await page.locator('[data-testid="whatsapp-delivery"]').first().waitFor();
   const providerText = async kind => page.locator(`[data-testid="whatsapp-delivery"][data-provider="${kind}"] [data-testid="whatsapp-delivery-provider"]`).innerText();
   assert.match(await providerText('mock'), /فرضی/);
+  assert.equal(await providerText('meta'), 'ترسیل فراہم کنندہ: واٹس ایپ کلاؤڈ API (Meta)');
   assert.match(await providerText('disabled'), /واٹس ایپ ترسیل بند ہے/);
+  assert.equal(await providerText('unknown'), 'ترسیل فراہم کنندہ: فراہم کنندہ درج نہیں');
   await page.getByRole('button', { name: 'English', exact: true }).first().click();
   await page.waitForFunction(() => document.documentElement.dir === 'ltr');
   await page.locator('[data-testid="whatsapp-delivery"]').first().waitFor();
