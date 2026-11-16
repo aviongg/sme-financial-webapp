@@ -1,0 +1,27 @@
+{
+  "scope": "Provider response fault injection only; no OpenAI call",
+  "response": {
+    "version": "copilot-v1",
+    "language": "en",
+    "answer": "ledgerCashInflow: 1234.00.",
+    "evidence": [
+      {
+        "id": "health_evidence.ledgerCashInflow",
+        "tool": "health_evidence",
+        "label": "ledgerCashInflow",
+        "value": "1234.00"
+      }
+    ],
+    "tools": [
+      {
+        "name": "health_evidence",
+        "status": "OK",
+        "message": null
+      }
+    ],
+    "mode": "deterministic",
+    "model": null,
+    "reasonCode": "provider_unavailable"
+  },
+  "displayed": "Ask FinSight\nAI assistant\n\nEvery figure comes from your FinSight records.\n\nWhat is my profit this month?\nHow much stock do I hold?\nWhich receivables are overdue?\nWhat should I do next?\n\nExplain cash\n\nledgerCashInflow: 1234.00.\n\nSources (1)\nAsk FinSight\nAsk\nNew conversation"
+}

@@ -1,0 +1,8 @@
+{
+  "runtimeProvider": "mock; scheduler disabled by disposable launcher",
+  "outboundCard": "WhatsApp updates\nReceive financial updates on WhatsApp\nYou can withdraw consent in Settings at any time.\nSave preferences",
+  "inbound": {
+    "configured": false,
+    "status": "NOT_LINKED"
+  }
+}

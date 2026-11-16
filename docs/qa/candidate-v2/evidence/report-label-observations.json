@@ -1,0 +1,12 @@
+[
+  {
+    "locale": "en",
+    "nestedAgingAndInventory": true,
+    "rawActivityEnum": true
+  },
+  {
+    "locale": "ur",
+    "nestedAgingAndInventory": true,
+    "rawActivityEnum": true
+  }
+]

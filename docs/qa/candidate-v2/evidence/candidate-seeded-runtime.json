@@ -1,0 +1,138 @@
+{
+  "scriptHead" : "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "seedSucceeded" : true,
+  "existingSentinelSurvived" : true,
+  "sentinelPhoneWasNull" : true,
+  "sentinelPhoneStillNull" : false,
+  "sentinelOptIn" : false,
+  "seededBusinesses" : [ {
+    "id" : "1cd7e75e-6c82-4684-a695-6e4dbb935847",
+    "name" : "Alpha Garments & Packaging (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "1ba868df-337d-4b82-8d94-88648fe7926d",
+    "name" : "Alpha Garments & Packaging Ltd",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "bf39656e-c512-4579-bfa1-26f53e8b6126",
+    "name" : "Apex Digital Solutions",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "3a95c9e2-71b2-4945-a23f-14c08c2d5756",
+    "name" : "Apex Digital Solutions (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "b0bd07b5-d39e-45bd-956d-6db2cb480a6e",
+    "name" : "Crescent Electronics Trading",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "39e5c2e9-92ec-49d4-95c9-659f81223326",
+    "name" : "Crescent Electronics Trading (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "6f6d7bb6-bf8e-4f01-806d-45f8783b3971",
+    "name" : "Indus Textiles Export Corp",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "2c5e0587-e0b7-45ca-b51e-e2585ea0d885",
+    "name" : "Indus Textiles Export Corp (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  } ],
+  "expectedSeededBusinesses" : 8,
+  "roles" : [ {
+    "memberships" : 8,
+    "role" : "ACCOUNTANT"
+  }, {
+    "memberships" : 8,
+    "role" : "OWNER"
+  }, {
+    "memberships" : 8,
+    "role" : "SALESPERSON"
+  }, {
+    "memberships" : 8,
+    "role" : "VIEWER"
+  } ],
+  "applicationSHA" : "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "seedOwnerLoginStatus" : 200,
+  "seededRuntimeWrites" : [ {
+    "businessId" : "1cd7e75e-6c82-4684-a695-6e4dbb935847",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "1ba868df-337d-4b82-8d94-88648fe7926d",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "bf39656e-c512-4579-bfa1-26f53e8b6126",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "3a95c9e2-71b2-4945-a23f-14c08c2d5756",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "b0bd07b5-d39e-45bd-956d-6db2cb480a6e",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "39e5c2e9-92ec-49d4-95c9-659f81223326",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "6f6d7bb6-bf8e-4f01-806d-45f8783b3971",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  }, {
+    "businessId" : "2c5e0587-e0b7-45ca-b51e-e2585ea0d885",
+    "configuration" : 200,
+    "counterparty" : 201,
+    "inventory" : 201,
+    "invoice" : 201,
+    "bill" : 201,
+    "account" : 201,
+    "transaction" : 201
+  } ]
+}

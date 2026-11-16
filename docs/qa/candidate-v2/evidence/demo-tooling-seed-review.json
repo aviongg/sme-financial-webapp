@@ -1,0 +1,66 @@
+{
+  "scriptHead" : "7c784c28a332d0703a201bcc4ee9496308f1b3f4",
+  "seedSucceeded" : true,
+  "existingSentinelSurvived" : true,
+  "sentinelPhoneWasNull" : true,
+  "sentinelPhoneStillNull" : false,
+  "sentinelOptIn" : false,
+  "seededBusinesses" : [ {
+    "id" : "8e4c2ea2-ca52-414d-a72e-d005a98200db",
+    "name" : "Alpha Garments & Packaging (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "147e00d8-5bb0-48ed-a04f-7b8a5e422fd1",
+    "name" : "Alpha Garments & Packaging Ltd",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "442104f8-a91f-496e-86c2-26e4d08bdd36",
+    "name" : "Apex Digital Solutions",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "c736692c-494f-481f-88c0-23ced2b76933",
+    "name" : "Apex Digital Solutions (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "f5874269-4fe5-4490-8ac2-48aa3a1c1811",
+    "name" : "Crescent Electronics Trading",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "a4214cba-1b4a-41ba-9ff5-5301d537a9f6",
+    "name" : "Crescent Electronics Trading (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "9b84f3cf-59a8-47d8-8d85-770c07b793fb",
+    "name" : "Indus Textiles Export Corp",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  }, {
+    "id" : "c2769786-0f7d-498d-8c5e-41308b4fb466",
+    "name" : "Indus Textiles Export Corp (Sandbox)",
+    "modules" : [ "core_finance", "documents", "whatsapp", "ai", "transactions", "receivables", "invoices", "projects", "costing", "inventory", "production", "commissions", "multi_currency", "operations", "reports" ],
+    "configured" : true
+  } ],
+  "expectedSeededBusinesses" : 8,
+  "roles" : [ {
+    "role" : "ACCOUNTANT",
+    "memberships" : 8
+  }, {
+    "role" : "MANAGER",
+    "memberships" : 8
+  }, {
+    "role" : "OWNER",
+    "memberships" : 8
+  }, {
+    "role" : "SALESPERSON",
+    "memberships" : 8
+  }, {
+    "role" : "VIEWER",
+    "memberships" : 8
+  } ]
+}

@@ -1,0 +1,36 @@
+{
+  "data": {
+    "kind": "DOCUMENT",
+    "id": "4458857e-eadd-47d9-9fb6-f1266d94dfc3",
+    "title": "BILL BILL-000001",
+    "related": [
+      {
+        "kind": "OBLIGATION",
+        "id": "36a4e268-f42d-40db-9320-c76234a87e7c",
+        "label": "Recognized OPEN",
+        "amount": "2.00",
+        "relation": "RECOGNIZED_AS"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "3d26aa0e-3e57-4804-8f64-6235e8ad53f2",
+        "label": "RECEIPT 2026-11-16",
+        "amount": "2.00",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "OCR_EVIDENCE",
+        "id": "c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+        "label": "Reviewed scan",
+        "amount": null,
+        "relation": "EVIDENCED_BY"
+      }
+    ]
+  },
+  "hrefs": [
+    "/records/receivables",
+    "/inventory/stock"
+  ],
+  "correctReviewedScanHref": "/upload/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+  "correctObligationRoute": "/records/payables"
+}

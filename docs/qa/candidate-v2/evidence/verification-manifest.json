@@ -1,0 +1,162 @@
+{
+  "applicationSHA": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "demoToolingReviewedSHA": "7c784c28a332d0703a201bcc4ee9496308f1b3f4",
+  "qaBranch": "qa/finsight-candidate-v2-independent-completion",
+  "fullRun": "frontend/test-artifacts/independent-qa-1794818077236",
+  "fullIndependentProbes": {
+    "executed": 27,
+    "passed": 17,
+    "failed": 10
+  },
+  "targetedFollowup": {
+    "scope": [
+      "SECURITY-CSRF"
+    ],
+    "prerequisite": "6-check smoke, 36 responsive page loads",
+    "qaCases": 1,
+    "passed": 1,
+    "foreignAccountPOST": 404
+  },
+  "sourceTrees": {
+    "frontend/src": "afa66896b8ac0721e87a5b623cb7971ed10bb149",
+    "backend/src/main": "67b1ce3f291ef7e733bd01550bb944afd7e0e189",
+    "frontend/tests": "836962faa3f6268a34e9b421ef082c80c20d2e1e",
+    "backend/src/test": "ae84c3ad9d3ca8dec1e5a78915c8ed224a4a4cf9",
+    "scripts": "6ad7997ae0abc1855d9caec96235076384cd131f",
+    "docker": "a4f3701677d2dff9329476472ad069cf37192ba9",
+    "database": "5640e498004eb27bddf0deaf926a68bbbdfeadbf"
+  },
+  "rawLocalLogs": [
+    {
+      "path": "tmp/qa-definitive-full.log",
+      "bytes": 6978,
+      "sha256": "f72cc3766b04e30bf7f485c1409120e00458b469ec369a8ecef889d04de9c3fd"
+    },
+    {
+      "path": "tmp/independent-qa-isolated-cases.log",
+      "bytes": 6798,
+      "sha256": "ec245d522d07bd8cf976c5f6f894f5b6225a74d90489c99622c491244b03e55b"
+    },
+    {
+      "path": "tmp/independent-qa-final-all.log",
+      "bytes": 7127,
+      "sha256": "96bd6af89c1a0443d775732e5ba0c028276e91d3da38c34b48575f5e62a404d6"
+    },
+    {
+      "path": "tmp/independent-browser-final.log",
+      "bytes": 6704,
+      "sha256": "9a1629526b6adfeb9ddfa804f4049f5d0c77dcba9443fd1b14d7099a3a290e77"
+    },
+    {
+      "path": "tmp/independent-browser-2.log",
+      "bytes": 10781,
+      "sha256": "32ea83653ef61e2088cdb893dacec8ec4bc9df8b2c8d8b10cf9f683d1c490e8c"
+    },
+    {
+      "path": "tmp/independent-browser.log",
+      "bytes": 1175,
+      "sha256": "54fab21fdb81177f2ddf8f8f486cd56466b1e22f1ef34615d34be6b42ed4ce80"
+    },
+    {
+      "path": "tmp/qa-manager-valid-request.log",
+      "bytes": 835,
+      "sha256": "cc91f17ad1dddb086d521fb3635033999a3307ce7934ed11ab4ae90accc34cdc"
+    },
+    {
+      "path": "tmp/qa-populated-report-cashflow.log",
+      "bytes": 1934,
+      "sha256": "646a23d37bd39ca16ede68aa7d1bfdc9ef12538f66527542ece0ad2a407860e0"
+    },
+    {
+      "path": "tmp/qa-full-history-report-cashflow.log",
+      "bytes": 3171,
+      "sha256": "d794c794876a4d9857e11f82f841c9ff666b6aa8294044a15a8b413be3dce17c"
+    },
+    {
+      "path": "tmp/qa-foreign-financial-account.log",
+      "bytes": 921,
+      "sha256": "269f245c5a266ef193298ff9bd3e0f14dd5c5c7acf00feb9b50cfa9a2f41a59e"
+    },
+    {
+      "path": "tmp/qa-postgres.log",
+      "bytes": 230382,
+      "sha256": "65d6295a547deaec4d827b88029ae4b3e4fb4b55a643ac05cbc7b47dc1df8838"
+    },
+    {
+      "path": "tmp/qa-backend-unit.log",
+      "bytes": 3371,
+      "sha256": "340af9437f651efbb10731b5dd1466546262977b970b697f921dfa3a0a8fb99d"
+    },
+    {
+      "path": "tmp/demo-tooling-contract.log",
+      "bytes": 3853,
+      "sha256": "4374a0461d5fa650176c850e8948f08a9a52fe3b1bceb38314a01ec76d8c18a1"
+    },
+    {
+      "path": "tmp/demo-seed-review.log",
+      "bytes": 19168,
+      "sha256": "9219fdf39bd09951baa06d66b2ee7695bc054051b3cd1f2b6d28806d2603a057"
+    },
+    {
+      "path": "tmp/candidate-seeded-runtime.log",
+      "bytes": 19549,
+      "sha256": "8d5554f522a2920470e32c5bf5a35a529a90c772baac6706ba701e3cdaa49c15"
+    },
+    {
+      "path": "tmp/standalone-assets.log",
+      "bytes": 149,
+      "sha256": "4c4f7a6f92ce13a7c436cce0799f161e81ab4d221dc231d8f85f6c2bd4fefa58"
+    },
+    {
+      "path": "tmp/frontend-unit.log",
+      "bytes": 45706,
+      "sha256": "3906d5768363fe7ba48a2d197735b396bbc983a7d9aeb668bc13269b9028c3df"
+    },
+    {
+      "path": "tmp/typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tmp/lint.log",
+      "bytes": 51775,
+      "sha256": "dd0c4d1aedd939aed48ec1e6af30908625274fb782ef2855fe1df45b7bc4e48e"
+    },
+    {
+      "path": "tmp/frontend-build.log",
+      "bytes": 4088,
+      "sha256": "d8850a6ff110f268e73350bf9b43cf6afd9e92bb995f00055b36d907655d3c00"
+    }
+  ],
+  "retainedInitialArtifacts": [
+    "tmp/initial-qa-evidence",
+    "tmp/full-qa-before-valid-role-request",
+    "frontend/test-artifacts/independent-qa-1794796533268",
+    "frontend/test-artifacts/independent-qa-1794817417797",
+    "frontend/test-artifacts/independent-qa-1794817676480"
+  ],
+  "runInterpretation": "Earlier driver errors/transient layout observations remain; the final full result is not overwritten by targeted follow-ups. No automatic retries, skips or suppression.",
+  "providerEnvironment": "WHATSAPP_PROVIDER was unset; frozen app default mock; scheduler explicitly disabled. OCR explicitly false and AI mock by runtime CLI.",
+  "publishedEvidenceHashes": {
+    "antigravity-draft-review.json": "e631e6dff580368538d6b495bcc75199126b738fd2feaf9e45baec475897784d",
+    "backend-checks.json": "1946d164db3631b33edc0ee02ce428c5a644c0293580e62be2e8d56c988c5eb1",
+    "baseline-26.json": "dd80c1333ed6e1d668fb17a89d7f3ad345147214ad3104c916421e65f554611b",
+    "candidate-seeded-runtime.json": "241ad32057bbd6ac8241b217b5f40349add531f66c2e460d670226426a840bae",
+    "copilot-fault.json": "63179133c6238f557500943fd3910ff3e6fa6512f504a3b5cae7bb7b41828698",
+    "demo-port-readiness.json": "4bc61a306c002fe5e610be14d72226e10243b45dbf0e08c51b2248784d9c0ab6",
+    "demo-tooling-seed-review.json": "c99bbdb03a3bd4405e6e1da71f2cfed3dbe480c17f581a6f5f2ea8b2cfe7b7d9",
+    "foreign-account-followup.json": "30b3ea975d6faf9fd71d484777c83d7fb933ea3af4909d578141044aed0f6223",
+    "frozen-candidate-hosted-ci.json": "d9a59d2512b3520258dd2572ea17b5accadb74f31ccf338617c46d19c84bdfbf",
+    "item-relationships.json": "86f603d00115652f4e520a914fd29f32a22feedad0a13a5b9036ceb70ee54df6",
+    "manual-review.json": "4219c121eb4f21adbdfaf4dfbfd1b899ef6d111d848463a395886708f0adf6fd",
+    "qa-results.json": "072d3af1e526e94b326ff1a8a3851b40faa0676ef540fb11cb1bade2b70b0c0c",
+    "relationships.json": "4c950249fdc8d3a0b261c89fcfde881d2f71b6ae13dd88c4f0236738d20a75eb",
+    "report-label-observations.json": "b37270ef199aafb884c9bb9808023cdda4f5670bf1c272b980d34278bb2a8415",
+    "standalone-assets.json": "f4823b30882da09b02087dfb1d129dbda51229f4d0df3ba67f48ca83b595ac5e",
+    "whatsapp-disclosure.json": "b5c21d6d9a24577e2a8c9b21bf52e2527cb4b95d0d53a80f85455169ac478fdc",
+    "screenshots\\accountant-confirmed-evidence.png": "3d304ae661bb25bf46aedadd6d2e138919b4fd6c9c2f44e4e57f4b76bad54ecd",
+    "screenshots\\copilot-fallback.png": "28c303b88e10d3c67b09aa1672c2855c82205360a1f2c1ad38318a31ca0eb91d",
+    "screenshots\\report-urdu-mobile.png": "c601bb08182429a5904961b10b91b494b978280bbe693c66f0d5f0977bc5592d",
+    "screenshots\\whatsapp-provider.png": "6bf314d1634a47556f4db5a0e5099e6ca81a5e531be2e0a8b1572283b1a53b1f"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "TestLocalPort": true,
+  "publicTunnelStarted": false,
+  "actualLauncherNotRun": true,
+  "reviewedHead": "7c784c28a332d0703a201bcc4ee9496308f1b3f4",
+  "fixture": "Task-owned inert TCP listener; no HTTP or FinSight application",
+  "taskOwnedPort": 53723,
+  "WaitLocalPort": true
+}

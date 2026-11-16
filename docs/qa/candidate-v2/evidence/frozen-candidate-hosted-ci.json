@@ -1,0 +1,18 @@
+[
+  {
+    "id": 43756002138,
+    "name": "Dependency and secret checks",
+    "sha": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43756002138"
+  },
+  {
+    "id": 43756002106,
+    "name": "Release validation",
+    "sha": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/43756002106"
+  }
+]

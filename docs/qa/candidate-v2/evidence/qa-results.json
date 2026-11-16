@@ -1,0 +1,1415 @@
+{
+  "testedSHA": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "scope": "Real frozen frontend/Spring/disposable PostgreSQL, except labelled Copilot fault injection",
+  "selectedCases": "all",
+  "results": [
+    {
+      "id": "DEF-01",
+      "description": "ACCOUNTANT failed upload → manual review → durable correction → evidence confirmation; exact financial facts unchanged",
+      "status": "PASS",
+      "observed": {
+        "documentId": "c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+        "extractionProvenance": "ORIGINAL_OCR",
+        "financialFactsUnchanged": true
+      }
+    },
+    {
+      "id": "RBAC-OWNER",
+      "description": "OWNER real API permissions, UI write controls and foreign file isolation",
+      "status": "PASS",
+      "observed": {
+        "documentRead": 200,
+        "foreignDocument": 404,
+        "financialWrite": 201
+      }
+    },
+    {
+      "id": "RBAC-ACCOUNTANT",
+      "description": "ACCOUNTANT real API permissions, UI write controls and foreign file isolation",
+      "status": "PASS",
+      "observed": {
+        "documentRead": 200,
+        "foreignDocument": 404,
+        "financialWrite": 201
+      }
+    },
+    {
+      "id": "RBAC-MANAGER",
+      "description": "MANAGER real API permissions, UI write controls and foreign file isolation",
+      "status": "PASS",
+      "observed": {
+        "documentRead": 200,
+        "foreignDocument": 404,
+        "financialWrite": 403
+      }
+    },
+    {
+      "id": "RBAC-VIEWER",
+      "description": "VIEWER real API permissions, UI write controls and foreign file isolation",
+      "status": "PASS",
+      "observed": {
+        "documentRead": 403,
+        "foreignDocument": 403,
+        "financialWrite": 403
+      }
+    },
+    {
+      "id": "DEF-04-23-ROLES",
+      "description": "All four roles: disabled actual inventory/counterparty/invoice/document writes deny; permitted historical reads survive",
+      "status": "PASS",
+      "observed": [
+        {
+          "role": "OWNER",
+          "route": "/inventory/movements/receipts",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "OWNER",
+          "route": "/finance/counterparties",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "OWNER",
+          "route": "/invoices",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "ACCOUNTANT",
+          "route": "/inventory/movements/receipts",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "ACCOUNTANT",
+          "route": "/finance/counterparties",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "ACCOUNTANT",
+          "route": "/invoices",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "MANAGER",
+          "route": "/inventory/movements/receipts",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "MANAGER",
+          "route": "/finance/counterparties",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "MANAGER",
+          "route": "/invoices",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "VIEWER",
+          "route": "/inventory/movements/receipts",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "VIEWER",
+          "route": "/finance/counterparties",
+          "status": 403,
+          "error": "module_disabled"
+        },
+        {
+          "role": "VIEWER",
+          "route": "/invoices",
+          "status": 403,
+          "error": "module_disabled"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-CSRF",
+      "description": "Missing CSRF and anonymous requests cannot mutate or disclose documents",
+      "status": "PASS",
+      "observed": {
+        "csrfMissing": 403,
+        "anonymousDocument": 401
+      }
+    },
+    {
+      "id": "DEF-03",
+      "description": "Add inventory and reports widgets, save layout, reload and verify persisted product widgets",
+      "status": "PASS",
+      "observed": {
+        "persisted": [
+          "health-score",
+          "financial-summary",
+          "cash-flow",
+          "health-components",
+          "next-step",
+          "recommendation",
+          "score-completeness",
+          "cash-projection",
+          "ai-explanation",
+          "inventory",
+          "reports"
+        ]
+      }
+    },
+    {
+      "id": "DEF-05-BILL",
+      "description": "Bill line inventory selector persists and finalized bill receives stock through the real API/UI",
+      "status": "PASS",
+      "observed": {
+        "billId": "4458857e-eadd-47d9-9fb6-f1266d94dfc3",
+        "inventoryItemId": "b2831424-c2c6-4833-892e-016299905ebc",
+        "evidenceDocument": "c2b081bd-a51e-4eb1-bd08-6ad46249a22f"
+      }
+    },
+    {
+      "id": "DEF-05-EDIT",
+      "description": "Existing stock-linked invoice draft keeps its inventory link through a browser edit and save",
+      "status": "PASS",
+      "observed": {
+        "preservedItem": "b2831424-c2c6-4833-892e-016299905ebc"
+      }
+    },
+    {
+      "id": "DEF-07",
+      "description": "Recognized invoice and bill disclose real financial effect and use lifecycle reversal instead of plain Void",
+      "status": "PASS",
+      "observed": [
+        {
+          "kind": "invoices",
+          "effect": "Financial effect: recognized in receivables"
+        },
+        {
+          "kind": "bills",
+          "effect": "Financial effect: recognized in payables"
+        }
+      ]
+    },
+    {
+      "id": "DEF-09",
+      "description": "Financial pack EN/UR renders translated labels and nested aging content; cash-flow page remains responsive",
+      "status": "PASS",
+      "observed": [
+        {
+          "locale": "en",
+          "nestedAgingAndInventory": true,
+          "rawActivityEnum": true
+        },
+        {
+          "locale": "ur",
+          "nestedAgingAndInventory": true,
+          "rawActivityEnum": true
+        }
+      ]
+    },
+    {
+      "id": "DEF-09-ENUM",
+      "description": "Financial pack cash activity types use user-facing labels instead of raw event enums",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Remaining raw activity enum is visible in the financial pack",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "CASH-FLOW",
+      "description": "Real daily cash forecast reconciles backend starting/ending amounts in EN/UR and mobile without posting",
+      "status": "PASS",
+      "observed": {
+        "startingCash": "51236.00",
+        "endingProjectedCash": "54736.00",
+        "postedFactsUnchanged": true
+      }
+    },
+    {
+      "id": "CASH-RISK",
+      "description": "Real risk wire response renders severity/counts and every active insight without synthetic API substitution",
+      "status": "PASS",
+      "observed": {
+        "severity": "CRITICAL",
+        "insights": 3
+      }
+    },
+    {
+      "id": "DEF-10",
+      "description": "Existing owner can open business setup and create another business through the UI",
+      "status": "PASS",
+      "observed": {
+        "createdBusiness": "84ef6e03-3ab4-4b5b-b086-718f5c37d9f3",
+        "route": "http://127.0.0.1:3592/business-setup"
+      }
+    },
+    {
+      "id": "DEF-11",
+      "description": "Cross-tab business change invalidates old detail and clears old-business draft; no prior tenant data survives",
+      "status": "PASS",
+      "observed": {
+        "draftCleared": true,
+        "foreignDetail": "404/not found",
+        "unsavedChangeWarning": false
+      }
+    },
+    {
+      "id": "DEF-12",
+      "description": "Commercial evidence linking offers a selectable uploaded document instead of raw UUID-only entry",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Remaining Upload ID input requires a raw UUID\n\n'INPUT' !== 'SELECT'\n",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-13",
+      "description": "Document confirmation explicitly explains evidence-only semantics; financial-classification fields remain metadata",
+      "status": "PASS",
+      "observed": {
+        "evidenceOnlyDisclosure": true,
+        "classification": "Metadata; real financial equality checked in DEF-01"
+      }
+    },
+    {
+      "id": "DEF-14",
+      "description": "Bill relationships navigate reviewed OCR evidence and payables using the correct entity kinds",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: OCR_EVIDENCE lacks its /upload/[id] review link",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-14-ITEM",
+      "description": "Stock item relationships navigate commercial DOCUMENT rows to invoices/bills, not uploaded-file URLs",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Commercial DOCUMENT rows are badges without navigation",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-15",
+      "description": "Mobile scan requests the rear camera explicitly",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ null\n- 'environment'\n",
+      "layout": {
+        "width": 390,
+        "scrollWidth": 390,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-16",
+      "description": "Search initializes the query supplied by navigation",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'' !== 'Alpha'\n",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-08-WHATSAPP",
+      "description": "Outbound WhatsApp settings disclose mock/disabled provider separately from inbound configuration",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Outbound card does not identify its mock provider",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-08-COPILOT",
+      "description": "Fault injection: deterministic provider-unavailable response is disclosed per answer",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Offline assistant|fallback|not AI-generated|provider unavailable/i. Input:\n\n'Ask FinSight\\n' +\n  'AI assistant\\n' +\n  '\\n' +\n  'Every figure comes from your FinSight records.\\n' +\n  '\\n' +\n  'What is my profit this month?\\n' +\n  'How much stock do I hold?\\n' +\n  'Which receivables are overdue?\\n' +\n  'What should I do next?\\n' +\n  '\\n' +\n  'Explain cash\\n' +\n  '\\n' +\n  'ledgerCashInflow: 1234.00.\\n' +\n  '\\n' +\n  'Sources (1)\\n' +\n  'Ask FinSight\\n' +\n  'Ask\\n' +\n  'New conversation'\n",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-19",
+      "description": "Anonymous browser Back returns from sign-in to public landing",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n",
+      "layout": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "dir": "ltr",
+        "overflow": []
+      }
+    },
+    {
+      "id": "DEF-20",
+      "description": "Mobile transaction page visibly identifies the active business",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(await page.getByTestId('header-business-name').isVisible())\n",
+      "layout": {
+        "width": 390,
+        "scrollWidth": 390,
+        "dir": "ltr",
+        "overflow": []
+      }
+    }
+  ],
+  "http": [
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/records/monthly/recalculate",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/invitations/ba759615-4740-4e33-8e8f-a6eb746af0a7/accept",
+      "status": 204
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/invitations/d6e58022-6827-4db2-8c70-3dc8b03b9c6b/accept",
+      "status": 204
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/invitations/63c0a153-2aac-43a5-a78b-19e76250c9d9/accept",
+      "status": 204
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/confirm",
+      "status": 400,
+      "error": "illegal_state"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/manual-review",
+      "status": 409,
+      "error": "manual_review_not_eligible"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/corrections",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab/file",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/transactions",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab/file",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "PUT",
+      "route": "/business-configuration",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/finance/transactions",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab/file",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "PUT",
+      "route": "/business-configuration",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/documents/796b0081-7ab4-45cc-987e-1d147a93ea8e",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/documents/796b0081-7ab4-45cc-987e-1d147a93ea8e/manual-review",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "PATCH",
+      "route": "/documents/796b0081-7ab4-45cc-987e-1d147a93ea8e",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/documents/796b0081-7ab4-45cc-987e-1d147a93ea8e/confirm",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/finance/transactions",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/documents/89825624-b3f7-403d-ab48-03e638c418ab/file",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "PUT",
+      "route": "/business-configuration",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "PUT",
+      "route": "/records/monthly/financing/2026-11",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/finance/transactions",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "PUT",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/counterparties",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/inventory/items/b2831424-c2c6-4833-892e-016299905ebc/movements",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/manual-review",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/finance/counterparties",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/inventory/items/b2831424-c2c6-4833-892e-016299905ebc/movements",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/manual-review",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/finance/counterparties",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/inventory/items/b2831424-c2c6-4833-892e-016299905ebc/movements",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/manual-review",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/inventory/movements/receipts",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/finance/counterparties",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/inventory/items/b2831424-c2c6-4833-892e-016299905ebc/movements",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/invoices",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/documents/c2b081bd-a51e-4eb1-bd08-6ad46249a22f/manual-review",
+      "status": 403,
+      "error": "module_disabled"
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "PUT",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/workspace",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/bills/4458857e-eadd-47d9-9fb6-f1266d94dfc3/finalize",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/counterparties",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/obligations/recognize-commercial-document",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/commercial/documents/4458857e-eadd-47d9-9fb6-f1266d94dfc3/evidence",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/invoices",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/forecast/daily?horizonDays=30&currency=PKR",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/risk/assessment?horizonDays=30&currency=PKR",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/operations/relationships/DOCUMENT/4458857e-eadd-47d9-9fb6-f1266d94dfc3",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/operations/relationships/ITEM/b2831424-c2c6-4833-892e-016299905ebc",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/whatsapp/inbound/link",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+{
+  "testedSHA": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "scope": "Real frozen frontend/Spring/disposable PostgreSQL, except labelled Copilot fault injection",
+  "selectedCases": [
+    "SECURITY-CSRF"
+  ],
+  "results": [
+    {
+      "id": "SECURITY-CSRF",
+      "description": "Missing CSRF and anonymous requests cannot mutate or disclose documents",
+      "status": "PASS",
+      "observed": {
+        "csrfMissing": 403,
+        "anonymousDocument": 401,
+        "foreignAccountWrite": 404,
+        "financialFactsUnchanged": true
+      }
+    }
+  ],
+  "http": [
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/records/monthly/recalculate",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/business-configuration",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/invitations/e367d61f-ff1e-4764-b519-6983767e8391/accept",
+      "status": 204
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "ACCOUNTANT",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/invitations/ad89c9a9-dadd-420b-a63c-1ff064f51bb6/accept",
+      "status": 204
+    },
+    {
+      "actor": "MANAGER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "MANAGER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/auth/register",
+      "status": 201
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/auth/login",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/memberships",
+      "status": 201
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/invitations/8a94137b-13ca-4b95-97db-5d1d140a762b/accept",
+      "status": 204
+    },
+    {
+      "actor": "VIEWER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "VIEWER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/documents/f3e10882-7f28-42cc-bb37-d317fed7ac51",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/accounts",
+      "status": 201
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/businesses/active",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "POST",
+      "route": "/finance/transactions",
+      "status": 404,
+      "error": "Not Found"
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/finance/transactions",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/records/monthly",
+      "status": 200
+    },
+    {
+      "actor": "OWNER",
+      "method": "GET",
+      "route": "/businesses/active",
+      "status": 200
+    }
+  ]
+}

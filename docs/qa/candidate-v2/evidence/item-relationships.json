@@ -1,0 +1,87 @@
+{
+  "data": {
+    "kind": "ITEM",
+    "id": "b2831424-c2c6-4833-892e-016299905ebc",
+    "title": "BRW-1 Brown rice bag",
+    "related": [
+      {
+        "kind": "DOCUMENT",
+        "id": "4458857e-eadd-47d9-9fb6-f1266d94dfc3",
+        "label": "BILL BILL-000001",
+        "amount": null,
+        "relation": "DOCUMENT_LINE"
+      },
+      {
+        "kind": "DOCUMENT",
+        "id": "5284c728-8aae-4d39-bcc6-c3798abbdd87",
+        "label": "INVOICE INV-000001",
+        "amount": null,
+        "relation": "DOCUMENT_LINE"
+      },
+      {
+        "kind": "DOCUMENT",
+        "id": "6173b24f-4fff-4eb0-919c-a83347d3f113",
+        "label": "INVOICE null",
+        "amount": null,
+        "relation": "DOCUMENT_LINE"
+      },
+      {
+        "kind": "DOCUMENT",
+        "id": "e640f73d-3a32-4bf9-95ca-4f172e39bea3",
+        "label": "INVOICE null",
+        "amount": null,
+        "relation": "DOCUMENT_LINE"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "2dcb7029-8499-41b6-b824-4eda6e60de7a",
+        "label": "RECEIPT 2026-11-16",
+        "amount": "5000.00",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "61dc1da1-3d4f-4b8d-92a6-2a52ab6d08f3",
+        "label": "ISSUE SALE 2026-11-16",
+        "amount": "-2000.00",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "3848563e-d165-435d-8e41-a27010a1232e",
+        "label": "RECEIPT 2026-11-16",
+        "amount": "1100.00",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "a486ab89-6c89-495d-9216-b4d10068ae7f",
+        "label": "ISSUE INTERNAL 2026-11-16",
+        "amount": "-512.50",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "610ca9b4-c9ea-41f7-b328-25e04bc56de0",
+        "label": "CUSTOMER_RETURN INTERNAL 2026-11-16",
+        "amount": "512.50",
+        "relation": "STOCK_MOVEMENT"
+      },
+      {
+        "kind": "INVENTORY_MOVEMENT",
+        "id": "3d26aa0e-3e57-4804-8f64-6235e8ad53f2",
+        "label": "RECEIPT 2026-11-16",
+        "amount": "2.00",
+        "relation": "STOCK_MOVEMENT"
+      }
+    ]
+  },
+  "hrefs": [
+    "/inventory/stock",
+    "/inventory/stock",
+    "/inventory/stock",
+    "/inventory/stock",
+    "/inventory/stock",
+    "/inventory/stock"
+  ]
+}

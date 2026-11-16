@@ -1,0 +1,128 @@
+[
+  {
+    "suite": "DemoSeederModuleContractTest",
+    "kind": "surefire-reports",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "58ed6090884dd332939f1b3cb5a0d3aff24b5acf208048e20a1a419572edcfc0"
+  },
+  {
+    "suite": "InventoryWriteRouteModuleContractTest",
+    "kind": "surefire-reports",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "2183e0bb67ff2b9463d693a546adc673ac439bc9ce5e2559273c839d1687cfda"
+  },
+  {
+    "suite": "CopilotSecurityTests",
+    "kind": "surefire-reports",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "979721b050f25f1ee7b8eff8f501058c7f419cd3ca119fcf4f497734e7a2c225"
+  },
+  {
+    "suite": "OpenAiCopilotProviderTests",
+    "kind": "surefire-reports",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "08349fef0e83bdc30d9c4294fc3f213eef6fd7becb2bd3f032c18241eaa91fe6"
+  },
+  {
+    "suite": "DocumentManualReviewPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "ac3a00629653d3c581705c2bb910f6ec26a13f61d0f19328261fd2dac2ad17c1"
+  },
+  {
+    "suite": "InventoryModuleEnforcementPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "020b448d2d76af704e591f45f4e390806548eb5c125f6eb699bfb9c10e4c8d92"
+  },
+  {
+    "suite": "BusinessConfigurationPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "d0eba999e1c5f5d01e2db844344ab0d4d4414c4f3d7156d696d08181178058c3"
+  },
+  {
+    "suite": "CommercialLifecyclePostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "71967a8db8b3e14e3c8502ee3758cf362813300f7987dcec99bbc76dd836cc90"
+  },
+  {
+    "suite": "CommercialDocumentPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "2cc4313fed0c821fa5f42f39d3d14995e6b5b7281c1ec25e28ebe80164bdbb3d"
+  },
+  {
+    "suite": "InventoryLedgerPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "168e772d94619842c8bcbbb4c18d947ca9cb1d09c4a39fe10febfb595a526c98"
+  },
+  {
+    "suite": "WorkspacePostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "c7f0553b6fc0b467dcfcccf9607ccc999805f1712d673c427f7a264775a3268c"
+  },
+  {
+    "suite": "SpringSessionLifecyclePostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "0081020241a352248e303a7ff18665c9c5ffe9428ebf4fb769c1b74622d9dd88"
+  },
+  {
+    "suite": "CommercialRecognitionPostgreSqlIT",
+    "kind": "failsafe-reports",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "27ca57c01148f09e2600cdf5d5ec7ffcea0b07e29d227b9cfbf068011179f872"
+  },
+  {
+    "suite": "DemoToolingContractTest",
+    "scriptBranchOnly": "7c784c28a332d0703a201bcc4ee9496308f1b3f4",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlSha256": "c723cff8b8b0e92dbc399b6745b6aa109ce196c18a6f9ecd8c34134fc5c4a0f1"
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "path": "C:\\Users\\Hp\\.gemini\\antigravity\\brain\\3591ef67-2b29-4a58-80a4-727242178ca1\\qa_candidate_v2_retest_71ac4e0.md",
+  "bytes": 19331,
+  "sha256": "3d63533340b768673b7d55b6ab4bd193e01a3cdeab100f01170fbb16cd16c5dd",
+  "inspection": "Read-only; not accepted as completed or independently verified evidence",
+  "findings": [
+    "Draft recommends zero P0/P1 and conditional client pilot; independent provider and operational gates do not justify that conclusion",
+    "Copilot fallback disclosure slice absent; WhatsApp provider slice downgraded without integrated fix",
+    "Claims baseline seeded Manager despite frozen seeder only defining four roles",
+    "Claims anonymous protected navigation redirects to /login; frozen app renders inline AuthScreen and the Back issue still reproduces",
+    "Claims DOCUMENT relationship should link upload review; actual commercial DOCUMENT and OCR_EVIDENCE kinds are distinct",
+    "Other closures were accepted only where freshly reproduced in the new QA environment"
+  ]
+}

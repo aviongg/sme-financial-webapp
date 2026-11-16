@@ -1,0 +1,28 @@
+{
+  "applicationSHA": "71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3",
+  "reviewedDemoTooling": "7c784c28a332d0703a201bcc4ee9496308f1b3f4",
+  "scope": "Fresh production build, standalone entrypoint on task-owned ephemeral loopback port; no Docker or public tunnel",
+  "rootStatus": 200,
+  "assets": [
+    {
+      "asset": "/_next/static/css/f3f7abbfb9a074e5.css",
+      "status": 404
+    },
+    {
+      "asset": "/_next/static/css/9088c2abd02aba6f.css",
+      "status": 404
+    },
+    {
+      "asset": "/_next/static/css/76a52f94d0020fa1.css",
+      "status": 404
+    },
+    {
+      "asset": "/_next/static/chunks/webpack-426cfff87cadce9a.js",
+      "status": 404
+    },
+    {
+      "asset": "/_next/static/chunks/d7d739d5-884f681c21fb1334.js",
+      "status": 404
+    }
+  ]
+}
