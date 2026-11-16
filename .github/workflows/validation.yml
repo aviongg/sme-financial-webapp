@@ -2,7 +2,7 @@ name: Release validation
 on:
   pull_request:
   push:
-    branches: [main, dev/fatima, dev/suleman, 'codex/production-closure-infra-tests', 'integration/finsight-production-candidate', 'integration/finsight-production-candidate-v2']
+    branches: [main, dev/fatima, dev/suleman, 'codex/production-closure-infra-tests', 'integration/finsight-production-candidate', 'integration/finsight-production-candidate-v2', 'integration/finsight-production-candidate-v3']
   workflow_dispatch:
     inputs:
       full_browser:
@@ -126,8 +126,8 @@ jobs:
         working-directory: frontend
       - run: pnpm test:browser:provider-disclosure
         working-directory: frontend
-      - run: pnpm test:browser:product ${{ github.ref == 'refs/heads/integration/finsight-production-candidate-v2' && '--candidate-v2' || '' }}
-        if: (github.event_name == 'workflow_dispatch' && inputs.full_browser) || github.ref == 'refs/heads/integration/finsight-production-candidate' || github.ref == 'refs/heads/integration/finsight-production-candidate-v2'
+      - run: pnpm test:browser:product ${{ (github.ref == 'refs/heads/integration/finsight-production-candidate-v2' || github.ref == 'refs/heads/integration/finsight-production-candidate-v3') && '--candidate-v2' || '' }}
+        if: (github.event_name == 'workflow_dispatch' && inputs.full_browser) || github.ref == 'refs/heads/integration/finsight-production-candidate' || github.ref == 'refs/heads/integration/finsight-production-candidate-v2' || github.ref == 'refs/heads/integration/finsight-production-candidate-v3'
         working-directory: frontend
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
@@ -179,7 +179,7 @@ jobs:
           record = {'head_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
                     'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'validation_jobs': jobs,
                     'production_release_accepted': False,
-                    'separate_required_checks': ['resolved-dependencies', 'current-source-secrets'],
+                    'separate_required_checks': ['resolved-dependencies', 'current-source-secrets', 'historical-browser'],
                     'external_acceptance': ['images', 'PostgreSQL 17/TLS/grants', 'paired restore/rollback', 'providers']}
           with open('validation-result.json', 'w') as output:
               json.dump(record, output, indent=2)

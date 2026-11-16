@@ -13,6 +13,7 @@ For the exact proposed integration commit, require these **job check names**:
 | `release-gate` | backend-unit, all PostgreSQL shards, frontend, browser-smoke, OCR/operations; missing/skipped/failed jobs fail |
 | `resolved-dependencies` | strict resolved Maven/PyPI/pnpm OSV matches and lookup errors |
 | `current-source-secrets` | current checked-out source secrets, not Git history |
+| `historical-browser` | all five reconciled synthetic-API browser drivers, including strict per-answer provider-unavailable disclosure; separate from real Spring/PostgreSQL browser acceptance |
 
 Do not require only the workflow display name or only one matrix shard. Keep
 PR checks mandatory, require the reviewed integration SHA to be up to date, and
@@ -25,6 +26,10 @@ changed here. Recheck through the repository UI/API and retain that evidence.
 Normal CI calls no live providers. Dedicated `production-db-acceptance`, image
 build/scans, full product browser workflow input and actual provider tests are
 separate gates. Do not equate green source checks with production acceptance.
+Candidate-v3 pushes run both the full real `--candidate-v2` contract suite (the
+flag names the inherited contract pack) and provider-disclosure browser checks.
+The historical-browser workflow also runs on pull requests and v3 pushes; it is
+a separate required check and must not be replaced by only `release-gate`.
 Retain per-job XML/logs/screenshots/audit JSON and `validation-result.json`, its
 exact `head_sha`, run ID/attempt and URLs. New artifacts request **90 days**;
 repository policies may cap retention. Archive accepted records off-platform

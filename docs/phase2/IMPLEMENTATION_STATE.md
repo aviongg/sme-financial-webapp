@@ -1,5 +1,20 @@
 # Current Phase 2 implementation state
 
+## Candidate v3 Stage A integration — 16 November 2026 (Asia/Karachi)
+
+Authorized isolated branch `integration/finsight-production-candidate-v3`, worktree
+`tmp/finsight-production-candidate-v3`, created at exact frozen v2
+`71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3`. Normal no-ff merges include exact
+provider disclosure `0f3729f27a015457b3a3aee98deea6ea1a9244e4` and historical
+browser reconciliation `380acac342cc162f11e39c2a33651d2b916802ab`, without conflicts.
+Reserved integration edits: CI branch conditions/required historical gate, release
+verification evidence and this handoff only. No migration, business logic, provider
+activation or demo-tooling integration. Independent v2 QA remains historical at
+`a70f1860628c4d0659ba86a90c4366f81fb2f5c6`; it is not v3 runtime evidence.
+Stage A is not final; demo-tooling Stage B requires separate authorization.
+Current results will be recorded in `docs/release/CANDIDATE_V3_STAGE_A_VERIFICATION.md`.
+
+
 ## Historical browser reconciliation — 16 November 2026
 
 User authorizes test/fixture-only reconciliation on

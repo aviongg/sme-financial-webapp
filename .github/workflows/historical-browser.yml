@@ -1,7 +1,8 @@
 name: Historical browser reconciliation
 on:
+  pull_request:
   push:
-    branches: ['test/finsight-v2-historical-browser-reconciliation']
+    branches: ['test/finsight-v2-historical-browser-reconciliation', 'integration/finsight-production-candidate-v3']
   workflow_dispatch:
 permissions:
   contents: read
