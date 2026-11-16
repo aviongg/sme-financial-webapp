@@ -1,45 +1,31 @@
-# FinSight One-Click Public Demo Shutdown Script
+<#
+.SYNOPSIS
+    Stops the local FinSight demo processes that scripts/start-demo.ps1 started.
 
-$ErrorActionPreference = "Continue"
+.DESCRIPTION
+    Only processes recorded in .demo-runtime/runtime.json are stopped, and only while their PID and exact start time
+    still match (Windows reuses PIDs). Nothing is stopped because it holds a port. The demo database container
+    (finsight-postgres-demo) is stopped, never removed; its data stays in its volume.
+#>
+$ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
+$RuntimeFile = Join-Path $ProjectRoot '.demo-runtime\runtime.json'
+Import-Module (Join-Path $ScriptDir 'demo-guards.psm1') -Force
 
-Write-Host "======================================================================" -ForegroundColor Cyan
-Write-Host "   Shutting Down FinSight Demonstration Stack" -ForegroundColor Cyan
-Write-Host "======================================================================" -ForegroundColor Cyan
-
-# 1. Stop Cloudflare Tunnel Container
-Write-Host "`n[1/4] Stopping Cloudflare Quick Tunnel container..." -ForegroundColor Yellow
-docker stop finsight-tunnel-demo 2>$null
-
-# 2. Stop Frontend Node Process on Port 3000
-Write-Host "`n[2/4] Stopping Next.js Frontend server on port 3000..." -ForegroundColor Yellow
-$frontendPort = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
-if ($frontendPort) {
-    $pids = $frontendPort.OwningProcess | Select-Object -Unique
-    foreach ($p in $pids) {
-        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-    }
+Write-Host "Stopping the FinSight local demo (launcher-owned processes only)..." -ForegroundColor Cyan
+$state = Read-DemoRuntime $RuntimeFile
+if ($state) {
+    foreach ($record in @($state.processes)) { Write-Host ("  " + (Stop-OwnedProcessTree $record)) }
+    Remove-Item $RuntimeFile -Force
+} else {
+    Write-Host "  No launcher-owned processes are recorded; nothing to stop."
 }
 
-# 3. Stop Backend Java Process on Port 8080
-Write-Host "`n[3/4] Stopping Spring Boot Backend on port 8080..." -ForegroundColor Yellow
-$backendPort = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
-if ($backendPort) {
-    $pids = $backendPort.OwningProcess | Select-Object -Unique
-    foreach ($p in $pids) {
-        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+if (Get-Command docker -ErrorAction SilentlyContinue) {
+    foreach ($container in 'finsight-postgres-demo', 'finsight-tunnel-demo') {
+        $id = docker ps -q --filter "name=^$container$"
+        if ($id) { docker stop $container | Out-Null; Write-Host "  stopped container $container" }
     }
 }
-
-# 4. Stop Postgres Demo Container
-Write-Host "`n[4/4] Stopping PostgreSQL Demo database container..." -ForegroundColor Yellow
-Set-Location $ProjectRoot
-docker compose -f docker-compose.demo.yml stop
-
-Write-Host "`n======================================================================" -ForegroundColor Green
-Write-Host "   FINSIGHT DEMONSTRATION STACK SAFELY SHUT DOWN" -ForegroundColor Green
-Write-Host "======================================================================" -ForegroundColor Green
-Write-Host "Demo data is safely preserved in volume 'finsight_demo_pgdata'." -ForegroundColor Gray
-Write-Host "To restart demo at any time: powershell scripts/start-demo.ps1`n" -ForegroundColor Gray
-
+Write-Host "Demo data is preserved in its Docker volume. Restart with: powershell scripts/start-demo.ps1" -ForegroundColor Gray

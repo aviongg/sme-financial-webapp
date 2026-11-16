@@ -74,112 +74,84 @@ public class DemoScenarioSeeder {
         }
     }
 
-    private static final String DB_ADMIN_USER = "postgres";
-    private static final String DB_ADMIN_PASS = "DemoDbPassword2026!";
+    /** Database comment written only by scripts/init-demo.ps1 (superuser) on a newly created disposable demo volume. */
+    static final String DISPOSABLE_MARKER_PREFIX = "finsight-disposable-synthetic-demo:";
+    static final String FRESH_FLAG = "--fresh-disposable-database";
+    /** Only Flyway's own history may hold rows before the first (and only) seed; init-demo.ps1 verifies its version. */
+    static final Set<String> MIGRATION_OWNED_TABLES = Set.of("flyway_schema_history");
 
+    /**
+     * Seeds the synthetic demo exactly once into a freshly initialized, explicitly designated disposable database.
+     * There is no reseed, upgrade or sandbox-reset mode: any existing row (users, businesses, profiles, financial records,
+     * documents, audit or key history) means the database is not provably fresh, so nothing is written.
+     */
     public static void main(String[] args) throws Exception {
-        boolean resetOnlySandbox = args.length > 0 && "--reset-sandbox".equalsIgnoreCase(args[0]);
-        System.out.println("Starting FinSight Demo Scenario Seeder (Mode: " + (resetOnlySandbox ? "RESET_SANDBOX_ONLY" : "FULL_SEED") + ")...");
-        String user = resetOnlySandbox ? DB_ADMIN_USER : DB_USER;
-        String pass = resetOnlySandbox ? DB_ADMIN_PASS : DB_PASS;
-        try (Connection conn = DriverManager.getConnection(DB_URL, user, pass)) {
+        List<String> options = Arrays.asList(args);
+        if (options.contains("--reset-sandbox")) {
+            throw new IllegalStateException("Sandbox reset is disabled because it rewrote existing data. Recreate the disposable "
+                    + "demo environment instead (scripts/stop-demo.ps1, then scripts/init-demo.ps1 -CreateFreshDisposableDemo).");
+        }
+        if (!options.equals(List.of(FRESH_FLAG))) {
+            throw new IllegalStateException("Refusing to seed: run only through scripts/init-demo.ps1, which passes " + FRESH_FLAG
+                    + " for a newly created disposable demo database.");
+        }
+        System.out.println("Starting FinSight Demo Scenario Seeder (fresh disposable database only)...");
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
             conn.setAutoCommit(false);
-            DemoScenarioSeeder seeder = new DemoScenarioSeeder(conn);
-            if (resetOnlySandbox) {
-                seeder.resetSandboxOnly();
-            } else {
-                seeder.seedAll();
+            try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery("SELECT current_database()")) {
+                rs.next();
+                if (!"finsight_demo".equals(rs.getString(1))) throw new IllegalStateException("Not the local demo database: " + rs.getString(1));
             }
+            DemoScenarioSeeder seeder = new DemoScenarioSeeder(conn);
+            seeder.requireFreshDisposableDatabase();
+            seeder.seedAll();
             conn.commit();
             System.out.println("Demo Scenario Seeding completed successfully!");
         }
     }
 
-    public void resetSandboxOnly() throws Exception {
-        System.out.println("1. Setting administrative replication role to bypass immutable audit triggers...");
+    /**
+     * Proves the target is a designated, untouched disposable demo database: the init-only marker is present and every
+     * application table is provably empty (an unreadable table counts as not proven). The migrated schema version is
+     * checked by init-demo.ps1 as the superuser, since the runtime role cannot read Flyway's history. Business names or
+     * row counts are not used as evidence. Throws (writing nothing) otherwise.
+     */
+    void requireFreshDisposableDatabase() throws SQLException {
+        List<String> problems = new ArrayList<>();
         try (Statement stmt = conn.createStatement()) {
-            stmt.execute("SET session_replication_role = 'replica'");
-        }
-
-        System.out.println("2. Locating Sandbox Businesses...");
-        List<UUID> sandboxBizIds = new ArrayList<>();
-        try (PreparedStatement ps = conn.prepareStatement("SELECT id, business_name FROM businesses WHERE business_name LIKE '%(Sandbox)'")) {
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    UUID id = (UUID) rs.getObject("id");
-                    String bName = rs.getString("business_name");
-                    sandboxBizIds.add(id);
-                    System.out.println("   Found Sandbox Business: " + bName + " (" + id + ")");
+            try (ResultSet rs = stmt.executeQuery("SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname = current_database()")) {
+                String marker = rs.next() ? rs.getString(1) : null;
+                if (marker == null || !marker.startsWith(DISPOSABLE_MARKER_PREFIX)) {
+                    problems.add("database is not marked as a disposable synthetic demo created by scripts/init-demo.ps1");
+                }
+            }
+            // pg_tables lists every table, including ones this role cannot read; those cannot be proven empty.
+            List<String> tables = new ArrayList<>();
+            List<String> unreadable = new ArrayList<>();
+            try (ResultSet rs = stmt.executeQuery("SELECT tablename, has_table_privilege(current_user, format('public.%I', tablename), 'SELECT') "
+                    + "FROM pg_catalog.pg_tables WHERE schemaname = 'public' ORDER BY tablename")) {
+                while (rs.next()) (rs.getBoolean(2) ? tables : unreadable).add(rs.getString(1));
+            }
+            if (tables.isEmpty() && unreadable.isEmpty()) problems.add("schema is not migrated");
+            for (String table : unreadable) {
+                if (!MIGRATION_OWNED_TABLES.contains(table)) problems.add("cannot verify that table " + table + " is empty");
+            }
+            for (String table : tables) {
+                if (MIGRATION_OWNED_TABLES.contains(table)) continue;
+                try (ResultSet rs = stmt.executeQuery("SELECT EXISTS (SELECT 1 FROM public.\"" + table.replace("\"", "\"\"") + "\")")) {
+                    rs.next();
+                    if (rs.getBoolean(1)) problems.add("table " + table + " already contains data");
                 }
             }
         }
-
-        System.out.println("3. Purging Sandbox Business Records...");
-        for (UUID bizId : sandboxBizIds) {
-            String[] deleteSqls = {
-                "DELETE FROM fx_obligation_settlements WHERE business_id = ?",
-                "DELETE FROM fx_obligation_recognition_evidence WHERE business_id = ?",
-                "DELETE FROM obligation_payment_allocations WHERE business_id = ?",
-                "DELETE FROM financial_obligations WHERE business_id = ?",
-                "DELETE FROM commission_payouts WHERE business_id = ?",
-                "DELETE FROM commission_earnings WHERE business_id = ?",
-                "DELETE FROM commission_rules WHERE business_id = ?",
-                "DELETE FROM salesperson_profiles WHERE business_id = ?",
-                "DELETE FROM account_movements WHERE business_id = ?",
-                "DELETE FROM financial_transactions WHERE business_id = ?",
-                "DELETE FROM financial_accounts WHERE business_id = ?",
-                "DELETE FROM inventory_positions WHERE business_id = ?",
-                "DELETE FROM inventory_movements WHERE business_id = ?",
-                "DELETE FROM commercial_document_lines WHERE business_id = ?",
-                "DELETE FROM commercial_documents WHERE business_id = ?",
-                "DELETE FROM commercial_number_sequences WHERE business_id = ?",
-                "DELETE FROM inventory_items WHERE business_id = ?",
-                "DELETE FROM project_budget_lines WHERE business_id = ?",
-                "DELETE FROM project_budget_versions WHERE business_id = ?",
-                "DELETE FROM projects WHERE business_id = ?",
-                "DELETE FROM recommendations WHERE user_id = ?",
-                "DELETE FROM insights WHERE user_id = ?",
-                "DELETE FROM score_results WHERE user_id = ?",
-                "DELETE FROM monthly_financing_inputs WHERE business_id = ?",
-                "DELETE FROM monthly_records WHERE user_id = ?",
-                "DELETE FROM monthly_projection_state WHERE business_id = ?",
-                "DELETE FROM dashboard_preferences WHERE business_id = ?",
-                "DELETE FROM business_configuration WHERE business_id = ?",
-                "DELETE FROM business_memberships WHERE business_id = ?",
-                "DELETE FROM business_profiles WHERE user_id = ?",
-                "DELETE FROM businesses WHERE id = ?"
-            };
-            for (String sql : deleteSqls) {
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setObject(1, bizId);
-                    ps.executeUpdate();
-                }
-            }
+        if (!problems.isEmpty()) {
+            throw new IllegalStateException("Refusing to seed; nothing was changed. " + String.join("; ", problems));
         }
-
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("SET session_replication_role = 'origin'");
-        }
-
-        System.out.println("4. Re-seeding Sandbox Businesses from Clean Master Template...");
-        Map<String, UUID> users = seedUsers();
-        seedBusinessA(users, true);
-        seedBusinessB(users, true);
-        seedBusinessC(users, true);
-        seedBusinessD(users, true);
-        System.out.println("Sandbox businesses successfully reset to pristine state!");
     }
 
     public void seedAll() throws Exception {
         System.out.println("1. Seeding Users...");
         Map<String, UUID> users = seedUsers();
-
-        // Ensure all existing business_profiles have encrypted whatsapp_number
-        String encPhoneFixed = encryptAesGcm("+923001234567", "FinSight|BusinessProfile|whatsappNumber");
-        try (PreparedStatement upd = conn.prepareStatement("UPDATE business_profiles SET whatsapp_number = ? WHERE whatsapp_number IS NULL OR whatsapp_number NOT LIKE 'enc:v1:%'")) {
-            upd.setString(1, encPhoneFixed);
-            upd.executeUpdate();
-        }
 
         System.out.println("2. Seeding Businesses and Scenarios...");
         // 4 Showcase businesses
@@ -211,13 +183,8 @@ public class DemoScenarioSeeder {
                 ps.setString(1, email);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        userId = (UUID) rs.getObject("id");
-                        try (PreparedStatement upd = conn.prepareStatement("UPDATE app_users SET full_name = ?, password_hash = ? WHERE id = ?")) {
-                            upd.setString(1, encName);
-                            upd.setString(2, encodedHash);
-                            upd.setObject(3, userId);
-                            upd.executeUpdate();
-                        }
+                        // Never rewrite an existing account's name or credentials.
+                        throw new IllegalStateException("Refusing to seed: account " + email + " already exists");
                     } else {
                         userId = UUID.randomUUID();
                         try (PreparedStatement ins = conn.prepareStatement(
@@ -234,7 +201,7 @@ public class DemoScenarioSeeder {
                 }
             }
             userMap.put(email, userId);
-            System.out.println("   User created/verified: " + email + " (" + name + ")");
+            System.out.println("   User created: " + email + " (" + name + ")");
         }
         return userMap;
     }

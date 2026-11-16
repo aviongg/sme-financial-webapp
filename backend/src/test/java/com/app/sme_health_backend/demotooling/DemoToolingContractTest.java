@@ -35,8 +35,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  *       start-demo.ps1 and verify-public-demo.mjs advertise exactly those credentials.</li>
  *   <li>FlywayMigratorDemo resolves the repository's migrations portably and refuses wrong or partial locations, with
  *       clean disabled and the demo database fixed to loopback.</li>
- *   <li>start-demo.ps1 is local-only by default; a public tunnel needs two explicit switches (checked by running the
- *       script's -PlanOnly mode when PowerShell is available, which starts nothing).</li>
+ *   <li>start-demo.ps1 is local-only and refuses public exposure; readiness is HTTP and ownership based, init-demo.ps1
+ *       only seeds a new marked environment, and unrelated processes are never reused or stopped (PowerShell checks run
+ *       -PlanOnly modes and the guard module only; nothing is started).</li>
  * </ul>
  */
 class DemoToolingContractTest {
@@ -142,20 +143,6 @@ class DemoToolingContractTest {
     }
 
     @Test
-    void startDemoKnowsEverySeededBusinessForTheSyntheticDataCheck() throws Exception {
-        Matcher names = Pattern.compile("isSandbox \\? \"([^\"]+)\" : \"([^\"]+)\"").matcher(read("scripts/DemoScenarioSeeder.java"));
-        Set<String> seeded = new TreeSet<>();
-        while (names.find()) { seeded.add(names.group(1)); seeded.add(names.group(2)); }
-        assertEquals(8, seeded.size(), seeded.toString());
-        Matcher block = Pattern.compile("(?s)\\$SeededBusinessNames = @\\((.*?)\\r?\\n\\)").matcher(read("scripts/start-demo.ps1"));
-        assertTrue(block.find(), "start-demo.ps1 must declare $SeededBusinessNames");
-        Set<String> listed = new TreeSet<>();
-        Matcher literal = Pattern.compile("'([^']+)'").matcher(block.group(1));
-        while (literal.find()) listed.add(literal.group(1));
-        assertEquals(seeded, listed);
-    }
-
-    @Test
     void publicDemoVerifierUsesTheSeededCredentials() throws Exception {
         Matcher row = Pattern.compile("\\{ email: '([^']+)', password: '([^']+)', expectedRole: '([A-Z]+)'")
                 .matcher(read("scripts/verify-public-demo.mjs"));
@@ -220,28 +207,63 @@ class DemoToolingContractTest {
     // ---------------------------------------------------------------------------------------------- start-demo.ps1
 
     @Test
-    void publicTunnelLaunchOnlyExistsBehindTheOptIn() throws Exception {
+    void publicExposureIsDisabledWithoutAnyOverride() throws Exception {
         String script = read("scripts/start-demo.ps1");
-        assertFalse(script.contains("offering-forums-marathon-calibration"), "No stale hard-coded tunnel host or URL fallback");
-        assertEquals(1, Pattern.compile("docker run[^\\n]*cloudflared").matcher(script).results().count());
-        int section = script.indexOf("# 4. Cloudflare Quick Tunnel");
-        int launch = script.indexOf("cloudflare/cloudflared");
-        assertTrue(section > 0 && launch > section, "Tunnel launch belongs to step 4");
-        assertTrue(script.substring(section, launch).contains("if ($PublicTunnel) {"), "Tunnel launch must be gated by -PublicTunnel");
-        assertTrue(script.contains("$env:SERVER_ADDRESS = \"127.0.0.1\""), "Backend binds loopback only");
-        for (String off : List.of("$env:AI_ENABLED = \"false\"", "$env:WHATSAPP_PROVIDER = \"mock\"", "$env:AI_LIVE_ACTIVATION_APPROVED = \"false\"")) {
+        for (String forbidden : List.of("cloudflared", "trycloudflare", "0.0.0.0", "AllowNonSeededData", "ConfirmSyntheticPublicDemo",
+                "offering-forums-marathon-calibration")) {
+            assertFalse(script.contains(forbidden), "Public exposure path or override remains: " + forbidden);
+        }
+        assertTrue(script.contains("HOSTNAME = '127.0.0.1'"), "Frontend binds loopback only");
+        assertTrue(script.contains("SERVER_ADDRESS = '127.0.0.1'"), "Backend binds loopback only");
+        for (String off : List.of("AI_ENABLED = 'false'", "WHATSAPP_PROVIDER = 'mock'", "AI_LIVE_ACTIVATION_APPROVED = 'false'",
+                "OCR_INTEGRATION_ENABLED = 'false'", "'SPRING_PROFILES_ACTIVE'", "'OPENAI_API_KEY'")) {
             assertTrue(script.contains(off), "Live providers stay disabled: " + off);
         }
     }
 
+    @Test
+    void readinessIsHttpAndOwnershipBasedNeverTcpOrPortBased() throws Exception {
+        String start = read("scripts/start-demo.ps1");
+        assertFalse(start.contains("TcpClient"), "A listening TCP port is not readiness");
+        for (String required : List.of("Invoke-RuntimeCheck 'verify-backend' $BackendUrl", "Invoke-RuntimeCheck 'verify-frontend' $FrontendUrl",
+                "Assert-PortOwnedBy 8080 $backendRecord", "Assert-PortOwnedBy 3000 $frontendRecord", "Assert-PortFree 8080",
+                "Assert-PortFree 3000", "node $RuntimeHelper package", "application_name = '$connectionTag'")) {
+            assertTrue(start.contains(required), "start-demo.ps1 must " + required);
+        }
+        assertFalse(Pattern.compile("(?i)reusing it").matcher(start).find(), "Existing listeners are never reused");
+        String stop = read("scripts/stop-demo.ps1");
+        assertFalse(stop.contains("Get-NetTCPConnection") || stop.contains("-LocalPort"), "stop-demo must not stop processes by port");
+        assertTrue(stop.contains("Stop-OwnedProcessTree"));
+    }
+
+    @Test
+    void initializationTargetsOnlyANewMarkedEnvironmentAndResetIsDisabled() throws Exception {
+        String init = read("scripts/init-demo.ps1");
+        String seeder = read("scripts/DemoScenarioSeeder.java");
+        Matcher prefix = Pattern.compile("DISPOSABLE_MARKER_PREFIX = \"([^\"]+)\"").matcher(seeder);
+        assertTrue(prefix.find());
+        assertTrue(init.contains("\"" + prefix.group(1) + "$([guid]::NewGuid())"), "init-demo writes the marker the seeder requires");
+        assertTrue(read("scripts/start-demo.ps1").contains("StartsWith('" + prefix.group(1) + "')"), "start-demo requires the same marker");
+        for (String guard : List.of("docker container inspect $DbContainer", "docker volume inspect $DbVolume", "--fresh-disposable-database",
+                "pg_catalog.pg_tables", "-ne $ExpectedSchemaVersion")) {
+            assertTrue(init.contains(guard), "init-demo.ps1 must " + guard);
+        }
+        assertFalse(seeder.contains("session_replication_role"), "No trigger bypass");
+        assertFalse(seeder.contains("UPDATE app_users"), "Existing credentials are never rewritten");
+        assertFalse(seeder.contains("UPDATE business_profiles"), "Existing profiles are never rewritten");
+        assertFalse(read("scripts/reset-sandbox.ps1").contains("DemoScenarioSeeder"), "Sandbox reset no longer runs the seeder");
+    }
+
     record Run(int exit, String stdout, String stderr) { }
 
+    static boolean windows() {
+        return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     static Optional<String> powershell() {
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        for (String exe : windows ? List.of("pwsh", "powershell") : List.of("pwsh")) {
+        for (String exe : windows() ? List.of("pwsh", "powershell") : List.of("pwsh")) {
             try {
-                Process p = new ProcessBuilder(exe, "-NoProfile", "-NonInteractive", "-Command", "exit 0")
-                        .redirectErrorStream(true).start();
+                Process p = new ProcessBuilder(exe, "-NoProfile", "-NonInteractive", "-Command", "exit 0").redirectErrorStream(true).start();
                 p.getInputStream().readAllBytes();
                 if (p.waitFor(60, TimeUnit.SECONDS) && p.exitValue() == 0) return Optional.of(exe);
             } catch (Exception ignored) {
@@ -251,52 +273,99 @@ class DemoToolingContractTest {
         return Optional.empty();
     }
 
-    static Run planOnly(String exe, String... switches) throws Exception {
-        List<String> command = new ArrayList<>(List.of(exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-                "-File", repo.resolve("scripts/start-demo.ps1").toString()));
-        command.addAll(List.of(switches));
-        command.add("-PlanOnly");
-        Path err = Files.createTempFile("start-demo", ".err");
+    static Run run(String exe, List<String> arguments) throws Exception {
+        List<String> command = new ArrayList<>(List.of(exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass"));
+        command.addAll(arguments);
+        Path err = Files.createTempFile("demo-script", ".err");
         try {
             Process p = new ProcessBuilder(command).redirectError(err.toFile()).start();
             String stdout = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(p.waitFor(120, TimeUnit.SECONDS), "start-demo.ps1 -PlanOnly timed out");
+            assertTrue(p.waitFor(120, TimeUnit.SECONDS), "PowerShell timed out: " + command);
             return new Run(p.exitValue(), stdout, Files.readString(err));
         } finally {
             Files.deleteIfExists(err);
         }
     }
 
+    static Run script(String exe, String name, String... switches) throws Exception {
+        List<String> arguments = new ArrayList<>(List.of("-File", repo.resolve("scripts/" + name).toString()));
+        arguments.addAll(List.of(switches));
+        return run(exe, arguments);
+    }
+
     @Test
-    void startDemoIsLocalOnlyByDefaultAndPublicExposureNeedsBothSwitches() throws Exception {
+    void startDemoIsLocalOnlyAndEveryPublicExposureRequestIsRefused() throws Exception {
         Optional<String> exe = powershell();
         assumeTrue(exe.isPresent(), "PowerShell (pwsh) is not installed; the static start-demo.ps1 checks still ran");
 
-        Run local = planOnly(exe.get());
+        Run local = script(exe.get(), "start-demo.ps1", "-PlanOnly");
         assertEquals(0, local.exit(), local.stderr());
         assertTrue(local.stdout().contains("Mode: local-only"), local.stdout());
         assertTrue(local.stdout().contains("Frontend bind: 127.0.0.1:3000"), local.stdout());
-        assertTrue(Pattern.compile("(?m)^Backend CORS origins: http://localhost:3000\\s*$").matcher(local.stdout()).find(),
-                local.stdout());
-        assertFalse(local.stdout().contains("trycloudflare"), local.stdout());
+        assertTrue(local.stdout().contains("Public exposure: disabled (not approved)"), local.stdout());
+        assertTrue(Pattern.compile("(?m)^Backend CORS origins: http://localhost:3000\\s*$").matcher(local.stdout()).find(), local.stdout());
         assertTrue(local.stdout().contains("Plan only: nothing was started."));
         for (Account a : seederAccounts()) {
             assertTrue(Pattern.compile("(?m)^\\s+" + a.role() + "\\s+" + Pattern.quote(a.email()) + "\\s+" + Pattern.quote(a.password()) + "\\s*$")
                     .matcher(local.stdout()).find(), "Printed credentials for " + a + ":\n" + local.stdout());
         }
 
-        for (String[] refused : List.of(new String[] {"-PublicTunnel"}, new String[] {"-ConfirmSyntheticPublicDemo"},
-                new String[] {"-AllowNonSeededData"}, new String[] {"-PublicTunnel", "-AllowNonSeededData"})) {
-            Run run = planOnly(exe.get(), refused);
-            assertEquals(2, run.exit(), String.join(" ", refused) + "\n" + run.stdout() + run.stderr());
-            assertTrue(run.stderr().contains("REFUSED"), run.stderr());
-            assertFalse(run.stdout().contains("Plan only"), "Refused before planning");
+        Run tunnel = script(exe.get(), "start-demo.ps1", "-PublicTunnel", "-PlanOnly");
+        assertEquals(2, tunnel.exit(), tunnel.stdout() + tunnel.stderr());
+        assertTrue(tunnel.stderr().contains("REFUSED: Public demonstration is disabled"), tunnel.stderr());
+        assertFalse(tunnel.stdout().contains("Plan only"));
+        for (String removedOverride : List.of("-ConfirmSyntheticPublicDemo", "-AllowNonSeededData")) {
+            Run override = script(exe.get(), "start-demo.ps1", "-PublicTunnel", removedOverride, "-PlanOnly");
+            assertNotEquals(0, override.exit(), removedOverride + " must not exist as an override");
+            assertFalse(override.stdout().contains("Plan only"), removedOverride);
         }
+    }
 
-        Run publicPlan = planOnly(exe.get(), "-PublicTunnel", "-ConfirmSyntheticPublicDemo");
-        assertEquals(0, publicPlan.exit(), publicPlan.stderr());
-        assertTrue(publicPlan.stdout().contains("Mode: public-tunnel"), publicPlan.stdout());
-        assertTrue(publicPlan.stdout().contains("https://*.trycloudflare.com"), publicPlan.stdout());
-        assertTrue(publicPlan.stdout().contains("after the synthetic-data checks pass"), publicPlan.stdout());
+    @Test
+    void initRequiresExplicitFreshDesignationAndSandboxResetIsRefused() throws Exception {
+        Optional<String> exe = powershell();
+        assumeTrue(exe.isPresent(), "PowerShell (pwsh) is not installed");
+        Run undesignated = script(exe.get(), "init-demo.ps1", "-PlanOnly");
+        assertEquals(2, undesignated.exit(), undesignated.stdout() + undesignated.stderr());
+        assertTrue(undesignated.stderr().contains("-CreateFreshDisposableDemo"), undesignated.stderr());
+        Run plan = script(exe.get(), "init-demo.ps1", "-CreateFreshDisposableDemo", "-PlanOnly");
+        assertEquals(0, plan.exit(), plan.stderr());
+        assertTrue(plan.stdout().contains("Plan only: nothing was created."), plan.stdout());
+        Run reset = script(exe.get(), "reset-sandbox.ps1");
+        assertEquals(2, reset.exit(), reset.stdout() + reset.stderr());
+        assertTrue(reset.stderr().contains("Sandbox reset is disabled"), reset.stderr());
+    }
+
+    /**
+     * Codex's process findings: an unrelated listener must be refused, never reused or stopped, and a recorded PID that
+     * is not the launched process (PID reuse) must never be terminated. Uses a task-owned ephemeral loopback socket.
+     */
+    @Test
+    void unrelatedListenersAreRefusedButNeverStoppedOrAdopted() throws Exception {
+        Optional<String> exe = powershell();
+        assumeTrue(windows() && exe.isPresent(), "Port-ownership guards use Windows networking cmdlets");
+        long self = ProcessHandle.current().pid();
+        try (java.net.ServerSocket unrelated = new java.net.ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress())) {
+            int port = unrelated.getLocalPort();
+            String module = repo.resolve("scripts/demo-guards.psm1").toString().replace("'", "''");
+            String probe = "$ErrorActionPreference='Stop'; Import-Module '" + module + "' -Force;"
+                    + "try { Assert-PortFree " + port + " 'probe'; 'FREE' } catch { 'REFUSED ' + $_.Exception.Message };"
+                    + "$other = New-OwnedProcessRecord 'frontend' (Get-Process -Id $PID);"
+                    + "try { Assert-PortOwnedBy " + port + " $other; 'ADOPTED' } catch { 'NOT-OWNED ' + $_.Exception.Message };"
+                    + "$reused = [ordered]@{ role = 'backend'; pid = " + self + "; startTicks = 1; name = 'java' };"
+                    + "Stop-OwnedProcessTree $reused";
+            Run result = run(exe.get(), List.of("-Command", probe));
+            assertEquals(0, result.exit(), result.stdout() + result.stderr());
+            assertTrue(result.stdout().contains("REFUSED Port " + port + " (probe) is already in use by java"), result.stdout());
+            assertTrue(result.stdout().contains("neither reused nor stopped"), result.stdout());
+            assertTrue(result.stdout().contains("NOT-OWNED Port " + port + " is served by java"), result.stdout());
+            assertFalse(result.stdout().contains("ADOPTED") || result.stdout().contains("FREE"), result.stdout());
+            assertTrue(result.stdout().contains("backend: PID " + self + " not running or reused by another program; left untouched"), result.stdout());
+            // The unrelated listener (this JVM) is still alive and still serving.
+            try (java.net.Socket client = new java.net.Socket(java.net.InetAddress.getLoopbackAddress(), port);
+                 java.net.Socket accepted = unrelated.accept()) {
+                assertTrue(client.isConnected() && accepted.isConnected());
+            }
+        }
     }
 }
