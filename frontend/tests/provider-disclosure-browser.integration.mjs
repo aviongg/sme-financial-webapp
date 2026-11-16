@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configurationFixture } from './fixtures/phase-two.mjs';
 import { workspaceFixture } from './fixtures/workspace.mjs';
-import { EXACT_VALUE, copilotFixture, deliveryFixture } from './fixtures/provider-disclosure.mjs';
+import { EXACT_VALUE, ORIGINAL_OUTBOUND_ASSERTION, capabilityFixture, copilotFixture, deliveryFixture } from './fixtures/provider-disclosure.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -31,6 +31,8 @@ const deliveries = [
   deliveryFixture({ id: '44444444-4444-4444-8444-444444444443', providerName: 'disabled', deliveryStatus: 'FAILED', failureReason: 'provider_disabled', targetMonth: '2026-08' }),
   deliveryFixture({ id: '44444444-4444-4444-8444-444444444444', providerName: null, deliveryStatus: 'PENDING', targetMonth: '2026-07' }),
 ];
+// Outbound transport reported by GET /api/whatsapp/delivery-capability; null = endpoint unavailable (404).
+let capability = capabilityFixture('mock'), history = deliveries;
 const events = [], checks = [], errors = [];
 const mark = name => { checks.push(name); console.log('PASS', name); };
 const config = () => configurationFixture({ requestedModules: aiModule ? ['core_finance', 'documents', 'whatsapp', 'ai'] : ['core_finance', 'documents', 'whatsapp'] });
@@ -50,7 +52,8 @@ const api = http.createServer(async (req, res) => {
   if (url === '/api/businesses/active') return respond(res, business());
   if (url === '/api/profile') return respond(res, profile());
   if (url === '/api/profile/language') { language = body.languagePreference; return respond(res, profile()); }
-  if (url === '/api/whatsapp/deliveries') return respond(res, deliveries);
+  if (url === '/api/whatsapp/deliveries') return respond(res, history);
+  if (url === '/api/whatsapp/delivery-capability') return capability ? respond(res, capability) : respond(res, { error: 'fixture_missing' }, 404);
   if (['/api/memberships', '/api/invitations', '/api/records/monthly', '/api/documents'].includes(url)) return respond(res, []);
   const dashboard = { businessId, profile: profile(), score: null, topInsight: null, topRecommendation: null, cashFlowHistory: [], trendProjection: null, hasHistory: false };
   const aiStatus = { enabled: aiModule, available: aiModule && statusMode === 'openai', mode: statusMode === 'openai' ? 'live' : 'deterministic', reasonCode: statusMode === 'openai' ? null : 'ai_disabled', model: null, maxQuestionLength: 1000, maxConversationTurns: 8 };
@@ -209,7 +212,59 @@ try {
   await page.screenshot({ path: path.join(out, 'whatsapp-delivery-history.png'), fullPage: true });
   mark('WhatsApp mock deliveries are identified as simulated; Meta, disabled and unrecorded providers are distinct');
 
-  // 8. Disclosure is read-only: only sign-in, language and Copilot questions were sent.
+  // 8. EMPTY delivery history: the outbound "WhatsApp updates" card itself discloses the configured transport.
+  history = [];
+  const outboundCard = async (kind, locale) => {
+    await page.goto(`${origin}/settings`);
+    const heading = page.getByRole('heading', { name: locale === 'ur' ? 'واٹس ایپ اپ ڈیٹس' : 'WhatsApp updates', exact: true });
+    await heading.waitFor();
+    await page.waitForLoadState('networkidle');
+    await page.locator(`[data-testid="whatsapp-outbound-provider"][data-provider="${kind}"]`).waitFor();
+    assert.equal(await page.locator('[data-testid="whatsapp-delivery"]').count(), 0, 'Delivery history is empty');
+    assert.ok(await page.getByRole('checkbox').first().isEnabled(), 'Consent remains available to the owner');
+    return heading.locator('..').innerText();
+  };
+  const cases = [
+    ['mock', capabilityFixture('mock'), /Simulated: a test provider is active\. No WhatsApp messages are transmitted/],
+    ['disabled', capabilityFixture('disabled', true), /WhatsApp delivery is disabled: no provider is configured/],
+    ['meta', capabilityFixture('meta', true), /Configured provider: WhatsApp Cloud API \(Meta\)\. This shows configuration only\. It does not confirm that any message was transmitted or delivered/],
+    ['unknown', null, /The sending provider could not be confirmed/],
+  ];
+  const outboundResults = {};
+  for (const [kind, response, disclosure] of cases) {
+    capability = response;
+    const text = await outboundCard(kind, 'en');
+    outboundResults[kind] = text;
+    assert.match(text, disclosure, kind);
+    assert.match(text, /^WhatsApp updates\s+Message sending in this environment\s/, 'Disclosed at the top of the outbound card');
+    if (kind === 'mock' || kind === 'disabled') assert.match(text, ORIGINAL_OUTBOUND_ASSERTION, `Original independent assertion (${kind})`);
+    else assert.doesNotMatch(text, ORIGINAL_OUTBOUND_ASSERTION, `${kind} is not presented as simulated or disabled`);
+    const automatic = page.getByTestId('whatsapp-outbound-automatic');
+    if (kind === 'unknown') assert.equal(await automatic.count(), 0, 'No scheduling claim without a capability signal');
+    else assert.equal(await automatic.innerText(), kind === 'meta' ? 'Automatic weekly summaries: on' : 'Automatic weekly summaries: off in this environment');
+    assert.equal(await page.getByTestId('whatsapp-outbound-provider').getAttribute('role'), 'note');
+    assert.equal(await page.getByTestId('whatsapp-outbound-provider').getAttribute('aria-label'), 'Message sending in this environment');
+    await page.screenshot({ path: path.join(out, `whatsapp-outbound-empty-${kind}-en.png`), fullPage: true });
+  }
+  await page.getByRole('button', { name: 'اردو', exact: true }).first().click();
+  await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  for (const [kind, response, disclosure] of [['mock', capabilityFixture('mock'), /فرضی: آزمائشی فراہم کنندہ فعال ہے/],
+    ['disabled', capabilityFixture('disabled'), /واٹس ایپ ترسیل بند ہے: کوئی فراہم کنندہ ترتیب نہیں دیا گیا/],
+    ['meta', capabilityFixture('meta'), /واٹس ایپ کلاؤڈ API \(Meta\)۔ یہ صرف ترتیب ظاہر کرتا ہے/],
+    ['unknown', null, /فراہم کنندہ کی تصدیق نہیں ہو سکی/]]) {
+    capability = response;
+    const text = await outboundCard(kind, 'ur');
+    assert.match(text, disclosure, `ur ${kind}`);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'No horizontal overflow');
+    if (kind === 'mock') await page.screenshot({ path: path.join(out, 'whatsapp-outbound-empty-mock-ur.png'), fullPage: true });
+  }
+  await page.getByRole('button', { name: 'English', exact: true }).first().click();
+  await page.waitForFunction(() => document.documentElement.dir === 'ltr');
+  capability = capabilityFixture('mock'); history = deliveries;
+  writeFileSync(path.join(out, 'whatsapp-outbound-empty-history.json'), JSON.stringify({ scope: 'Synthetic API fixture + production Next', deliveryHistory: [], outboundCard: outboundResults }, null, 2));
+  mark('empty delivery history: outbound card discloses mock, disabled, configured Meta and unknown transport in EN and UR');
+
+  // 9. Disclosure is read-only: only sign-in, language and Copilot questions were sent.
   const allowed = new Set(['/api/auth/login', '/api/profile/language', '/api/copilot/ask']);
   const mutations = events.filter(e => !['GET', 'HEAD'].includes(e.method) && !allowed.has(e.url));
   assert.deepEqual(mutations, [], 'No financial, delivery, consent or configuration mutation');

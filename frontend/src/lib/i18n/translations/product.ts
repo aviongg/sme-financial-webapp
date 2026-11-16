@@ -147,6 +147,17 @@ const en = {
       disabled: 'WhatsApp sending is turned off — nothing was transmitted',
       unknown: 'Provider not recorded',
     } as Record<string, string>,
+    outbound: {
+      title: 'Message sending in this environment',
+      providers: {
+        mock: 'Simulated: a test provider is active. No WhatsApp messages are transmitted, even if a delivery shows as sent.',
+        disabled: 'WhatsApp delivery is disabled: no provider is configured, so no messages are sent.',
+        meta: 'Configured provider: WhatsApp Cloud API (Meta). This shows configuration only. It does not confirm that any message was transmitted or delivered; check each delivery in the delivery history.',
+        unknown: 'The sending provider could not be confirmed. Do not assume WhatsApp messages are being transmitted.',
+      } as Record<string, string>,
+      automaticOn: 'Automatic weekly summaries: on',
+      automaticOff: 'Automatic weekly summaries: off in this environment',
+    },
   },
   monthly: {
     principle: 'Monthly financial health is derived automatically from your daily financial activity. You do not enter monthly totals.',
@@ -330,6 +341,17 @@ const ur: ProductCopy = {
       mock: 'فرضی — آزمائشی فراہم کنندہ، کوئی واٹس ایپ پیغام نہیں بھیجا گیا',
       disabled: 'واٹس ایپ ترسیل بند ہے — کچھ نہیں بھیجا گیا',
       unknown: 'فراہم کنندہ درج نہیں',
+    },
+    outbound: {
+      title: 'اس ماحول میں پیغام رسانی',
+      providers: {
+        mock: 'فرضی: آزمائشی فراہم کنندہ فعال ہے۔ کوئی واٹس ایپ پیغام نہیں بھیجا جاتا، چاہے کوئی ترسیل بھیجی گئی دکھائی دے۔',
+        disabled: 'واٹس ایپ ترسیل بند ہے: کوئی فراہم کنندہ ترتیب نہیں دیا گیا، اس لیے کوئی پیغام نہیں بھیجا جاتا۔',
+        meta: 'ترتیب شدہ فراہم کنندہ: واٹس ایپ کلاؤڈ API (Meta)۔ یہ صرف ترتیب ظاہر کرتا ہے۔ اس سے یہ تصدیق نہیں ہوتی کہ کوئی پیغام بھیجا یا پہنچایا گیا؛ ہر ترسیل ترسیل کی تاریخ میں دیکھیں۔',
+        unknown: 'پیغام بھیجنے والے فراہم کنندہ کی تصدیق نہیں ہو سکی۔ یہ فرض نہ کریں کہ واٹس ایپ پیغامات بھیجے جا رہے ہیں۔',
+      },
+      automaticOn: 'خودکار ہفتہ وار خلاصے: آن',
+      automaticOff: 'خودکار ہفتہ وار خلاصے: اس ماحول میں بند',
     },
   },
   monthly: {

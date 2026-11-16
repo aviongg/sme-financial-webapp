@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import ts from 'typescript';
-import { copilotFixture, deliveryFixture } from './fixtures/provider-disclosure.mjs';
+import { ORIGINAL_OUTBOUND_ASSERTION, capabilityFixture, copilotFixture, deliveryFixture } from './fixtures/provider-disclosure.mjs';
 
 // DEF-08 provider transparency: per-answer Copilot provenance and WhatsApp delivery provider disclosure (EN/UR).
 const directory = mkdtempSync(path.join(tmpdir(), 'finsight-provider-disclosure-'));
@@ -15,7 +15,7 @@ for (const [name, file] of Object.entries({ disclosure: '../src/lib/providerDisc
   }).outputText);
 }
 const require = createRequire(import.meta.url);
-const { copilotProvenance, deliveryProvider } = require(path.join(directory, 'disclosure.js'));
+const { copilotProvenance, deliveryProvider, outboundCapability } = require(path.join(directory, 'disclosure.js'));
 const { productCopies } = require(path.join(directory, 'copy.js'));
 const source = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
 after(() => rmSync(directory, { recursive: true, force: true }));
@@ -103,4 +103,60 @@ test('views classify each answer and each delivery from its own fields', () => {
   assert.match(settings, /deliveryProvider\(d\.providerName\)/);
   assert.match(settings, /data-testid="whatsapp-delivery-provider"/);
   assert.match(settings, /liveLabel\(t, d\.deliveryStatus\)/, 'The actual delivery status is still shown');
+});
+
+test('outbound capability comes only from the capability response; missing or unrecognised is unknown', () => {
+  assert.deepEqual(outboundCapability(capabilityFixture('mock')), { provider: 'mock', automatic: false });
+  assert.deepEqual(outboundCapability(capabilityFixture('mock', true)), { provider: 'mock', automatic: true });
+  assert.deepEqual(outboundCapability(capabilityFixture('meta', true)), { provider: 'meta', automatic: true });
+  assert.deepEqual(outboundCapability(capabilityFixture('meta', false)), { provider: 'meta', automatic: false });
+  // Disabled can never send, whatever the scheduler flag says.
+  assert.deepEqual(outboundCapability(capabilityFixture('disabled', true)), { provider: 'disabled', automatic: false });
+  // A failed request, an empty body or an unknown transport makes no claim at all.
+  for (const value of [null, undefined, {}, capabilityFixture('twilio', true), capabilityFixture(null, true)]) {
+    assert.deepEqual(outboundCapability(value), { provider: 'unknown', automatic: null }, JSON.stringify(value));
+  }
+  assert.deepEqual(outboundCapability({ provider: 'meta', automaticWeeklySummaries: 'yes' }), { provider: 'meta', automatic: null });
+});
+
+test('the outbound card copy discloses every state in EN and UR; Meta is configuration, not proof of delivery', () => {
+  for (const locale of ['en', 'ur']) {
+    const c = productCopies[locale].whatsappDelivery.outbound;
+    assert.ok(c.title && c.automaticOn && c.automaticOff, locale);
+    for (const provider of ['meta', 'mock', 'disabled', 'unknown']) assert.ok(c.providers[provider], `${locale} outbound.${provider}`);
+    assert.equal(new Set(Object.values(c.providers)).size, 4, `${locale}: every state is distinct`);
+  }
+  const en = productCopies.en.whatsappDelivery.outbound;
+  // The unchanged independent assertion is satisfied by the mock and disabled disclosures themselves.
+  assert.match(en.providers.mock, ORIGINAL_OUTBOUND_ASSERTION);
+  assert.match(en.providers.mock, /No WhatsApp messages are transmitted/);
+  assert.match(en.providers.disabled, ORIGINAL_OUTBOUND_ASSERTION);
+  assert.match(en.providers.meta, /WhatsApp Cloud API \(Meta\)/);
+  assert.match(en.providers.meta, /does not confirm that any message was transmitted or delivered/);
+  assert.doesNotMatch(en.providers.meta, /(is|are|were|was) (sent|delivered)/i, 'Configured Meta never claims delivery');
+  assert.doesNotMatch(en.providers.unknown, ORIGINAL_OUTBOUND_ASSERTION, 'Unknown is not presented as mock or disabled');
+  assert.match(en.providers.unknown, /could not be confirmed/);
+  const ur = productCopies.ur.whatsappDelivery.outbound;
+  for (const text of [ur.title, ...Object.values(ur.providers), ur.automaticOn, ur.automaticOff]) assert.match(text, /[؀-ۿ]/, 'Urdu is actually translated');
+  assert.match(ur.providers.mock, /فرضی/);
+  assert.match(ur.providers.disabled, /بند/);
+  assert.match(ur.providers.meta, /تصدیق نہیں/);
+});
+
+test('the WhatsApp updates card renders the capability inside the outbound form, independent of history and consent', () => {
+  const settings = source('../src/components/integration/LiveSettings.tsx');
+  assert.match(settings, /apiClient<OutboundCapabilityResponse>\('\/whatsapp\/delivery-capability'/);
+  assert.match(settings, /outbound: outboundCapability\(capability\)/);
+  // A failed capability request degrades to unknown instead of failing the settings page; aborts still propagate.
+  assert.match(settings, /\.catch\(\(e: unknown\) => \{ if \(e instanceof Error && e\.name === 'AbortError'\) throw e; return null; \}\)/);
+  // Inside the same form as the "WhatsApp updates" heading (the independent QA reads the heading's parent).
+  assert.match(settings, /<h2 className="font-semibold">\{t\.live\.whatsapp\}<\/h2><div role="note" aria-label=\{outboundCopy\.title\}[^>]*data-testid="whatsapp-outbound-provider" data-provider=\{outbound\.provider\}>/);
+  assert.match(settings, /outboundCopy\.providers\[outbound\.provider\]/);
+  // Not derived from consent, the module toggle or delivery rows.
+  const helper = source('../src/lib/providerDisclosure.ts');
+  const body = helper.slice(helper.indexOf('export function outboundCapability'));
+  assert.doesNotMatch(body, /optIn|whatsappOptIn|deliveries|available\(|configuration/);
+  // Consent, module gating and per-delivery labels are unchanged.
+  assert.match(settings, /disabled=\{!editable \|\| busy \|\| !enabled\}/);
+  assert.match(settings, /deliveryProvider\(d\.providerName\)/);
 });
