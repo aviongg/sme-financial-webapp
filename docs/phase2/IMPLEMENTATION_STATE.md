@@ -1,5 +1,35 @@
 # Current Phase 2 implementation state
 
+## Independent Candidate-v2 QA completion — 16 November 2026
+
+QA-only branch `qa/finsight-candidate-v2-independent-completion`, isolated
+`tmp/finsight-v2-independent-qa`, tests frozen application
+`71ac4e0e7e74cbfe2f08fe3a049d37cd26b0c7c3` (application/test/migration/script
+trees unchanged). No production edits, historical-branch integration, merge,
+public tunnel, deployment, real-provider or real-client data access.
+
+Definitive matrix and release decisions:
+`docs/qa/CANDIDATE_V2_INDEPENDENT_QA_71ac4e0.md`.
+Fresh existing cross-stack gate 26/26; additional QA 27 probes = 17 pass / 10
+retained failures; PostgreSQL 53/53; backend unit/security 18/18; frontend 463/463,
+TypeScript, lint (0 errors/51 existing warnings), production build passed.
+Eight actual seeded businesses: all canonical modules and 48 valid writes pass.
+Foreign-account follow-up: 404 and exact financial facts unchanged.
+
+DEF-08 WhatsApp and Copilot remain separate open P1 slices. DEF-11 tenant clearing
+is safe, but unsaved-work UX needs product disposition. Remaining P2/P3 and
+intentional/retracted findings are all explicit; no speculative financial fixes.
+Antigravity's unpublished local draft was found/read/hash-recorded and its pilot
+recommendation was not accepted without independent evidence.
+
+Read-only demo-tooling `7c784c28a332d0703a201bcc4ee9496308f1b3f4` review: 9/9
+contracts and full synthetic seed pass, but a pre-existing sentinel phone is
+overwritten, inert TCP satisfies readiness, and fresh standalone static assets
+return 404. Existing-data/public exposure/known demo key and credentials require
+operator safeguards. No actual Docker/public startup or original port-failure
+reproduction claimed. Local synthetic demo conditional; public demo and real-client
+pilot NO-GO as-is. Stop after publishing this QA report; fixes belong elsewhere.
+
 ## Candidate v2 integration — 16 November 2026 (Asia/Karachi)
 
 Authorized branch `integration/finsight-production-candidate-v2`, isolated worktree
