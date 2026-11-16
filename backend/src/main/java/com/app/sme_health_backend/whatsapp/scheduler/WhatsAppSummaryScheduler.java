@@ -63,6 +63,14 @@ public class WhatsAppSummaryScheduler {
         this(deliveryService, profileRepository, null, enabled, "mock");
     }
 
+    /**
+     * Read-only: whether {@link #runScheduledWeeklyDelivery()} would attempt sends, using exactly the two guards it
+     * checks (scheduler enabled and a provider other than {@code disabled}). Used for capability disclosure only.
+     */
+    public boolean isAutomaticDeliveryActive() {
+        return enabled && providerConfigured;
+    }
+
     @Scheduled(
             cron = "${app.whatsapp.scheduler.cron:0 0 9 * * MON}",
             zone = "${app.whatsapp.scheduler.timezone:Asia/Karachi}"

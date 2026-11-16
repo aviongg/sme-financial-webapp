@@ -32,3 +32,11 @@ export function deliveryFixture({ id = '44444444-4444-4444-8444-444444444444', p
     failedAt: deliveryStatus === 'FAILED' ? '2026-10-06T09:00:00' : null, failureReason, createdAt: '2026-10-06T09:00:00', updatedAt: '2026-10-06T09:00:00',
   };
 }
+
+/** GET /api/whatsapp/delivery-capability as WhatsAppDeliveryCapabilityResponse serializes it. */
+export function capabilityFixture(provider = 'mock', automaticWeeklySummaries = false) {
+  return { provider, automaticWeeklySummaries };
+}
+
+/** The exact independent-v2/v3 QA assertion on the outbound "WhatsApp updates" card (provider-journeys.mjs). */
+export const ORIGINAL_OUTBOUND_ASSERTION = /mock|simulat|not live|provider.*disabled|delivery.*disabled/i;

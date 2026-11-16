@@ -22,7 +22,7 @@ import { phaseTwoCopy } from '@/lib/i18n/translations/phase-two';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { productCopy } from '@/lib/i18n/translations/product';
-import { deliveryProvider } from '@/lib/providerDisclosure';
+import { deliveryProvider, outboundCapability, OutboundCapability, OutboundCapabilityResponse } from '@/lib/providerDisclosure';
 interface Delivery {
     id: string;
     targetMonth: string;
@@ -36,12 +36,13 @@ export function LiveSettings() {
     const session = useSession();
     const { t, locale } = useLanguage(); const copy = phaseTwoCopy(locale); const ai = useAi(); const deliveryCopy = productCopy(locale).whatsappDelivery;
     const [error, setError] = useState('');
-    const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [profile, deliveries] = await Promise.all([phaseOneApi.getProfile(), apiClient<Delivery[]>('/whatsapp/deliveries', { signal })]); return { profile, deliveries }; }, []));
+    // The outbound capability is read separately and may fail on its own: an unavailable signal is disclosed as unknown, never inferred.
+    const resource = useLiveResource(useCallback(async (signal: AbortSignal) => { const [profile, deliveries, capability] = await Promise.all([phaseOneApi.getProfile(), apiClient<Delivery[]>('/whatsapp/deliveries', { signal }), apiClient<OutboundCapabilityResponse>('/whatsapp/delivery-capability', { signal }).catch((e: unknown) => { if (e instanceof Error && e.name === 'AbortError') throw e; return null; })]); return { profile, deliveries, outbound: outboundCapability(capability) }; }, []));
     const changeBusiness = (id: string) => void session.switchBusiness(id).catch(e => setError(localizedError(e, t)));
     return <LivePage title={t.nav.settings} {...resource}><Card padding="lg" className="space-y-4 min-w-0"><h2 className="font-semibold">{t.live.accountBusiness}</h2><p className="[overflow-wrap:anywhere]">{session.user?.fullName} · {session.user?.email}</p><Select label={t.live.activeBusiness} value={session.business?.businessId || ''} onChange={e => changeBusiness(e.target.value)} options={session.businesses.filter(b => b.membershipStatus === 'ACTIVE').map(b => ({ value: b.businessId, label: `${b.businessName} · ${liveLabel(t, b.businessType)} · ${liveLabel(t, b.role)}` }))}/><Link className="underline block" href="/onboarding">{t.live.anotherBusiness}</Link><p className="text-sm">{t.live.yourRole}: {liveLabel(t, session.business?.role)}</p>{!session.can('BUSINESS_SETTINGS_MANAGE') && <p className="text-sm">{t.live.interfaceLanguage}</p>}{error && <p role="alert">{error}</p>}<Button variant="secondary" onClick={() => void session.logout().catch(e => setError(localizedError(e, t)))}>{t.live.signOut}</Button></Card>
     <BusinessConfigurationPanel/>
     {ai?.available && <Card padding="md"><Link className="underline" href="/ask-finsight">{copy.ask}</Link></Card>}
-    {resource.data && <WhatsAppSettings key={resource.data.profile.businessId} profile={resource.data.profile} editable={session.can('WHATSAPP_CONFIG_MANAGE')}/>}
+    {resource.data && <WhatsAppSettings key={resource.data.profile.businessId} profile={resource.data.profile} outbound={resource.data.outbound} editable={session.can('WHATSAPP_CONFIG_MANAGE')}/>}
     <Card padding="lg" className="md:hidden space-y-3"><h2 className="font-semibold">{t.live.moreTools}</h2><Link className="underline block" href="/search">{t.nav.search}</Link>{session.can('DOCUMENT_READ') && <Link className="underline block" href="/upload">{t.live.document}</Link>}{session.can('ZAKAT_READ_CALCULATE') && <Link className="underline block" href="/sharia-zakat">{t.live.zakatTitle}</Link>}</Card>
     <WhatsAppLinkCard/>
     <BusinessIdentity />
@@ -50,11 +51,12 @@ export function LiveSettings() {
     <Card padding="lg" className="space-y-3"><h2 className="font-semibold">{t.live.deliveryHistory}</h2>{resource.data?.deliveries.length ? resource.data.deliveries.map(d => { const provider = deliveryProvider(d.providerName); return <div key={d.id} className="border-b py-2" data-testid="whatsapp-delivery" data-provider={provider}><p>{d.targetMonth} · {d.maskedDestinationNumber} · <strong>{liveLabel(t, d.deliveryStatus)}</strong></p><p className={`text-sm ${provider === 'meta' ? '' : 'font-semibold'}`} data-testid="whatsapp-delivery-provider">{deliveryCopy.provider}: {deliveryCopy.providers[provider]}</p>{d.failureReason && <p className="text-sm">{t.live.deliveryFailure}</p>}</div>; }) : <p>{t.live.noDeliveries}</p>}</Card>
   </LivePage>;
 }
-function WhatsAppSettings({ profile, editable }: {
+function WhatsAppSettings({ profile, outbound, editable }: {
     profile: BusinessProfileResponse;
+    outbound: OutboundCapability;
     editable: boolean;
 }) {
-    const { t, locale } = useLanguage(); const configuration = useConfiguration(); const copy = phaseTwoCopy(locale); const enabled = configuration?.available('whatsapp') === true;
+    const { t, locale } = useLanguage(); const configuration = useConfiguration(); const copy = phaseTwoCopy(locale); const enabled = configuration?.available('whatsapp') === true; const outboundCopy = productCopy(locale).whatsappDelivery.outbound;
     const [optIn, setOptIn] = useState(profile.whatsappOptIn);
     const [phone, setPhone] = useState(profile.whatsappNumber || '');
     const [busy, setBusy] = useState(false);
@@ -70,7 +72,7 @@ function WhatsAppSettings({ profile, editable }: {
     finally {
         setBusy(false);
     } };
-    return <Card padding="lg"><form className="space-y-4" onSubmit={save}><h2 className="font-semibold">{t.live.whatsapp}</h2><label className="flex gap-3 border rounded-lg p-4 cursor-pointer"><input type="checkbox" checked={optIn} disabled={!editable || busy || !enabled} onChange={e => setOptIn(e.target.checked)}/><span>{t.live.whatsappConsent}<small className="block">{t.live.consentHelp}</small></span></label>{optIn && <Input label={t.live.phone} value={phone} onChange={e => setPhone(e.target.value)} type="tel" required pattern="\+[1-9][0-9]{7,14}" disabled={!editable || busy || !enabled}/>}<Button type="submit" disabled={!editable || busy || !enabled} isLoading={busy}>{t.live.savePreferences}</Button>{!editable && <p>{t.live.ownerOnly}</p>}{!enabled && <p role="status">{configuration?.data ? copy.historyOnly : copy.configurationMissing}</p>}{message && <p role="status">{message}</p>}</form></Card>;
+    return <Card padding="lg"><form className="space-y-4" onSubmit={save}><h2 className="font-semibold">{t.live.whatsapp}</h2><div role="note" aria-label={outboundCopy.title} className={`rounded-lg border p-3 space-y-1 ${outbound.provider === 'meta' ? '' : 'font-semibold'}`} data-testid="whatsapp-outbound-provider" data-provider={outbound.provider}><p className="font-semibold">{outboundCopy.title}</p><p>{outboundCopy.providers[outbound.provider]}</p>{outbound.automatic !== null && <p data-testid="whatsapp-outbound-automatic">{outbound.automatic ? outboundCopy.automaticOn : outboundCopy.automaticOff}</p>}</div><label className="flex gap-3 border rounded-lg p-4 cursor-pointer"><input type="checkbox" checked={optIn} disabled={!editable || busy || !enabled} onChange={e => setOptIn(e.target.checked)}/><span>{t.live.whatsappConsent}<small className="block">{t.live.consentHelp}</small></span></label>{optIn && <Input label={t.live.phone} value={phone} onChange={e => setPhone(e.target.value)} type="tel" required pattern="\+[1-9][0-9]{7,14}" disabled={!editable || busy || !enabled}/>}<Button type="submit" disabled={!editable || busy || !enabled} isLoading={busy}>{t.live.savePreferences}</Button>{!editable && <p>{t.live.ownerOnly}</p>}{!enabled && <p role="status">{configuration?.data ? copy.historyOnly : copy.configurationMissing}</p>}{message && <p role="status">{message}</p>}</form></Card>;
 }
 function PasswordSettings() {
     const { t } = useLanguage();

@@ -37,3 +37,20 @@ export function deliveryProvider(providerName: string | null | undefined): Deliv
   const name = (providerName || '').trim().toLowerCase();
   return name === 'meta' || name === 'mock' || name === 'disabled' ? name : 'unknown';
 }
+
+/** Backend GET /api/whatsapp/delivery-capability (WhatsAppDeliveryCapabilityResponse). */
+export interface OutboundCapabilityResponse { provider: string | null; automaticWeeklySummaries: boolean | null }
+export interface OutboundCapability { provider: DeliveryProviderKind; automatic: boolean | null }
+
+/**
+ * The outbound summary transport actually wired into the backend, for the "WhatsApp updates" card. Derived only from
+ * the capability endpoint: consent, the module toggle, the inbound assistant and delivery history never imply it. A
+ * missing, failed or unrecognised response is `unknown`, with no claim about automatic sending.
+ */
+export function outboundCapability(response: OutboundCapabilityResponse | null | undefined): OutboundCapability {
+  if (!response) return { provider: 'unknown', automatic: null };
+  const provider = deliveryProvider(response.provider);
+  if (provider === 'unknown') return { provider, automatic: null };
+  const automatic = typeof response.automaticWeeklySummaries === 'boolean' ? response.automaticWeeklySummaries : null;
+  return { provider, automatic: provider === 'disabled' ? false : automatic };
+}
