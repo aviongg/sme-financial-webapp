@@ -240,3 +240,6 @@ docker-data/
 
 demo-credentials.txt
 *.dump
+
+# Local demo runtime state, disposable document store (scripts/init-demo.ps1, start-demo.ps1)
+.demo-runtime/

@@ -109,15 +109,16 @@ async function run() {
     pass('Landing Page Accessibility & Security', `HTTP 200 (${html.length} bytes), zero localhost leaks`);
   }
 
-  // 2. Verify Authentication for all 4 Demo Users
+  // 2. Verify Authentication for every seeded demo user (one per role)
   const roles = [
     { email: 'demo.owner@finsight.local', password: 'FinSight@Owner2026!', expectedRole: 'OWNER', name: 'Demo Business Owner' },
     { email: 'demo.accountant@finsight.local', password: 'FinSight@Account2026!', expectedRole: 'ACCOUNTANT', name: 'Demo Lead Accountant' },
+    { email: 'demo.manager@finsight.local', password: 'FinSight@Manager2026!', expectedRole: 'MANAGER', name: 'Demo Operations Manager' },
     { email: 'demo.sales@finsight.local', password: 'FinSight@Sales2026!', expectedRole: 'SALESPERSON', name: 'Demo Sales Executive' },
     { email: 'demo.viewer@finsight.local', password: 'FinSight@Viewer2026!', expectedRole: 'VIEWER', name: 'Demo Auditor / Viewer' }
   ];
 
-  console.log('\n--- 2. Testing Authentication for 4 Roles ---');
+  console.log(`\n--- 2. Testing Authentication for ${roles.length} Roles ---`);
   for (const r of roles) {
     const client = new DemoClient(TUNNEL_URL);
     const user = await client.login(r.email, r.password);
