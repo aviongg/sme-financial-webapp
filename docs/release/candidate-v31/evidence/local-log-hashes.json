@@ -1,0 +1,202 @@
+{
+  "captured_at": "2026-11-17T09:57:29.002687+00:00",
+  "notes": "Logs remain ignored under tmp/v31. JUnit properties, generated keys and credentials are not published. These hashes are not claims of unexecuted acceptance.",
+  "files": [
+    {
+      "path": "tmp/v31/application-build.log",
+      "sha256": "eb4ab8f985becf6b82e520b0758af8541db464dabfc7f82014446b9746f053c7"
+    },
+    {
+      "path": "tmp/v31/backend-unit.log",
+      "sha256": "1da53c28f6934807c4d5f28ab79527d51c9797cdbae0849daffa20eb19894062"
+    },
+    {
+      "path": "tmp/v31/backup-fixtures.log",
+      "sha256": "91e9f96013b17a6126d351c6d6ff561a6529f152621255103e5a55a4373a9d70"
+    },
+    {
+      "path": "tmp/v31/baseline-install.log",
+      "sha256": "20a9275c56bc8faab88c27cd7120dbfbdefe4ef8f531acd7eee45df3ab6120e2"
+    },
+    {
+      "path": "tmp/v31/config-fixtures-final.log",
+      "sha256": "3d691522458e11ee67d016d9c80daa56f8fa0af4640a470ee482e0c9d1d8e1af"
+    },
+    {
+      "path": "tmp/v31/config-fixtures-gitbash.log",
+      "sha256": "9dd5b5e0f07c27d7f3eee2a4ee552045d290c13bd2fb75aee1fb265ace9f981a"
+    },
+    {
+      "path": "tmp/v31/config-fixtures.log",
+      "sha256": "e9d4b31474e62be0999a0cae82f7304d8e055a7392b2eef9566868e655364415"
+    },
+    {
+      "path": "tmp/v31/def11-baseline-browser.log",
+      "sha256": "805384b8d84efa6b8c3c78b995379560781487414de43c7392b220593c072228"
+    },
+    {
+      "path": "tmp/v31/def11-corrected.log",
+      "sha256": "805384b8d84efa6b8c3c78b995379560781487414de43c7392b220593c072228"
+    },
+    {
+      "path": "tmp/v31/def11-final.log",
+      "sha256": "805384b8d84efa6b8c3c78b995379560781487414de43c7392b220593c072228"
+    },
+    {
+      "path": "tmp/v31/def11-integrated-build.log",
+      "sha256": "31a82d146fa0db2a08dd5541d7e3320a54bcc16ea92694a840a34bee997de819"
+    },
+    {
+      "path": "tmp/v31/def11-integrated-unit.log",
+      "sha256": "7388b5162c73d7d5d5130fe5340623b2939deab40309b66562ab0b8b9d630454"
+    },
+    {
+      "path": "tmp/v31/def11-patched-browser.log",
+      "sha256": "805384b8d84efa6b8c3c78b995379560781487414de43c7392b220593c072228"
+    },
+    {
+      "path": "tmp/v31/default-product-gate.log",
+      "sha256": "f7d1e3570c61d86b1d52ff8979b72c07650fbca6b0736c9d3b25a697e93a2951"
+    },
+    {
+      "path": "tmp/v31/dependency-audit.log",
+      "sha256": "32f7881c11f3c5205afe029879148d4cc46b4d9d98ce318542f6bb5d717b7131"
+    },
+    {
+      "path": "tmp/v31/eslint-upgrade.log",
+      "sha256": "59cc6a2292c20b59db377c1d36539a9588ef6f9e10547c32727223f3e2d4489e"
+    },
+    {
+      "path": "tmp/v31/final-build.log",
+      "sha256": "da8ff2496461f3727828e84a691584f2637d5b362347217194670cec52fcad72"
+    },
+    {
+      "path": "tmp/v31/frontend-final.log",
+      "sha256": "20ceed19349d05a6efde1ac6f3b0255b57dab9eaa5807f20962b46f5e9eb1ee9"
+    },
+    {
+      "path": "tmp/v31/frontend-first.log",
+      "sha256": "972cfa76c0c9f880293d2489998c5435f93f10a40866a0626630de0e1e5849bb"
+    },
+    {
+      "path": "tmp/v31/frontend-registration-fix.log",
+      "sha256": "5c67875067c8265acd7f334271df544008d5574784028f8359c4c7219961a7ec"
+    },
+    {
+      "path": "tmp/v31/frontend-second.log",
+      "sha256": "fe797cd495ba8f4b72f5494ae453f02869bbc0aaec607e888fa6876cc34921f6"
+    },
+    {
+      "path": "tmp/v31/frozen-final.log",
+      "sha256": "f98163b22f997653745737bcbf376ed874383c8493fc48e83f8aeccd28dbec82"
+    },
+    {
+      "path": "tmp/v31/historical-corrected.log",
+      "sha256": "c65c329c6116731b986cae54a865f2997bfc82ff049bd4edb84649dabf746f26"
+    },
+    {
+      "path": "tmp/v31/historical-final.log",
+      "sha256": "a7a5257e83950c6572e87f2af9f410cb08d8f2e332bd3593c89e7d892a0353b8"
+    },
+    {
+      "path": "tmp/v31/historical-first.log",
+      "sha256": "6fd2bf4cb06aa9f2f073062d2808c0d587e28d015de152c98ea796211a44374a"
+    },
+    {
+      "path": "tmp/v31/independent-provider.log",
+      "sha256": "8b6755581a6ddc4a69fc0563ac21f4bda6e54d0f2dbb50ac488be267cf4f61fe"
+    },
+    {
+      "path": "tmp/v31/lint-final.log",
+      "sha256": "41ac4ffed3210fe08b69546d9dbf236d2ce00aedb71d776d4a19cc8460b7438e"
+    },
+    {
+      "path": "tmp/v31/lint-first.log",
+      "sha256": "41ac4ffed3210fe08b69546d9dbf236d2ce00aedb71d776d4a19cc8460b7438e"
+    },
+    {
+      "path": "tmp/v31/next-upgrade.log",
+      "sha256": "3ca078af8c76e13b6181f38f45297b35bd3f2e324da347e51129d311cf98f045"
+    },
+    {
+      "path": "tmp/v31/ocr-final.log",
+      "sha256": "b8d21fb3696a3475f13981a8c3ffe15d7d5adaefa6b0535b8645cc36c01bd941"
+    },
+    {
+      "path": "tmp/v31/ocr-final.xml",
+      "sha256": "397cada2e8292fbe19f75da32f9db534736ec45f8d2ed82358510901dd1c7894"
+    },
+    {
+      "path": "tmp/v31/ocr-https.log",
+      "sha256": "c333cf34379cc4707929744bae115583b08d60fe15d9acb0016d4b6f333e570f"
+    },
+    {
+      "path": "tmp/v31/ocr.log",
+      "sha256": "4aed41fa7a0eedc7247505266f338566cfc7ecf87a63a24e21a3ecb9614fe414"
+    },
+    {
+      "path": "tmp/v31/ocr.xml",
+      "sha256": "0a566850045c34a1348c17ec7ed243da18b262bf9ba021c002e36e00fa003121"
+    },
+    {
+      "path": "tmp/v31/patched-def11-build.log",
+      "sha256": "ff6d9df89e082190b87432692a0e746736496a57e88e87f74564ef157e90b1e9"
+    },
+    {
+      "path": "tmp/v31/patched-frozen-install.log",
+      "sha256": "6af7ca54c9464f2ae91bdad3e6950d354edce88b73977a4cce3bc7120bc0d53e"
+    },
+    {
+      "path": "tmp/v31/postgres.log",
+      "sha256": "ba3807146a8c8078ea51390fb5a87dd7dd852d9a0cce72c51fb119e9f89ec03d"
+    },
+    {
+      "path": "tmp/v31/product-corrected.log",
+      "sha256": "c6da1d7138f2f891fba778d4c21f7c9d83338f7e696cc25cb8372634e2a5dc4d"
+    },
+    {
+      "path": "tmp/v31/product-final.log",
+      "sha256": "3e9a63b78240e5e1df2c2963f00edaa731962f926eea84c6ac6522bd7e5376dc"
+    },
+    {
+      "path": "tmp/v31/product-first.log",
+      "sha256": "3e9a63b78240e5e1df2c2963f00edaa731962f926eea84c6ac6522bd7e5376dc"
+    },
+    {
+      "path": "tmp/v31/provider-corrected.log",
+      "sha256": "a4c704cd9b4adc63b0d148b69885056befec268cbc3eef4b5350c3f71efef3b3"
+    },
+    {
+      "path": "tmp/v31/provider-final.log",
+      "sha256": "a4c704cd9b4adc63b0d148b69885056befec268cbc3eef4b5350c3f71efef3b3"
+    },
+    {
+      "path": "tmp/v31/registration-fix-build.log",
+      "sha256": "5a1d8fc81800ba5ef630f4c270f38582888c95dd84cd61676fee1ed723d4940b"
+    },
+    {
+      "path": "tmp/v31/release-fixtures.log",
+      "sha256": "71ef9a2d39b0448f2acbf3abf756a987bafa0440166b15330b2dd9365e91523e"
+    },
+    {
+      "path": "tmp/v31/standalone-corrected.log",
+      "sha256": "9b6cf7c59e53504ffe23e810011abeb728d4566c482858c6abfa2a9e651e7279"
+    },
+    {
+      "path": "tmp/v31/test-classpath.log",
+      "sha256": "2ce7d723f63948d9dce735b91d3bcf7dfdf61adee5af5aff6fd90ca8443b813a"
+    },
+    {
+      "path": "tmp/v31/typecheck-final.log",
+      "sha256": "0f1fb3026d0f4d018a4d34f268bd2f3dc487357007ecefe4e6ec8424529c9675"
+    },
+    {
+      "path": "tmp/v31/typecheck-first.log",
+      "sha256": "0f1fb3026d0f4d018a4d34f268bd2f3dc487357007ecefe4e6ec8424529c9675"
+    },
+    {
+      "path": "tmp/v31/v52-inventory.log",
+      "sha256": "caae48fc294ee2c1136329f323ed3f0c0aa0e13539eb3e02c7fe5464acaefe3b"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "suites": [
+    {
+      "suite": "browser",
+      "checks": 24,
+      "failures": 0,
+      "scope": "Production Next build against synthetic backend contract fixture, not deployed Spring/PostgreSQL",
+      "driver_exit": 0
+    },
+    {
+      "suite": "browser-extra",
+      "checks": 10,
+      "failures": 0,
+      "scope": "Production Next build against synthetic backend contract fixture; not deployed Spring/PostgreSQL or email/OCR provider E2E",
+      "driver_exit": 0
+    },
+    {
+      "suite": "browser-landing",
+      "checks": 20,
+      "failures": 0,
+      "scope": "Public landing production build with disposable synthetic API",
+      "driver_exit": 0
+    },
+    {
+      "suite": "browser-phase-two",
+      "checks": 20,
+      "failures": 0,
+      "scope": "Synthetic API fixture + production Next; not real provider or deployed acceptance",
+      "driver_exit": 0
+    },
+    {
+      "suite": "financial-risk-browser",
+      "checks": 12,
+      "failures": 0,
+      "scope": "Public landing production build with disposable synthetic API",
+      "driver_exit": 0
+    }
+  ],
+  "checks": 86,
+  "unmodified_security_and_financial_assertions": true,
+  "visible_brand_copy_updated": true,
+  "registration_URL_assertion_updated_to_preserve_non_sensitive_form_intent": true
+}

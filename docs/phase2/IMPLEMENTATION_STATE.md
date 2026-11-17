@@ -1,5 +1,41 @@
 # Current Phase 2 implementation state
 
+## Zarwia v3.1 presentation application completion — 17 November 2026 (Asia/Karachi)
+
+User-authorized isolated branch `integration/finsight-production-candidate-v3.1`,
+worktree `tmp/finsight-production-candidate-v3.1`, created at exact frozen v3
+`23e28c12bcd593be824d30cda0a2b79dcbe9d1f5`. First operation: no-ff merge of complete
+DEF-11 `36802558ae185dd073fb99cda863d57013afacca`, merge
+`a1e077e959e86ad2aaddf9709a2559fb8db1acca`, no conflicts.
+Completed application/frontend ownership: DEF-09 activity copy, DEF-12 evidence
+selection, DEF-14 relationships, DEF-16 query prefill, DEF-19 login/Back, DEF-20
+mobile business context, safe DEF-15 camera entry; related EN/UR copy/tests and
+presentation branding where approved; frontend next/eslint-config-next to verified
+16.4.5 with pnpm frozen lock. Preserve DEF-11 session/draft isolation and existing
+provider/accounting boundaries. No backend contract/financial/migration change.
+Claude owns deployment/infrastructure; no .github, Docker or deployment scripts
+are reserved for editing here. No deployment, main/Suleman change, customer data
+or live provider activation. Existing worktrees/untracked files remain untouched.
+
+Completed application/test head: `4a2e2af40bef55aea9abe87a999365ccbab180ab`.
+DEF-11 is integrated, and the requested DEF-09/12/14/16/19/20 flows are corrected.
+DEF-15 has separate camera entry without removing PDF/file upload; device behavior
+remains unverified. The historical suite caught an introduced registration-hint
+regression; `d3c5f69a18032c56558a4a01a16b30fce9cf4796` fixes it with stronger
+Back/Forward/reload coverage. No assertion suppression or infrastructure edits.
+Normal `pnpm test:browser:product` now enforces 36 real product/presentation checks
+plus nine real DEF-11 multi-tab journeys. Legacy explicit `--candidate-v2` replay
+remains available for the original independent provider QA. Frontend 488, strict
+OSV/npm audits, OCR/HTTPS, historical and provider gates pass; full results and
+remaining operator/device/production-target conditions are in
+[the v3.1 release report](../release/CANDIDATE_V31_PRESENTATION_RELEASE.md).
+Final exact-head hosted runs are dispatched manually because existing push
+filters omit v3.1; Claude's workflow/deployment ownership remains intact. This is
+an application handoff for private synthetic staging, not a deployment or pilot
+approval. Resolve the documentation-publication HEAD from Git and verify origin;
+do not substitute another worktree, source fix head or an older CI run.
+
+
 ## Candidate v3 Stage C application disclosure integration — 16 November 2026
 
 Authorized continuation from exact Stage B `ce3d1b06436c478b71f792b700b8e42467ad5e84`

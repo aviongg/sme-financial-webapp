@@ -1,0 +1,16 @@
+{
+  "scope": "Fresh complete default unit invocation; explicit HTTPS probe excluded from this sum",
+  "totals": {
+    "tests": 1846,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "platform_skips": [
+    {
+      "class": "com.app.sme_health_backend.documents.storage.LocalFileSystemStorageServiceTests",
+      "test": "symlinkEscapeOutsideStorageRootIsPrevented(Path)",
+      "reason": "org.opentest4j.TestAbortedException: Assumption failed: Skipping symlink test: OS environment does not permit symlink creation without elevated privileges"
+    }
+  ]
+}

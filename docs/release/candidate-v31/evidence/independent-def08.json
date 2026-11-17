@@ -1,0 +1,13 @@
+{
+  "testedSHA": "d3c5f69a18032c56558a4a01a16b30fce9cf4796",
+  "results": [
+    {
+      "id": "DEF-08-WHATSAPP-EMPTY-HISTORY",
+      "status": "PASS"
+    },
+    {
+      "id": "DEF-08-COPILOT",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,655 @@
+{
+  "scope": "Complete local disposable PostgreSQL gate; actual PostgreSQL 14.22, fresh V1\u2013V52 schema, isolated runtime/migrator roles; not real PostgreSQL17/VPS acceptance",
+  "build": "SUCCESS",
+  "classes": 91,
+  "totals": {
+    "tests": 485,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "external_not_passed": [
+    "DatabaseRolePrivilegesPostgreSqlIT",
+    "PostgreSqlTlsConnectionIT",
+    "V52ProductionPrivilegesAcceptance"
+  ],
+  "reports": [
+    {
+      "class": "com.app.sme_health_backend.accounting.draft.imports.ImportDraftPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.accounting.draft.RecordDraftPostgreSqlIT",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.accounting.FinancialAccountPostgreSqlIT",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.accounting.FinancialTransactionPostgreSqlIT",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.accounting.FinancialTransactionReversalPostgreSqlIT",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.accounting.FinancialTransferPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.ai.AiEvidencePostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.ai.copilot.CopilotPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.audit.SecurityAuditEventCoverageIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.audit.SecurityAuditImmutabilityPostgreSqlIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.bridge.LedgerMonthlyBridgePostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commercial.CommercialDocumentMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commercial.CommercialDocumentPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commercial.CommercialLifecyclePostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commission.CommissionPostgreSqlIT",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commission.CommissionReportingPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commission.CommissionSettlementPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.commission.SalespersonPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.configuration.BusinessConfigurationPostgreSqlIT",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.configuration.ConfigurationMigrationPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.counterparty.CounterpartyModuleEnforcementPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.counterparty.CounterpartyPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.crypto.EncryptedEntityPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.dashboard.workspace.WorkspaceMigrationPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.dashboard.workspace.WorkspacePostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.database.DeveloperBIntegratedMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.database.DisposableDatabaseRolesIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.database.MonthlyIntegrityMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.database.ProductCompletionMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.database.V52RecoveryCatalogPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.demotooling.DemoSeederFreshDatabasePostgreSqlIT",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.documents.DocumentAttemptOwnershipPostgreSqlIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.documents.DocumentManualReviewPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.documents.DocumentProvenancePostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.documents.DocumentRecoverySweeperPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.documents.DocumentSecurityPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.estimates.EstimateJourneyPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.estimates.EstimatePlanningMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.estimates.EstimatePlanningPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.estimates.EstimatePreviewPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.financialquery.FinancialQueryPostgreSqlIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.forecast.CashForecastPostgreSqlIT",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.funding.FundingScenarioPostgreSqlIT",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.fx.FxPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.fx.FxReconciliationPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.fx.FxSettlementPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.fx.FxTransferPostgreSqlIT",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.identity.BusinessContextPostgreSqlIT",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.identity.MvpLegacyMigrationPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.identity.TenantIsolationPostgreSqlIT",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.intelligence.FinancialChainPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.inventory.InventoryCatalogMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.inventory.InventoryCatalogPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.inventory.InventoryLedgerPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.inventory.InventoryModuleEnforcementPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.obligation.CommercialRecognitionPostgreSqlIT",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.obligation.DocumentBackedObligationProvenancePostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.obligation.FinancialConcurrencyStressPostgreSqlIT",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.obligation.FinancialObligationPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.obligation.PaymentCyclesPostgreSqlIT",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.projectattribution.ProjectAttributionPostgreSqlIT",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.projectattribution.ProjectCommitmentPostgreSqlIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.projectattribution.ProjectOcrEvidencePostgreSqlIT",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.projects.ProjectPlanningMigrationPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.projects.ProjectPlanningPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.reconciliation.BankReconciliationPostgreSqlIT",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.records.derived.TransactionDrivenMonthlyPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.records.MonthlyIntegrityPostgreSqlIT",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.records.projection.MonthlyLedgerProjectionPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.recurring.RecurringGenerationLockingPostgreSqlIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.recurring.RecurringTransactionsPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.reports.BusinessFinancialReportPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.reports.OperationsIntelligencePostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.risk.FinancialRiskPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.samples.SamplePlanningMigrationPostgreSqlIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.samples.SamplePlanningPostgreSqlIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.AuthenticationStateMachineIT",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.AuthSecurityClosureIT",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.CoreJourneyClosureIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.CredentialLifecycleIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.MfaAndRecoverySecurityIT",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.MvpCoreJourneyIT",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.PlatformSecurityIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.ProductionIngressSecurityIT",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.SecurityIdentityPostgreSqlIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.security.SpringSessionLifecyclePostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.whatsapp.capability.WhatsAppDisabledOutboundCapabilityPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.whatsapp.capability.WhatsAppMetaOutboundCapabilityPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.whatsapp.capability.WhatsAppMockOutboundCapabilityPostgreSqlIT",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.whatsapp.Feature8PostgreSqlIT",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.app.sme_health_backend.whatsapp.WhatsAppInboundPostgreSqlIT",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

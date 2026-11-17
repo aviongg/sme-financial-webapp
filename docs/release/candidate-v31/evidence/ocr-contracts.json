@@ -1,0 +1,15 @@
+{
+  "python": {
+    "tests": 248,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "java_fastapi_https": {
+    "tests": 4,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "provider": "controlled synthetic provider; not Google Vision acceptance"
+}

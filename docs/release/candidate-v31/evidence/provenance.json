@@ -1,0 +1,18 @@
+{
+  "branch": "integration/finsight-production-candidate-v3.1",
+  "application_head": "4a2e2af40bef55aea9abe87a999365ccbab180ab",
+  "baseline": "23e28c12bcd593be824d30cda0a2b79dcbe9d1f5",
+  "def11_source": "36802558ae185dd073fb99cda863d57013afacca",
+  "def11_merge": "a1e077e959e86ad2aaddf9709a2559fb8db1acca",
+  "frontend_source_tree": "52024658fa3dfad644625f75b4bee35b52b35842",
+  "lock_sha256": "a9dbd8d126de8c8af2c483bd7ae73d1f7ecb0a584cbd0e91adb7fdeb9bf23177",
+  "commits": [
+    "4a2e2af40bef55aea9abe87a999365ccbab180ab test(frontend): enforce presentation and cross-tab product acceptance",
+    "d3c5f69a18032c56558a4a01a16b30fce9cf4796 fix(auth): retain registration intent during browser navigation",
+    "7620c87f4c81544c32e3ab18c033c36ecdf22469 ui: complete evidence, relationship and presentation navigation journeys",
+    "e74ed4c3119126ea700c7f2f547a6ab44e3a36d0 ui: present Zarwia branding and visible mobile business context",
+    "ec982a7626d2731bd2d5e252bc14404ed5ff68fa security(frontend): pin reviewed Next.js 16.4.5 patch",
+    "a1e077e959e86ad2aaddf9709a2559fb8db1acca merge(candidate-v3.1): integrate exact completed DEF-11 draft recovery"
+  ],
+  "untouched_backend_database_scripts_docker_workflows": true
+}

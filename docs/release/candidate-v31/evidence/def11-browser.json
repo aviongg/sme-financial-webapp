@@ -1,0 +1,16 @@
+{
+  "scope": "Real Spring, disposable PostgreSQL, production Next and pinned Chromium; two live tabs, actual cookie session/CSRF/BroadcastChannel",
+  "checks": [
+    "Seeded user with 3 active businesses (Alpha, Beta, Gamma)",
+    "Scenario B / Test 1 & 22: Clean form switches seamlessly across tabs without modal",
+    "Scenario A & C / Tests 2, 4, 6, 11, 17, 20, 21: Dirty invoice intercepted, Escape guarded, Return restored draft & saved to Alpha only",
+    "Scenario D / Tests 3, 5, 12: Dirty bill discarded cleanly with zero cross-tenant draft leakage",
+    "Test 8: Repeated cross-tab switches (A -> B -> C -> A) preserve Alpha and auto-restore",
+    "Scenario E / Test 10: Detail page shows contextual business-changed view and returns cleanly",
+    "Tests 15 & 16: Failed return-to-previous-business (500 retry & 403 unavailable) handled gracefully",
+    "Tests 18 & 19: Urdu RTL modal & 390x600 mobile viewport pass with zero overflow",
+    "Test 14: Cross-tab logout takes precedence over modal and purges drafts"
+  ],
+  "passed": 9,
+  "failed": 0
+}

@@ -1,0 +1,90 @@
+{
+  "head": "d3c5f69a18032c56558a4a01a16b30fce9cf4796",
+  "scope": "Corrected application source before test-runner expansion; not the final publication HEAD. Frontend src tree is unchanged in 4a2e2af.",
+  "release_run": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055835495",
+  "historical_run": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055846520",
+  "security_run": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055841038",
+  "jobs": [
+    {
+      "id": 133945640435,
+      "name": "backend-unit",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640649,
+      "name": "browser-smoke",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640780,
+      "name": "frontend",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640797,
+      "name": "postgres (2)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640817,
+      "name": "ocr-and-operations",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640842,
+      "name": "postgres (4)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640853,
+      "name": "postgres (1)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133945640991,
+      "name": "postgres (3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133949961578,
+      "name": "release-gate",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "backend": {
+    "tests": 1846,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "skips": [
+      "DemoContainerOwnershipTest: four Windows-only cases",
+      "DemoToolingContractTest: one Windows-only case"
+    ]
+  },
+  "postgres": {
+    "shard_cases": [
+      133,
+      102,
+      118,
+      132
+    ],
+    "total": 485,
+    "classes": 91,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "browser_checks": [
+    "ALL 6 RELEASE-SMOKE BROWSER CHECKS PASSED",
+    "ALL 20 PRODUCT-COMPLETION BROWSER CHECKS PASSED"
+  ]
+}

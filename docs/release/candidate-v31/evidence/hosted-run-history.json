@@ -1,0 +1,68 @@
+[
+  {
+    "id": 44055846520,
+    "name": "Historical browser reconciliation",
+    "event": "workflow_dispatch",
+    "head_sha": "d3c5f69a18032c56558a4a01a16b30fce9cf4796",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055846520",
+    "created_at": "2026-11-17T09:28:08Z",
+    "run_attempt": 1
+  },
+  {
+    "id": 44055841038,
+    "name": "Dependency and secret checks",
+    "event": "workflow_dispatch",
+    "head_sha": "d3c5f69a18032c56558a4a01a16b30fce9cf4796",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055841038",
+    "created_at": "2026-11-17T09:28:06Z",
+    "run_attempt": 1
+  },
+  {
+    "id": 44055835495,
+    "name": "Release validation",
+    "event": "workflow_dispatch",
+    "head_sha": "d3c5f69a18032c56558a4a01a16b30fce9cf4796",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055835495",
+    "created_at": "2026-11-17T09:28:04Z",
+    "run_attempt": 1
+  },
+  {
+    "id": 44055010576,
+    "name": "Historical browser reconciliation",
+    "event": "workflow_dispatch",
+    "head_sha": "7620c87f4c81544c32e3ab18c033c36ecdf22469",
+    "status": "completed",
+    "conclusion": "failure",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055010576",
+    "created_at": "2026-11-17T09:22:40Z",
+    "run_attempt": 1
+  },
+  {
+    "id": 44055006621,
+    "name": "Dependency and secret checks",
+    "event": "workflow_dispatch",
+    "head_sha": "7620c87f4c81544c32e3ab18c033c36ecdf22469",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055006621",
+    "created_at": "2026-11-17T09:22:38Z",
+    "run_attempt": 1
+  },
+  {
+    "id": 44055001851,
+    "name": "Release validation",
+    "event": "workflow_dispatch",
+    "head_sha": "7620c87f4c81544c32e3ab18c033c36ecdf22469",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/aviongg/sme-financial-webapp/actions/runs/44055001851",
+    "created_at": "2026-11-17T09:22:36Z",
+    "run_attempt": 1
+  }
+]
