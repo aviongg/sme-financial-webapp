@@ -18,8 +18,18 @@ export async function candidateV31Journeys({ origin, browser, call, cookies, mar
     assert.equal(await page.getByRole('heading', { name: 'Sign in to Zarwia', exact: true }).count(), 0);
     await page.goForward();
     await page.getByRole('heading', { name: 'Sign in to Zarwia', exact: true }).waitFor();
+    await page.goto(origin);
+    await page.locator('section[aria-labelledby="landing-hero-title"]').getByRole('link', { name: 'Get Started', exact: true }).click();
+    await page.getByRole('heading', { name: 'Create your account', exact: true }).waitFor();
+    await page.locator('input[autocomplete="name"]').waitFor();
+    await page.reload();
+    await page.locator('input[autocomplete="name"]').waitFor();
+    await page.goBack();
+    await page.locator('[data-landing-root]').waitFor();
+    await page.goForward();
+    await page.locator('input[autocomplete="name"]').waitFor();
     assert.deepEqual(privateRequests, [], 'anonymous Back/Forward never requests financial data');
-    mark('DEF-19 anonymous Sign In -> Back -> Forward follows URL, preserves private-route boundary');
+    mark('DEF-19 anonymous login and registration survive Back/Forward/reload while preserving private-route boundaries');
   } finally { await anonymous.close(); }
 
   const supplier = await call('POST', '/finance/counterparties', { displayName: 'V31 synthetic supplier', type: 'SUPPLIER' });

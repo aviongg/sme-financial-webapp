@@ -42,8 +42,8 @@ export function AuthScreen({ reset = false }: {
             history.replaceState(null, '', window.location.pathname);
         }
     } }, [reset]);
-    useEffect(() => { if (registerRequested)
-        history.replaceState(null, '', window.location.pathname); }, [registerRequested]);
+    // Keep this non-sensitive form hint in the URL. Consuming it made the root
+    // return to the landing page mid-registration when Back navigation was fixed.
     const perform = async (action: () => Promise<void>) => { if (busy)
         return; setBusy(true); setError(''); setMessage(''); try {
         await action();

@@ -127,7 +127,7 @@ test('Get Started opens account creation in the existing auth screen without gra
   assert.match(auth, /const searchParams = useSearchParams\(\);/);
   assert.match(auth, /const registerRequested = !reset && searchParams\.get\('auth'\) === 'register';/);
   assert.match(auth, /useState<'login' \| 'register' \| 'forgot'>\(reset \? 'forgot' : registerRequested \? 'register' : 'login'\)/);
-  assert.match(auth, /if \(registerRequested\)\s+history\.replaceState\(null, '', window\.location\.pathname\);/);
+  assert.doesNotMatch(auth, /if \(registerRequested\)\s+history\.replaceState/, 'registration intent survives Back/Forward and reload; reset tokens still leave the URL');
   // Registration still uses the unchanged existing endpoint and returns to sign-in afterwards.
   assert.match(auth, /apiClient\('\/auth\/register', \{ method: 'POST', body: JSON\.stringify\(\{ email, password, fullName: name \}\) \}\);\s+setMode\('login'\);/);
 });

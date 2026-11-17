@@ -381,7 +381,7 @@ await check('Get Started opens account creation and Sign In opens sign-in in the
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     await page.locator('section[aria-labelledby="landing-hero-title"]').getByRole('link', { name: 'Get Started' }).click();
     await page.getByRole('heading', { level: 1, name: 'Create your account' }).waitFor();
-    await page.waitForFunction(() => location.pathname === '/' && location.search === '');
+    await page.waitForFunction(() => location.pathname === '/' && location.search === '?auth=register');
     assert.ok(await page.locator('input[autocomplete="name"]').count() > 0);
     step = 'sign in';
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
