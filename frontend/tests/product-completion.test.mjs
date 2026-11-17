@@ -146,7 +146,8 @@ test('DEF-06 and DEF-09: stock returns select prior issue movements by context a
   const opsSource = source('../src/components/product/OperationsViews.tsx');
   assert.match(opsSource, /function packLabel/);
   assert.doesNotMatch(opsSource, /walk\(prefix \? `\$\{prefix\}\.\$\{k\}` : k/);
-  for (const key of ['cashSales', 'invoiceRevenue', 'grossMarginPct', 'openingBalance', 'flowsByEventType', 'totalOutstanding', 'OVERDUE_1_30', 'carryingValue', 'compositeScore']) {
+  for (const key of ['cashSales', 'invoiceRevenue', 'grossMarginPct', 'openingBalance', 'flowsByEventType', 'totalOutstanding', 'OVERDUE_1_30', 'carryingValue', 'compositeScore',
+    'DIRECT_SALE_RECEIPT', 'OPERATING_EXPENSE_PAYMENT', 'INTERNAL_TRANSFER', 'RECEIVABLE_COLLECTION', 'PAYABLE_SETTLEMENT']) {
     assert.ok(productCopies.en.reports.labels[key], `en label: ${key}`);
     assert.ok(productCopies.ur.reports.labels[key], `ur label: ${key}`);
     assert.match(productCopies.ur.reports.labels[key], /[\u0600-\u06ff]|SKU/, `ur script: ${key}`);

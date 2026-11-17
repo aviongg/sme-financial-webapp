@@ -2,6 +2,7 @@
 import { localizedError } from '@/lib/i18n/errors';
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { financeApi, SearchResult, searchDestination } from '@/lib/api/finance';
 import { LivePage } from './LivePage';
 import { Card } from '@/components/ui/Card';
@@ -11,9 +12,13 @@ import { useLanguage } from '@/lib/i18n/context';
 import { liveLabel } from '@/lib/i18n/labels';
 import { useSession } from '@/components/auth/SessionProvider';
 export function LiveSearch() {
+    const initialQuery = (useSearchParams().get('q') ?? '').slice(0, 200);
+    return <LiveSearchForm key={initialQuery} initialQuery={initialQuery}/>;
+}
+function LiveSearchForm({ initialQuery }: { initialQuery: string }) {
     const { t } = useLanguage();
     const { can } = useSession();
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(initialQuery);
     const [type, setType] = useState('all');
     const [results, setResults] = useState<SearchResult[] | null>(null);
     const [error, setError] = useState('');

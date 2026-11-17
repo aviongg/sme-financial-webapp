@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/components/auth/SessionProvider';
 import { LivePage } from '@/components/integration/LivePage';
@@ -8,7 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { isDemoMode } from '@/lib/api/config';
-import { copilotApi, insightApi, whatsappInboundApi, type CopilotResponse } from '@/lib/api/product';
+import { copilotApi, insightApi, lifecycleApi, whatsappInboundApi, type CopilotResponse } from '@/lib/api/product';
+import { obligationsApi } from '@/lib/api/dev-a/obligations';
 import { useLanguage } from '@/lib/i18n/context';
 import { productCopy, type ProductCopy } from '@/lib/i18n/translations/product';
 import { copilotProvenance, type CopilotProvenance } from '@/lib/providerDisclosure';
@@ -158,19 +160,56 @@ function RelationshipsInner({ kind, id }: { kind: string; id: string }) {
   const { locale } = useLanguage();
   const copy = productCopy(locale);
   const { data, loading, error, reload } = useLoad(signal => insightApi.relationships(kind, id, signal), [kind, id]);
-  const href = (k: string, rid: string) => ({ DOCUMENT: null, PROJECT: `/projects/${rid}`, SAMPLE: `/samples/${rid}`, ESTIMATE: `/estimates/${rid}`,
-    TRANSACTION: '/finance/transactions', OBLIGATION: '/records/receivables', INVENTORY_MOVEMENT: '/inventory/stock' } as Record<string, string | null>)[k] ?? null;
+  const { can } = useSession();
+  const href = (k: string, rid: string) => ({ PROJECT: `/projects/${rid}`, SAMPLE: `/samples/${rid}`, ESTIMATE: `/estimates/${rid}`,
+    TRANSACTION: '/finance/transactions', INVENTORY_MOVEMENT: '/inventory/stock',
+    // Project evidence IDs identify links, whereas commercial evidence IDs identify uploads.
+    OCR_EVIDENCE: !can('DOCUMENT_READ') ? null : kind === 'DOCUMENT' ? `/upload/${rid}` : kind === 'PROJECT' ? `/projects/${id}` : null } as Record<string, string | null>)[k] ?? null;
   return (
     <LivePage title={copy.common.related}>
       <Panel title={String(data?.title ?? copy.common.related)} testId="relationships-panel">
         <LoadState loading={loading} error={error} reload={reload}>
           <Table testId="relationships-table" empty={copy.common.empty} head={['', '', copy.common.amount, '']}
-            rows={asList(data?.related).map(r => { const link = href(String(r.kind), String(r.id)); return [String(r.relation), <span key="l" className="break-words">{String(r.label)}</span>,
-              <Amount key="a" value={r.amount}/>, link ? <Link key="o" className="underline" href={link}>{copy.common.open}</Link> : <span key="o">{String(r.kind)}</span>]; })}/>
+            rows={asList(data?.related).map(r => { const link = href(String(r.kind), String(r.id)); return [copy.common.relations[String(r.relation)] ?? copy.common.related, <span key="l" className="break-words">{String(r.label)}</span>,
+              <Amount key="a" value={r.amount}/>, r.kind === 'DOCUMENT' || r.kind === 'OBLIGATION'
+                ? <RelatedRecordLink key={`${String(r.kind)}:${String(r.id)}`} kind={r.kind} id={String(r.id)}/>
+                : link ? <Link key="o" className="underline" href={link}>{copy.common.open}</Link> : <span key="o">{copy.common.evidence}</span>]; })}/>
         </LoadState>
       </Panel>
     </LivePage>
   );
+}
+
+/** Resolve the existing record's authoritative type before navigation; never infer payable direction from a label. */
+function RelatedRecordLink({ kind, id }: { kind: 'DOCUMENT' | 'OBLIGATION'; id: string }) {
+  const router = useRouter();
+  const { locale } = useLanguage();
+  const copy = productCopy(locale).common;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => request.current?.abort(), []);
+  const open = async () => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) { setError(copy.error); return; }
+    request.current?.abort();
+    const controller = new AbortController(); request.current = controller;
+    setBusy(true); setError('');
+    try {
+      let destination: string;
+      if (kind === 'DOCUMENT') {
+        const record = await lifecycleApi.get(id, controller.signal);
+        if (record.kind !== 'INVOICE' && record.kind !== 'BILL') throw new Error(copy.error);
+        destination = `/${record.kind === 'BILL' ? 'bills' : 'invoices'}/${id}`;
+      } else {
+        const record = await obligationsApi.get(id, controller.signal);
+        destination = `/records/${record.direction === 'PAYABLE' ? 'payables' : 'receivables'}?obligationId=${id}`;
+      }
+      if (!controller.signal.aborted) router.push(destination);
+    } catch (failure) {
+      if (!controller.signal.aborted) setError(errorText(failure, copy.error));
+    } finally { if (!controller.signal.aborted) setBusy(false); }
+  };
+  return <span><Button size="sm" variant="ghost" disabled={busy} onClick={() => void open()}>{copy.open}</Button>{error && <span role="alert" className="block text-sm">{error}</span>}</span>;
 }
 
 // ================================================================== F12B financial pack
@@ -240,7 +279,7 @@ function formatPackCell(key: string, raw: unknown, copy: ProductCopy): React.Rea
   const str = String(raw);
   if (key.endsWith('Pct')) return <Pct value={raw}/>;
   if (/^-?\d+\.\d+$/.test(str) && key !== 'quantity' && key !== 'compositeScore') return <Amount value={raw}/>;
-  if (key === 'category' || key === 'metric' || key === 'lineKind' || key === 'status' || key === 'completeness' || key === 'progressStatus' || key === 'recoveryStatus' || key === 'profitabilityStatus' || key === 'bucket') {
+  if (key === 'eventType' || key === 'category' || key === 'metric' || key === 'lineKind' || key === 'status' || key === 'completeness' || key === 'progressStatus' || key === 'recoveryStatus' || key === 'profitabilityStatus' || key === 'bucket') {
     return packLabel(str, copy);
   }
   return <span className="break-words">{str}</span>;

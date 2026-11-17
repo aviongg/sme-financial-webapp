@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useSession } from '@/components/auth/SessionProvider';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { documentsApi } from '@/lib/api/documents';
+import { useConfiguration } from '@/components/configuration/ConfigurationProvider';
 import { lifecycleApi, type Lifecycle } from '@/lib/api/product';
 import { useLanguage } from '@/lib/i18n/context';
 import { productCopy } from '@/lib/i18n/translations/product';
@@ -18,6 +21,10 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
   const canPost = useCanPost();
   const { can } = useSession();
   const canWrite = can('RECORD_CREATE_UPDATE');
+  const canReadEvidence = can('DOCUMENT_READ');
+  const configuration = useConfiguration();
+  const canLinkEvidence = canWrite && canReadEvidence && configuration?.available('documents') === true;
+  const documents = useLoad(signal => canReadEvidence ? documentsApi.list(signal) : Promise.resolve([]), [canReadEvidence]);
   const { data, loading, error, reload } = useLoad<Lifecycle>(signal => lifecycleApi.get(documentId, signal), [documentId]);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -25,6 +32,8 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
   const [evidenceId, setEvidenceId] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const eligibleDocuments = (documents.data ?? []).filter(document => document.processingStatus === 'confirmed'
+    && !data?.evidence?.some(link => link.status === 'ACTIVE' && link.uploadedDocumentId === document.id));
 
   useEffect(() => {
     if (data && typeof window !== 'undefined') {
@@ -64,6 +73,10 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
             <Stat label={c.adjusted} value={data.recognition.adjusted} testId="lifecycle-adjusted"/>
             <Stat label={c.outstanding} value={data.recognition.outstandingAmount} testId="lifecycle-outstanding"/>
           </StatGrid>}
+          {data.recognition && <Link className="text-sm underline" data-testid="lifecycle-obligation-link"
+            href={`/records/${data.recognition.direction === 'PAYABLE' ? 'payables' : 'receivables'}?obligationId=${encodeURIComponent(data.recognition.obligationId)}`}>
+            {data.recognition.direction === 'PAYABLE' ? copy.reports.labels.payables : copy.reports.labels.receivables}
+          </Link>}
 
           <section className="space-y-2">
             <h3 className="font-semibold">{c.notes[kind === 'INVOICE' ? 'CREDIT_NOTE' : 'DEBIT_NOTE']}</h3>
@@ -118,16 +131,20 @@ export function CommercialLifecyclePanel({ documentId, kind }: { documentId: str
             <h3 className="font-semibold">{c.evidenceTitle}</h3>
             <p className="text-xs text-[var(--color-text-secondary)]">{c.evidenceHelp}</p>
             <Table empty={copy.common.empty} head={[c.evidenceId, copy.common.status, copy.common.date, '']} rows={(data.evidence ?? []).map(e => [
-              <Link key="u" className="underline" href={`/upload/${e.uploadedDocumentId}`}><bdi dir="ltr" className="font-mono">{e.uploadedDocumentId.slice(0, 8)}</bdi></Link>,
-              e.status, <bdi key="d" dir="ltr">{e.linkedAt?.slice(0, 10) ?? '—'}</bdi>,
-              e.status === 'ACTIVE' && canWrite ? <Button key="x" size="sm" variant="ghost" disabled={busy !== null}
+              canReadEvidence ? <Link key="u" className="underline break-words" href={`/upload/${e.uploadedDocumentId}`}>{documents.data?.find(d => d.id === e.uploadedDocumentId)?.originalFilename ?? c.evidenceUnavailable}</Link> : c.evidenceUnavailable,
+              e.status === 'ACTIVE' ? c.evidenceActive : c.evidenceRemoved, <bdi key="d" dir="ltr">{e.linkedAt?.slice(0, 10) ?? '—'}</bdi>,
+              e.status === 'ACTIVE' && canLinkEvidence ? <Button key="x" size="sm" variant="ghost" disabled={busy !== null}
                 onClick={() => { const why = window.prompt(copy.common.reason); if (why) void run('evidence', () => lifecycleApi.unlinkEvidence(documentId, e.id, why)); }}>{c.unlinkEvidence}</Button> : <span key="x"/>,
             ])}/>
-            {canWrite && data.status !== 'VOID' && <form className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_auto] sm:items-end"
-              onSubmit={event => { event.preventDefault(); void run('evidence', () => lifecycleApi.linkEvidence(documentId, evidenceId.trim()).then(() => setEvidenceId(''))); }}>
-              <Input label={c.evidenceId} dir="ltr" value={evidenceId} onChange={e => setEvidenceId(e.target.value)} required data-testid="lifecycle-evidence-id"/>
-              <Button type="submit" variant="secondary" disabled={busy !== null} data-testid="lifecycle-evidence-submit">{c.linkEvidence}</Button>
-            </form>}
+            {canLinkEvidence && data.status !== 'VOID' && <LoadState loading={documents.loading} error={documents.error} reload={documents.reload}>
+              {eligibleDocuments.length === 0 ? <p className="text-sm">{c.noEvidence} <Link className="underline" href="/upload">{copy.common.open}</Link></p> :
+                <form className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_auto] sm:items-end"
+                  onSubmit={event => { event.preventDefault(); if (eligibleDocuments.some(d => d.id === evidenceId)) void run('evidence', () => lifecycleApi.linkEvidence(documentId, evidenceId).then(() => setEvidenceId(''))); }}>
+                  <Select label={c.evidenceId} value={evidenceId} onChange={e => setEvidenceId(e.target.value)} required data-testid="lifecycle-evidence-id"
+                    options={[{ value: '', label: c.selectEvidence }, ...eligibleDocuments.map(d => ({ value: d.id, label: `${d.originalFilename} · ${d.uploadTimestamp.slice(0, 10)}` }))]}/>
+                  <Button type="submit" variant="secondary" disabled={busy !== null || !eligibleDocuments.some(d => d.id === evidenceId)} data-testid="lifecycle-evidence-submit">{c.linkEvidence}</Button>
+                </form>}
+            </LoadState>}
           </section>
 
           <Link href={`/operations/relationships?kind=DOCUMENT&id=${documentId}`} className="text-sm underline" data-testid="lifecycle-related">{copy.common.related}</Link>

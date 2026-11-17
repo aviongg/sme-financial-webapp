@@ -2,6 +2,7 @@
 import { formatPkr } from '@/lib/utils/decimal-display';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/context';
 import { useSession } from '@/components/auth/SessionProvider';
 import { canPresentPosting } from '@/components/finance/transactions/transaction-submission';
@@ -33,6 +34,7 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
   const { locale, direction: textDir } = useLanguage();
   const copy = locale === 'ur' ? obligationUr : obligationEn;
   const session = useSession();
+  const requestedObligation = useSearchParams().get('obligationId');
 
   const [direction, setDirection] = useState<ObligationDirection>(initialDirection);
   const [obligations, setObligations] = useState<ObligationSummaryResponse[]>([]);
@@ -64,6 +66,19 @@ export function ObligationsWorkspace({ initialDirection = 'RECEIVABLE' }: Obliga
     setLoading(true);
     setRefreshKey(k => k + 1);
   }, []);
+
+  useEffect(() => {
+    if (!requestedObligation) return;
+    const controller = new AbortController();
+    // The API validates UUID, permissions and active tenant. A link only opens an existing detail sheet.
+    obligationsApi.get(requestedObligation, controller.signal).then(detail => {
+      if (controller.signal.aborted) return;
+      if (detail.direction !== direction) { setError(copy.loadFailed); return; }
+      setSelectedObligation(detail);
+      setIsDetailSheetOpen(true);
+    }).catch(() => { if (!controller.signal.aborted) setError(copy.loadFailed); });
+    return () => controller.abort();
+  }, [requestedObligation, direction, copy.loadFailed]);
 
   useEffect(() => {
     let active = true;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { isDemoMode } from "@/lib/api/config";
 import { useSession } from "@/components/auth/SessionProvider";
@@ -30,13 +30,8 @@ function RootPageContent() {
   const session = useSession();
   const searchParams = useSearchParams();
   const authModeParam = searchParams?.get('auth');
-  const [authRequested, setAuthRequested] = useState<boolean>(() => authModeParam === 'login' || authModeParam === 'register');
-
-  useEffect(() => {
-    if (authModeParam === 'login' || authModeParam === 'register') {
-      setAuthRequested(true);
-    }
-  }, [authModeParam]);
+  // Follow the current URL so browser Back restores the public landing page.
+  const authRequested = authModeParam === 'login' || authModeParam === 'register';
 
   if (isDemoMode) {
     return <DemoPage />;
@@ -60,7 +55,7 @@ function RootPageContent() {
 
   // MFA or challenge required, or user requested login/register
   if (authRequested || session.status === 'challenge') {
-    return <AuthScreen key={session.user?.authStage || 'auth'} />;
+    return <AuthScreen key={session.user?.authStage || authModeParam || 'auth'} />;
   }
 
   // Anonymous visitor: public marketing landing page

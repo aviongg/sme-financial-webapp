@@ -1,7 +1,7 @@
 "use client";
 import { isDemoMode } from "@/lib/api/config";
 import { LiveSearch } from "@/components/integration/LiveSearch";
-export default function SearchPage(){ return isDemoMode ? <DemoPage/> : <LiveSearch/>; }
+export default function SearchPage(){ return isDemoMode ? <DemoPage/> : <Suspense><LiveSearch/></Suspense>; }
 
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
