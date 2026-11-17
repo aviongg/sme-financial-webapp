@@ -13,6 +13,7 @@ import { ConfigurationProvider, useConfiguration } from '@/components/configurat
 import { AiProvider } from '@/components/ai/AiProvider';
 import { LivePage } from '@/components/integration/LivePage';
 import { Card } from '@/components/ui/Card';
+import { UnsavedBusinessSwitchModal } from '@/components/ui/UnsavedBusinessSwitchModal';
 import { isPublicRoute } from '@/lib/routing/public-routes';
 
 function ModuleRouteGuard({ pathname, children }: { pathname: string; children: React.ReactNode }) {
@@ -49,7 +50,19 @@ export function IntegrationBoundary({children}:{children:React.ReactNode}) {
   if(session.status==='loading')return <main className="p-10" role="status">{t.live.sessionLoading}</main>;
   if(session.status==='error')return <main className="p-10 space-y-4"><p role="alert">{localizedSessionError(session.error, t)}</p><button type="button" className="underline" onClick={()=>void session.refresh()}>{t.live.retryConnection}</button></main>;
   if(session.status==='anonymous'||session.status==='challenge')return <AuthScreen key={session.user?.authStage||'login'}/>;
+  if(session.pendingBusinessSwitch){
+    return (
+      <>
+        <main className="p-10" aria-hidden="true" />
+        <UnsavedBusinessSwitchModal
+          pending={session.pendingBusinessSwitch}
+          onReturn={session.resolveReturnToPreviousBusiness}
+          onDiscard={session.discardPendingBusinessSwitch}
+        />
+      </>
+    );
+  }
   if(!session.business||pathname==='/onboarding')return <BusinessSetup/>;
   children = <ModuleRouteGuard pathname={pathname}>{children}</ModuleRouteGuard>;
-  return <div key={`${session.user?.id}:${session.business.businessId}:${session.epoch}`}><ConfigurationProvider><AiProvider>{children}</AiProvider></ConfigurationProvider></div>;
+  return <div key={`${session.user?.id}:${session.business.businessId}:${session.epoch}`} inert={session.switchLocked||undefined}><ConfigurationProvider><AiProvider>{children}</AiProvider></ConfigurationProvider></div>;
 }
