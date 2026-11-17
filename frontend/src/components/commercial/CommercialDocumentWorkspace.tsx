@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Ban, CheckCircle2, Lock, Trash2 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { AlertTriangle, ArrowLeft, ArrowLeftRight, Ban, CheckCircle2, Lock, Trash2 } from 'lucide-react';
 import { useSession } from '@/components/auth/SessionProvider';
+import { useOptionalFormDirty } from '@/context/FormDirtyContext';
 import { CommercialLifecyclePanel } from '@/components/product/CommercialLifecyclePanel';
 import { LivePage } from '@/components/integration/LivePage';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,12 @@ import {
   type CommercialDocumentResponse,
   type CommercialPreviewResponse,
 } from '@/lib/api/commercial';
+import {
+  canRestoreCommercialDraftIntoDocument,
+  clearCommercialDraft,
+  loadCommercialDraft,
+  saveCommercialDraft,
+} from '@/lib/commercial/draftStorage';
 import {
   addCommercialLine,
   changeCommercialLine,
@@ -51,6 +58,7 @@ import {
 } from '@/lib/commercial/form';
 import { useLanguage } from '@/lib/i18n/context';
 import { commercialCopy, type CommercialCopy } from '@/lib/i18n/translations/commercial';
+import { sessionSwitchCopy } from '@/lib/i18n/translations/sessionSwitch';
 import {
   CommercialLineEditor,
   CommercialLineTable,
@@ -119,12 +127,16 @@ function TotalsPanel({
 export function CommercialDocumentWorkspace({ kind, documentId }: { kind: CommercialKind; documentId?: string }) {
   const { locale } = useLanguage();
   const copy = commercialCopy(locale);
+  const switchCopy = sessionSwitchCopy(locale);
   const kindCopy = copy.kinds[kind];
   const path = commercialPath(kind);
+  const pathname = usePathname() || path;
   const router = useRouter();
-  const { can, business } = useSession();
+  const { can, business, user, recentBusinessSwitch, switchBusiness, clearRecentBusinessSwitch } = useSession();
+  const formDirty = useOptionalFormDirty();
   const canRead = can('FINANCIAL_DATA_READ');
   const canWrite = can('RECORD_CREATE_UPDATE');
+  const activeUserId = user?.id ?? null;
   const activeBusinessId = business?.businessId ?? null;
   const isNew = !documentId;
 
@@ -133,6 +145,9 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
   const [attempt, setAttempt] = useState(0);
   const [draft, setDraft] = useState<CommercialDocumentDraft>(() => initialCommercialDraft(''));
   const [dirty, setDirty] = useState(false);
+  const [draftRestoredNotice, setDraftRestoredNotice] = useState(false);
+  const [returnBusy, setReturnBusy] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
   const [showRequired, setShowRequired] = useState(false);
   const [formErrors, setFormErrors] = useState<CommercialValidationErrors>({});
   const [preview, setPreview] = useState<Preview>({ state: 'empty' });
@@ -172,6 +187,7 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       setActionError(null);
       setDialog(null);
       setSavedNotice(false);
+      setReturnError(null);
       setLifecycle(null);
       if (isDemoMode || !canRead || !activeBusinessId) {
         setLoadState('ready');
@@ -179,8 +195,18 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       }
       if (isNew || !documentId) {
         setDocument(null);
-        setDraft(initialCommercialDraft(todayIso()));
-        setDirty(false);
+        const restored = activeUserId
+          ? loadCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname, kind, documentId: null })
+          : null;
+        if (restored) {
+          setDraft(restored.draft);
+          setDirty(true);
+          setDraftRestoredNotice(true);
+        } else {
+          setDraft(initialCommercialDraft(todayIso()));
+          setDirty(false);
+          setDraftRestoredNotice(false);
+        }
         setShowRequired(false);
         setFormErrors({});
         setLoadState('ready');
@@ -195,17 +221,68 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
             throw new ApiError(502, 'Invalid commercial document response.');
           }
           accept(response);
+          const restored = activeUserId
+            ? loadCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname, kind, documentId })
+            : null;
+          if (restored && canRestoreCommercialDraftIntoDocument(restored, response, activeBusinessId)) {
+            setDraft(restored.draft);
+            setDirty(true);
+            setDraftRestoredNotice(true);
+          } else {
+            if (restored && activeUserId) {
+              clearCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname });
+            }
+            setDraftRestoredNotice(false);
+          }
           setLoadState('ready');
         })
         .catch(error => {
           if (ticket !== requestId.current || error?.name === 'AbortError') return;
           setDocument(null);
+          setDraftRestoredNotice(false);
           setLoadState(error instanceof ApiError && error.status === 404 ? 'notFound'
             : error instanceof ApiError && error.status === 403 ? 'forbidden' : 'error');
         });
     });
     return () => controller.abort();
-  }, [accept, activeBusinessId, attempt, canRead, documentId, isNew, kind]);
+  }, [accept, activeBusinessId, activeUserId, attempt, canRead, documentId, isNew, kind, pathname]);
+
+  const latestDraftRef = useRef({ draft, dirty, document, activeUserId, activeBusinessId, pathname, kind, documentId });
+  useEffect(() => {
+    latestDraftRef.current = { draft, dirty, document, activeUserId, activeBusinessId, pathname, kind, documentId };
+  }, [draft, dirty, document, activeUserId, activeBusinessId, pathname, kind, documentId]);
+
+  useEffect(() => {
+    if (!formDirty || isDemoMode || !activeUserId || !activeBusinessId) return;
+    return formDirty.registerForm({
+      id: `commercial:${kind}:${documentId ?? 'new'}`,
+      businessId: activeBusinessId,
+      route: pathname,
+      dirty,
+      captureDraft: () => {
+        const current = latestDraftRef.current;
+        if (!current.dirty || !current.activeUserId || !current.activeBusinessId) return false;
+        return saveCommercialDraft({
+          userId: current.activeUserId,
+          businessId: current.activeBusinessId,
+          route: current.pathname,
+          kind: current.kind,
+          documentId: current.documentId ?? null,
+          baseServerVersion: current.document?.version ?? null,
+          draft: current.draft,
+        });
+      },
+      discardDraft: () => {
+        const current = latestDraftRef.current;
+        if (!current.activeUserId || !current.activeBusinessId) return;
+        clearCommercialDraft({
+          userId: current.activeUserId,
+          businessId: current.activeBusinessId,
+          route: current.pathname,
+        });
+      },
+    });
+  }, [activeBusinessId, activeUserId, dirty, documentId, formDirty, kind, pathname]);
 
   useEffect(() => {
     if (isDemoMode || !canRead || !activeBusinessId) return;
@@ -347,6 +424,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       if (isNew) {
         const created = await api.create(commercialCreatePayload(draft));
         if (!activeBusinessId || !isTrustedCommercialDocument(created, activeBusinessId, kind)) throw new ApiError(502, 'Invalid response.');
+        if (activeUserId) clearCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname });
+        setDraftRestoredNotice(false);
         setDirty(false);
         router.replace(`${path}/${created.id}`);
         return;
@@ -354,6 +433,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       if (!document) return;
       const updated = await api.update(document.id, commercialUpdatePayload(draft, document.version));
       if (!activeBusinessId || !isTrustedCommercialDocument(updated, activeBusinessId, kind)) throw new ApiError(502, 'Invalid response.');
+      if (activeUserId) clearCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname });
+      setDraftRestoredNotice(false);
       accept(updated);
       setSavedNotice(true);
     } catch (error) {
@@ -376,6 +457,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
       const api = commercialApi(kind);
       if (action === 'delete') {
         await api.remove(document.id, document.version);
+        if (activeUserId && activeBusinessId) clearCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname });
+        setDraftRestoredNotice(false);
         setDirty(false);
         router.push(path);
         return;
@@ -384,6 +467,8 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
         ? await api.finalize(document.id, commercialFinalizePayload(document.version))
         : await api.voidDocument(document.id, commercialVoidPayload(document.version, voidReason));
       if (!activeBusinessId || !isTrustedCommercialDocument(next, activeBusinessId, kind)) throw new ApiError(502, 'Invalid response.');
+      if (activeUserId) clearCommercialDraft({ userId: activeUserId, businessId: activeBusinessId, route: pathname });
+      setDraftRestoredNotice(false);
       accept(next);
       setDialog(null);
       setVoidReason('');
@@ -423,6 +508,66 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
     return <LivePage title={title} actions={backLink}><Card><p role="status" data-testid="commercial-loading">{copy.loading}</p></Card></LivePage>;
   }
   if (loadState !== 'ready') {
+    const switchedDetail =
+      loadState === 'notFound' &&
+      recentBusinessSwitch &&
+      recentBusinessSwitch.currentBusiness.businessId === activeBusinessId &&
+      recentBusinessSwitch.route === pathname;
+    if (switchedDetail && recentBusinessSwitch) {
+      const previousName = recentBusinessSwitch.previousBusiness.businessName;
+      const currentName = recentBusinessSwitch.currentBusiness.businessName;
+      const description = switchCopy.detailChanged.bodyWithNames
+        .replace('{current}', currentName)
+        .replace('{previous}', previousName);
+      const returnLabel = switchCopy.detailChanged.returnAction.replace('{previous}', previousName);
+      return (
+        <LivePage title={title} actions={backLink}>
+          <Card className="space-y-4" data-testid="commercial-business-changed">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 rounded-[var(--radius-md)] bg-amber-100 p-2 text-amber-800">
+                <ArrowLeftRight className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <h2 className="font-semibold text-base text-[var(--color-text-primary)]">{switchCopy.detailChanged.title}</h2>
+                <p role="alert" className="text-sm text-[var(--color-text-secondary)]">{description}</p>
+              </div>
+            </div>
+            {returnError && (
+              <p role="alert" className="text-sm text-[var(--color-status-error)]">{returnError}</p>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="primary"
+                isLoading={returnBusy}
+                disabled={returnBusy}
+                onClick={async () => {
+                  setReturnBusy(true);
+                  setReturnError(null);
+                  try {
+                    await switchBusiness(recentBusinessSwitch.previousBusiness.businessId);
+                  } catch {
+                    setReturnError(switchCopy.detailChanged.returnFailed);
+                    setReturnBusy(false);
+                  }
+                }}
+                data-testid="commercial-return-previous-business"
+              >
+                {returnBusy ? switchCopy.detailChanged.returningAction : returnLabel}
+              </Button>
+              <Link
+                href={path}
+                onClick={() => clearRecentBusinessSwitch()}
+                data-testid="commercial-back-to-list-after-switch"
+                className="inline-flex items-center justify-center h-10 px-4 rounded-[var(--radius-md)] border border-[var(--color-border-default)] text-sm font-medium hover:border-[var(--color-brand-border)] focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
+              >
+                {switchCopy.detailChanged.backToList}
+              </Link>
+            </div>
+          </Card>
+        </LivePage>
+      );
+    }
     const message = loadState === 'notFound' ? copy.notFound : loadState === 'forbidden' ? copy.forbidden : copy.requestFailed;
     return (
       <LivePage title={title} actions={backLink}>
@@ -483,6 +628,12 @@ export function CommercialDocumentWorkspace({ kind, documentId }: { kind: Commer
         {actionError && !conflict && (
           <div role="alert" className="rounded-lg border border-[var(--color-status-error)] bg-red-50 p-3 text-sm text-red-900" data-testid="commercial-action-error">
             {actionError}
+          </div>
+        )}
+
+        {draftRestoredNotice && dirty && (
+          <div role="status" className="rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-950" data-testid="commercial-draft-restored-notice">
+            {switchCopy.draftRestoredNotice}
           </div>
         )}
 

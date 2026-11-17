@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { SessionProvider } from "@/components/auth/SessionProvider";
+import { FormDirtyProvider } from "@/context/FormDirtyContext";
 import { IntegrationBoundary } from "@/components/layout/IntegrationBoundary";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
@@ -55,7 +56,9 @@ export default async function RootLayout({
       <body className="antialiased bg-[var(--color-surface-canvas)] text-[var(--color-text-primary)]">
         <LanguageProvider>
           <ToastProvider>
-            <SessionProvider><IntegrationBoundary>{children}</IntegrationBoundary></SessionProvider>
+            <FormDirtyProvider>
+              <SessionProvider><IntegrationBoundary>{children}</IntegrationBoundary></SessionProvider>
+            </FormDirtyProvider>
           </ToastProvider>
         </LanguageProvider>
       </body>
