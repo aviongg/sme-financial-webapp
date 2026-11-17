@@ -15,10 +15,10 @@ const sizes = {
 const headingFont = 'var(--font-heading), system-ui, sans-serif';
 
 /**
- * FinSight PK marketing wordmark: the existing growth-bars mark (three rising bars, the last one tallest with its
- * dot), the navy "FinSight" wordmark and a small "PK" regional micro-badge attached at cap height.
+ * Zarwia PK marketing wordmark: the existing growth-bars mark (three rising bars, the last one tallest with its
+ * dot), the navy "Zarwia" wordmark and a small "PK" regional micro-badge attached at cap height.
  * Always laid out LTR in Latin type so it stays identical in Urdu/RTL. The visual is hidden from assistive
- * technology; the accessible name is the plain text "FinSight PK".
+ * technology; the accessible name is the plain text "Zarwia PK".
  */
 export function BrandLockup({ size = 'md', tone = 'light', className }: BrandLockupProps) {
   const s = sizes[size];
@@ -39,7 +39,7 @@ export function BrandLockup({ size = 'md', tone = 'light', className }: BrandLoc
         style={{ fontFamily: headingFont, letterSpacing: '-0.025em', lineHeight: 1 }}
         className={cn('relative inline-flex items-start font-extrabold', s.word, dark ? 'text-white' : 'text-[var(--color-brand-navy)]')}
       >
-        FinSight
+        Zarwia
         <span
           data-brand-marker="pk"
           style={{ fontFamily: headingFont, letterSpacing: '0.08em', lineHeight: 1 }}
@@ -51,7 +51,7 @@ export function BrandLockup({ size = 'md', tone = 'light', className }: BrandLoc
           PK
         </span>
       </span>
-      <span className="sr-only">FinSight PK</span>
+      <span className="sr-only">Zarwia PK</span>
     </span>
   );
 }

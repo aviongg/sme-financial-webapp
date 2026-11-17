@@ -60,7 +60,7 @@ export function LandingFooter({ copy }: { copy: LandingCopy }) {
 
         <div className="flex flex-col gap-2 border-t border-white/10 py-6 text-[13px] text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            <span dir="ltr" suppressHydrationWarning>© {new Date().getFullYear()} FinSight PK.</span> {f.rights}
+            <span dir="ltr" suppressHydrationWarning>© {new Date().getFullYear()} Zarwia PK.</span> {f.rights}
           </p>
           <p>{f.previews}</p>
         </div>

@@ -33,7 +33,7 @@ const notoNastaliqUrdu = localFont({
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "FinSight — SME Financial Health Platform",
+  title: "Zarwia — SME Financial Health Platform",
   description:
     "Comprehensive financial health scoring, liquidity forecasting, and AI document extraction for growing businesses.",
 };

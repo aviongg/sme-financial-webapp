@@ -101,7 +101,7 @@ export function AuthScreen({ reset = false }: {
     };
     const title = stage === 'PASSWORD_CHANGE_REQUIRED' ? t.live.changePassword : stage === 'MFA_CHALLENGE_REQUIRED' ? t.live.verifySignIn : stage === 'MFA_ENROLLMENT_REQUIRED' ? t.live.setupMfa : token ? t.live.choosePassword : mode === 'register' ? t.live.createAccount : mode === 'forgot' ? t.live.resetPassword : t.live.signIn;
     return <main className="min-h-screen grid place-items-center px-4 py-10"><Card padding="lg" className="w-full max-w-md space-y-5">
-    <div className="flex justify-between items-center"><span className="text-xl font-bold text-[var(--color-brand-primary)]">FinSight</span><button onClick={toggleLocale} type="button" className="underline">{ur ? 'English' : 'اردو'}</button></div>
+    <div className="flex justify-between items-center"><span className="text-xl font-bold text-[var(--color-brand-primary)]">Zarwia</span><button onClick={toggleLocale} type="button" className="underline">{ur ? 'English' : 'اردو'}</button></div>
     <h1 className="text-2xl font-bold">{title}</h1><p className="text-sm text-[var(--color-text-muted)]">{t.live.authIntro}</p>
     {(error || session.error) && <p role="alert" className="text-red-700">{error || localizedSessionError(session.error, t)}</p>}{message && <p role="status">{message}</p>}
     {codes.length > 0 ? <div className="space-y-4"><h2 className="font-semibold">{t.live.saveCodes}</h2><p>{t.live.codesOnce}</p><div className="grid grid-cols-2 gap-2 font-mono" dir="ltr">{codes.map(value => <span key={value}>{value}</span>)}</div><Button onClick={() => void perform(async () => { setCodes([]); setEnrollment(null); await session.logout(); })}>{t.live.codesSaved}</Button></div> :

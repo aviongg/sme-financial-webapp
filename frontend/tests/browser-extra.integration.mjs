@@ -148,14 +148,14 @@ try {
   });
 
   await page.goto(origin + '/?auth=login');
-  await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
+  await page.getByRole('heading', {name: 'Sign in to Zarwia'}).waitFor();
   await page.getByRole('button', {name: 'Create your account', exact: true}).click();
   await page.getByLabel(/^Full name/).fill('New Test Owner');
   await page.getByLabel(/^Email/).fill('new@example.test');
   await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
   await page.getByText('Account created. Sign in to continue.', {exact: true}).waitFor();
-  await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
+  await page.getByRole('heading', {name: 'Sign in to Zarwia'}).waitFor();
   assert.equal(matching('/api/auth/register').length, 1);
   assert.equal(matching('/api/auth/login').length, 0);
   assert.equal(await page.getByRole('link', {name: 'Dashboard', exact: true}).count(), 0);
@@ -180,7 +180,7 @@ try {
   mark('password reset removes the fragment and sends the token once in the confirm body');
 
   await page.goto(`${origin}/upload/${documentId}`);
-  await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
+  await page.getByRole('heading', {name: 'Sign in to Zarwia'}).waitFor();
   await page.getByLabel(/^Email/).fill('owner@example.test');
   await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
@@ -256,7 +256,7 @@ try {
 
   await page.goto(`${origin}/settings`);
   await page.getByRole('button', {name: 'Sign out', exact: true}).click();
-  await page.getByRole('heading', {name: 'Sign in to FinSight'}).waitFor();
+  await page.getByRole('heading', {name: 'Sign in to Zarwia'}).waitFor();
   await page.getByLabel(/^Email/).fill('mfa@example.test');
   await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', {name: 'Continue', exact: true}).click();

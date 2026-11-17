@@ -30,7 +30,7 @@ export function PageHeader({
   const session = useSession();
   // Live mode shows the active business already resolved by SessionProvider; no additional request.
   const displayedBusinessName = businessName
-    ?? (isDemoMode ? "Al-Rehman Textiles" : session.business?.businessName || "FinSight");
+    ?? (isDemoMode ? "Al-Rehman Textiles" : session.business?.businessName || "Zarwia");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -40,8 +40,8 @@ export function PageHeader({
       <header className="min-h-16 sm:h-16 py-3 sm:py-0 border-b border-[var(--color-border-default)] bg-[var(--color-surface-card)] sticky top-0 z-20 px-4 sm:px-6 lg:px-8 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
         {/* Context & Title Area */}
         <div className="flex items-center gap-3 min-w-0 flex-1 basis-full sm:basis-auto">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-full)] bg-[var(--color-surface-hover)] border border-[var(--color-border-subtle)] text-[12px] text-[var(--color-text-secondary)] font-medium shrink-0">
-            <Building2 className="w-3.5 h-3.5 text-[var(--color-brand-primary)]" />
+          <div className="flex max-w-[48%] items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-full)] bg-[var(--color-surface-hover)] border border-[var(--color-border-subtle)] text-[12px] text-[var(--color-text-secondary)] font-medium shrink-0">
+            <Building2 className="w-3.5 h-3.5 shrink-0 text-[var(--color-brand-primary)]" />
             {/* dir="auto": a Latin name truncates at its end even in an RTL page, and vice versa. */}
             <span data-testid="header-business-name" dir="auto" className="truncate max-w-[160px]" title={displayedBusinessName}>
               {displayedBusinessName}

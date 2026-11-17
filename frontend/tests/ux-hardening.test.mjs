@@ -74,7 +74,7 @@ test('project back arrows reverse in RTL', () => {
 test('page header shows the live active business from the existing session without a new request', () => {
   const header = source('../src/components/layout/PageHeader.tsx');
   assert.match(header, /useSession\(\)/);
-  assert.match(header, /isDemoMode \? "Al-Rehman Textiles" : session\.business\?\.businessName \|\| "FinSight"/);
+  assert.match(header, /isDemoMode \? "Al-Rehman Textiles" : session\.business\?\.businessName \|\| "Zarwia"/);
   assert.match(header, /data-testid="header-business-name"/);
   assert.doesNotMatch(header, /apiClient|fetch\(/);
   // Settings relies on the header language control instead of rendering a duplicate.

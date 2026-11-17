@@ -1,5 +1,5 @@
 import { historicalOrigin as origin, historicalBackendPort as backendPort } from './historical-harness.mjs';
-// Real-browser acceptance for the public FinSight PK landing page (/landing).
+// Real-browser acceptance for the public Zarwia PK landing page (/landing).
 // Uses the production Next build on FRONTEND_TEST_ORIGIN (default http://127.0.0.1:13100) whose /api rewrite points at a
 // synthetic session fixture on 127.0.0.1:18080. It does not test Spring, PostgreSQL, email, OCR or AI providers.
 import http from 'node:http';
@@ -130,14 +130,14 @@ async function brandGeometry(page, label) {
     const wordHeight = geometry.wordBottom - geometry.wordTop;
     assert.equal(geometry.dir, 'ltr', `${label}: wordmark direction`);
     assert.ok(geometry.markerFont / geometry.wordFont <= 0.46, `${label}: PK smaller ${JSON.stringify(geometry)}`);
-    assert.ok(geometry.markerLeft >= geometry.wordRight - 1 && geometry.markerLeft - geometry.wordRight < 8, `${label}: PK attached after FinSight ${JSON.stringify(geometry)}`);
+    assert.ok(geometry.markerLeft >= geometry.wordRight - 1 && geometry.markerLeft - geometry.wordRight < 8, `${label}: PK attached after Zarwia ${JSON.stringify(geometry)}`);
     assert.ok(geometry.markerTop <= geometry.wordTop + wordHeight * 0.25, `${label}: PK sits at cap height ${JSON.stringify(geometry)}`);
     assert.ok((geometry.markerTop + geometry.markerBottom) / 2 < (geometry.wordTop + geometry.wordBottom) / 2, `${label}: PK centred above the midline`);
     assert.ok(geometry.markerHeight < wordHeight * 0.8, `${label}: PK badge not dominant`);
     assert.ok(geometry.radius >= 3 && geometry.paddingX >= 3 && geometry.background !== 'rgba(0, 0, 0, 0)', `${label}: PK is a tinted micro-badge ${JSON.stringify(geometry)}`);
     assert.ok(geometry.bars[0] < geometry.bars[1] && geometry.bars[1] < geometry.bars[2], `${label}: growth bars rise ${geometry.bars}`);
     assert.doesNotMatch(geometry.family, /Nastaliq/i, `${label}: wordmark keeps Latin type`);
-    assert.match(geometry.name, /FinSight PK/);
+    assert.match(geometry.name, /Zarwia PK/);
   }
 }
 
@@ -221,8 +221,8 @@ for (const locale of ['en', 'ur']) {
         const response = await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
         assert.equal(response.status(), 200);
         await page.waitForFunction((title) => document.querySelector('h1')?.textContent === title, heroTitle[locale]);
-        assert.equal(await page.title(), 'FinSight PK — Financial Clarity for SMEs');
-        assert.match(await page.locator('meta[name="description"]').getAttribute('content'), /FinSight helps SMEs/);
+        assert.equal(await page.title(), 'Zarwia PK — Financial Clarity for SMEs');
+        assert.match(await page.locator('meta[name="description"]').getAttribute('content'), /Zarwia helps SMEs/);
         assert.equal(await page.evaluate(() => document.documentElement.dir), locale === 'ur' ? 'rtl' : 'ltr');
         assert.equal(await page.evaluate(() => document.documentElement.lang), locale);
         step = 'structure';
@@ -247,7 +247,7 @@ for (const locale of ['en', 'ur']) {
         assert.equal(await page.locator('header nav').first().isVisible(), desktopNav, `${label}: desktop nav`);
         assert.equal(await page.locator('header').getByRole('link', { name: locale === 'ur' ? 'شروع کریں' : 'Get Started' }).first().isVisible(), viewport.width >= 768, `${label}: header CTA`);
         // Hero CTAs remain usable (>=44px) and on screen.
-        for (const name of locale === 'ur' ? ['شروع کریں', 'FinSight کیسے کام کرتا ہے، دیکھیں'] : ['Get Started', 'See how FinSight works']) {
+        for (const name of locale === 'ur' ? ['شروع کریں', 'Zarwia کیسے کام کرتا ہے، دیکھیں'] : ['Get Started', 'See how Zarwia works']) {
           const box = await page.locator('section[aria-labelledby="landing-hero-title"]').getByRole('link', { name, exact: true }).boundingBox();
           assert.ok(box && box.height >= 44 && box.x >= 0 && box.x + box.width <= viewport.width + 1, `${label}: CTA ${name} ${JSON.stringify(box)}`);
         }
@@ -290,7 +290,7 @@ await check('desktop anchors scroll each section below the sticky header and key
     assert.notEqual(outline.style, 'none'); assert.notEqual(outline.width, '0px');
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     step = 'hero secondary CTA';
-    await page.getByRole('link', { name: 'See how FinSight works' }).click();
+    await page.getByRole('link', { name: 'See how Zarwia works' }).click();
     await page.waitForFunction(() => location.hash === '#how-it-works');
     step = 'faq disclosure';
     const summary = page.locator('#faq summary').first();
@@ -386,7 +386,7 @@ await check('Get Started opens account creation and Sign In opens sign-in in the
     step = 'sign in';
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     await page.locator('header').getByRole('link', { name: 'Sign In' }).click();
-    await page.getByRole('heading', { level: 1, name: 'Sign in to FinSight' }).waitFor();
+    await page.getByRole('heading', { level: 1, name: 'Sign in to Zarwia' }).waitFor();
     step = 'destinations';
     await page.goto(`${origin}/landing`, { waitUntil: 'networkidle' });
     assert.deepEqual(await page.locator('footer a[href^="/"]').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href'))), ['/?auth=login', '/?auth=register']);
@@ -414,7 +414,7 @@ await check('private routes remain protected exactly as before', async () => {
       const before = apiCalls.length;
       await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
       if (route === '/landing/extra') assert.equal(await page.locator('[data-landing-root]').count(), 0, 'nested landing path is not public');
-      await page.getByRole('heading', { level: 1, name: 'Sign in to FinSight' }).waitFor({ timeout: 10000 });
+      await page.getByRole('heading', { level: 1, name: 'Sign in to Zarwia' }).waitFor({ timeout: 10000 });
       assert.equal(await page.locator('aside[aria-label="Primary Navigation"]').count(), 0, route);
       assert.ok(apiCalls.slice(before).some((call) => call.url === '/api/auth/me'), `${route} still probes identity`);
     }
@@ -437,8 +437,8 @@ await check('private routes remain protected exactly as before', async () => {
     assert.ok(apiCalls.slice(before).every(call => sessionEndpoints.includes(call.url)), 'a remembered session may revalidate identity, but public landing must not request financial data');
     assert.equal(await page.locator('aside[aria-label="Primary Navigation"]').count(), 0);
     step = 'remembered business opens app';
-    // A verified remembered session gets Open FinSight rather than an anonymous Sign In CTA.
-    await page.locator('header').getByRole('link', { name: 'Open FinSight' }).click();
+    // A verified remembered session gets Open Zarwia rather than an anonymous Sign In CTA.
+    await page.locator('header').getByRole('link', { name: 'Open Zarwia' }).click();
     await page.locator('aside[aria-label="Primary Navigation" i], aside[aria-label="Primary navigation"]').waitFor({ timeout: 15000 });
     assert.ok(apiCalls.slice(before).some((call) => call.url === '/api/auth/me'));
     assert.deepEqual(log.pageErrors.filter((error) => /hydrat/i.test(error)), []);
@@ -446,7 +446,7 @@ await check('private routes remain protected exactly as before', async () => {
     step = 'hint is not authentication';
     mode = 'anonymous';
     await page.goto(`${origin}/records`, { waitUntil: 'networkidle' });
-    await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+    await page.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor();
     assert.equal(await page.locator('aside[aria-label="Primary Navigation" i]').count(), 0, 'a stale session hint never authorizes private content');
   } finally { await context.close(); mode = 'anonymous'; }
 });

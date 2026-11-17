@@ -289,7 +289,7 @@ export async function verifyImportDrafts({
     }
   });
   await anonPage.goto(origin + '/records/import');
-  await anonPage.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+  await anonPage.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor();
   assert.deepEqual(privateRequests, [], 'Unauthenticated visit to /records/import must make zero private finance/record API requests');
   await anonContext.close();
   mark('SECURITY & BOUNDARIES: cross-business batch access denied with 404; unauthenticated visit requires login with zero private data leaked');

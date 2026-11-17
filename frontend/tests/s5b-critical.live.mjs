@@ -26,7 +26,7 @@ async function switchBusiness(id){assert.equal((await api('/businesses/active','
 async function balances(){const data=await json('/finance/accounts?size=100');return data.items.map(({id,currentBalance,openingBalance,balanceStatus})=>({id,currentBalance,openingBalance,balanceStatus})).sort((a,b)=>a.id.localeCompare(b.id));}
 const tag=randomUUID().slice(0,8),today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 try{
- await page.goto(new URL('/finance/accounts',origin).href);await page.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();await page.getByLabel(/^Email/).fill(fixture.email);await page.getByLabel(/^Password/).fill(fixture.password);await page.getByRole('button',{name:'Continue',exact:true}).click();
+ await page.goto(new URL('/finance/accounts',origin).href);await page.getByRole('heading',{name:'Sign in to Zarwia'}).waitFor();await page.getByLabel(/^Email/).fill(fixture.email);await page.getByLabel(/^Password/).fill(fixture.password);await page.getByRole('button',{name:'Continue',exact:true}).click();
  // Fixtures must use the established MFA/session procedure. A challenge fails here; it is never disabled.
  await page.waitForFunction(()=>document.querySelector('input[type=password]')===null);
  const chooser=page.getByRole('button',{name:new RegExp(fixture.businessAName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))});await chooser.or(page.getByRole('button',{name:/^(Add account|اکاؤنٹ شامل کریں)$/})).first().waitFor();if(await chooser.isVisible())await chooser.click();

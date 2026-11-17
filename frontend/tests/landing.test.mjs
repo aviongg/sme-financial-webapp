@@ -53,20 +53,20 @@ test('IntegrationBoundary exempts public routes first and keeps every private br
 
 test('the landing route exists, has landing metadata and leaves the application entry and metadata unchanged', () => {
   const page = source('../src/app/landing/page.tsx');
-  assert.match(page, /title: 'FinSight PK — Financial Clarity for SMEs'/);
-  assert.match(page, /FinSight helps SMEs organise financial information/);
+  assert.match(page, /title: 'Zarwia PK — Financial Clarity for SMEs'/);
+  assert.match(page, /Zarwia helps SMEs organise financial information/);
   assert.match(page, /<LandingPage \/>/);
   assert.doesNotMatch(page, /"use client"/, 'metadata requires a server page');
   const layout = source('../src/app/layout.tsx');
-  assert.match(layout, /title: "FinSight — SME Financial Health Platform"/);
+  assert.match(layout, /title: "Zarwia — SME Financial Health Platform"/);
   assert.match(layout, /<SessionProvider><IntegrationBoundary>\{children\}<\/IntegrationBoundary><\/SessionProvider>/);
   assert.match(source('../src/app/page.tsx'), /<LiveDashboard\/>/);
 });
 
-test('the FinSight PK brand lockup is reusable, accessible and direction-stable', () => {
+test('the Zarwia PK brand lockup is reusable, accessible and direction-stable', () => {
   const brand = source(`${marketing}BrandLockup.tsx`);
   assert.match(brand, /dir="ltr" lang="en" data-brand="finsight-pk"/);
-  assert.match(brand, /FinSight\s*<span\s+data-brand-marker="pk"/);
+  assert.match(brand, /Zarwia\s*<span\s+data-brand-marker="pk"/);
   // PK is a small regional micro-badge attached at cap height, not a mathematical superscript.
   assert.match(brand, /text-\[0\.45em\] font-extrabold ring-1 ring-inset/, 'PK is visibly smaller than the wordmark');
   assert.match(brand, /rounded-\[4px\] px-\[4px\] py-\[2px\]/);
@@ -75,14 +75,14 @@ test('the FinSight PK brand lockup is reusable, accessible and direction-stable'
   assert.doesNotMatch(brand, /<sup|align-super|vertical-align/);
   // Growth bars rise left to right; the last (with its dot) is the tallest.
   assert.match(brand, /h-\[38%\][\s\S]*h-\[64%\][\s\S]*flex-1 rounded-full/);
-  assert.match(brand, /<span className="sr-only">FinSight PK<\/span>/);
+  assert.match(brand, /<span className="sr-only">Zarwia PK<\/span>/);
   assert.match(brand, /const headingFont = 'var\(--font-heading\)[\s\S]*style=\{\{ fontFamily: headingFont[\s\S]*style=\{\{ fontFamily: headingFont/, 'inline font keeps the wordmark Latin in Urdu');
   // Used by the navigation and footer instead of duplicated markup.
   assert.match(source(`${marketing}LandingNav.tsx`), /<BrandLockup \/>/);
   assert.match(source(`${marketing}LandingFooter.tsx`), /<BrandLockup tone="dark" \/>/);
   assert.equal(marketingSource.match(/data-brand-marker/g).length, 1);
   // Application branding is intentionally not changed in this slice.
-  assert.doesNotMatch(source('../src/components/layout/Sidebar.tsx'), /BrandLockup|FinSight PK/);
+  assert.doesNotMatch(source('../src/components/layout/Sidebar.tsx'), /BrandLockup|Zarwia PK/);
 });
 
 test('the page renders every required section once, in order, with one h1 and labelled sections', () => {
@@ -155,7 +155,7 @@ test('Urdu copy is written in Urdu script rather than English sentences', () => 
   for (const text of prose) {
     assert.match(text, arabic, text);
     // Only product names/roles may remain Latin inside an Urdu sentence.
-    const latin = (text.match(/[A-Za-z]+/g) || []).filter((word) => !['FinSight', 'Ask', 'Owner', 'Accountant', 'Manager', 'Viewer', 'English', 'PK'].includes(word));
+    const latin = (text.match(/[A-Za-z]+/g) || []).filter((word) => !['Zarwia', 'Ask', 'Owner', 'Accountant', 'Manager', 'Viewer', 'English', 'PK'].includes(word));
     assert.deepEqual(latin, [], text);
   }
   assert.equal(landingEn.nav.language, 'اردو');

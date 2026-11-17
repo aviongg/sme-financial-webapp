@@ -354,7 +354,7 @@ async function identity(email) {
 }
 async function signin(page, email) {
   await page.goto(origin + '/finance/accounts');
-  await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+  await page.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor();
   await page.getByLabel(/^Email/).fill(email); await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.waitForFunction(() => document.body.textContent.includes('Live PKR Bank') || document.body.textContent.includes('Live Accounts A'));
@@ -403,7 +403,7 @@ try {
     const reviewBrowserContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const reviewPage = await reviewBrowserContext.newPage();
     await reviewPage.goto(origin + '/records');
-    await reviewPage.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
+    await reviewPage.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor();
     await reviewPage.getByLabel(/^Email/).fill(owner.email); await reviewPage.getByLabel(/^Password/).fill(password);
     await reviewPage.getByRole('button', { name: 'Continue', exact: true }).click();
     await reviewPage.getByRole('button', { name: /^View transaction details:/ }).first().waitFor();
@@ -1003,9 +1003,9 @@ try {
   await expiryTransactions.route(txRoute, async route => { if (!isTransactionPost(route.request())) { await route.continue(); return; } const response = await route.fetch(); expiryTxFetched = true; await new Promise(resolve => setTimeout(resolve, 1500)); try { await route.fulfill({ response }); } catch { /* session expired */ } });
   txForm = await fillTransaction(expiryTransactions, tx(ids.other, '0.01')); await txForm.getByRole('button', { name: 'Add record', exact: true }).click(); await waitFor(() => expiryTxFetched, 'Actual transaction before expiry');
   const expiryDraft=await context.newPage();await expiryDraft.goto(origin+'/records?view=review');await expiryDraft.getByRole('button',{name:'Start an unfinished entry',exact:true}).click();await expiryDraft.getByRole('dialog').getByLabel('Description',{exact:true}).fill('Private draft before expiry');
-  await control('EXPIRE', 'LIVE_EXPIRED'); await page.reload(); await page.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor();
-  await expiryDraft.reload();await expiryDraft.getByRole('heading',{name:'Sign in to FinSight'}).waitFor();assert.equal(await expiryDraft.getByText('Private draft before expiry',{exact:true}).count(),0);await expiryDraft.close();
-  await expiryTransactions.reload(); await expiryTransactions.getByRole('heading', { name: 'Sign in to FinSight' }).waitFor(); await expiryTransactions.close();
+  await control('EXPIRE', 'LIVE_EXPIRED'); await page.reload(); await page.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor();
+  await expiryDraft.reload();await expiryDraft.getByRole('heading',{name:'Sign in to Zarwia'}).waitFor();assert.equal(await expiryDraft.getByText('Private draft before expiry',{exact:true}).count(),0);await expiryDraft.close();
+  await expiryTransactions.reload(); await expiryTransactions.getByRole('heading', { name: 'Sign in to Zarwia' }).waitFor(); await expiryTransactions.close();
   await page.waitForTimeout(1700); await page.unroute(postRoute);
   assert.equal(await page.getByText('UI Stale Session Creation', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Other Business Bank', { exact: true }).count(), 0);

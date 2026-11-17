@@ -141,7 +141,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
           href="/"
           className="flex items-center gap-2.5 overflow-hidden focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] rounded-[var(--radius-sm)]"
         >
-          {/* Authoritative FinSight Logo Artwork (Blue Growth Bars + Navy Wordmark) */}
+          {/* Authoritative Zarwia Logo Artwork (Blue Growth Bars + Navy Wordmark) */}
           <div className="flex items-end gap-[3px] h-6 shrink-0" aria-hidden="true">
             <span className="w-[5px] h-3 bg-[#4F6BF5] rounded-full" />
             <span className="w-[5px] h-4.5 bg-[#3B54E6] rounded-full" />
@@ -154,7 +154,7 @@ export function Sidebar({ className, isCollapsed, onToggleCollapsed }: SidebarPr
           {!isCollapsed && (
             <div className="flex flex-col leading-none">
               <span className="font-heading font-extrabold text-[19px] tracking-tight text-[#030E2E]">
-                FinSight
+                Zarwia
               </span>
               <span className="text-[10px] text-[var(--color-text-muted)] font-medium tracking-wide uppercase mt-0.5">
                 Financial Health
