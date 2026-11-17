@@ -16,6 +16,9 @@ import { randomUUID } from 'node:crypto';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const smoke = process.argv.includes('--smoke');
+// Normal full acceptance includes the presentation regressions. Keep the original
+// explicit --candidate-v2 mode for historical independent QA replay.
+const presentation = !smoke && (process.argv.includes('--candidate-v31') || !process.argv.includes('--candidate-v2'));
 const frontendDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const rootDir = path.dirname(frontendDir);
 const scratchRoot = path.resolve(process.env.FINSIGHT_BROWSER_TMP_DIR || path.join(rootDir, 'tmp'));
@@ -325,12 +328,12 @@ public class ProductRuntime {
 
   }
 
-  if (process.argv.includes('--candidate-v2') || process.argv.includes('--candidate-v31')) {
+  if (process.argv.includes('--candidate-v2') || presentation) {
     assert.equal(smoke, false, 'Candidate-v2 contracts require the full financial/browser journey');
     const { candidateV2Journeys } = await import('./candidate-v2-journeys.mjs');
     await candidateV2Journeys({ origin, browser, call, csrf, cookies, mark, itemId: item.json.id, businessId: biz.json.businessId, today });
   }
-  if (process.argv.includes('--candidate-v31')) {
+  if (presentation) {
     const { candidateV31Journeys } = await import('./candidate-v31-journeys.mjs');
     await candidateV31Journeys({ origin, browser, call, cookies: [...jar].map(([name, value]) => ({ name, value, domain: '127.0.0.1', path: '/' })), mark, invoiceId, itemId: item.json.id, today, outDir });
   }
